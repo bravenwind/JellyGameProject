@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 002e08fc908ab9644b0fd82153643fd7
+timeCreated: 1504115524
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/JellyShader/Shader/Inc/Meta/JellyMetaSetup.cginc
+  uploadId: 383687

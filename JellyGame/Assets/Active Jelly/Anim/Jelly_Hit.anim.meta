@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 50f723f49e543184b95b3b24015b6f4a
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 7400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/Anim/Jelly_Hit.anim
+  uploadId: 383687

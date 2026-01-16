@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: b45fd0ed192346d44ba1865980230baf
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 2100000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/Materials/JellyAdditionalMat.mat
+  uploadId: 383687

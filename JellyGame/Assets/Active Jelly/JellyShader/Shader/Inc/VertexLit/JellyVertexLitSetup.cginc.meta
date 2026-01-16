@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 45293e4ee0f6b554d990004905fd081f
+timeCreated: 1505578948
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/JellyShader/Shader/Inc/VertexLit/JellyVertexLitSetup.cginc
+  uploadId: 383687

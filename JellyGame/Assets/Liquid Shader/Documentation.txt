@@ -1,0 +1,119 @@
+Liquid Shader by Triple Axis
+-------------------------------
+
+Thank you for purchasing Liquid Shader by Triple Axis!
+The workflow for setting up a contained liquid is pretty simple.
+This guide will walk through the basics for you as well as mention some important
+features of the shaders.
+
+Basics:
+	This package includes two shaders: Glass.shader and Liquid.shader
+	The glass shader will be applied to any material/object that contains the liquid.
+	The liquid shader will be applied to any liquid mesh.
+
+	A liquid mesh can take any shape. In most cases, it can be the container's mesh.
+	A liquid object must have the Liquid.cs script attached to it to pass variables
+	to the shader such as the cutoff position, positional/angular velocities, wave
+	intensity, and more.
+	The object may also have a reflection probe used to reflect and refract the scene
+	surrounding it.
+
+	In the example scene, there are a few objects that contain a liquid in them. All of
+	these objects share the same mesh with their liquid object.
+
+	Now that we've covered the basics, let's learn about the Liquid.cs script.
+
+Liquid.cs:
+	The liquid script must be placed on any liquid object in the scene.  The role of this
+	script is to send variables to the liquid shader.  You'll rarely have to call
+	this script's functions.  Instead, there are a few properties exposed in the
+	inspector that you can change.
+
+	Properties:
+	- Volume Mesh: This is the mesh used when calculating the liquid volume. Usually
+		this can be a lower level of detail version of the liquid object's mesh.  If
+		none is provided, this will default to the liquid object's mesh.
+	- Plane Position: This vector is the cutoff plane of the shader.  The higher the
+		Y value is, the more the object will fill up.  The lower it is, the less it
+		will fill up.
+
+Liquid.shader:
+	The liquid shader is applied to any object that you want to act as a liquid.
+	This shader has a lot of properties to allow for customization.
+
+	Properties:
+	- Refraction Method: Determines whether to use a reflection probe or a GrabPass
+		when reflecting/refracting the object's surroundings.  A reflection probe will
+		look the best while a grabpass will be more performant.
+	- Liquid Color: The color of the liquid.  You can also assign a texture.
+	- Normal Map: The normal map of the liquid.  Instead of using the mesh's UVs, a
+		biplanar (XZ) mapping will be used.
+	- Wave Map: The wave pattern shown when moving or rotating the liquid.
+	- Perlin Noise: A texture used for internal functions of the shader.  This is also
+		used as the foam's texture.
+	- Bubble Texture: The texture of the liquid's bubbles shown when moving or rotating
+		the liquid.
+	- Refraction Index: The refraction index of the liquid.  The higher it is, the more
+		the liquid refracts.
+	- Murkiness: Applies a blur to the reflection probe cubemap.  Only applies when
+		using the ReflectionProbe refraction method.
+	- Syrup: Simulates a syrup property by making the liquid less see-through.
+	- Fresnel Power: The width of the reflections shown on the sides of the mesh.
+	- Bubble Scale: The scale of the liquid's bubbles.
+	- Bubble Count: The maximum number of bubbles spawned when moving or rotating the
+		object.
+	- Surface Color: The color of the liquid's surface (the backface).
+	- Foam Color: The color of the foam shown when moving or rotating the object.
+	- Edge Thickness: The height of the surface edge.
+	- Meniscus Height: The height of the meniscus seen on the sides of the mesh.
+	- Meniscus Curve: The curve of the meniscus.
+	- Foam Amount: The maximum amount of foam shown.
+
+Glass.shader:
+	The glass shader is a specially designed shader to mimic old glass containers.
+	This shader is a six pass shader with four GrabPasses making this a slightly
+	expensive shader, but it looks great.  It is capable of blurring the background
+	and showing the back of the container's labels as well as adding a nice reflection
+	to the glass using the liquid object's reflection probe (if present).
+
+	Properties:
+	- Glass Color: The main color of the glass.  The texture acts as a way to put labels
+		on the glass with the alpha channel dictating the absence of a label.
+	- Normal Map: The bumpmap of the glass.  This also acts as the background distortion
+		texture with the intensity value shown to the right of the texture input.
+	- Roughness Texture: A detail map used to set the roughness of the glass.
+	- Blur Amount: Determines how much the background will be blurred.
+	- Fresnel Power: The width of the fresnel effect seen on the sides of the mesh.
+		The color of the fresnel is the same color as Glass Color.
+	- Thickness: The thickness of the glass used for the label's backface.
+	- Draw Backface: Determines whether to draw the label's backface.  Turn this off
+		if you are experiencing issues with the liquid disappearing at certain angles.
+		This seems to be a bug with Unity.
+
+
+Tips:
+	- Reflection probes look a lot better than GrabPasses on the liquid shader because
+	they are more accurate to real life refractions and also allow the glass shader to
+	accept a reflection.
+	- If your liquid object disappears at certain angles inside a glass container,
+	turn off "Draw Backface" to fix this.  This seems to be a bug with Unity.
+	- The liquid shader does not react to the mesh's volume underneath the cutoff plane
+	which means, depending on the mesh's shape, the liquid will not hold the same amount
+	in it at different rotations.  You can see this in action with the laboratory flask
+	in the example scene compared to the sphere.
+
+Nerdy Cool Things:
+	- Did you know the glass shader is not technically translucent?  Well it is
+	considered a "transparent" object since it's in the transparent shader queue,
+	but it's technically opaque with the grabpasses simply being projected onto it.
+	- The glass shader projects a shadow with differing levels of semi-transparency
+	depending on how see through the glass is.  You can see how the shadow dithers
+	if you use hard shadows.  This is the same technique the Standard shader uses!
+
+Contact:
+	Email: support@tripleaxis.net
+	Website: https://tripleaxis.net
+	Asset Store Page: http://u3d.as/1Wwq
+
+NissiBeach2 skybox textures by Humus: http://www.humus.name/index.php?page=Textures&ID=100
+� Triple Axis - 2020

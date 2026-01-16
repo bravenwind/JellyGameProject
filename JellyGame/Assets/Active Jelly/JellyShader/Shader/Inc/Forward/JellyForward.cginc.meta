@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: c2f47d4679c3dd74ba1262e7f1165712
+timeCreated: 1504115448
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/JellyShader/Shader/Inc/Forward/JellyForward.cginc
+  uploadId: 383687

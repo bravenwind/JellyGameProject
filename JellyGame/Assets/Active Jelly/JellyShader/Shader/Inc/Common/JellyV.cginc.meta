@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: 5fd79e172cf33684b87e6f2962a4b8c3
+timeCreated: 1504115125
+licenseType: Store
+ShaderImporter:
+  defaultTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/JellyShader/Shader/Inc/Common/JellyV.cginc
+  uploadId: 383687

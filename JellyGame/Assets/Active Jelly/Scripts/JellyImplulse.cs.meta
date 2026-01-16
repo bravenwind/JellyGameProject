@@ -1,0 +1,18 @@
+fileFormatVersion: 2
+guid: f447a8f936b804646a2104bc8203944e
+MonoImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  defaultReferences: []
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 176429
+  packageName: Active Jelly
+  packageVersion: 1.0
+  assetPath: Assets/Active Jelly/Scripts/JellyImplulse.cs
+  uploadId: 383687
