@@ -105,7 +105,7 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         if(type == JellyColorType.Black)
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[7];
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[7];
             Debug.Log("검정 먹음");
             UpdatePlayerVisual(true);
             return;
@@ -136,7 +136,7 @@ public class PlayerColorAbsorb : MonoBehaviour
             }
             else
             {
-                DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[7];
+                DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[7];
                 if (colorUI) colorUI.ChangeColorUI_TargetColor(CheckColorIntensity());
             }
         }
@@ -204,7 +204,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         }
         else if (!CombineColor())
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[7];
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[7];
         }
 
         if (colorUI) colorUI.ChangeColorUI_TargetColor(CheckColorIntensity());
@@ -259,7 +259,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         if ((currentColor == JellyColorType.Red && absorbedColor == JellyColorType.Green)
             || (currentColor == JellyColorType.Green && absorbedColor == JellyColorType.Red))
         {
-            DataManager.ColorSet yellowColorSet = DataManager.Instance.playerColors[5];
+            DataManager.ColorSet yellowColorSet = DataManager.Instance.jellyColorSets[5];
             DataManager.Instance.targetColorSet = yellowColorSet; // Yellow
             isCombined = true;
         }
@@ -267,7 +267,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         else if ((currentColor == JellyColorType.Green && absorbedColor == JellyColorType.Blue)
             || (currentColor == JellyColorType.Blue && absorbedColor == JellyColorType.Green))
         {
-            DataManager.ColorSet cyanColorSet = DataManager.Instance.playerColors[3];
+            DataManager.ColorSet cyanColorSet = DataManager.Instance.jellyColorSets[3];
             DataManager.Instance.targetColorSet = cyanColorSet; // Cyan
             isCombined = true;
         }
@@ -275,38 +275,38 @@ public class PlayerColorAbsorb : MonoBehaviour
         else if ((currentColor == JellyColorType.Blue && absorbedColor == JellyColorType.Red)
             || (currentColor == JellyColorType.Red && absorbedColor == JellyColorType.Blue))
         {
-            DataManager.ColorSet magentaColorSet = DataManager.Instance.playerColors[4];
+            DataManager.ColorSet magentaColorSet = DataManager.Instance.jellyColorSets[4];
             DataManager.Instance.targetColorSet = magentaColorSet; // Magenta
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Yellow && absorbedColor == JellyColorType.Red))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[0]; // Red
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[0]; // Red
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Yellow && absorbedColor == JellyColorType.Green))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[1]; // Green
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[1]; // Green
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Magenta && absorbedColor == JellyColorType.Red))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[0]; // Red
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[0]; // Red
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Magenta && absorbedColor == JellyColorType.Blue))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[2]; // Blue
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[2]; // Blue
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Cyan && absorbedColor == JellyColorType.Green))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[1]; // Green
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[1]; // Green
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Cyan && absorbedColor == JellyColorType.Blue))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.playerColors[2]; // Blue
+            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[2]; // Blue
             isCombined = true;
         }
 

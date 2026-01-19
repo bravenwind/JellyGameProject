@@ -17,8 +17,6 @@ public class JellyColliderAbsorb : MonoBehaviour
     bool lockIn = false;
     public float lockInTime = 3.0f;
 
-    private float timer = 0.0f;
-
     public Collider edibleCollider;
     private NavMeshAgent agent;
 
@@ -141,7 +139,7 @@ public class JellyColliderAbsorb : MonoBehaviour
         if (player != null)
         {
             // Debug.Log("흡수됨");
-            player.AbsorbColor(GetComponent<JellyColorSource>().GetJellyColorType());
+            player.AbsorbColor(GetComponent<JellyObject>().jellyType);
             //Instantiate(spritePrefab, transform.position, Quaternion.identity);
             UIPoolManager.Instance.SpawnUI(transform);
         }
@@ -152,10 +150,16 @@ public class JellyColliderAbsorb : MonoBehaviour
     private void OnDrawGizmos()
     {
         // 에러 방지용 null 체크
-        var colorSource = GetComponent<JellyColorSource>();
-        if (colorSource != null)
+        //var colorSource = GetComponent<JellyObject>();
+        //if (colorSource != null)
+        //{
+        //    Gizmos.color = JellyObject.GetColor();
+        //}
+        Renderer renderer = gameObject.GetComponentInChildren<Renderer>();
+
+        if (renderer != null) 
         {
-            Gizmos.color = colorSource.GetColor();
+            Gizmos.color = renderer.sharedMaterial.GetColor("_Emission");
         }
 
         Gizmos.DrawWireSphere(transform.position, destroyDistance);
