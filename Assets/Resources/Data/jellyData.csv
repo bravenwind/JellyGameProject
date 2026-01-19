@@ -1,0 +1,12 @@
+ID,Name,Color,ScaleLevel,Base,Normal,Mask
+1,Red,Red,1,BaseMap,Normal,MaskMap
+2,Blue,Blue,1,BaseMap,Normal,MaskMap
+3,Green,Green,1,BaseMap,Normal,MaskMap
+4,Cyan,Cyan,1,BaseMap,Normal,MaskMap
+5,Magenta,Magenta,1,BaseMap,Normal,MaskMap
+6,Yellow,Yellow,1,BaseMap,Normal,MaskMap
+7,White,White,1,BaseMap,Normal,MaskMap
+8,Black,Black,1,BaseMap,Normal,MaskMap
+9,PlayerLV1,RGB,1,BaseMap,Normal,MaskMap
+10,PlayerLV2,RGB,2,BaseMap,Normal,MaskMap
+11,PlayerLV3,RGB,3,BaseMap,Normal,MaskMap
