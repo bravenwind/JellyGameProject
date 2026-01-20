@@ -20,16 +20,17 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: BearJelly_Heart
+  m_Name: HeartBearJelly_Magenta
   m_Shader: {fileID: -6465566751694194690, guid: f4f15559cd05dbf498ff327813862bd5, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _EMISSION
   m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: -1
+  m_CustomRenderQueue: 2000
   stringTagMap: {}
   disabledShaderPasses:
   - MOTIONVECTORS
@@ -69,27 +70,27 @@ Material:
     m_Floats:
     - _AO: 0
     - _Atten: 1
-    - _BendStrength: 1
+    - _BendStrength: 2
     - _Distortion: 1.68
-    - _FresnelPower: 1
+    - _FresnelPower: 3.32
     - _MaskLerp: 0
     - _Metallic: 0
-    - _NoiseScale: 10
+    - _NoiseScale: 1
     - _NormalInfluence: 0
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _SSSIntensity: 1
-    - _SSSPower: 1
+    - _SSSIntensity: 8.5
+    - _SSSPower: 2.2
     - _SSSScale: 1
     - _ScaleNoise: 1.07
-    - _Smoothness: 0
-    - _Speed: 0.1
+    - _Smoothness: 1
+    - _Speed: 2
     - _WindPower: 0.5
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 0}
-    - _Direction: {r: 0, g: 0, b: 0, a: 0}
-    - _Emission: {r: 0, g: 0, b: 0, a: 0}
-    - _FresnelColor: {r: 1, g: 0, b: 0, a: 0}
-    - _SSSColor: {r: 1, g: 0, b: 0, a: 0}
+    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _Direction: {r: 1, g: 2, b: 1, a: 0}
+    - _Emission: {r: 1, g: 0.4, b: 1, a: 1}
+    - _FresnelColor: {r: 1, g: 0, b: 1, a: 1}
+    - _SSSColor: {r: 0.6943884, g: 0, b: 1, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

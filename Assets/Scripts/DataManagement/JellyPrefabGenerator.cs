@@ -28,7 +28,7 @@ public class JellyPrefabGenerator : MonoBehaviour
             return;
         }
 
-        if (DataManager.Instance == null || DataManager.Instance.jellyColorSets == null)
+        if (DataManager.Instance == null || DataManager.Instance.enemyJellyColorSets == null)
         {
             Debug.LogError("DataManager 혹은 ColorSets가 초기화되지 않았습니다.");
             return;
@@ -45,7 +45,7 @@ public class JellyPrefabGenerator : MonoBehaviour
         int count = 0;
 
         // 2. DataManager의 모든 ColorSet을 순회
-        foreach (var colorSet in DataManager.Instance.jellyColorSets)
+        foreach (var colorSet in DataManager.Instance.enemyJellyColorSets)
         {
             if (colorSet.colorMaterial == null)
             {

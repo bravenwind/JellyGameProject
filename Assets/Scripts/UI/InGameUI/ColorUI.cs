@@ -17,28 +17,28 @@ public class ColorUI : MonoBehaviour
             switch (type)
             {
                 case JellyColorType.Red:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[0].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[0].normal;
                     break;
                 case JellyColorType.Green:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[1].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[1].normal;
                     break;
                 case JellyColorType.Blue:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[2].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[2].normal;
                     break;
                 case JellyColorType.Cyan:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[3].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[3].normal;
                     break;
                 case JellyColorType.Magenta:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[4].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[4].normal;
                     break;
                 case JellyColorType.Yellow:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[5].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[5].normal;
                     break;
                 case JellyColorType.White:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[6].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[6].normal;
                     break;
                 case JellyColorType.Black:
-                    jellyColorImages[i].color = DataManager.Instance.jellyColorSets[7].normal;
+                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[7].normal;
                     break;
                 //필요하다면 default 케이스 추가 (예: 투명하게 하거나 흰색으로 설정)
                 case JellyColorType.Temp:

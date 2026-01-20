@@ -50,7 +50,7 @@ public class SoftBody3D : MonoBehaviour
         _cloth.bendingStiffness = bendingStiffness;
         _cloth.worldVelocityScale = worldVelocityScale;
         _cloth.worldAccelerationScale = worldAccelerationScale;
-        _cloth.useGravity = false;
+        _cloth.useGravity = true;
 
         if (!Mathf.Approximately(_lastSoftness, softness))
         {

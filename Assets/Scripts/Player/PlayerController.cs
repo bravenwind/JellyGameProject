@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using Unity.VisualScripting;
+using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlayerController : BaseFSM
 {
@@ -36,6 +38,15 @@ public class PlayerController : BaseFSM
         //rb.interpolation = RigidbodyInterpolation.Interpolate; // ⭐ 필수
         //rb.freezeRotation = true; // 물리 회전 방지 (우리가 직접 제어)
         // [추가] 콜라이더 가져오기
+
+        if (SceneManager.GetActiveScene() == SceneManager.GetSceneByName("TileScene"))
+        {
+            moveSpeed = 6.0f;
+        }
+        else
+        {
+            moveSpeed = 3.0f;
+        }
 
         playerCollider = GetComponent<Collider>();
 

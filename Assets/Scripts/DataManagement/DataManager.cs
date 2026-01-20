@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq; // 리스트 필터링을 위해 추가 (FindAll 등)
+using System.Linq;
 
 public enum JellyColorType
 {
@@ -12,8 +12,13 @@ public class DataManager : MonoBehaviour
 {
     public static DataManager Instance;
 
-    [Header("Color Settings")]
-    public ColorSet[] jellyColorSets;
+    [Header("Color Settings (Enemy)")]
+    public ColorSet[] enemyJellyColorSets; // 기존 에너미용
+
+    [Header("Color Settings (Player)")]
+    public ColorSet[] playerJellyColorSets; // [추가] 플레이어용
+
+    [Header("Current Status")]
     public ColorSet initialColorSet;
     public ColorSet currentColorSet;
     public ColorSet targetColorSet;
@@ -24,33 +29,18 @@ public class DataManager : MonoBehaviour
     public int currentColorJellyCount;
     public int changeColorJellyCount;
 
-    // 색상 변경을 위한 버퍼 (3개를 모았을 때 판정)
     public List<JellyColorType> jellyBuffer = new List<JellyColorType>();
 
-    // 데이터 구조 예시
     [System.Serializable]
     public struct ColorSet
     {
         public string colorName;
         public Material colorMaterial;
         public JellyColorType colorType;
-        public Color weak;  // 1단계
-        public Color normal;   // 2단계
-        public Color strong;   // 3단계
+        public Color weak;   // 1단계
+        public Color normal; // 2단계
+        public Color strong; // 3단계
     }
-
-    //[Header("Color Increment Settings (Vector3: X=R, Y=G, Z=B)")]
-    //public Vector3 redPlusColor = new Vector3(30, 0, 0);
-    //public Vector3 greenPlusColor = new Vector3(0, 30, 0);
-    //public Vector3 bluePlusColor = new Vector3(0, 0, 30);
-
-    //// 혼합색 (Yellow = R+G, Magenta = R+B, Cyan = G+B)
-    //public Vector3 yellowPlusColor = new Vector3(20, 20, 0);
-    //public Vector3 magentaPlusColor = new Vector3(20, 0, 20);
-    //public Vector3 cyanPlusColor = new Vector3(0, 20, 20);
-
-    //// 빼는 색 (음수값 사용)
-    //public Vector3 whitePlusColor = new Vector3(-30, -30, -30);
 
     [Header("Level Settings")]
     public int levelUpExp = 5;
@@ -79,15 +69,15 @@ public class DataManager : MonoBehaviour
     public MissionSet[] missions;
 
     [Header("Data Access")]
-    public JellyDataDAO jellyDAO; // 인스펙터에서 할당하거나 코드로 추가
-    public List<JellyDataDTO> loadedJellyData; // 로드된 데이터 확인용
+    public JellyDataDAO jellyDAO;
+    public List<JellyDataDTO> loadedEnemyData;  // 확인용
+    public List<JellyDataDTO> loadedPlayerData; // 확인용 [추가]
 
     private void Awake()
     {
         if (Instance == null)
         {
             Instance = this;
-            // DontDestroyOnLoad(gameObject); // 필요 시 주석 해제
         }
         else
         {
@@ -95,6 +85,12 @@ public class DataManager : MonoBehaviour
             return;
         }
 
+        InitializeGameData();
+        LoadAndApplyData(); // 데이터 로드 및 적용
+    }
+
+    private void InitializeGameData()
+    {
         playerCurrentLevel = 1;
         absorbedJellyCount = 0;
         addScalePerLevel = new float[maxLevel];
@@ -104,44 +100,53 @@ public class DataManager : MonoBehaviour
         {
             addScalePerLevel[i] = 1.5f;
         }
+    }
 
-        // [수정됨] 초기 색상 세팅 확실하게 초기화
-        if (jellyColorSets.Length > 0)
+    private void LoadAndApplyData()
+    {
+        // 1. DAO 초기화
+        if (jellyDAO == null) jellyDAO = gameObject.AddComponent<JellyDataDAO>();
+
+        // 2. CSV 데이터 로드 (DAO 호출)
+        loadedEnemyData = jellyDAO.LoadJellyData();   // 기존 (에너미)
+        loadedPlayerData = jellyDAO.LoadPlayerData(); // 신규 (플레이어)
+
+        // 3. 데이터를 ColorSet으로 변환하여 적용
+        // 에너미 젤리 적용
+        if (loadedEnemyData != null)
         {
-            initialColorSet = jellyColorSets[0];
-            currentColorSet = initialColorSet; // 현재 상태 초기화 필수
-            targetColorSet = initialColorSet;
+            enemyJellyColorSets = ConvertDtosToColorSets(loadedEnemyData);
         }
 
-        // DAO 설정 및 데이터 로드
-        if (jellyDAO == null) jellyDAO = gameObject.AddComponent<JellyDataDAO>();
-        loadedJellyData = jellyDAO.LoadJellyData();
-
-        // ★ CSV 데이터로 ColorSet 채우기 (여기서 호출) ★
-        ApplyCsvDataToGame();
-
-        // 데이터 로드 후 초기 세팅 (jellyColorSets가 채워진 후 실행해야 안전)
-        if (jellyColorSets != null && jellyColorSets.Length > 0)
+        // 플레이어 젤리 적용 [추가]
+        if (loadedPlayerData != null)
         {
-            initialColorSet = jellyColorSets[0];
+            playerJellyColorSets = ConvertDtosToColorSets(loadedPlayerData);
+        }
+        else
+        {
+            Debug.LogWarning("플레이어 데이터가 로드되지 않았습니다. (Resources/Data/PlayerData.csv 확인 필요)");
+        }
+
+        // 4. 초기값 설정 (에너미 데이터 기준 예시, 필요시 플레이어로 변경 가능)
+        if (playerJellyColorSets != null && playerJellyColorSets.Length > 0)
+        {
+            initialColorSet = playerJellyColorSets[0];
             currentColorSet = initialColorSet;
             targetColorSet = initialColorSet;
         }
+
+        Debug.Log($"데이터 로드 완료 - Enemy: {playerJellyColorSets?.Length ?? 0}개, Player: {playerJellyColorSets?.Length ?? 0}개");
     }
 
-    private void ApplyCsvDataToGame()
+    // [핵심] DTO 리스트를 ColorSet 배열로 변환하는 공통 함수
+    private ColorSet[] ConvertDtosToColorSets(List<JellyDataDTO> dataList)
     {
-        if (loadedJellyData == null || loadedJellyData.Count == 0)
-        {
-            Debug.LogWarning("로딩된 젤리 데이터가 없습니다.");
-            return;
-        }
+        if (dataList == null || dataList.Count == 0) return new ColorSet[0];
 
-        // 1. 데이터를 ColorType 별로 그룹화하기 위한 딕셔너리 생성
-        // Key: JellyColorType (Red, Blue...), Value: 해당 색상의 모든 DTO 리스트 (Weak, Normal, Strong)
+        // 1. 그룹화
         Dictionary<JellyColorType, List<JellyDataDTO>> groupedData = new Dictionary<JellyColorType, List<JellyDataDTO>>();
-
-        foreach (var dto in loadedJellyData)
+        foreach (var dto in dataList)
         {
             if (!groupedData.ContainsKey(dto.ColorType))
             {
@@ -150,22 +155,19 @@ public class DataManager : MonoBehaviour
             groupedData[dto.ColorType].Add(dto);
         }
 
-        // 2. 그룹화된 데이터를 바탕으로 ColorSet 리스트 생성
-        List<ColorSet> newColorSets = new List<ColorSet>();
+        // 2. ColorSet 생성
+        List<ColorSet> resultColorSets = new List<ColorSet>();
 
         foreach (var group in groupedData)
         {
-            JellyColorType type = group.Key;       // 현재 처리 중인 색상 타입 (예: Red)
-            List<JellyDataDTO> dtos = group.Value; // 해당 색상의 데이터들 (강도 1,2,3)
+            JellyColorType type = group.Key;
+            List<JellyDataDTO> dtos = group.Value;
 
             ColorSet set = new ColorSet();
             set.colorType = type;
             set.colorName = type.ToString();
 
-            // 3. 각 강도(Intensity)에 맞는 데이터 찾아서 색상 할당
-            // DTO에 GetColor() 함수가 있다고 가정 (이전 답변 코드 참고)
-            // 만약 GetColor()가 없다면: new Color(dto.R/255f, dto.G/255f, dto.B/255f) 로 직접 변환
-
+            // 강도별 색상 할당
             JellyDataDTO weakDto = dtos.Find(d => d.ColorIntensity == 1);
             if (weakDto != null) set.weak = weakDto.GetColor();
 
@@ -175,28 +177,26 @@ public class DataManager : MonoBehaviour
             JellyDataDTO strongDto = dtos.Find(d => d.ColorIntensity == 3);
             if (strongDto != null) set.strong = strongDto.GetColor();
 
-            // 4. 머티리얼 로드 (Normal 등급의 머티리얼을 기준으로 하거나, 공통 사용)
-            // Resources 폴더 경로 주의: "Materials/" + 파일이름
+            // 머티리얼 로드
             JellyDataDTO representativeDto = normalDto ?? weakDto ?? strongDto;
             if (representativeDto != null)
             {
-                // CSV에 "BearJelly_Red"라고 적혀있다면 -> Resources/Materials/BearJelly_Red 로드 시도
-                // 경로는 실제 프로젝트 구조에 맞게 수정 필요
+                // 경로 예시: Models/BearJelly/Materials/MaterialName
+                // 주의: 플레이어와 에너미의 머티리얼 폴더 경로가 다르다면 DTO에 경로 필드를 추가하거나 여기서 분기 처리가 필요할 수 있음.
+                // 현재는 CSV의 'MaterialPath' 값을 그대로 사용한다고 가정.
                 string path = $"Models/BearJelly/Materials/{representativeDto.MaterialPath}";
                 set.colorMaterial = Resources.Load<Material>(path);
 
                 if (set.colorMaterial == null)
                 {
-                    Debug.LogWarning($"머티리얼을 찾을 수 없습니다: {path}");
+                    // 혹시 경로가 다를 수 있으니 로그만 띄움
+                    // Debug.LogWarning($"머티리얼 로드 실패: {path}");
                 }
             }
 
-            newColorSets.Add(set);
+            resultColorSets.Add(set);
         }
 
-        // 5. 리스트를 배열로 변환하여 DataManager 변수에 할당
-        jellyColorSets = newColorSets.ToArray();
-
-        Debug.Log($"CSV 데이터를 통해 {jellyColorSets.Length}개의 ColorSet을 생성했습니다.");
+        return resultColorSets.ToArray();
     }
 }

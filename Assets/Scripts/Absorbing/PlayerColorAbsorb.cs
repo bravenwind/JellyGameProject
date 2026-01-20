@@ -37,7 +37,9 @@ public class PlayerColorAbsorb : MonoBehaviour
     private MainCamera_Action mainCamera_Action;
     private Coroutine currentFadeCoroutine;
 
+    //public UIFollowTarget followTarget;
     public UIFollowTarget followTarget;
+    public UIPoolManager uIPoolManager;
 
     void Start()
     {
@@ -107,7 +109,7 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         if(type == JellyColorType.Black)
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[7];
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[7];
             Debug.Log("검정 먹음");
             UpdatePlayerVisual(true);
             return;
@@ -138,7 +140,7 @@ public class PlayerColorAbsorb : MonoBehaviour
             }
             else
             {
-                DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[7];
+                DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[7];
                 if (colorUI) colorUI.ChangeColorUI_TargetColor(CheckColorIntensity());
             }
         }
@@ -156,7 +158,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         {
             if (DataManager.Instance.playerCurrentLevel < DataManager.Instance.maxLevel)
             {
-                followTarget.SetTarget(transform);
+                uIPoolManager.SpawnUI(followTarget, transform);
                 StartCoroutine(IncreaseScale(0.5f));
             }
             if (mainCamera_Action != null) mainCamera_Action.ScaleChanged();
@@ -207,7 +209,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         }
         else if (!CombineColor())
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[7];
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[7];
         }
 
         if (colorUI) colorUI.ChangeColorUI_TargetColor(CheckColorIntensity());
@@ -262,7 +264,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         if ((currentColor == JellyColorType.Red && absorbedColor == JellyColorType.Green)
             || (currentColor == JellyColorType.Green && absorbedColor == JellyColorType.Red))
         {
-            DataManager.ColorSet yellowColorSet = DataManager.Instance.jellyColorSets[5];
+            DataManager.ColorSet yellowColorSet = DataManager.Instance.enemyJellyColorSets[5];
             DataManager.Instance.targetColorSet = yellowColorSet; // Yellow
             isCombined = true;
         }
@@ -270,7 +272,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         else if ((currentColor == JellyColorType.Green && absorbedColor == JellyColorType.Blue)
             || (currentColor == JellyColorType.Blue && absorbedColor == JellyColorType.Green))
         {
-            DataManager.ColorSet cyanColorSet = DataManager.Instance.jellyColorSets[3];
+            DataManager.ColorSet cyanColorSet = DataManager.Instance.enemyJellyColorSets[3];
             DataManager.Instance.targetColorSet = cyanColorSet; // Cyan
             isCombined = true;
         }
@@ -278,38 +280,38 @@ public class PlayerColorAbsorb : MonoBehaviour
         else if ((currentColor == JellyColorType.Blue && absorbedColor == JellyColorType.Red)
             || (currentColor == JellyColorType.Red && absorbedColor == JellyColorType.Blue))
         {
-            DataManager.ColorSet magentaColorSet = DataManager.Instance.jellyColorSets[4];
+            DataManager.ColorSet magentaColorSet = DataManager.Instance.enemyJellyColorSets[4];
             DataManager.Instance.targetColorSet = magentaColorSet; // Magenta
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Yellow && absorbedColor == JellyColorType.Red))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[0]; // Red
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[0]; // Red
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Yellow && absorbedColor == JellyColorType.Green))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[1]; // Green
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[1]; // Green
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Magenta && absorbedColor == JellyColorType.Red))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[0]; // Red
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[0]; // Red
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Magenta && absorbedColor == JellyColorType.Blue))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[2]; // Blue
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[2]; // Blue
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Cyan && absorbedColor == JellyColorType.Green))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[1]; // Green
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[1]; // Green
             isCombined = true;
         }
         else if ((currentColor == JellyColorType.Cyan && absorbedColor == JellyColorType.Blue))
         {
-            DataManager.Instance.targetColorSet = DataManager.Instance.jellyColorSets[2]; // Blue
+            DataManager.Instance.targetColorSet = DataManager.Instance.enemyJellyColorSets[2]; // Blue
             isCombined = true;
         }
 
@@ -340,7 +342,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         
         Material targetColorMaterial = DataManager.Instance.targetColorSet.colorMaterial;
 
-        targetBaseColor = targetColorMaterial.GetColor("_BaseColor");
+        //targetBaseColor = targetColorMaterial.GetColor("_BaseColor");
         targetEmissionColor = CheckColorIntensity();
         targetSSSColor = targetColorMaterial.GetColor("_SSSColor");
         targetFresnelColor = targetColorMaterial.GetColor("_FresnelColor");
@@ -366,8 +368,8 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     IEnumerator BlendColor2(Color targetBase, Color targetEmission, Color targetSSS, Color targetFresnel, float time)
     {
+        //Color startBase = currentBaseColor;
         Color startEmission = currentEmissionColor;
-        Color startBase = currentBaseColor;
         Color startSSS = currentSSSColor;
         Color startFresnel = currentFresnelColor;
 
@@ -378,12 +380,12 @@ public class PlayerColorAbsorb : MonoBehaviour
             t += Time.deltaTime;
             float progress = t / time;
 
-            currentBaseColor = Color.Lerp(startBase, targetBase, progress);
+            //currentBaseColor = Color.Lerp(startBase, targetBase, progress);
             currentEmissionColor = Color.Lerp(startEmission, targetEmission, progress);
             currentSSSColor = Color.Lerp(startSSS, targetSSS, progress);
             currentFresnelColor = Color.Lerp(startFresnel, targetFresnel, progress);
 
-            rend.material.SetColor("_BaseColor", currentBaseColor);
+            //rend.material.SetColor("_BaseColor", currentBaseColor);
             rend.material.SetColor("_Emission", currentEmissionColor);
             rend.material.SetColor("_SSSColor", currentSSSColor);
             rend.material.SetColor("_FresnelColor", currentFresnelColor);
@@ -392,12 +394,12 @@ public class PlayerColorAbsorb : MonoBehaviour
         }
 
         // 최종값 강제 설정 (오차 방지)
-        currentBaseColor = targetBase;
+        //currentBaseColor = targetBase;
         currentEmissionColor = targetEmission;
         currentSSSColor = targetSSS;
         currentFresnelColor = targetFresnel;
 
-        rend.material.SetColor("_BaseColor", currentBaseColor);
+       // rend.material.SetColor("_BaseColor", currentBaseColor);
         rend.material.SetColor("_Emission", currentEmissionColor);
         rend.material.SetColor("_SSSColor", currentSSSColor);
         rend.material.SetColor("_FresnelColor", currentFresnelColor);

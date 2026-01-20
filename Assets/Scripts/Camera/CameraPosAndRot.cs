@@ -25,7 +25,7 @@ public class CameraPosAndRot : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        action.offset = new Vector3(originalOffset.x + posSliders[0].value, originalOffset.y + posSliders[1].value, originalOffset.z + posSliders[2].value);
+        //action.offset = new Vector3(originalOffset.x + posSliders[0].value, originalOffset.y + posSliders[1].value, originalOffset.z + posSliders[2].value);
 
         //cam.transform.rotation = action.originalRot * Quaternion.Euler(new Vector3(rotSliders[0].value, rotSliders[1].value, rotSliders[2].value));
     }
