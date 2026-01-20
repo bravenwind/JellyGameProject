@@ -141,7 +141,8 @@ public class JellyColliderAbsorb : MonoBehaviour
             // Debug.Log("흡수됨");
             player.AbsorbColor(GetComponent<JellyObject>().jellyType);
             //Instantiate(spritePrefab, transform.position, Quaternion.identity);
-            UIPoolManager.Instance.SpawnUI(transform);
+            UIPoolManager.Instance.SpawnUI(spritePrefab.GetComponent<UIFollowTarget>(), transform);
+            //UIPoolManager2.Instance.SpawnUI(player.transform);
         }
 
         Destroy(gameObject);

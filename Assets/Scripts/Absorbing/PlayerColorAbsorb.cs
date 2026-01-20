@@ -37,6 +37,8 @@ public class PlayerColorAbsorb : MonoBehaviour
     private MainCamera_Action mainCamera_Action;
     private Coroutine currentFadeCoroutine;
 
+    public UIFollowTarget followTarget;
+
     void Start()
     {
         // [안전장치] Renderer가 연결되지 않았을 경우 자동 할당
@@ -154,6 +156,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         {
             if (DataManager.Instance.playerCurrentLevel < DataManager.Instance.maxLevel)
             {
+                followTarget.SetTarget(transform);
                 StartCoroutine(IncreaseScale(0.5f));
             }
             if (mainCamera_Action != null) mainCamera_Action.ScaleChanged();

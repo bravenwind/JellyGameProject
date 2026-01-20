@@ -1174,7 +1174,7 @@ MonoBehaviour:
   absorbTimer: 0
   lockInTime: 3
   edibleCollider: {fileID: 3953971219392328586}
-  spritePrefab: {fileID: 3690400693589823696, guid: c1abc5d1dbf433148b1b6bcce719e8f0, type: 3}
+  spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
 --- !u!195 &1339579352120215717
 NavMeshAgent:
   m_ObjectHideFlags: 0
