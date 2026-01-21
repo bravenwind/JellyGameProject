@@ -5,48 +5,50 @@ using UnityEngine.UI;
 public class ColorUI : MonoBehaviour
 {
     public Image[] jellyColorImages;
-    public Image targetColorImage;
+    public Image currentColorImage;
+    public TMP_Text currentColorText;
+    private Image targetColorImage;
 
-    public void ChangeColorUI_CurrentJelly()
-    {
-        for (int i = 0; i < jellyColorImages.Length; i++)
-        {
-            // 현재 인덱스의 젤리 타입 가져오기
-            JellyColorType type = DataManager.Instance.jellyBuffer[i];
+    //public void ChangeColorUI_CurrentJelly()
+    //{
+    //    for (int i = 0; i < jellyColorImages.Length; i++)
+    //    {
+    //        // 현재 인덱스의 젤리 타입 가져오기
+    //        JellyColorType type = DataManager.Instance.jellyBuffer[i];
 
-            switch (type)
-            {
-                case JellyColorType.Red:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[0].normal;
-                    break;
-                case JellyColorType.Green:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[1].normal;
-                    break;
-                case JellyColorType.Blue:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[2].normal;
-                    break;
-                case JellyColorType.Cyan:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[3].normal;
-                    break;
-                case JellyColorType.Magenta:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[4].normal;
-                    break;
-                case JellyColorType.Yellow:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[5].normal;
-                    break;
-                case JellyColorType.White:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[6].normal;
-                    break;
-                case JellyColorType.Black:
-                    jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[7].normal;
-                    break;
-                //필요하다면 default 케이스 추가 (예: 투명하게 하거나 흰색으로 설정)
-                case JellyColorType.Temp:
-                    jellyColorImages[i].color = new Color(1, 1, 1, 0);
-                    break;
-            }
-        }
-    }
+    //        switch (type)
+    //        {
+    //            case JellyColorType.Red:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[0].normal;
+    //                break;
+    //            case JellyColorType.Green:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[1].normal;
+    //                break;
+    //            case JellyColorType.Blue:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[2].normal;
+    //                break;
+    //            case JellyColorType.Cyan:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[3].normal;
+    //                break;
+    //            case JellyColorType.Magenta:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[4].normal;
+    //                break;
+    //            case JellyColorType.Yellow:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[5].normal;
+    //                break;
+    //            case JellyColorType.White:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[6].normal;
+    //                break;
+    //            case JellyColorType.Black:
+    //                jellyColorImages[i].color = DataManager.Instance.enemyJellyColorSets[7].normal;
+    //                break;
+    //            //필요하다면 default 케이스 추가 (예: 투명하게 하거나 흰색으로 설정)
+    //            case JellyColorType.Temp:
+    //                jellyColorImages[i].color = new Color(1, 1, 1, 0);
+    //                break;
+    //        }
+    //    }
+    //}
 
     public void ChangeColorUI_TargetColor(Color changeColor)
     {
@@ -85,5 +87,11 @@ public class ColorUI : MonoBehaviour
         //        targetColorImage.color = new Color(1, 1, 1, 0);
         //        break;
         //}
+    }
+
+    public void ChangeCurrentColorUI()
+    {
+        currentColorImage.color = new Color32(DataManager.Instance.currentColor.r, DataManager.Instance.currentColor.g, DataManager.Instance.currentColor.b, 255);
+        currentColorText.text = $"R: {DataManager.Instance.currentColor.r} G: {DataManager.Instance.currentColor.g} B: {DataManager.Instance.currentColor.b}";
     }
 }

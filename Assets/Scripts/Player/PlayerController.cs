@@ -43,9 +43,9 @@ public class PlayerController : BaseFSM
         {
             moveSpeed = 6.0f;
         }
-        else
+        else if (SceneManager.GetActiveScene() == SceneManager.GetSceneByName("ResourceApplyScene"))
         {
-            moveSpeed = 3.0f;
+            moveSpeed = 6.0f;
         }
 
         playerCollider = GetComponent<Collider>();

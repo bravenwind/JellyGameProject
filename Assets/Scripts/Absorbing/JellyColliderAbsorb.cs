@@ -49,6 +49,7 @@ public class JellyColliderAbsorb : MonoBehaviour
             if (absorbTimer >=  completelyAbsorbedTime) 
             {
                 OnAbsorbed();   
+                absorbing = false;
             }
         }
     }
@@ -121,11 +122,6 @@ public class JellyColliderAbsorb : MonoBehaviour
         float force = Mathf.Lerp(0f, maxForce, t);
 
         rb.AddForce(dir * force, ForceMode.Force);
-
-        if (dist < destroyDistance)
-        {
-            OnAbsorbed();
-        }
 
         return;
     }

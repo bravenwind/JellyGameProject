@@ -16,7 +16,7 @@ public class RandomObjectSpawner : MonoBehaviour
 
     private void Start()
     {
-        // SpawnObjects(); // 게임 시작 시 자동 생성하려면 주석 해제
+        // SpawnObjects(); 
     }
 
     [ContextMenu("무조건 랜덤 소환 (Spawn)")]
@@ -38,37 +38,40 @@ public class RandomObjectSpawner : MonoBehaviour
         float stepX = tileSize.x + mapGenerator.gap;
         float stepZ = tileSize.z + mapGenerator.gap;
 
-        // 2. 그냥 횟수만큼 돌면서 무조건 생성 (중복 체크 X)
+        // 전체 맵의 실제 물리적 크기 계산 (첫 타일 중심 ~ 끝 타일 중심)
+        // (width - 1)을 하는 이유는 타일 개수가 5개면 간격은 4칸이기 때문
+        float mapSizeX = (mapGenerator.width - 1) * stepX;
+        float mapSizeZ = (mapGenerator.height - 1) * stepZ;
+
+        // 2. 횟수만큼 완전 무작위 위치 생성
         for (int i = 0; i < spawnCount; i++)
         {
             int jellyIndex = Random.Range(0, objectPrefab.Length);
 
-            // 랜덤 인덱스 뽑기
-            int rX = Random.Range(0, mapGenerator.width);
-            int rZ = Random.Range(0, mapGenerator.height);
+            // [변경점] int(정수) 인덱스가 아니라 float(실수) 범위 내에서 랜덤 추출
+            // 0 ~ 맵 전체 길이 사이의 아무 실수값이나 뽑음
+            float rX = Random.Range(0f, mapSizeX);
+            float rZ = Random.Range(0f, mapSizeZ);
 
-            // 위치 계산 (AutoGridMapGenerator 공식)
-            float xPos = rX * stepX;
-            float zPos = rZ * stepZ;
-
-            // 중앙 정렬 보정
+            // 중앙 정렬 보정 로직
             if (mapGenerator.centerGrid)
             {
-                xPos -= (mapGenerator.width * stepX) / 2f - (stepX / 2f);
-                zPos -= (mapGenerator.height * stepZ) / 2f - (stepZ / 2f);
+                // 0 ~ Max 범위를 -Half ~ +Half 범위로 이동
+                rX -= mapSizeX / 2f;
+                rZ -= mapSizeZ / 2f;
             }
 
-            Vector3 spawnPos = mapGenerator.transform.position + new Vector3(xPos, yOffset, zPos);
+            Vector3 spawnPos = mapGenerator.transform.position + new Vector3(rX, yOffset, rZ);
 
             // 생성
             GameObject obj = Instantiate(objectPrefab[jellyIndex], spawnPos, Quaternion.identity);
             obj.transform.SetParent(this.transform);
-            obj.name = $"{objectPrefab[jellyIndex].name}_{i}"; // 이름은 그냥 순번으로
+            obj.name = $"{objectPrefab[jellyIndex].name}_{i}";
 
             spawnedObjects.Add(obj);
         }
 
-        Debug.Log($"중복 허용 랜덤 소환 완료: {spawnCount}개");
+        Debug.Log($"자유 위치 랜덤 소환 완료: {spawnCount}개");
     }
 
     [ContextMenu("지우기 (Clear)")]

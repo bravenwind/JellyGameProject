@@ -38,19 +38,19 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: c8dd2794d0de46d4fbd672f4ce746836, type: 3}
+        m_Texture: {fileID: 2800000, guid: 501d12caffc99a746a9542aecca62c52, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _MaskMap:
-        m_Texture: {fileID: 2800000, guid: deb2065ad22d8494bbbb8361ebc53cc2, type: 3}
+        m_Texture: {fileID: 2800000, guid: d58333931f6556a46b58700501d6cd59, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NormalMap:
-        m_Texture: {fileID: 2800000, guid: f34d0a78ca20174459b177c89a509b31, type: 3}
+        m_Texture: {fileID: 2800000, guid: a84d667c0634e154c8503b47fb18e3e9, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _ThicknessTexture:
-        m_Texture: {fileID: 2800000, guid: deb2065ad22d8494bbbb8361ebc53cc2, type: 3}
+        m_Texture: {fileID: 2800000, guid: d58333931f6556a46b58700501d6cd59, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -69,27 +69,27 @@ Material:
     m_Floats:
     - _AO: 0
     - _Atten: 1
-    - _BendStrength: 1
+    - _BendStrength: 5
     - _Distortion: 1.68
-    - _FresnelPower: 1
+    - _FresnelPower: 1.02
     - _MaskLerp: 0
     - _Metallic: 0
-    - _NoiseScale: 10
+    - _NoiseScale: 1
     - _NormalInfluence: 0
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _SSSIntensity: 1
-    - _SSSPower: 1
+    - _SSSIntensity: 3.95
+    - _SSSPower: 14.62
     - _SSSScale: 1
     - _ScaleNoise: 1.07
-    - _Smoothness: 0
-    - _Speed: 0.1
+    - _Smoothness: 1
+    - _Speed: 1.5
     - _WindPower: 0.5
     m_Colors:
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _Direction: {r: 0, g: 0, b: 0, a: 0}
-    - _Emission: {r: 1, g: 0, b: 0, a: 1}
+    - _Direction: {r: 1, g: 2, b: 1, a: 0}
+    - _Emission: {r: 1, g: 1, b: 1, a: 1}
     - _FresnelColor: {r: 1, g: 0, b: 0, a: 0}
-    - _SSSColor: {r: 1, g: 0, b: 0, a: 0}
+    - _SSSColor: {r: 1, g: 1, b: 1, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

@@ -1,8 +1,16 @@
+using TMPro;
 using UnityEngine;
-using System.Collections.Generic;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 public class MenuUI : MonoBehaviour
 {
     public UIManager uiManager;
+    public TMP_Text sceneBtnText;
+
+    void Start()
+    {
+
+    }
 
     public void OnGameQuitBtnClicked()
     {
@@ -17,6 +25,6 @@ public class MenuUI : MonoBehaviour
 
     public void OnMenuBtnClicked()
     {
-        uiManager.SetState(UIState.InGame);
+
     }
 }

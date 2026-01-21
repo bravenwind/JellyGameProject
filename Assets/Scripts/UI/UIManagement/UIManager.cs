@@ -178,7 +178,6 @@ public class UIManager : MonoBehaviour
             if (fadeInOut == "FadeIn")
             {
                 fadeCanvasGroup.alpha = 1 - Mathf.Clamp01(timer / fadeDuration);
-                Debug.Log(fadeCanvasGroup.alpha);
             }
             if (fadeInOut == "FadeOut")
             {
