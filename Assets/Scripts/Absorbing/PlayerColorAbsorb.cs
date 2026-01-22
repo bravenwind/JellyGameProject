@@ -144,14 +144,15 @@ public class PlayerColorAbsorb : MonoBehaviour
         // 레벨업 체크
         if (DataManager.Instance.absorbedJellyCount >= DataManager.Instance.levelUpExp)
         {
-            DataManager.Instance.playerCurrentLevel++;
-            DataManager.Instance.absorbedJellyCount = 0; // 경험치 초기화
 
             if (DataManager.Instance.playerCurrentLevel < DataManager.Instance.maxLevel)
             {
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
                 StartCoroutine(IncreaseScale(0.5f));
             }
+
+            DataManager.Instance.playerCurrentLevel++;
+            DataManager.Instance.absorbedJellyCount = 0; // 경험치 초기화
 
             if (mainCamera_Action != null) mainCamera_Action.ScaleChanged();
         }
