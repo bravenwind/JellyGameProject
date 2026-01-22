@@ -2,368 +2,236 @@
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+// 필수 컴포넌트 변경
+[RequireComponent(typeof(CharacterController))]
 public class PlayerController : BaseFSM
 {
     [Header("Player Settings")]
     public float moveSpeed = 6.0f;
-    public float autoRunSpeed = 8.0f; // 정찰(자동달리기) 속도
     public float rotateSpeed = 10.0f;
 
     [Header("Physics")]
     public float jumpForce = 7.5f;
-    public float groundCheckDistance = 0.5f;
+    public float gravity = -20.0f; // CharacterController는 중력을 직접 설정해야 함 (보통 -9.81보다 크게 줌)
+    public float terminalVelocity = -53.0f; // 낙하 최대 속도 제한
 
     [Header("Model Settings")]
-    public Vector3 modelRotationOffset = new Vector3(-90f, 0f, 0f); // 여기에 보정값 입력
-
     public Animator jellyAnimator;
 
-    // 입력 벡터를 캐싱하기 위한 변수
-    private Vector3 inputDir;
-
-    public Rigidbody rb;
-    public bool isGrounded;
-
+    // 컴포넌트 캐싱
+    private CharacterController controller;
     private Vector3 camForward;
     private Vector3 camRight;
 
-    private Collider playerCollider; // [추가] 콜라이더 참조 변수
+    // 내부 변수
+    private Vector3 inputDir;
+    private float verticalVelocity; // Y축 속도 (점프/중력)
     private Quaternion targetRotation;
 
+    // 상태 확인용
+    public bool isGrounded;
 
     protected override void Start()
     {
         base.Start();
-        //rb = GetComponent<Rigidbody>();
-        //rb.interpolation = RigidbodyInterpolation.Interpolate; // ⭐ 필수
-        //rb.freezeRotation = true; // 물리 회전 방지 (우리가 직접 제어)
-        // [추가] 콜라이더 가져오기
 
-        if (SceneManager.GetActiveScene() == SceneManager.GetSceneByName("TileScene"))
+        controller = GetComponent<CharacterController>();
+
+        // 씬 별 속도 설정 (기존 로직 유지)
+        if (SceneManager.GetActiveScene() == SceneManager.GetSceneByName("TileScene") ||
+            SceneManager.GetActiveScene() == SceneManager.GetSceneByName("ResourceApplyScene"))
         {
             moveSpeed = 6.0f;
         }
-        else if (SceneManager.GetActiveScene() == SceneManager.GetSceneByName("ResourceApplyScene"))
-        {
-            moveSpeed = 6.0f;
-        }
-
-        playerCollider = GetComponent<Collider>();
 
         UpdateCameraVectors();
     }
 
     protected override void Update()
     {
-        base.Update();
+        base.Update(); // FSM의 상태별 Update 실행
         UpdateCameraVectors();
+
+        // CharacterController는 FixedUpdate가 아닌 Update에서 움직이는 것이 부드러움
+        // 다만 FSM 구조상 각 상태(Update_Move 등)에서 Move를 호출하도록 함
     }
 
-
-    private Vector3 currentMoveDir = Vector3.zero;
-    private bool isMovingState = false; // 현재 이동 상태인지 체크
-
+    // CharacterController는 물리 연산이 아니므로 FixedUpdate를 사용하지 않음
     protected override void FixedUpdate()
     {
-        CheckGround();
-
-        if (!isMovingState) return;
-
-        ApplyPhysicsMovement();
-        ApplyPhysicsRotation();
+        // 비워둠 (BaseFSM 때문에 남겨둠)
     }
+
+    // 매 프레임 중력 적용 로직 (공통)
+    private void ApplyGravity()
+    {
+        // CharacterController의 isGrounded는 Move()가 호출된 직후 갱신됨
+        isGrounded = controller.isGrounded;
+
+        if (isGrounded && verticalVelocity < 0)
+        {
+            // 땅에 붙어있을 때도 약간의 힘을 주어 바닥 판정을 확실하게 함 (-2f)
+            verticalVelocity = -2f;
+        }
+
+        // 중력 가속도 누적
+        verticalVelocity += gravity * Time.deltaTime;
+
+        // 낙하 속도 제한
+        if (verticalVelocity < terminalVelocity)
+        {
+            verticalVelocity = terminalVelocity;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 1. IDLE 상태
+    // -----------------------------------------------------------------------
+    protected override void Enter_Idle()
+    {
+        Debug.Log("[Player] 대기 상태 진입.");
+        inputDir = Vector3.zero;
+        verticalVelocity = 0; // 초기화
+    }
+
+    protected override void Update_Idle()
+    {
+        ApplyGravity();
+
+        // 제자리에서도 중력 적용을 위해 Move 호출 (안하면 공중에 떠있을 수 있음)
+        controller.Move(new Vector3(0, verticalVelocity, 0) * Time.deltaTime);
+
+        // 점프
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        {
+            ChangeState(UnitState.Jump);
+            return;
+        }
+
+        // 이동 입력 감지
+        if (IsMoveInputActive())
+        {
+            ChangeState(UnitState.Move);
+            return;
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. MOVE 상태
+    // -----------------------------------------------------------------------
+    protected override void Enter_Move()
+    {
+        base.Enter_Move();
+        if (jellyAnimator != null) jellyAnimator.SetBool("IsMoving", true);
+
+        if (PlayFXAudio.Instance != null)
+            PlayFXAudio.Instance.StartWalking();
+    }
+
+    protected override void Update_Move()
+    {
+        // 1. 상태 전환 체크
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        {
+            ChangeState(UnitState.Jump);
+            return;
+        }
+
+        if (!IsMoveInputActive())
+        {
+            ChangeState(UnitState.Idle);
+            return;
+        }
+
+        // 2. 이동 및 회전 계산
+        CalculateMoveDirection(); // inputDir 갱신
+        ApplyGravity();           // verticalVelocity 갱신
+
+        // 3. 최종 이동 적용 (XZ 이동 + Y 중력)
+        Vector3 finalMove = inputDir * moveSpeed;
+        finalMove.y = verticalVelocity;
+
+        controller.Move(finalMove * Time.deltaTime); // ⭐ 핵심 이동 함수
+
+        // 4. 회전 적용
+        if (inputDir != Vector3.zero)
+        {
+            targetRotation = Quaternion.LookRotation(inputDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+        }
+    }
+
+    protected override void Exit_Move()
+    {
+        base.Exit_Move();
+        if (jellyAnimator != null) jellyAnimator.SetBool("IsMoving", false);
+
+        if (PlayFXAudio.Instance != null)
+            PlayFXAudio.Instance.StopWalking();
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. JUMP 상태
+    // -----------------------------------------------------------------------
+    protected override void Enter_Jump()
+    {
+        if (jellyAnimator != null) jellyAnimator.SetTrigger("Jump");
+        PlayFXAudio.Instance.PlayJumpSound();
+
+        // 즉시 위쪽 속도 부여 (v = sqrt(h * -2 * g) 공식 대신 단순 힘 적용)
+        verticalVelocity = jumpForce;
+    }
+
+    protected override void Update_Jump()
+    {
+        // 공중에서도 이동 가능 (Air Control)
+        CalculateMoveDirection();
+        ApplyGravity();
+
+        Vector3 finalMove = inputDir * moveSpeed;
+        finalMove.y = verticalVelocity;
+
+        controller.Move(finalMove * Time.deltaTime);
+
+        // 회전
+        if (inputDir != Vector3.zero)
+        {
+            targetRotation = Quaternion.LookRotation(inputDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+        }
+
+        // 착지 체크: 상승 중이 아니고(내려오는 중), 땅에 닿았으면 Idle로
+        if (verticalVelocity < 0 && controller.isGrounded)
+        {
+            ChangeState(UnitState.Idle);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper Methods
+    // -----------------------------------------------------------------------
 
     private void CalculateMoveDirection()
     {
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
 
-        currentMoveDir = (camForward * v + camRight * h).normalized;
-
-        // 회전 목표만 계산 (적용 ❌)
-        if (currentMoveDir != Vector3.zero)
-        {
-            targetRotation = Quaternion.LookRotation(currentMoveDir);
-        }
-
-        //// [수정 2] 회전 목표 계산 시 오프셋 적용
-        //if (currentMoveDir != Vector3.zero)
-        //{
-        //    // 1. 이동 방향을 바라보는 기본 회전
-        //    Quaternion lookRot = Quaternion.LookRotation(currentMoveDir);
-
-        //    // 2. 오프셋 회전 (쿼터니언 곱셈은 순서 중요: 방향 * 오프셋)
-        //    Quaternion offsetRot = Quaternion.Euler(modelRotationOffset);
-
-        //    // 3. 최종 목표 회전 = 바라보는 방향으로 돌린 뒤 -> 오프셋만큼 더 눕힘
-        //    targetRotation = lookRot * offsetRot;
-        //}
+        // 카메라 기준 방향 계산
+        inputDir = (camForward * v + camRight * h).normalized;
     }
 
-
-    // -----------------------------------------------------------------------
-    // 1. IDLE 상태: 입력 대기
-    // -----------------------------------------------------------------------
-    protected override void Enter_Idle()
-    {
-        // 예: 멈춤 애니메이션, 물리 속도 초기화
-        Debug.Log("[Player] 대기 상태 진입. 입력을 기다립니다.");
-        inputDir = Vector3.zero;
-    }
-
-    protected override void Update_Idle()
-    {
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            ChangeState(UnitState.Jump);
-            return;
-        }
-
-        // 1. 이동 입력 감지 시 -> Move 상태로 전환
-        if (IsMoveInputActive())
-        {
-            ChangeState(UnitState.Move);
-            return;
-        }
-
-        // 2. 'R'키 입력 시 -> Patrol(자동 달리기) 상태로 전환
-        //if (Input.GetKeyDown(KeyCode.R))
-        //{
-        //    ChangeState(UnitState.Patrol);
-        //}
-    }
-
-    // -----------------------------------------------------------------------
-    // 2. MOVE 상태: WASD 직접 조작
-    // -----------------------------------------------------------------------
-    protected override void Enter_Move()
-    {
-        base.Enter_Move();
-        isMovingState = true;
-        if (jellyAnimator != null)
-        {
-            jellyAnimator.SetBool("IsMoving", isMovingState);
-        }
-
-        // [추가] 걷기 소리 재생 시작 (루프)
-        if (PlayFXAudio.Instance != null)
-        {
-            PlayFXAudio.Instance.StartWalking();
-        }
-    }
-
-    private void CheckGround()
-    {
-        // 1. 레이 시작점 계산:
-        // 콜라이더의 가장 밑바닥(min.y)에서 아주 살짝(0.05f) 위로 올린 지점
-        Vector3 rayOrigin = transform.position;
-        if (playerCollider != null)
-        {
-            rayOrigin.y = playerCollider.bounds.min.y + 0.05f;
-        }
-
-        // 2. 레이 쏘기
-        RaycastHit hit;
-        // 시작점에서 아래로 쏘는데, 거리는 아주 짧아도 됨 (이미 발바닥 근처니까)
-        // groundCheckDistance를 0.1f~0.2f 정도로 짧게 줘도 충분합니다.
-        isGrounded = Physics.Raycast(
-            rayOrigin,
-            Vector3.down,
-            out hit,
-            groundCheckDistance
-        );
-
-        // [디버그용] 눈으로 확인하기 위해 빨간 선을 그립니다 (Scene 뷰에서 보임)
-        Debug.DrawRay(rayOrigin, Vector3.down * groundCheckDistance, isGrounded ? Color.green : Color.red);
-    }
-
-    private void ApplyPhysicsRotation()
-    {
-        if (currentMoveDir == Vector3.zero) return;
-
-        rb.MoveRotation(
-            Quaternion.Slerp(
-                rb.rotation,
-                targetRotation,
-                rotateSpeed * Time.fixedDeltaTime
-            )
-        );
-    }
-
-    private void ApplyPhysicsMovement()
-    {
-        Vector3 velocity = rb.linearVelocity;
-        velocity.x = currentMoveDir.x * moveSpeed;
-        velocity.z = currentMoveDir.z * moveSpeed;
-        rb.linearVelocity = velocity;
-    }
-
-    protected override void Update_Move()
-    {
-        // 1. 상태 체크 및 전환 로직 (그대로 유지)
-        if (Input.GetKeyDown(KeyCode.Space))
-        {
-            ChangeState(UnitState.Jump); return; 
-        }
-        
-        if (!IsMoveInputActive()) { ChangeState(UnitState.Idle); return; }
-        //if (Input.GetKeyDown(KeyCode.R)) { ChangeState(UnitState.Patrol); }
-
-        // 2. [수정] 여기서는 입력값만 계산하고, 실제 이동(linearVelocity 설정)은 하지 않음
-        CalculateMoveDirection(); // ✅ 입력 & 회전 목표 계산만
-
-        // 이동 상태임을 표시 (FixedUpdate에서 쓰기 위해)
-        isMovingState = true;
-    }
-
-    protected override void Exit_Move()
-    {
-        base.Exit_Move();
-        isMovingState = false;
-        if (jellyAnimator != null)
-        {
-            jellyAnimator.SetBool("IsMoving", isMovingState);
-        }
-
-        // 멈출 때 미끄러짐 방지를 위해 속도 0으로 (선택사항)
-        rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
-
-        // [추가] 걷기 소리 정지
-        // Move 상태를 벗어나면 (Idle로 가든 Jump로 가든) 소리를 끕니다.
-        if (PlayFXAudio.Instance != null)
-        {
-            PlayFXAudio.Instance.StopWalking();
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // 3. PATROL 상태: 자동 달리기 (Auto-Run)
-    // -----------------------------------------------------------------------
-    //protected override void Enter_Patrol()
-    //{
-    //    Debug.Log("[Player] 자동 달리기 모드 활성화 (해제하려면 S키)");
-    //    // 카메라 줌 아웃 효과 등 연출 추가 가능
-    //}
-
-    //protected override void Update_Patrol()
-    //{
-    //    if (Input.GetKeyDown(KeyCode.Space))
-    //    {
-    //        ChangeState(UnitState.Jump);
-    //        return;
-    //    }
-
-    //    float v = Input.GetAxisRaw("Vertical");
-    //    if (v < -0.1f)
-    //    {
-    //        ChangeState(UnitState.Idle);
-    //        return;
-    //    }
-
-    //    // ✅ 자동 전진
-    //    Vector3 velocity = rb.linearVelocity;
-    //    velocity.x = transform.forward.x * autoRunSpeed;
-    //    velocity.z = transform.forward.z * autoRunSpeed;
-    //    rb.linearVelocity = velocity;
-
-    //    // 회전
-    //    float h = Input.GetAxisRaw("Horizontal");
-    //    if (Mathf.Abs(h) > 0.01f)
-    //    {
-    //        transform.Rotate(Vector3.up * h * rotateSpeed * Time.deltaTime);
-    //    }
-    //}
-
-
-    // -----------------------------------------------------------------------
-    // Helper Methods (행동 정의)
-    // -----------------------------------------------------------------------
-
-    protected override void Enter_Jump()
-    {
-        //if (!isGrounded)
-        //{
-        //    ChangeState(UnitState.Idle);
-        //    return;
-        //}
-        if (jellyAnimator != null)
-        {
-            jellyAnimator.SetTrigger("Jump");
-        }
-
-        PlayFXAudio.Instance.PlayJumpSound();
-
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
-        rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);
-    }
-
-
-    protected override void Update_Jump()
-    {
-        ProcessMovement(moveSpeed);
-
-        CheckGround();
-
-        if (isGrounded && rb.linearVelocity.y <= 0f)
-        {
-            ChangeState(UnitState.Idle);
-        }
-    }
-
-    // 입력이 유효한지 체크 (최적화: sqrMagnitude 사용)
     private bool IsMoveInputActive()
     {
         float h = Input.GetAxis("Horizontal");
         float v = Input.GetAxis("Vertical");
-
-        // 벡터 생성 비용을 줄이기 위해 단순 절대값 비교가 더 빠를 수 있음
-        // 여기서는 가독성을 위해 sqrMagnitude 패턴 사용
-        Vector3 checkVec = camForward * v + camRight * h;
-        return checkVec.sqrMagnitude > 0.001f;
-    }
-
-    // 실제 이동 처리를 담당하는 함수
-    private void ProcessMovement(float speed)
-    {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
-
-        Vector3 moveDir = (camForward * v + camRight * h).normalized;
-
-        Vector3 velocity = rb.linearVelocity;
-        velocity.x = moveDir.x * speed;
-        velocity.z = moveDir.z * speed;
-        rb.linearVelocity = velocity;
-
-        if (moveDir != Vector3.zero)
-        {
-            Quaternion lookRot = Quaternion.LookRotation(moveDir);
-            transform.rotation = Quaternion.Slerp(
-                transform.rotation,
-                lookRot,
-                rotateSpeed * Time.deltaTime
-            );
-        }
-
-        //if (moveDir != Vector3.zero)
-        //{
-        //    Quaternion lookRot = Quaternion.LookRotation(moveDir);
-        //    Quaternion offsetRot = Quaternion.Euler(modelRotationOffset); // 오프셋 생성
-
-        //    Quaternion finalRot = lookRot * offsetRot; // 오프셋 적용
-
-        //    transform.rotation = Quaternion.Slerp(
-        //        transform.rotation,
-        //        finalRot,
-        //        rotateSpeed * Time.deltaTime
-        //    );
-        //}
+        return (h * h + v * v) > 0.001f; // sqrMagnitude 대용
     }
 
     private void UpdateCameraVectors()
     {
-        Transform cam = Camera.main.transform;
+        if (Camera.main == null) return;
 
+        Transform cam = Camera.main.transform;
         camForward = cam.forward;
         camRight = cam.right;
 
@@ -373,5 +241,4 @@ public class PlayerController : BaseFSM
         camForward.Normalize();
         camRight.Normalize();
     }
-
 }

@@ -1,43 +1,64 @@
-using UnityEngine;
+ï»¿using UnityEngine;
+using System.Collections; // IEnumerator ì‚¬ìš©ì„ ìœ„í•´ í•„ìˆ˜
 
 public class OverlapTriggerUI : MonoBehaviour
 {
-    [Header("¼³Á¤")]
-    public GameObject uiObject;       // ÄÑ°í ²ø UI °´Ã¼
-    public float checkRadius = 3.0f;  // °¨Áö ¹İ°æ
-    public LayerMask targetLayer;     // °¨ÁöÇÒ ·¹ÀÌ¾î (¿¹: Player)
-    public float checkInterval = 0.2f; // Ã¼Å© ÁÖ±â (ÃÊ)
+    [Header("ì„¤ì •")]
+    public GameObject uiObject;
+    public float checkRadius = 3.0f;
+    public LayerMask targetLayer;
 
-    [Header("Á©¸® ¼ÒÈ¯")]
+    // checkIntervalì€ ì´ì œ í•„ìš” ì—†ê±°ë‚˜, ê°ì§€ ì¿¨íƒ€ì„ ì •ë„ë¡œ ì“¸ ìˆ˜ ìˆìŠµë‹ˆë‹¤.
+    // ì—¬ê¸°ì„œëŠ” ì—°ì† ì‹¤í–‰ì„ ìœ„í•´ ì œê±°í•˜ê±°ë‚˜ ë¬´ì‹œí•´ë„ ë©ë‹ˆë‹¤.
+
+    [Header("ì ¤ë¦¬ ì†Œí™˜")]
     public GameObject spawnJelly;
     public Transform jellySpawnTransform;
-    public Rotator rotator;
+    public Rotator rotator; // (ì½”ë“œì— ì—†ì–´ì„œ ì£¼ì„ ì²˜ë¦¬)
 
-    private bool isDetected = false;
+    private bool isProcessing = false; // í˜„ì¬ ê¸°ê³„ê°€ ë™ì‘ ì¤‘ì¸ì§€ í™•ì¸í•˜ëŠ” í”Œë˜ê·¸
 
     void Start()
     {
         if (uiObject != null) uiObject.SetActive(false);
 
-        // ¼º´ÉÀ» À§ÇØ ÀÏÁ¤ °£°İÀ¸·Î¸¸ Ã¼Å© ½ÇÇà
-        InvokeRepeating(nameof(CheckNearby), 0f, checkInterval);
+        // ğŸ”´ InvokeRepeating ì œê±° (ì½”ë£¨í‹´ìœ¼ë¡œ ì œì–´í•˜ê¸° ìœ„í•¨)
     }
 
-    void CheckNearby()
+    void Update()
     {
-        // 1. ¹İ°æ ³»¿¡ ÁöÁ¤µÈ ·¹ÀÌ¾îÀÇ Äİ¶óÀÌ´õ°¡ ÀÖ´ÂÁö È®ÀÎ
-        Collider[] colliders = Physics.OverlapSphere(transform.position, checkRadius, targetLayer);
+        // ë™ì‘ ì¤‘ì´ ì•„ë‹ ë•Œë§Œ ê°ì§€ ì‹œë„
+        if (!isProcessing)
+        {
+            CheckNearbyAndProcess();
+        }
+    }
 
-        // 2. °Ë»öµÈ Äİ¶óÀÌ´õ°¡ 1°³ ÀÌ»óÀÌ¸é ¹üÀ§ ¾È¿¡ ÀÖ´Â °ÍÀ¸·Î °£ÁÖ
+    void CheckNearbyAndProcess()
+    {
+        // 1. ë²”ìœ„ ê°ì§€
+        Collider[] colliders = Physics.OverlapSphere(transform.position, checkRadius, targetLayer);
         bool currentlyDetected = colliders.Length > 0;
 
-        // 3. »óÅÂ°¡ ¹Ù²ğ ¶§¸¸ SetActive È£Ãâ (¸Å¹ø È£Ãâ ¹æÁö)
         if (currentlyDetected)
         {
-            isDetected = currentlyDetected;
-            Instantiate(spawnJelly, jellySpawnTransform.position, Quaternion.identity);
-            PlayFXAudio.Instance.PlayMachineSound();
+            // ê°ì§€ë˜ë©´ ì‹œí€€ìŠ¤ ì‹œì‘ (ì†Œë¦¬ -> ëŒ€ê¸° -> ì†Œí™˜)
+            StartCoroutine(SpawnSequence());
         }
+    }
+
+    // ğŸ”´ [í•µì‹¬ ë¡œì§] ì†Œë¦¬ ì¬ìƒ í›„ ëŒ€ê¸°í•˜ê³  ì†Œí™˜í•˜ëŠ” ì½”ë£¨í‹´
+    IEnumerator SpawnSequence()
+    {
+        isProcessing = true; // ì‘ì—… ì‹œì‘ (ì¤‘ë³µ ì‹¤í–‰ ë°©ì§€)
+
+        // 1. ì†Œë¦¬ ì¬ìƒí•˜ê³  ê¸¸ì´ ë°›ì•„ì˜¤ê¸°
+        float waitTime = PlayFXAudio.Instance.PlayMachineSound();
+
+        // 2. ì†Œë¦¬ ê¸¸ì´ë§Œí¼ ëŒ€ê¸° (ì†Œë¦¬ê°€ ëë‚  ë•Œê¹Œì§€ ë©ˆì¶¤)
+        yield return StartCoroutine(rotator.RotateRoutine(waitTime, SpawnJelly));
+
+        isProcessing = false; // ì‘ì—… ì¢…ë£Œ (ì´ì œ ë‹¤ì‹œ ê°ì§€ ê°€ëŠ¥)
     }
 
     void SpawnJelly()
@@ -45,7 +66,6 @@ public class OverlapTriggerUI : MonoBehaviour
         Instantiate(spawnJelly, jellySpawnTransform.position, Quaternion.identity);
     }
 
-    // ¿¡µğÅÍ ºä¿¡¼­ °¨Áö ¹üÀ§¸¦ ½Ã°¢ÀûÀ¸·Î Ç¥½Ã
     private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.green;

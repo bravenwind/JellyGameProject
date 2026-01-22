@@ -4,9 +4,6 @@ using System; // Action을 사용하기 위해 필요
 
 public class Rotator : MonoBehaviour
 {
-    [Header("Settings")]
-    [Tooltip("회전하는 데 걸리는 총 시간 (초)")]
-    public float duration = 3.0f;
 
     [Tooltip("회전 속도 그래프 (인스펙터에서 조절)")]
     // 기본적으로 EaseInOut 곡선을 생성합니다.
@@ -18,15 +15,8 @@ public class Rotator : MonoBehaviour
     /// 외부 스크립트에서 호출할 함수입니다.
     /// </summary>
     /// <param name="onComplete">회전이 끝난 후 실행할 콜백(선택 사항)</param>
-    public void Rotate360(Action onComplete = null)
-    {
-        // 이미 회전 중이라면 멈추고 새로 시작 (필요에 따라 정책 변경 가능)
-        if (rotateCoroutine != null) StopCoroutine(rotateCoroutine);
 
-        rotateCoroutine = StartCoroutine(RotateRoutine(onComplete));
-    }
-
-    private IEnumerator RotateRoutine(Action onComplete)
+    public IEnumerator RotateRoutine(float duration, Action onComplete)
     {
         float elapsed = 0f;
 

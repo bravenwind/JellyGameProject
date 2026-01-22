@@ -320,8 +320,7 @@ GameObject:
   - component: {fileID: 9030417639005009444}
   - component: {fileID: 355966115616070896}
   - component: {fileID: 3131908077549362287}
-  - component: {fileID: 4219448539105718221}
-  - component: {fileID: 4622151037823459091}
+  - component: {fileID: 5962880794724138423}
   m_Layer: 0
   m_Name: heart bear animation Walk_Unity
   m_TagString: Player
@@ -413,14 +412,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   currentState: 0
-  moveSpeed: 3
-  autoRunSpeed: 8
+  moveSpeed: 12
   rotateSpeed: 10
-  jumpForce: 7.5
-  groundCheckDistance: 0.3
-  modelRotationOffset: {x: -90, y: 0, z: 0}
+  jumpForce: 15
+  gravity: -20
+  terminalVelocity: -53
   jellyAnimator: {fileID: 3131908077549362287}
-  rb: {fileID: 4219448539105718221}
   isGrounded: 0
 --- !u!95 &3131908077549362287
 Animator:
@@ -444,35 +441,8 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!54 &4219448539105718221
-Rigidbody:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1545187532055052821}
-  serializedVersion: 4
-  m_Mass: 10
-  m_Drag: 0
-  m_AngularDrag: 0.05
-  m_CenterOfMass: {x: 0, y: 0, z: 0}
-  m_InertiaTensor: {x: 1, y: 1, z: 1}
-  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ImplicitCom: 1
-  m_ImplicitTensor: 1
-  m_UseGravity: 1
-  m_IsKinematic: 0
-  m_Interpolate: 1
-  m_Constraints: 80
-  m_CollisionDetection: 0
---- !u!136 &4622151037823459091
-CapsuleCollider:
+--- !u!143 &5962880794724138423
+CharacterController:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -486,14 +456,16 @@ CapsuleCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
-  serializedVersion: 2
-  m_Radius: 0.64
-  m_Height: 1.79
-  m_Direction: 1
-  m_Center: {x: 0.09, y: 0.09, z: 0}
+  serializedVersion: 3
+  m_Height: 2
+  m_Radius: 0.5
+  m_SlopeLimit: 45
+  m_StepOffset: 0.3
+  m_SkinWidth: 0.08
+  m_MinMoveDistance: 0.001
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &2198026281428568471
 GameObject:
   m_ObjectHideFlags: 0

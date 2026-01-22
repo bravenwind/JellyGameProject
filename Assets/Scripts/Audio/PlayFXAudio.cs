@@ -34,6 +34,7 @@ public class PlayFXAudio : MonoBehaviour
     [Header("Camera")]
     public AudioClip zoomInAudio;
     public AudioClip zoomOutAudio;
+    // ... (다른 변수들 생략) ...
 
     private void Awake()
     {
@@ -41,12 +42,23 @@ public class PlayFXAudio : MonoBehaviour
         {
             Instance = this;
             DontDestroyOnLoad(gameObject);
-            Debug.Log("🔊 [Sound] PlayFXAudio 매니저 초기화 완료");
         }
         else
         {
             Destroy(gameObject);
         }
+    }
+
+    // ... (기존 걷기 관련 코드 생략) ...
+
+    // 🔴 [수정됨] void -> float 반환으로 변경
+    public float PlayMachineSound()
+    {
+        Debug.Log("🔊 [Sound] 기계 소리");
+        fxAudioSource.PlayOneShot(machineAudio);
+
+        // 오디오 클립이 있으면 그 길이를 반환, 없으면 0초 반환
+        return machineAudio != null ? machineAudio.length : 0f;
     }
 
     // -----------------------------------------------------------
@@ -106,12 +118,6 @@ public class PlayFXAudio : MonoBehaviour
     {
         Debug.Log("🔊 [Sound] 버튼 클릭 소리");
         fxAudioSource.PlayOneShot(buttonClickAudio);
-    }
-
-    public void PlayMachineSound()
-    {
-        Debug.Log("🔊 [Sound] 기계 소리");
-        fxAudioSource.PlayOneShot(machineAudio);
     }
 
     public void PlayColorMixSound()
