@@ -11,6 +11,7 @@ public class OverlapTriggerUI : MonoBehaviour
     [Header("젤리 소환")]
     public GameObject spawnJelly;
     public Transform jellySpawnTransform;
+    public Rotator rotator;
 
     private bool isDetected = false;
 
@@ -28,7 +29,7 @@ public class OverlapTriggerUI : MonoBehaviour
         {
             if (Input.GetKeyDown(KeyCode.G))
             {
-                Instantiate(spawnJelly, jellySpawnTransform.position, Quaternion.identity);
+                rotator.Rotate360(SpawnJelly);
             }
         }
     }
@@ -50,6 +51,11 @@ public class OverlapTriggerUI : MonoBehaviour
                 uiObject.SetActive(isDetected);
             }
         }
+    }
+
+    void SpawnJelly()
+    {
+        Instantiate(spawnJelly, jellySpawnTransform.position, Quaternion.identity);
     }
 
     // 에디터 뷰에서 감지 범위를 시각적으로 표시

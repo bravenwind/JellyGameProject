@@ -180,7 +180,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textSprites:
-  - {fileID: 21300000, guid: 472c83b3aba54664bb3d403be76fc671, type: 2}
-  - {fileID: 21300000, guid: 0a72e277840b3bb43a84433dfba02809, type: 2}
-  - {fileID: 21300000, guid: eebb58b805eb3b748bc48796dad85716, type: 2}
+  - {fileID: -453626062, guid: 870b718931509e240a38762a70591d4b, type: 3}
+  - {fileID: 698082583, guid: 870b718931509e240a38762a70591d4b, type: 3}
+  - {fileID: -1768974126, guid: 870b718931509e240a38762a70591d4b, type: 3}
   textImage: {fileID: 3923451356244640983}

@@ -4591,7 +4591,7 @@ Transform:
   m_GameObject: {fileID: 48197502}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 6.5505977, y: -10.12, z: 45.87931}
+  m_LocalPosition: {x: 6.5505977, y: -8.48, z: 45.87931}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -126315,7 +126315,7 @@ Transform:
   m_GameObject: {fileID: 1217805240}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 1.64, y: 11.12, z: -9.76}
+  m_LocalPosition: {x: 1.64, y: 16.78, z: -9.76}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -170625,7 +170625,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &1632030919
 RectTransform:
   m_ObjectHideFlags: 0
@@ -171763,7 +171763,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1642857227
 RectTransform:
   m_ObjectHideFlags: 0
@@ -185581,8 +185581,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   uiList:
-  - state: 3
-    uiObject: {fileID: 0}
+  - state: 2
+    uiObject: {fileID: 1632030918}
   startState: 3
   fadeCanvasGroup: {fileID: 557012033}
   fadeDuration: 1

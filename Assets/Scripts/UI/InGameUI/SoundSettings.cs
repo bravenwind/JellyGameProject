@@ -63,6 +63,8 @@ public class SoundSettings : MonoBehaviour
 
     public void OnSettingsBtnClicked()
     {
-        uiManager.SetState(UIState.InGame);
+        uiManager.SetState(UIState.Settings);
     }
+
+
 }

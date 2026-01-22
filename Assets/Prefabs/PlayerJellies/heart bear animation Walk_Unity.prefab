@@ -321,6 +321,7 @@ GameObject:
   - component: {fileID: 355966115616070896}
   - component: {fileID: 3131908077549362287}
   - component: {fileID: 4219448539105718221}
+  - component: {fileID: 4622151037823459091}
   m_Layer: 0
   m_Name: heart bear animation Walk_Unity
   m_TagString: Player
@@ -470,6 +471,29 @@ Rigidbody:
   m_Interpolate: 1
   m_Constraints: 80
   m_CollisionDetection: 0
+--- !u!136 &4622151037823459091
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1545187532055052821}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 0
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.64
+  m_Height: 1.79
+  m_Direction: 1
+  m_Center: {x: 0.09, y: 0.09, z: 0}
 --- !u!1 &2198026281428568471
 GameObject:
   m_ObjectHideFlags: 0
