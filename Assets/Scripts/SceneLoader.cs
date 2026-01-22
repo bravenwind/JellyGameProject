@@ -6,12 +6,14 @@ public class SceneLoader : MonoBehaviour
     // Start 버튼에 연결
     public void LoadGame()
     {
-        SceneManager.LoadScene("TileScene");
+        PlayFXAudio.Instance.PlayButtonClickSound();
+        SceneManager.LoadScene("ResourceApplyScene_Temp");
     }
 
     // 메인으로 돌아가기 버튼에 연결
     public void LoadMain()
     {
+        PlayFXAudio.Instance.PlayButtonClickSound();
         SceneManager.LoadScene("Main");
     }
 

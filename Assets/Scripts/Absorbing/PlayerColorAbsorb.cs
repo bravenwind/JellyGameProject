@@ -1,5 +1,4 @@
 ﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public static class ColorExtensions
@@ -45,7 +44,7 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     public Cloth playerCloth;
     public JellyCamera jellyCamera;
-    public ColorUI colorUI;
+    public CurrentStatusUI currentStatusUI;
 
     private MainCamera_Action mainCamera_Action;
     private Coroutine currentFadeCoroutine;
@@ -74,7 +73,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         originalScale = Vector3.one;
         currentScale = transform.localScale;
         playerCloth = GetComponentInChildren<Cloth>();
-        colorUI.ChangeCurrentColorUI();
+        currentStatusUI.ChangeCurrentColorUI();
 
         if (Camera.main != null)
             mainCamera_Action = Camera.main.gameObject.GetComponent<MainCamera_Action>();
@@ -101,7 +100,7 @@ public class PlayerColorAbsorb : MonoBehaviour
 
             // 데이터 매니저 상태도 원복
             DataManager.Instance.absorbedJellyCount = 0;
-            DataManager.Instance.playerCurrentLevel = 1;
+            DataManager.Instance.playerCurrentScaleLevel = 1;
 
             Camera.main.orthographicSize = 6.1f;
 
@@ -142,17 +141,19 @@ public class PlayerColorAbsorb : MonoBehaviour
         }
 
         // 레벨업 체크
-        if (DataManager.Instance.absorbedJellyCount >= DataManager.Instance.levelUpExp)
+        if (DataManager.Instance.absorbedJellyCount >= DataManager.Instance.scaleLevelUpExp)
         {
 
-            if (DataManager.Instance.playerCurrentLevel < DataManager.Instance.maxLevel)
+            if (DataManager.Instance.playerCurrentScaleLevel < DataManager.Instance.maxScaleLevel)
             {
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
                 StartCoroutine(IncreaseScale(0.5f));
+                DataManager.Instance.playerCurrentScaleLevel++;
             }
 
-            DataManager.Instance.playerCurrentLevel++;
             DataManager.Instance.absorbedJellyCount = 0; // 경험치 초기화
+
+            currentStatusUI.ChangeCurrentScaleUI();
 
             if (mainCamera_Action != null) mainCamera_Action.ScaleChanged();
         }
@@ -179,6 +180,8 @@ public class PlayerColorAbsorb : MonoBehaviour
         //Color startBase = currentBaseColor;
         Color startEmission = currentEmissionColor;
         Color startFresnel = currentFresnelColor;
+
+        PlayFXAudio.Instance.PlayColorMixSound();
 
         float t = 0f;
 
@@ -208,15 +211,17 @@ public class PlayerColorAbsorb : MonoBehaviour
         rend.material.SetColor("_FresnelColor", currentFresnelColor);
 
         DataManager.Instance.currentColor = currentEmissionColor;
-        colorUI.ChangeCurrentColorUI();
+        currentStatusUI.ChangeCurrentColorUI();
     }
 
     IEnumerator IncreaseScale(float increaseTime)
     {
         if (softBody3D != null) softBody3D.DisableCloth();
+
+        PlayFXAudio.Instance.PlayScaleUpSound();
         // 배열 범위 초과 방지
         Vector3 startScale = currentScale;
-        int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentLevel - 1, 0, DataManager.Instance.maxLevel - 1);
+        int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);
         Debug.Log(levelIndex);
         Vector3 targetScale = originalScale * DataManager.Instance.scaleMultiplyPerLevel[levelIndex];
 

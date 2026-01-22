@@ -143,6 +143,9 @@ public class UIManager : MonoBehaviour
             case UIState.Pause:
                 Time.timeScale = 0f;
                 break;
+            case UIState.GameOver:
+                Time.timeScale = 0f;
+                break;
         }
     }
 
@@ -163,7 +166,7 @@ public class UIManager : MonoBehaviour
         }
         if (fadeOut)
         {
-            SceneManager.LoadScene("TitleScene");
+            SceneManager.LoadScene("Main");
         }
     }
 

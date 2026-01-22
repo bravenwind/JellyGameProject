@@ -156,7 +156,7 @@ public class JellyColliderAbsorb : MonoBehaviour
 
         if (renderer != null) 
         {
-            Gizmos.color = renderer.sharedMaterial.GetColor("_Emission");
+            Gizmos.color = renderer.sharedMaterial.GetColor("_BaseColor");
         }
 
         Gizmos.DrawWireSphere(transform.position, destroyDistance);

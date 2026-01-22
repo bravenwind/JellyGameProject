@@ -23,17 +23,6 @@ public class OverlapTriggerUI : MonoBehaviour
         InvokeRepeating(nameof(CheckNearby), 0f, checkInterval);
     }
 
-    private void Update()
-    {
-        if (isDetected)
-        {
-            if (Input.GetKeyDown(KeyCode.G))
-            {
-                rotator.Rotate360(SpawnJelly);
-            }
-        }
-    }
-
     void CheckNearby()
     {
         // 1. 반경 내에 지정된 레이어의 콜라이더가 있는지 확인
@@ -43,13 +32,11 @@ public class OverlapTriggerUI : MonoBehaviour
         bool currentlyDetected = colliders.Length > 0;
 
         // 3. 상태가 바뀔 때만 SetActive 호출 (매번 호출 방지)
-        if (currentlyDetected != isDetected)
+        if (currentlyDetected)
         {
             isDetected = currentlyDetected;
-            if (uiObject != null)
-            {
-                uiObject.SetActive(isDetected);
-            }
+            Instantiate(spawnJelly, jellySpawnTransform.position, Quaternion.identity);
+            PlayFXAudio.Instance.PlayMachineSound();
         }
     }
 

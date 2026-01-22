@@ -63,8 +63,7 @@ public class SoundSettings : MonoBehaviour
 
     public void OnSettingsBtnClicked()
     {
+        PlayFXAudio.Instance.PlayButtonClickSound();
         uiManager.SetState(UIState.Settings);
     }
-
-
 }

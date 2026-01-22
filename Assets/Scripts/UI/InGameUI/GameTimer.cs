@@ -5,8 +5,10 @@ public class GameTimer : MonoBehaviour
 {
     public float limitTime = 300f;
     public TextMeshProUGUI timerText;
+    public QuestStarUI questStarUI;
+    public UIManager uiManager;
 
-    private float currentTime;
+    public float currentTime;
     private int lastSecond = -1; // 마지막으로 표시한 '초'를 저장 (초기값은 불가능한 값으로)
 
     void Start()
@@ -16,7 +18,14 @@ public class GameTimer : MonoBehaviour
 
     void Update()
     {
-        if (currentTime <= 0) return;
+        if (currentTime <= 0)
+        {
+            questStarUI.ApplyFail();
+            uiManager.SetState(UIState.GameOver);
+            PlayFXAudio.Instance.PlayFailSound();
+            return;
+        }
+
 
         currentTime -= Time.deltaTime;
         if (currentTime < 0) currentTime = 0;

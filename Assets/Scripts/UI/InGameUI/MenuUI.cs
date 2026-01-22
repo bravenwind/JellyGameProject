@@ -14,17 +14,20 @@ public class MenuUI : MonoBehaviour
 
     public void OnGameQuitBtnClicked()
     {
+        PlayFXAudio.Instance.PlayButtonClickSound();
         Debug.Log("게임 종료");
         Application.Quit();
     }
 
     public void OnToTitleBtnClicked()
     {
+        PlayFXAudio.Instance.PlayButtonClickSound();
         StartCoroutine(uiManager.SceneFade("FadeOut"));
     }
 
     public void OnMenuBtnClicked()
     {
-
+        PlayFXAudio.Instance.PlayButtonClickSound();
+        uiManager.SetState(UIState.InGame);
     }
 }

@@ -144,6 +144,12 @@ public class PlayerController : BaseFSM
         {
             jellyAnimator.SetBool("IsMoving", isMovingState);
         }
+
+        // [추가] 걷기 소리 재생 시작 (루프)
+        if (PlayFXAudio.Instance != null)
+        {
+            PlayFXAudio.Instance.StartWalking();
+        }
     }
 
     private void CheckGround()
@@ -195,7 +201,11 @@ public class PlayerController : BaseFSM
     protected override void Update_Move()
     {
         // 1. 상태 체크 및 전환 로직 (그대로 유지)
-        if (Input.GetKeyDown(KeyCode.Space)) { ChangeState(UnitState.Jump); return; }
+        if (Input.GetKeyDown(KeyCode.Space))
+        {
+            ChangeState(UnitState.Jump); return; 
+        }
+        
         if (!IsMoveInputActive()) { ChangeState(UnitState.Idle); return; }
         //if (Input.GetKeyDown(KeyCode.R)) { ChangeState(UnitState.Patrol); }
 
@@ -214,8 +224,16 @@ public class PlayerController : BaseFSM
         {
             jellyAnimator.SetBool("IsMoving", isMovingState);
         }
+
         // 멈출 때 미끄러짐 방지를 위해 속도 0으로 (선택사항)
         rb.linearVelocity = new Vector3(0, rb.linearVelocity.y, 0);
+
+        // [추가] 걷기 소리 정지
+        // Move 상태를 벗어나면 (Idle로 가든 Jump로 가든) 소리를 끕니다.
+        if (PlayFXAudio.Instance != null)
+        {
+            PlayFXAudio.Instance.StopWalking();
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -272,6 +290,8 @@ public class PlayerController : BaseFSM
         {
             jellyAnimator.SetTrigger("Jump");
         }
+
+        PlayFXAudio.Instance.PlayJumpSound();
 
         rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
         rb.AddForce(Vector3.up * jumpForce, ForceMode.Impulse);

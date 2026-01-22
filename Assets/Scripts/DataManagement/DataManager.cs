@@ -67,11 +67,12 @@ public class DataManager : MonoBehaviour
     }
 
     [Header("Scale Settings")]
-    public int levelUpExp = 5;
+    public int scaleLevelUpExp = 5;
     public float[] scaleMultiplyPerLevel;
-    public int playerCurrentLevel = 1;
+    public int playerCurrentScaleLevel = 1;
     public int absorbedJellyCount = 0;
-    public int maxLevel = 5;
+    public int maxScaleLevel = 5;
+    public int targetScaleLevel = 3;
 
     [Header("Camera Settings")]
     public float scaleChangedDuration = 1.0f;
@@ -91,6 +92,7 @@ public class DataManager : MonoBehaviour
 
     [Header("Mission Settings")]
     public MissionSet[] missions;
+    public float targetTime = 60;
 
     //[Header("Data Access")]
     //public JellyDataDAO jellyDAO;
@@ -143,7 +145,7 @@ public class DataManager : MonoBehaviour
 
     private void InitializeGameData()
     {
-        playerCurrentLevel = 1;
+        playerCurrentScaleLevel = 1;
         absorbedJellyCount = 0;
         //scaleMultiplyPerLevel = new float[maxLevel];
         currentScore = 0;

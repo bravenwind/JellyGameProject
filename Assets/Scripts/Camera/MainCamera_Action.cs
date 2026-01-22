@@ -51,7 +51,7 @@ public class MainCamera_Action : MonoBehaviour
 
     public void ScaleChanged()
     {
-        if (DataManager.Instance.playerCurrentLevel <= DataManager.Instance.maxLevel)
+        if (DataManager.Instance.playerCurrentScaleLevel <= DataManager.Instance.maxScaleLevel)
         {
             currentSize = Camera.main.orthographicSize;
             StartCoroutine(OnScaleChanged_Co(DataManager.Instance.scaleChangedDuration));
