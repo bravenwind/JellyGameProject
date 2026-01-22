@@ -7,7 +7,7 @@ public class ClearJudge : MonoBehaviour
     public GameTimer gameTimer;
     public UIManager uiManager;
 
-    public float halfLength;
+    public float halfLength = 6.0f;
     public LayerMask playerLayerMask;
 
     private void Update()

@@ -400,6 +400,7 @@ MonoBehaviour:
   scaleIncreasedEffect: {fileID: 2262802120574393467, guid: c8ce3894efd83f340bc736c607dc16b1, type: 3}
   uIPoolManager: {fileID: 0}
   playerController: {fileID: 355966115616070896}
+  originalDetectRadius: 4
   detectRadius: 4.28
   detectLayerMask:
     serializedVersion: 2
@@ -419,7 +420,8 @@ MonoBehaviour:
   currentState: 0
   moveSpeed: 16
   rotateSpeed: 14
-  jumpForce: 10
+  jumpForce: 15
+  originalJumpForce: 10
   gravity: -20
   terminalVelocity: -53
   jellyAnimator: {fileID: 3131908077549362287}
