@@ -7,22 +7,40 @@ public class ClearJudge : MonoBehaviour
     public GameTimer gameTimer;
     public UIManager uiManager;
 
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Player"))
-        {
-            if (DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == JellyColorType.Blue
-                && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel)
-            {
-                questStarUI.ApplySuccess(2);
-                if (gameTimer.currentTime >= DataManager.Instance.targetTime)
-                {
-                    questStarUI.ApplySuccess(3);
-                }
+    public float halfLength;
+    public LayerMask playerLayerMask;
 
-                uiManager.SetState(UIState.GameOver);
-                PlayFXAudio.Instance.PlayMissionCompleteSound();
-            }
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.O))
+        {
+            DataManager.Instance.currentColor = DataManager.Instance.thisGameRangeRule.color;
+            DataManager.Instance.playerCurrentScaleLevel = DataManager.Instance.targetScaleLevel;
         }
+
+        Collider[] cols = Physics.OverlapBox(transform.position, Vector3.one * halfLength, Quaternion.identity, playerLayerMask);
+        if (cols.Length == 0 )
+        {
+            return;
+        }
+
+        if (DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType
+           && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel)
+        {
+            questStarUI.ApplySuccess(2);
+            if (gameTimer.limitTime - gameTimer.currentTime <= DataManager.Instance.targetTime)
+            {
+                 questStarUI.ApplySuccess(3);
+            }
+
+            uiManager.SetState(UIState.GameOver);
+            gameObject.SetActive(false);
+        }
+
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireCube(transform.position, Vector3.one * halfLength);
     }
 }

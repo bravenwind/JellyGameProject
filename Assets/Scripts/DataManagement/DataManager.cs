@@ -54,6 +54,8 @@ public class DataManager : MonoBehaviour
     public class ColorRangeRule
     {
         public string colorName;
+        public Color color;
+        public Vector3 minRGB;
         public JellyColorType resultType;
         public int minPrimary;      // 예: 170 이상
         public int maxOthers;       // 예: 120 이하
@@ -122,6 +124,8 @@ public class DataManager : MonoBehaviour
     [Header("Color Range Rules (Image 2)")]
     public List<ColorRangeRule> rangeRules;
 
+    public ColorRangeRule thisGameRangeRule;
+
     // 특정 젤리 타입의 변화량을 가져오는 함수
     public Vector3Int GetJellyEffect(JellyColorType type)
     {
@@ -139,6 +143,19 @@ public class DataManager : MonoBehaviour
         {
             Destroy(gameObject);
             return;
+        }
+
+        int index = UnityEngine.Random.Range(0, rangeRules.Count);
+        thisGameRangeRule = rangeRules[index];
+
+        int randint = UnityEngine.Random.Range(0, 2);
+        if (randint == 0)
+        {
+            targetScaleLevel = 4;
+        }
+        else
+        {
+            targetScaleLevel = 5;
         }
 
         InitializeGameData();

@@ -54,6 +54,7 @@ public class PlayerColorAbsorb : MonoBehaviour
     public UIPoolManager uIPoolManager;
     public PlayerController playerController;
 
+    public float originalDetectRadius;
     public float detectRadius;
     public LayerMask detectLayerMask;
 
@@ -88,6 +89,9 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         originalScale = Vector3.one;
         currentScale = transform.localScale;
+
+        detectRadius = originalDetectRadius;
+
         playerCloth = GetComponentInChildren<Cloth>();
         currentStatusUI.ChangeCurrentColorUI();
 
@@ -163,11 +167,13 @@ public class PlayerColorAbsorb : MonoBehaviour
         // 레벨업 체크
         if (DataManager.Instance.absorbedJellyCount >= DataManager.Instance.scaleLevelUpExp)
         {
-
             if (DataManager.Instance.playerCurrentScaleLevel < DataManager.Instance.maxScaleLevel)
             {
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
                 StartCoroutine(IncreaseScale(0.5f));
+
+                detectRadius = originalDetectRadius + 2.0f * DataManager.Instance.playerCurrentScaleLevel;
+
                 DataManager.Instance.playerCurrentScaleLevel++;
             }
 

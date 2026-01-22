@@ -2,18 +2,24 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class SceneLoader : MonoBehaviour
-{
+{ 
+        // [수정] Scene 대신 string 사용
+    public string gameSceneName = "GameScene";
+    public string titleSceneName = "TitleScene";
+
     // Start 버튼에 연결
     public void LoadGame()
     {
         PlayFXAudio.Instance.PlayButtonClickSound();
-        SceneManager.LoadScene("ResourceApplyScene_Temp");
+        //SceneManager.LoadScene(gameScene.name);
+        SceneManager.LoadScene("LevelDesign");
     }
 
     // 메인으로 돌아가기 버튼에 연결
     public void LoadMain()
     {
         PlayFXAudio.Instance.PlayButtonClickSound();
+        //SceneManager.LoadScene(titleScene.name);
         SceneManager.LoadScene("Main");
     }
 

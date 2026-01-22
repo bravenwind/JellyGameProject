@@ -857,11 +857,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   audioMixer: {fileID: 24100000, guid: 2cd255835e9a0cb4a86c2d2880cc1277, type: 2}
-  parameterName: BGMVolume
-  volumeSlider: {fileID: 1845993111}
-  volumeText: {fileID: 881676198}
-  minVolume: -20
-  maxVolume: 5
+  parameter_BGM: BGMVolume
+  parameter_SFX: SFXVolume
+  volumeSlider_BGM: {fileID: 0}
+  volumeSlider_SFX: {fileID: 0}
+  volumeText_BGM: {fileID: 0}
+  volumeText_SFX: {fileID: 0}
+  minVolume_BGM: -40
+  maxVolume_BGM: 0
+  minVolume_SFX: -40
+  maxVolume_SFX: 0
   uiManager: {fileID: 2084797400}
 --- !u!1 &330585543
 GameObject:
@@ -2854,6 +2859,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1250890335}
   - component: {fileID: 1250890334}
+  - component: {fileID: 1250890336}
   - component: {fileID: 1250890333}
   m_Layer: 0
   m_Name: FXAudio
@@ -2875,10 +2881,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   fxAudioSource: {fileID: 1250890334}
+  walkAudioSource: {fileID: 1250890336}
   button1Audio: {fileID: 8300000, guid: 67780014cafe09f40b209ee38fdbbd9f, type: 3}
   button3Audio: {fileID: 8300000, guid: efc7d453beaea2c4e860bee4e6c5c1bc, type: 3}
   buttonClickAudio: {fileID: 8300000, guid: fb34787b8d2f37b40be750dc6d4e3a78, type: 3}
   machineAudio: {fileID: 8300000, guid: 41c523eff55ac214fa6e13e1ccf0b9c9, type: 3}
+  machineSpeed: 2
   colorMixAudio: {fileID: 8300000, guid: c0a1c9bd1975980419901dbfd6bd235c, type: 3}
   colorMix2Audio: {fileID: 8300000, guid: 042242c7f93d70447a8366eb76405086, type: 3}
   scaleUpAudio: {fileID: 8300000, guid: 4a46db144cb4e7d44837fe679cd0a5be, type: 3}
@@ -3002,6 +3010,103 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!82 &1250890336
+AudioSource:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1250890332}
+  m_Enabled: 1
+  serializedVersion: 4
+  OutputAudioMixerGroup: {fileID: 5029488840662743045, guid: 2cd255835e9a0cb4a86c2d2880cc1277, type: 2}
+  m_audioClip: {fileID: 0}
+  m_Resource: {fileID: 0}
+  m_PlayOnAwake: 1
+  m_Volume: 1
+  m_Pitch: 1
+  Loop: 0
+  Mute: 0
+  Spatialize: 0
+  SpatializePostEffects: 0
+  Priority: 128
+  DopplerLevel: 1
+  MinDistance: 1
+  MaxDistance: 500
+  Pan2D: 0
+  rolloffMode: 0
+  BypassEffects: 0
+  BypassListenerEffects: 0
+  BypassReverbZones: 0
+  rolloffCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  panLevelCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  spreadCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  reverbZoneMixCustomCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!1 &1286270996
 GameObject:
   m_ObjectHideFlags: 0
@@ -4210,6 +4315,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2ca4eab7f96a9846a992d0c7ffdb282, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameSceneName: LevelDesign
+  titleSceneName: Main
 --- !u!114 &2084797400
 MonoBehaviour:
   m_ObjectHideFlags: 0

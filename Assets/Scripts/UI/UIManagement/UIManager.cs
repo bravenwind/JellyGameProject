@@ -114,7 +114,7 @@ public class UIManager : MonoBehaviour
                 // 게임 오버 로직 (예: R키로 재시작)
                 if (Input.GetKeyDown(KeyCode.R))
                 {
-                    SceneManager.LoadScene("TitleScene");
+                    SceneManager.LoadScene("LevelDesign");
                 }
                 break;
 
@@ -145,6 +145,7 @@ public class UIManager : MonoBehaviour
                 break;
             case UIState.GameOver:
                 Time.timeScale = 0f;
+                PlayFXAudio.Instance.PlayMissionCompleteSound();
                 break;
         }
     }

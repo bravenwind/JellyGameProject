@@ -34,8 +34,9 @@ public class TargetStatusUI : MonoBehaviour
 
         // 2. 텍스트 포맷팅: (255, 0, 0) 형식으로 직접 지정
         //colorText.text = $"R: {selectedColor.r} G: {selectedColor.g} B: {selectedColor.b}";
-        targetColorText.text = $"R: {0} G: {0} B: {170}";
-        targetColorImage.color = Color.blue;
+        DataManager.ColorRangeRule thisGameRangeRule = DataManager.Instance.thisGameRangeRule;
+        targetColorText.text = $"R: {thisGameRangeRule.minRGB.x} G: {thisGameRangeRule.minRGB.y} B: {thisGameRangeRule.minRGB.z}";
+        targetColorImage.color = thisGameRangeRule.color;
         targetScaleText.text = DataManager.Instance.targetScaleLevel.ToString();
     }
 }
