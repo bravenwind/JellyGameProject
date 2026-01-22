@@ -34684,7 +34684,7 @@ MonoBehaviour:
   targetLayer:
     serializedVersion: 2
     m_Bits: 64
-  checkInterval: 0.2
+  checkInterval: 1
   spawnJelly: {fileID: 8801182836036849554, guid: 1a6a4c54dbae5b34895c1d4ccbe658ad, type: 3}
   jellySpawnTransform: {fileID: 2114750797}
   rotator: {fileID: 1001352320}
@@ -53891,7 +53891,7 @@ MonoBehaviour:
   targetLayer:
     serializedVersion: 2
     m_Bits: 64
-  checkInterval: 0.2
+  checkInterval: 1
   spawnJelly: {fileID: 9061212866173874377, guid: f1a4134be443e334a9730d9f7a0cf1ee, type: 3}
   jellySpawnTransform: {fileID: 117672193}
   rotator: {fileID: 1659316726}
@@ -90778,7 +90778,7 @@ Light:
   m_LightShadowCasterMode: 0
   m_AreaSize: {x: 1, y: 1}
   m_BounceIntensity: 1
-  m_ColorTemperature: 4993
+  m_ColorTemperature: 4034
   m_UseColorTemperature: 1
   m_BoundingSphereOverride: {x: 0, y: 0, z: 0, w: 0}
   m_UseBoundingSphereOverride: 0
@@ -97706,7 +97706,7 @@ MonoBehaviour:
   targetLayer:
     serializedVersion: 2
     m_Bits: 64
-  checkInterval: 0.2
+  checkInterval: 1
   spawnJelly: {fileID: 1333569896481833141, guid: de11cdbc764bb514a971a12cef23b152, type: 3}
   jellySpawnTransform: {fileID: 486374355}
   rotator: {fileID: 1904618702}
