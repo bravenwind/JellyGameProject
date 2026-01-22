@@ -15,6 +15,7 @@ public class PlayFXAudio : MonoBehaviour
 
     [Header("Machine")]
     public AudioClip machineAudio;
+    public float machineSpeed = 2.0f;
 
     [Header("Color Mix")]
     public AudioClip colorMixAudio;
@@ -52,13 +53,38 @@ public class PlayFXAudio : MonoBehaviour
     // ... (기존 걷기 관련 코드 생략) ...
 
     // 🔴 [수정됨] void -> float 반환으로 변경
+    // 🔴 [수정됨] 기계 소리 2배속 재생 (Pitch 조절)
     public float PlayMachineSound()
     {
-        Debug.Log("🔊 [Sound] 기계 소리");
-        fxAudioSource.PlayOneShot(machineAudio);
+        if (machineAudio == null) return 0f;
 
-        // 오디오 클립이 있으면 그 길이를 반환, 없으면 0초 반환
-        return machineAudio != null ? machineAudio.length : 0f;
+        Debug.Log("🔊 [Sound] 기계 소리 (2배속 재생)");
+
+        // 1. 임시 게임 오브젝트 생성 (이름: TempMachineSound)
+        // (기존 fxAudioSource의 피치를 건드리면 다른 소리도 빨라지므로 별도로 만듭니다)
+        GameObject tempGO = new GameObject("TempMachineSound");
+        tempGO.transform.SetParent(this.transform); // 하이라키 정리용
+
+        // 2. AudioSource 컴포넌트 추가 및 설정
+        AudioSource tempSource = tempGO.AddComponent<AudioSource>();
+        tempSource.clip = machineAudio;
+        tempSource.volume = fxAudioSource.volume; // 기존 효과음 볼륨과 맞춤
+        tempSource.outputAudioMixerGroup = fxAudioSource.outputAudioMixerGroup; // 믹서 그룹 연결 (있다면)
+
+        // ★ 핵심: 피치(속도)를 2.0으로 설정
+        tempSource.pitch = 2.0f;
+
+        // 3. 재생
+        tempSource.Play();
+
+        // 4. 실제 재생 시간 계산 (원래 길이 / 배속)
+        float duration = machineAudio.length / 2.0f;
+
+        // 5. 소리가 끝나면 임시 오브젝트 삭제 (여유 시간 0.1초 둠)
+        Destroy(tempGO, duration + 0.1f);
+
+        // 6. 단축된 재생 시간 반환
+        return duration;
     }
 
     // -----------------------------------------------------------

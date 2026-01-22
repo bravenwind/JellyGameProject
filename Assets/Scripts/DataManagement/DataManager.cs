@@ -74,6 +74,8 @@ public class DataManager : MonoBehaviour
     public int maxScaleLevel = 5;
     public int targetScaleLevel = 3;
 
+    public float IncreaseJumpForceValue = 5;
+
     [Header("Camera Settings")]
     public float scaleChangedDuration = 1.0f;
     public float scaleChangedPlusSize = 3.0f;

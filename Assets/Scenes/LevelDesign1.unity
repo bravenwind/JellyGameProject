@@ -36647,15 +36647,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 355966115616070896, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
       propertyPath: jumpForce
-      value: 15
-      objectReference: {fileID: 0}
-    - target: {fileID: 355966115616070896, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
-      propertyPath: moveSpeed
-      value: 16
-      objectReference: {fileID: 0}
-    - target: {fileID: 355966115616070896, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
-      propertyPath: rotateSpeed
-      value: 14
+      value: 10
       objectReference: {fileID: 0}
     - target: {fileID: 355966115616070896, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
       propertyPath: groundCheckDistance
@@ -36918,7 +36910,8 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 693389871}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 6971166004752335369, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
@@ -38696,6 +38689,7 @@ MonoBehaviour:
   button3Audio: {fileID: 8300000, guid: efc7d453beaea2c4e860bee4e6c5c1bc, type: 3}
   buttonClickAudio: {fileID: 8300000, guid: fb34787b8d2f37b40be750dc6d4e3a78, type: 3}
   machineAudio: {fileID: 8300000, guid: 41c523eff55ac214fa6e13e1ccf0b9c9, type: 3}
+  machineSpeed: 2
   colorMixAudio: {fileID: 8300000, guid: c0a1c9bd1975980419901dbfd6bd235c, type: 3}
   colorMix2Audio: {fileID: 8300000, guid: 042242c7f93d70447a8366eb76405086, type: 3}
   scaleUpAudio: {fileID: 8300000, guid: 4a46db144cb4e7d44837fe679cd0a5be, type: 3}
@@ -101319,7 +101313,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.16666667
   m_MinRegionArea: 10
-  m_NavMeshData: {fileID: 0}
+  m_NavMeshData: {fileID: 23800000, guid: ca06522a3510c3846bd3d36a1c17e323, type: 2}
   m_BuildHeightMesh: 0
 --- !u!1 &2113750474
 GameObject:

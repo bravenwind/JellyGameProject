@@ -12,6 +12,7 @@ public class PlayerController : BaseFSM
 
     [Header("Physics")]
     public float jumpForce = 7.5f;
+    public float originalJumpForce = 10.0f;
     public float gravity = -20.0f; // CharacterController는 중력을 직접 설정해야 함 (보통 -9.81보다 크게 줌)
     public float terminalVelocity = -53.0f; // 낙하 최대 속도 제한
 
@@ -44,7 +45,14 @@ public class PlayerController : BaseFSM
             moveSpeed = 6.0f;
         }
 
+        originalJumpForce = jumpForce;
+
         UpdateCameraVectors();
+    }
+
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        Debug.Log(hit.gameObject.name);
     }
 
     protected override void Update()

@@ -54,6 +54,22 @@ public class PlayerColorAbsorb : MonoBehaviour
     public UIPoolManager uIPoolManager;
     public PlayerController playerController;
 
+    public float detectRadius;
+    public LayerMask detectLayerMask;
+
+    //private void OnControllerColliderHit(ControllerColliderHit hit)
+    //{
+    //    if (hit.gameObject.CompareTag("Edible"))
+    //    {
+    //        JellyColliderAbsorb jca = hit.gameObject.GetComponentInParent<JellyColliderAbsorb>();
+    //        if (jca != null)
+    //        {
+    //            jca.StartAbsorb(transform);
+    //            hit.collider.isTrigger = true;
+    //        }
+    //    }
+    //}
+
     void Start()
     {
         // [안전장치] Renderer가 연결되지 않았을 경우 자동 할당
@@ -79,19 +95,23 @@ public class PlayerColorAbsorb : MonoBehaviour
             mainCamera_Action = Camera.main.gameObject.GetComponent<MainCamera_Action>();
     }
 
-    void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Object"))
-        {
-            foreach (Rigidbody rigidbody in rigidbodies)
-            {
-                rigidbody.constraints = RigidbodyConstraints.None;
-            }
-        }
-    }
-
     private void Update()
     {
+        Collider[] detectedJellies = Physics.OverlapSphere(transform.position, detectRadius, detectLayerMask);
+
+        if (detectedJellies.Length > 0 )
+        {
+            foreach (Collider c in detectedJellies)
+            {
+                JellyColliderAbsorb jca = c.gameObject.GetComponentInParent<JellyColliderAbsorb>();
+                if (jca != null && jca.absorbing == false)
+                {
+                    jca.StartAbsorb(transform);
+                    c.isTrigger = true;
+                }
+            }
+        }
+
         // 디버그용 리셋
         if (Input.GetKeyDown(KeyCode.R))
         {
@@ -149,6 +169,15 @@ public class PlayerColorAbsorb : MonoBehaviour
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
                 StartCoroutine(IncreaseScale(0.5f));
                 DataManager.Instance.playerCurrentScaleLevel++;
+            }
+
+            if (DataManager.Instance.playerCurrentScaleLevel >= 3)
+            {
+                playerController.jumpForce = playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue;
+            }
+            else
+            {
+                playerController.jumpForce = playerController.originalJumpForce;
             }
 
             DataManager.Instance.absorbedJellyCount = 0; // 경험치 초기화
@@ -219,6 +248,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         if (softBody3D != null) softBody3D.DisableCloth();
 
         PlayFXAudio.Instance.PlayScaleUpSound();
+
         // 배열 범위 초과 방지
         Vector3 startScale = currentScale;
         int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);
@@ -274,5 +304,10 @@ public class PlayerColorAbsorb : MonoBehaviour
         {
             StartCoroutine(softBody3D.EnableAndRebuildCloth());
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawWireSphere(transform.position, detectRadius);
     }
 }

@@ -12,7 +12,7 @@ public class JellyColliderAbsorb : MonoBehaviour
     private float completelyAbsorbedTime = 0.6f;
 
     private Rigidbody rb;
-    private bool absorbing = false;   // 중복 실행 방지
+    public bool absorbing = false;   // 중복 실행 방지
 
     bool lockIn = false;
     public float lockInTime = 3.0f;
@@ -22,6 +22,7 @@ public class JellyColliderAbsorb : MonoBehaviour
 
     [Header("Settings")]
     public GameObject spritePrefab; // 빌보드 효과가 적용된 프리팹
+    public Renderer renderer;
 
     void Awake()
     {
@@ -29,17 +30,21 @@ public class JellyColliderAbsorb : MonoBehaviour
 
         rb.useGravity = true;
         edibleCollider = GetComponentInChildren<Collider>();
+        renderer = GetComponentInChildren<Renderer>();
+        renderer.gameObject.tag = "Edible";
     }
 
     // ✅ [추가됨] 만약 젤리가 물리 충돌(Is Trigger 체크 해제) 상태라면 이것도 대비
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.gameObject.CompareTag("Player") && !absorbing)
-        {
-            StartAbsorb(collision.transform);
-            edibleCollider.isTrigger = true;
-        }
-    }
+    //private void OnCollisionEnter(Collision collision)
+    //{
+    //    Debug.Log(collision);
+
+    //    if (collision.gameObject.CompareTag("Player") && !absorbing)
+    //    {
+    //        StartAbsorb(collision.transform);
+    //        edibleCollider.isTrigger = true;
+    //    }
+    //}
 
     private void OnTriggerStay(Collider other)
     {
