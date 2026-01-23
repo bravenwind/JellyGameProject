@@ -372,19 +372,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rend: {fileID: 4675464973727225916}
-  originalEmissionColor:
-    serializedVersion: 2
-    rgba: 0
   originalFresnelColor:
     serializedVersion: 2
     rgba: 0
-  currentEmissionColor:
-    serializedVersion: 2
-    rgba: 0
   currentFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  targetEmissionColor:
     serializedVersion: 2
     rgba: 0
   targetFresnelColor:
@@ -404,6 +395,9 @@ MonoBehaviour:
   detectLayerMask:
     serializedVersion: 2
     m_Bits: 128
+  BaseColor_01Property: _BaseColor_01
+  BaseColor_02Property: _BaseColor_02
+  FresnelProperty: _FresnelColor
 --- !u!114 &355966115616070896
 MonoBehaviour:
   m_ObjectHideFlags: 0

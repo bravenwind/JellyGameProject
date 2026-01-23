@@ -174,37 +174,9 @@
             },
             "m_InputSlot": {
                 "m_Node": {
-                    "m_Id": "97b4fe1b5f1a4081b22b3f837c569e4d"
-                },
-                "m_SlotId": 0
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
-                    "m_Id": "0c60ea032a484ddaa17cb1ef393d3f11"
-                },
-                "m_SlotId": 0
-            },
-            "m_InputSlot": {
-                "m_Node": {
                     "m_Id": "c1a0554ddd934b8aa338e56947b4c02c"
                 },
                 "m_SlotId": 0
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
-                    "m_Id": "0c60ea032a484ddaa17cb1ef393d3f11"
-                },
-                "m_SlotId": 0
-            },
-            "m_InputSlot": {
-                "m_Node": {
-                    "m_Id": "c8c8f272ad3c433dab189442cce61ae6"
-                },
-                "m_SlotId": 1
             }
         },
         {
@@ -455,6 +427,34 @@
             "m_InputSlot": {
                 "m_Node": {
                     "m_Id": "97b4fe1b5f1a4081b22b3f837c569e4d"
+                },
+                "m_SlotId": 1
+            }
+        },
+        {
+            "m_OutputSlot": {
+                "m_Node": {
+                    "m_Id": "c1a0554ddd934b8aa338e56947b4c02c"
+                },
+                "m_SlotId": 1
+            },
+            "m_InputSlot": {
+                "m_Node": {
+                    "m_Id": "97b4fe1b5f1a4081b22b3f837c569e4d"
+                },
+                "m_SlotId": 0
+            }
+        },
+        {
+            "m_OutputSlot": {
+                "m_Node": {
+                    "m_Id": "c1a0554ddd934b8aa338e56947b4c02c"
+                },
+                "m_SlotId": 1
+            },
+            "m_InputSlot": {
+                "m_Node": {
+                    "m_Id": "c8c8f272ad3c433dab189442cce61ae6"
                 },
                 "m_SlotId": 1
             }
