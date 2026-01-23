@@ -69,22 +69,27 @@ public class PlayerColorAbsorb : MonoBehaviour
         if (rend == null) rend = GetComponentInChildren<Renderer>();
 
         // originalEmissionColor = DataManager.Instance.initialColor;
-        originalBaseColor = DataManager.Instance.initialColor; // Emission 대신 BaseColor 사용
-        originalFresnelColor = DataManager.Instance.initialColor;
+        originalBaseColor = DataManager.Instance.initialViewColor; // Emission 대신 BaseColor 사용
+        originalFresnelColor = DataManager.Instance.initialViewColor;
 
         // currentEmissionColor = originalEmissionColor;
         currentBaseColor = originalBaseColor;
         currentFresnelColor = originalFresnelColor;
+
+        DataManager.Instance.currentColor = DataManager.Instance.initialViewColor;
+        DataManager.Instance.targetColor = DataManager.Instance.currentColor;
 
         // ✨ 수정: Emission 대신 BaseColor_01Property 적용
         // rend.material.SetColor(emissionProperty, currentEmissionColor);
         rend.material.SetColor(BaseColor_01Property, currentBaseColor);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
+        currentStatusUI.ChangeCurrentColorUI();
+
         // DataManager.Instance.currentColor = currentEmissionColor;
         // DataManager.Instance.targetColor = currentEmissionColor;
-        DataManager.Instance.currentColor = currentBaseColor;
-        DataManager.Instance.targetColor = currentBaseColor;
+        DataManager.Instance.currentColor = DataManager.Instance.initialSystemColor;
+        DataManager.Instance.targetColor = DataManager.Instance.currentColor;
 
         originalScale = Vector3.one;
         currentScale = transform.localScale;
@@ -92,7 +97,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         detectRadius = originalDetectRadius;
 
         playerCloth = GetComponentInChildren<Cloth>();
-        currentStatusUI.ChangeCurrentColorUI();
+        
 
         if (Camera.main != null)
             mainCamera_Action = Camera.main.gameObject.GetComponent<MainCamera_Action>();

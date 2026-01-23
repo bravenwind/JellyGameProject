@@ -116,13 +116,13 @@ public class DataManager : MonoBehaviour
     //public Vector3 yellowJellyPlusRGB;
     //public Vector3 whiteJellyPlusRGB;
 
-    public Color32 initialColor = Color.white;
+    public Color32 initialViewColor = Color.white;
     public Color32 currentColor;
     public Color32 targetColor;
 
     public int darknessStep = -20;
 
-    public Vector3 initialRGB = Vector3.zero;
+    public Color32 initialSystemColor = Color.black;
 
     [Header("Jelly Effects (Image 1)")]
     public List<JellyEffectData> jellyEffects;
