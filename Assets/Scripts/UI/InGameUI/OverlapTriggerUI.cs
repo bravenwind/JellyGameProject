@@ -27,11 +27,15 @@ public class OverlapTriggerUI : MonoBehaviour
 
     void Update()
     {
-        // 동작 중이 아닐 때만 감지 시도
         if (!isProcessing)
         {
-            CheckNearbyAndProcess();
+            StartCoroutine(SpawnSequence());
         }
+        // 동작 중이 아닐 때만 감지 시도
+        //if (!isProcessing)
+        //{
+        //    CheckNearbyAndProcess();
+        //}
     }
 
     void CheckNearbyAndProcess()
@@ -59,6 +63,8 @@ public class OverlapTriggerUI : MonoBehaviour
         yield return StartCoroutine(rotator.RotateRoutine(waitTime, SpawnJelly));
 
         isProcessing = false; // 작업 종료 (이제 다시 감지 가능)
+
+        StartCoroutine(SpawnSequence());
     }
 
     void SpawnJelly()

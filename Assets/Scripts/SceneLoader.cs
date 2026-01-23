@@ -4,15 +4,15 @@ using UnityEngine.SceneManagement;
 public class SceneLoader : MonoBehaviour
 { 
         // [수정] Scene 대신 string 사용
-    public string gameSceneName = "GameScene";
-    public string titleSceneName = "TitleScene";
+    public string gameSceneName = "LevelDesign";
+    public string titleSceneName = "Main";
 
     // Start 버튼에 연결
     public void LoadGame()
     {
         PlayFXAudio.Instance.PlayButtonClickSound();
         //SceneManager.LoadScene(gameScene.name);
-        SceneManager.LoadScene("LevelDesign");
+        SceneManager.LoadScene(gameSceneName);
     }
 
     // 메인으로 돌아가기 버튼에 연결
@@ -20,7 +20,7 @@ public class SceneLoader : MonoBehaviour
     {
         PlayFXAudio.Instance.PlayButtonClickSound();
         //SceneManager.LoadScene(titleScene.name);
-        SceneManager.LoadScene("Main");
+        SceneManager.LoadScene(titleSceneName);
     }
 
     // Exit 버튼에 연결(에디터에선 종료 안 됨)

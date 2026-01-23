@@ -118,6 +118,8 @@ public class DataManager : MonoBehaviour
 
     public int darknessStep = -20;
 
+    public Vector3 initialRGB = Vector3.zero;
+
     [Header("Jelly Effects (Image 1)")]
     public List<JellyEffectData> jellyEffects;
 

@@ -18,7 +18,11 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
     [Header("No Hover State")]
     public bool hideImageWhenNoHover = true;
     public float noHoverAlpha = 0f; 
-    public float hoverAlpha = 1f; 
+    public float hoverAlpha = 1f;
+
+    public Image BG;
+    [Range(0, 255)] public int bgNoHoverAlpha = 40;
+    [Range(0, 255)] public int bgHoverAlpha = 200;
 
     public FloatingUI floating;
     [TextArea] public string defaultMessage;
@@ -31,6 +35,8 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
 
         if (hideImageWhenNoHover)
             SetImageAlpha(noHoverAlpha);
+
+        SetBGAlpha(bgNoHoverAlpha);
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -40,6 +46,8 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
 
         if (legacyText != null && hoverMessage != null)
             legacyText.text = hoverMessage;
+
+        SetBGAlpha(bgHoverAlpha);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -51,6 +59,8 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
 
         if (legacyText != null)
             legacyText.text = defaultMessage;
+
+        SetBGAlpha(bgNoHoverAlpha);
     }
 
     private void SetImageAlpha(float a)
@@ -59,6 +69,14 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
         Color c = characterImage.color;
         c.a = a;
         characterImage.color = c;
+    }
+    private void SetBGAlpha(int a255)
+    {
+        if (BG == null) return;
+        float a01 = Mathf.Clamp01(a255 / 255f);
+        Color c = BG.color;
+        c.a = a01;
+        BG.color = c;
     }
 }
 
