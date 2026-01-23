@@ -1,27 +1,30 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections;
 
 public class UIFollowTarget : MonoBehaviour
 {
     [Header("Target Settings")]
     public Transform targetObj;
-    [Tooltip("Å¸°Ù À§Ä¡·ÎºÎÅÍÀÇ ¿ÀÇÁ¼Â")]
+    [Tooltip("íƒ€ê²Ÿ ìœ„ì¹˜ë¡œë¶€í„°ì˜ ì˜¤í”„ì…‹")]
     public Vector3 worldOffset = new Vector3(0, 2.0f, 0);
 
     [Header("Animation Settings")]
-    [Tooltip("ÀüÃ¼ ¾Ö´Ï¸ŞÀÌ¼Ç Áö¼Ó ½Ã°£")]
+    [Tooltip("ì „ì²´ ì• ë‹ˆë©”ì´ì…˜ ì§€ì† ì‹œê°„")]
     public float duration = 1.0f;
 
-    [Tooltip("Å©±â º¯È­ °î¼± (0~1 »çÀÌ °ª)")]
-    // Inspector¿¡¼­ ÆíÁı: Ã³À½¿£ 0ÀÌ¾ú´Ù°¡ Áß°£¿¡ 1.2±îÁö Ä¿Áö°í ³¡¿¡¼­ 0À¸·Î ¶³¾îÁö´Â Ä¿ºê ÃßÃµ
+    // âœ¨ 1. ì›í•˜ëŠ” ìµœëŒ€ í¬ê¸°ë¥¼ ì •í•  ë³€ìˆ˜ ì¶”ê°€
+    [Tooltip("ì• ë‹ˆë©”ì´ì…˜ ë„ë‹¬ ì‹œ ìµœëŒ€ í¬ê¸° ë°°ìœ¨")]
+    public float maxScale = 0.75f;
+
+    [Tooltip("í¬ê¸° ë³€í™” ê³¡ì„  (0~1 ì‚¬ì´ ê°’)")]
+    // âœ¨ 2. ìµœê³ ì ì´ 1ì´ ë˜ë„ë¡ ì»¤ë¸Œ ìˆ˜ì • (1 = maxScaleì„ ì˜ë¯¸í•˜ê²Œ ë¨)
     public AnimationCurve scaleCurve = new AnimationCurve(
         new Keyframe(0f, 0f),
-        new Keyframe(0.2f, 1.2f),
+        new Keyframe(0.2f, 1.0f), // ìµœê³ ì ì„ 1ë¡œ ì„¤ì •
         new Keyframe(1f, 0f)
     );
 
-    [Tooltip("Åõ¸íµµ º¯È­ °î¼± (0~1 »çÀÌ °ª)")]
-    // Inspector¿¡¼­ ÆíÁı: ºü¸£°Ô 1ÀÌ µÇ¾ú´Ù°¡ ¼­¼­È÷ 0À¸·Î ¶³¾îÁö´Â Ä¿ºê ÃßÃµ
+    [Tooltip("íˆ¬ëª…ë„ ë³€í™” ê³¡ì„  (0~1 ì‚¬ì´ ê°’)")]
     public AnimationCurve alphaCurve = new AnimationCurve(
         new Keyframe(0f, 0f),
         new Keyframe(0.1f, 1f),
@@ -32,7 +35,7 @@ public class UIFollowTarget : MonoBehaviour
     private Camera mainCamera;
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
-    private Vector3 lastTargetPos; // Å¸°ÙÀÌ »ç¶óÁ³À» ¶§ ¸¶Áö¸· À§Ä¡ ±â¾ï¿ë
+    private Vector3 lastTargetPos;
 
     void Awake()
     {
@@ -44,32 +47,27 @@ public class UIFollowTarget : MonoBehaviour
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
     }
 
-    // Ç®¿¡¼­ ²¨³¾ ¶§ È£Ãâ
     public void SetTarget(Transform newTarget)
     {
         targetObj = newTarget;
 
-        // ÃÊ±â À§Ä¡ ¼³Á¤ (±ôºıÀÓ ¹æÁö)
         if (targetObj != null)
         {
             lastTargetPos = targetObj.position;
             UpdatePosition();
         }
 
-        // ¾Ö´Ï¸ŞÀÌ¼Ç ÄÚ·çÆ¾ ½ÃÀÛ
         StartCoroutine(PlayEffectProcess());
     }
 
-    // Ç®·Î µ¹¾Æ°¥ ¶§ È£Ãâ (ÃÊ±âÈ­)
     public void ClearTarget()
     {
-        StopAllCoroutines(); // ½ÇÇà ÁßÀÎ ¾Ö´Ï¸ŞÀÌ¼Ç °­Á¦ Áß´Ü
+        StopAllCoroutines();
         targetObj = null;
-        canvasGroup.alpha = 1f; // ´ÙÀ½ »ç¿ëÀ» À§ÇØ ÃÊ±â°ª º¹±¸
+        canvasGroup.alpha = 1f;
         transform.localScale = Vector3.one;
     }
 
-    // ¾Ö´Ï¸ŞÀÌ¼Ç ¹× ¼ö¸í °ü¸® ÄÚ·çÆ¾
     IEnumerator PlayEffectProcess()
     {
         float timer = 0f;
@@ -77,26 +75,23 @@ public class UIFollowTarget : MonoBehaviour
         while (timer < duration)
         {
             timer += Time.deltaTime;
-            float progress = timer / duration; // 0 ~ 1 ÁøÇàµµ
+            float progress = timer / duration;
 
-            // 1. Ä¿ºê¿¡ µû¸¥ ½ºÄÉÀÏ Àû¿ë
-            float scaleValue = scaleCurve.Evaluate(progress);
+            // âœ¨ 3. ì»¤ë¸Œ ê°’(0~1)ì— ë‚´ê°€ ì •í•œ maxScaleì„ ê³±í•¨
+            float scaleValue = scaleCurve.Evaluate(progress) * maxScale;
             transform.localScale = new Vector3(scaleValue, scaleValue, 1f);
 
-            // 2. Ä¿ºê¿¡ µû¸¥ ¾ËÆÄ°ª Àû¿ë
             float alphaValue = alphaCurve.Evaluate(progress);
             canvasGroup.alpha = alphaValue;
 
             yield return null;
         }
 
-        // ¾Ö´Ï¸ŞÀÌ¼Ç Á¾·á ÈÄ Ç®·Î ÀÚµ¿ ¹İÈ¯
         UIPoolManager.Instance.ReturnUI(this);
     }
 
     void LateUpdate()
     {
-        // Å¸°ÙÀÌ ÀÖÀ¸¸é À§Ä¡ °»½Å, ¾øÀ¸¸é ¸¶Áö¸· À§Ä¡ À¯Áö
         if (targetObj != null)
         {
             lastTargetPos = targetObj.position;
@@ -109,18 +104,15 @@ public class UIFollowTarget : MonoBehaviour
     {
         if (mainCamera == null) return;
 
-        // ÀúÀåµÈ ¸¶Áö¸· À§Ä¡(lastTargetPos)¸¦ ±âÁØÀ¸·Î È­¸é ÁÂÇ¥ º¯È¯
         Vector3 targetWorldPos = lastTargetPos + worldOffset;
         Vector3 screenPos = mainCamera.WorldToScreenPoint(targetWorldPos);
 
-        // Ä«¸Ş¶ó µÚÂÊÀÌ¸é ¼û±è (¿É¼Ç)
         if (screenPos.z < 0)
         {
             canvasGroup.alpha = 0f;
         }
         else
         {
-            // À§Ä¡ ÀÌµ¿
             screenPos.z = 0;
             transform.position = screenPos;
         }

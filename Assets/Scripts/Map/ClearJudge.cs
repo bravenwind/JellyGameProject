@@ -6,6 +6,7 @@ public class ClearJudge : MonoBehaviour
     public QuestStarUI questStarUI;
     public GameTimer gameTimer;
     public UIManager uiManager;
+    public UIPoolManager uIPoolManager;
 
     public float halfLength = 6.0f;
     public LayerMask playerLayerMask;
@@ -34,6 +35,7 @@ public class ClearJudge : MonoBehaviour
             }
 
             uiManager.SetState(UIState.GameOver);
+            uIPoolManager.DisableParent();
             gameObject.SetActive(false);
         }
 

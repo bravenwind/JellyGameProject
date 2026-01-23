@@ -19,6 +19,8 @@ public class RandomText : MonoBehaviour
 
             // 2. 이미지의 원본 크기(width, height)로 RectTransform 자동 조절
             textImage.SetNativeSize();
+
+            textImage.rectTransform.localScale = Vector3.one * 0.75f;
         }
     }
 }

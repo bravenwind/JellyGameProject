@@ -72,13 +72,13 @@ public class PlayFXAudio : MonoBehaviour
         tempSource.outputAudioMixerGroup = fxAudioSource.outputAudioMixerGroup; // 믹서 그룹 연결 (있다면)
 
         // ★ 핵심: 피치(속도)를 2.0으로 설정
-        tempSource.pitch = 2.0f;
+        tempSource.pitch = machineSpeed;
 
         // 3. 재생
         tempSource.Play();
 
         // 4. 실제 재생 시간 계산 (원래 길이 / 배속)
-        float duration = machineAudio.length / 2.0f;
+        float duration = machineAudio.length / machineSpeed;
 
         // 5. 소리가 끝나면 임시 오브젝트 삭제 (여유 시간 0.1초 둠)
         Destroy(tempGO, duration + 0.1f);

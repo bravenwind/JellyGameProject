@@ -172,7 +172,7 @@ public class PlayerColorAbsorb : MonoBehaviour
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
                 StartCoroutine(IncreaseScale(0.5f));
 
-                detectRadius = originalDetectRadius + 2.0f * DataManager.Instance.playerCurrentScaleLevel;
+                detectRadius = originalDetectRadius + 1.0f * DataManager.Instance.playerCurrentScaleLevel;
 
                 DataManager.Instance.playerCurrentScaleLevel++;
             }
