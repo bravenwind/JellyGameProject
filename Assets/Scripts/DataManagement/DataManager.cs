@@ -72,6 +72,13 @@ public class DataManager : MonoBehaviour
         public int maxOther;
     }
 
+    [Header("Color Rules Settings")]
+    [Tooltip("잡색 허용치 (낮을수록 다른 색이 조금만 섞여도 실패)")]
+    public int maxImpurity = 40;
+
+    [Tooltip("혼합색 오차 한도 (낮을수록 두 색의 비율이 1:1에 가까워야 함)")]
+    public int maxDifference = 15;
+
     [Header("Scale Settings")]
     public int scaleLevelUpExp = 5;
     public float[] scaleMultiplyPerLevel;
@@ -79,6 +86,8 @@ public class DataManager : MonoBehaviour
     public int absorbedJellyCount = 0;
     public int maxScaleLevel = 5;
     public int targetScaleLevel = 3;
+    public float scaleIncreaseTime = 1.0f;
+
 
     public float IncreaseJumpForceValue = 5;
 
@@ -86,10 +95,18 @@ public class DataManager : MonoBehaviour
     public float scaleChangedDuration = 1.0f;
     public float scaleChangedPlusSize = 3.0f;
 
+    public float gameFailPlusSize = -8.0f;
+
     [Header("Score Settings")]
     public int currentScore = 0;
     public int targetScore = 1000;
     public int scorePerJelly = 100;
+
+    [Header("Detection Settings")]
+    public float originalDetectRadius = 4;
+    public float detectRadius;
+    public float detectPlusRadiusPerLevel = 1.5f;
+    public LayerMask detectLayerMask;
 
     [System.Serializable]
     public struct MissionSet
@@ -182,53 +199,57 @@ public class DataManager : MonoBehaviour
         //}
     }
 
+    // ... (기존 코드들) ...
+
     public JellyColorType DetermineCurrentColor(Color32 c)
     {
-        // 리스트에서 각 색상의 규칙을 가져옴 (RGBCMY 순서)
-        ColorRangeRule redRule = DataManager.Instance.rangeRules[0];
-        ColorRangeRule greenRule = DataManager.Instance.rangeRules[1];
-        ColorRangeRule blueRule = DataManager.Instance.rangeRules[2];
-        ColorRangeRule cyanRule = DataManager.Instance.rangeRules[3];
-        ColorRangeRule magentaRule = DataManager.Instance.rangeRules[4];
-        ColorRangeRule yellowRule = DataManager.Instance.rangeRules[5];
+        ColorRangeRule redRule = rangeRules[0];
+        ColorRangeRule greenRule = rangeRules[1];
+        ColorRangeRule blueRule = rangeRules[2];
+        ColorRangeRule cyanRule = rangeRules[3];
+        ColorRangeRule magentaRule = rangeRules[4];
+        ColorRangeRule yellowRule = rangeRules[5];
 
         // 1. Red (빨강)
-        // 기준: 빨강 170 이상, 파랑/초록 120 이하, 빨강이 다른 색보다 50 높음
-        if (c.r >= redRule.minPrimary && c.g <= redRule.maxOthers && c.b <= redRule.maxOthers &&
-            (c.r - c.g >= redRule.primaryMinDifference) && (c.r - c.b >= redRule.primaryMinDifference))
+        // 기존 조건 + 잡색(G, B)이 maxImpurity 이하여야 함
+        if (c.r >= redRule.minPrimary &&
+            (c.r - Mathf.Max(c.g, c.b) >= redRule.primaryMinDifference) &&
+            c.g <= maxImpurity && c.b <= maxImpurity)
             return JellyColorType.Red;
 
         // 2. Green (초록)
-        // 기준: 초록 170 이상, 파랑/빨강 120 이하, 초록이 다른 색보다 50 높음
-        if (c.g >= greenRule.minPrimary && c.r <= greenRule.maxOthers && c.b <= greenRule.maxOthers &&
-            (c.g - c.r >= greenRule.primaryMinDifference) && (c.g - c.b >= greenRule.primaryMinDifference))
+        // 기존 조건 + 잡색(R, B)이 maxImpurity 이하여야 함
+        if (c.g >= greenRule.minPrimary &&
+            (c.g - Mathf.Max(c.r, c.b) >= greenRule.primaryMinDifference) &&
+            c.r <= maxImpurity && c.b <= maxImpurity)
             return JellyColorType.Green;
 
         // 3. Blue (파랑)
-        // 기준: 파랑 170 이상, 빨강/초록 120 이하, 파랑이 다른 색보다 50 높음
-        if (c.b >= blueRule.minPrimary && c.r <= blueRule.maxOthers && c.g <= blueRule.maxOthers &&
-            (c.b - c.r >= blueRule.primaryMinDifference) && (c.b - c.g >= blueRule.primaryMinDifference))
+        // 기존 조건 + 잡색(R, G)이 maxImpurity 이하여야 함
+        if (c.b >= blueRule.minPrimary &&
+            (c.b - Mathf.Max(c.r, c.g) >= blueRule.primaryMinDifference) &&
+            c.r <= maxImpurity && c.g <= maxImpurity)
             return JellyColorType.Blue;
 
-        // 4. Cyan (시안)
-        // 기준: 파랑과 초록 150 이상, 파랑과 초록 차이 40 이하, 빨강 120 이하
+        // 4. Cyan (시안 = G + B)
+        // R이 낮아야 하고, G와 B의 차이가 maxDifference 이하여야 함
         if (c.g >= cyanRule.minComposite && c.b >= cyanRule.minComposite &&
-            Mathf.Abs(c.g - c.b) <= cyanRule.compositeMaxDifference && c.r <= cyanRule.maxOther)
+            Mathf.Abs(c.g - c.b) <= maxDifference && c.r <= maxImpurity)
             return JellyColorType.Cyan;
 
-        // 5. Magenta (마젠타)
-        // 기준: 빨강과 파랑 150 이상, 빨강과 파랑 차이 40 이하, 초록 120 이하
-        // (기획서 이미지 2번의 하단 '초록' 중복 기재 부분 반영)
+        // 5. Magenta (마젠타 = R + B)
+        // G가 낮아야 하고, R과 B의 차이가 maxDifference 이하여야 함
         if (c.r >= magentaRule.minComposite && c.b >= magentaRule.minComposite &&
-            Mathf.Abs(c.r - c.b) <= magentaRule.compositeMaxDifference && c.g <= magentaRule.maxOther)
+            Mathf.Abs(c.r - c.b) <= maxDifference && c.g <= maxImpurity)
             return JellyColorType.Magenta;
 
-        // 6. Yellow (노랑)
-        // 기준: 빨강과 초록 150 이상, 빨강과 초록 차이 40 이하, 파랑 120 이하
+        // 6. Yellow (노랑 = R + G)
+        // B가 낮아야 하고, R과 G의 차이가 maxDifference 이하여야 함
         if (c.r >= yellowRule.minComposite && c.g >= yellowRule.minComposite &&
-            Mathf.Abs(c.r - c.g) <= yellowRule.compositeMaxDifference && c.b <= yellowRule.maxOther)
+            Mathf.Abs(c.r - c.g) <= maxDifference && c.b <= maxImpurity)
             return JellyColorType.Yellow;
 
+        // 어떤 조건도 만족하지 못함 (색이 탁하거나 비율이 안 맞음)
         return JellyColorType.None;
     }
 

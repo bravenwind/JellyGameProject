@@ -75,7 +75,7 @@ public class PlayFXAudio : MonoBehaviour
         tempSource.pitch = machineSpeed;
 
         // 3. 재생
-        tempSource.Play();
+        //tempSource.Play();
 
         // 4. 실제 재생 시간 계산 (원래 길이 / 배속)
         float duration = machineAudio.length / machineSpeed;

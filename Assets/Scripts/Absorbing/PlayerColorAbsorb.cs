@@ -38,26 +38,25 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     public Rigidbody[] rigidbodies;
 
+    [Header("Scale Increase Settings")]
     public Vector3 originalScale;
     private Vector3 currentScale;
-    public SoftBody3D softBody3D;
 
+    [Header("Reference")]
+    public SoftBody3D softBody3D;
     public Cloth playerCloth;
     public JellyCamera jellyCamera;
     public CurrentStatusUI currentStatusUI;
-
     private MainCamera_Action mainCamera_Action;
     private Coroutine currentFadeCoroutine;
-
     //public UIFollowTarget followTarget;
     public UIFollowTarget scaleIncreasedEffect;
     public UIPoolManager uIPoolManager;
     public PlayerController playerController;
 
-    public float originalDetectRadius;
-    public float detectRadius;
-    public LayerMask detectLayerMask;
+    
 
+    [Header("Material_Property")]
     // ✨ 셰이더 프로퍼티 멤버 변수
     // public string emissionProperty = "_Emission";
     public string BaseColor_01Property = "_BaseColor_01";
@@ -94,7 +93,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         originalScale = Vector3.one;
         currentScale = transform.localScale;
 
-        detectRadius = originalDetectRadius;
+        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
 
         playerCloth = GetComponentInChildren<Cloth>();
         
@@ -105,7 +104,7 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     private void Update()
     {
-        Collider[] detectedJellies = Physics.OverlapSphere(transform.position, detectRadius, detectLayerMask);
+        Collider[] detectedJellies = Physics.OverlapSphere(transform.position, DataManager.Instance.detectRadius, DataManager.Instance.detectLayerMask);
 
         if (detectedJellies.Length > 0)
         {
@@ -174,9 +173,9 @@ public class PlayerColorAbsorb : MonoBehaviour
             if (DataManager.Instance.playerCurrentScaleLevel < DataManager.Instance.maxScaleLevel)
             {
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
-                StartCoroutine(IncreaseScale(0.5f));
+                StartCoroutine(IncreaseScale(DataManager.Instance.scaleIncreaseTime));
 
-                detectRadius = originalDetectRadius + 1.0f * DataManager.Instance.playerCurrentScaleLevel;
+                DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + 1.0f * DataManager.Instance.playerCurrentScaleLevel;
 
                 DataManager.Instance.playerCurrentScaleLevel++;
             }
@@ -204,16 +203,44 @@ public class PlayerColorAbsorb : MonoBehaviour
     {
         Color32 baseTarget = DataManager.Instance.targetColor;
 
-        // targetEmissionColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
-        targetBaseColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
-        targetFresnelColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
+        // 1. 변화량을 더한 '예상 색상' 계산
+        Color32 nextColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
+
+        // 2. DataManager의 조건에 부합하는지 판별
+        JellyColorType determinedType = DataManager.Instance.DetermineCurrentColor(nextColor);
+
+        // 3. 조건에 부합한다면, 어설픈 혼합색이 아닌 '해당 색의 완벽한 색(순색)'으로 보정
+        if (determinedType != JellyColorType.None)
+        {
+            Debug.Log($"✨ [색상 판별 성공] {determinedType} 영역에 도달했습니다!");
+
+            switch (determinedType)
+            {
+                case JellyColorType.Red: nextColor = Color.red; break;
+                case JellyColorType.Green: nextColor = Color.green; break;
+                case JellyColorType.Blue: nextColor = Color.blue; break;
+                case JellyColorType.Cyan: nextColor = Color.cyan; break;
+                case JellyColorType.Magenta: nextColor = Color.magenta; break;
+                case JellyColorType.Yellow: nextColor = Color.yellow; break;
+            }
+
+            // ★ 게임 클리어 조건 확인: 현재 판별된 색이 이번 게임의 목표 색상인지 체크
+            if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
+            {
+                Debug.Log($"🎉 [게임 클리어] 목표 색상인 {determinedType} 달성! 🎉");
+                // TODO: 여기에 게임 클리어 연출이나 씬 이동을 연결하세요.
+                // 예시: DataManager.Instance.missions[0].missionCleared = true;
+            }
+        }
+
+        // 4. 최종 색상 적용
+        targetBaseColor = nextColor;
+        targetFresnelColor = nextColor;
 
         int darknessStep = DataManager.Instance.darknessStep;
-        // targetEmissionColor = targetEmissionColor.AddRGB(darknessStep, darknessStep, darknessStep);
         targetBaseColor = targetBaseColor.AddRGB(darknessStep, darknessStep, darknessStep);
         targetFresnelColor = targetFresnelColor.AddRGB(darknessStep, darknessStep, darknessStep);
 
-        // DataManager.Instance.targetColor = targetEmissionColor;
         DataManager.Instance.targetColor = targetBaseColor;
     }
 
@@ -323,6 +350,9 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     private void OnDrawGizmos()
     {
-        Gizmos.DrawWireSphere(transform.position, detectRadius);
+        if (DataManager.Instance != null)
+        {
+            Gizmos.DrawWireSphere(transform.position, DataManager.Instance.detectRadius);
+        }
     }
 }

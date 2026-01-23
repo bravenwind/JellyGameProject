@@ -29,6 +29,8 @@ public class PlayerController : BaseFSM
     private float verticalVelocity; // Y축 속도 (점프/중력)
     private Quaternion targetRotation;
 
+    public UIManager uiManager;
+
     // 상태 확인용
     public bool isGrounded;
 
@@ -243,5 +245,10 @@ public class PlayerController : BaseFSM
 
         camForward.Normalize();
         camRight.Normalize();
+    }
+
+    public void OnFailAnimationFinished()
+    {
+        uiManager.SetState(UIState.GameFail);
     }
 }

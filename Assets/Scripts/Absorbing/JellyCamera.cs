@@ -1,28 +1,49 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using DG.Tweening;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal; // URP ÇÊ¼ö
+using UnityEngine.Rendering.Universal;
 
 public class JellyCamera : MonoBehaviour
 {
-    [Header("Settings")]
-    public float duration = 1.5f;   // µù~~ ÇÏ´Â ½Ã°£ (±æ¼ö·Ï ¿©¿îÀÌ ±è)
-    public float strength = -0.7f;  // Âî±×·¯Áö´Â °­µµ (À½¼ö¸é ¶×¶×, ¾ç¼ö¸é È¦Âß)
-    public int vibrato = 5;         // ¶³¸² È½¼ö (Å¬¼ö·Ï ¸¹ÀÌ ¶ì¿ä¿Ë~ °Å¸²)
-    public float elasticity = 1f;   // Åº¼º (0~1, 1ÀÌ¸é °í¹«ÁÙ, 0ÀÌ¸é µüµü)
+    [Header("âœ¨ ì ¤ë¦¬ ì¹´ë©”ë¼ ì—°ì¶œ ì„¤ì • (ì—¬ê¸°ì„œ ê°’ì„ ì¡°ì ˆí•˜ì„¸ìš”) âœ¨")]
 
-    [Header("References")]
+    [Tooltip("íš¨ê³¼ê°€ ì™„ì „íˆ ë©ˆì¶œ ë•Œê¹Œì§€ ê±¸ë¦¬ëŠ” ì‹œê°„(ì´ˆ ë‹¨ìœ„)ì…ë‹ˆë‹¤.\n" +
+             "ì˜ˆ: 1.5ë¡œ ì„¤ì •í•˜ë©´ 1.5ì´ˆ ë™ì•ˆ ì¶œë ê±°ë¦½ë‹ˆë‹¤.")]
+    public float duration = 1.5f;
+
+    [Tooltip("í™”ë©´ì´ ì²˜ìŒ ì¶©ê²©ë°›ì„ ë•Œ ì–¼ë§ˆë‚˜ ì°Œê·¸ëŸ¬ì§ˆì§€ ì •í•©ë‹ˆë‹¤.\n" +
+             "ë§ˆì´ë„ˆìŠ¤(-) ê°’: ë³¼ë¡ ë Œì¦ˆì²˜ëŸ¼ ì•ìœ¼ë¡œ íŠ€ì–´ë‚˜ì˜´\n" +
+             "í”ŒëŸ¬ìŠ¤(+) ê°’: ì˜¤ëª© ë Œì¦ˆì²˜ëŸ¼ ë’¤ë¡œ ë¹¨ë ¤ ë“¤ì–´ê°")]
+    public float strength = -0.7f;
+
+    [Tooltip("ì •í•´ì§„ ì‹œê°„ ë™ì•ˆ ëª‡ ë²ˆì´ë‚˜ ì•ë’¤ë¡œ ì§„ë™í• ì§€ ì •í•©ë‹ˆë‹¤.\n" +
+             "ê°’ì´ í´ìˆ˜ë¡ ë” ë°©ì •ë§ê²Œ(?) ë¶€ë¥´ë¥´ ë–¨ë¦½ë‹ˆë‹¤. (ê¶Œì¥: 5~10)")]
+    public int vibrato = 5;
+
+    [Tooltip("ì ¤ë¦¬ì˜ ì«€ë“í•œ ì •ë„(íƒ„ì„±)ì…ë‹ˆë‹¤.\n" +
+             "1ì— ê°€ê¹Œìš¸ìˆ˜ë¡ ë§ë‘í•œ ë¬¼í’ì„ ì²˜ëŸ¼ ë ìš©~ í•˜ê³  ë§ì´ íŠ•ê¸°ê³ ,\n" +
+             "0ì— ê°€ê¹Œìš¸ìˆ˜ë¡ ë”±ë”±í•œ ëŒì²˜ëŸ¼ íŠ•ê¹€ì´ ì ìŠµë‹ˆë‹¤.")]
+    [Range(0f, 1f)] // ìœ ë‹ˆí‹° ì¸ìŠ¤í™í„°ì— 0~1 ì‚¬ì´ ìŠ¬ë¼ì´ë”ê°€ ìƒê²¨ì„œ ì¡°ì ˆí•˜ê¸° ì‰¬ì›Œì§‘ë‹ˆë‹¤.
+    public float elasticity = 1f;
+
+
+    [Space(20)] // ì¸ìŠ¤í™í„°ì—ì„œ ì¤„ ê°„ê²© ë„ìš°ê¸°
+    [Header("ğŸ”§ í•„ìˆ˜ ì—°ê²° í•­ëª© (ê±´ë“œë¦¬ì§€ ë§ˆì„¸ìš”)")]
+    [Tooltip("ì”¬ì— ìˆëŠ” Global Volume ì˜¤ë¸Œì íŠ¸ë¥¼ ì—¬ê¸°ì— ëŒì–´ë‹¤ ë„£ìœ¼ì„¸ìš”.\n" +
+             "ì£¼ì˜: Volume ì•ˆì— Lens Distortion íš¨ê³¼ê°€ ê¼­ ì¶”ê°€ë˜ì–´ ìˆì–´ì•¼ í•©ë‹ˆë‹¤!")]
     public Volume globalVolume;
+
+    // --- ë‚´ë¶€ ë³€ìˆ˜ (ì¸ìŠ¤í™í„°ì— ì•ˆ ë³´ì„) ---
     private LensDistortion lensDistortion;
     private Camera cam;
     private float defaultFov;
-    private Quaternion defaultRotation; // Start¿¡¼­ ÀúÀåÇØ¾ß ÇÔ
+    private Quaternion defaultRotation;
 
     void Start()
     {
         cam = GetComponent<Camera>();
         defaultFov = cam.fieldOfView;
-        defaultRotation = cam.transform.localRotation; // ¿ø·¡ È¸Àü°ª ÀúÀå (Ãß°¡)
+        defaultRotation = cam.transform.localRotation;
 
         if (globalVolume.profile.TryGet(out lensDistortion))
         {
@@ -32,35 +53,34 @@ public class JellyCamera : MonoBehaviour
 
     private void Update()
     {
+        // ê²Œì„ ì‹¤í–‰ ì¤‘ Pí‚¤ë¥¼ ëˆ„ë¥´ë©´ íš¨ê³¼ í™•ì¸ ê°€ëŠ¥
         if (Input.GetKeyDown(KeyCode.P))
         {
             PlayDing();
         }
     }
 
-    // Å×½ºÆ®¿ë: ÀÎ½ºÆåÅÍ ¿ìÅ¬¸¯ -> Play Ding Effect ¼±ÅÃ
+    // ì¸ìŠ¤í™í„°ì—ì„œ ìŠ¤í¬ë¦½íŠ¸ ìš°í´ë¦­ -> Play Ding Effect ë¥¼ ëˆŒëŸ¬ì„œ í…ŒìŠ¤íŠ¸ ê°€ëŠ¥
     [ContextMenu("Play Ding Effect")]
     public void PlayDing()
     {
-        // 1. ±âÁ¸ Æ®À© ¸ğµÎ Áï½Ã Áß´Ü (ÀÌÀü ¿òÁ÷ÀÓ Å³)
+        // 1. í˜¹ì‹œ ì‹¤í–‰ ì¤‘ì¸ íš¨ê³¼ê°€ ìˆë‹¤ë©´ ì¤‘ë‹¨í•˜ê³  ì´ˆê¸°í™” (ì•ˆì „ì¥ì¹˜)
         DOTween.Kill(cam);
         DOTween.Kill(lensDistortion);
         DOTween.Kill(cam.transform);
 
-        // 2. ¡Ú¾ÈÀüÀåÄ¡: ½ÃÀÛ Àü¿¡ ¹«Á¶°Ç '¿ø·¡ »óÅÂ'·Î °­Á¦ º¹±¸
-        // ÀÌ°É ¾È ÇÏ¸é ¿¬Å¸ÇßÀ» ¶§ È­¸éÀÌ µÚÆ²¸° Ã¤·Î ½ÃÀÛÇÔ
         cam.fieldOfView = defaultFov;
         lensDistortion.intensity.value = 0f;
         cam.transform.localRotation = defaultRotation;
 
-        // ---------------- ¾Ö´Ï¸ŞÀÌ¼Ç ½ÃÀÛ ----------------
+        // ---------------- ì• ë‹ˆë©”ì´ì…˜ ì‹œì‘ ----------------
 
-        // 3. Ä«¸Ş¶ó FOV ÆİÄ¡
+        // 2. í™”ë©´ì´ ì‚´ì§ ë‹¹ê²¨ì¡Œë‹¤ê°€(FOV í€ì¹˜) ëŒì•„ì˜¤ëŠ” íš¨ê³¼
         cam.DOFieldOfView(defaultFov - 5f, duration)
-           .From(defaultFov) // FromÀ» ¸í½ÃÇÏ¸é ´õ ¾ÈÁ¤Àû
+           .From(defaultFov)
            .SetEase(Ease.OutElastic);
 
-        // 4. ·»Áî ¿Ö°î (²Ü··ÀÓ)
+        // 3. ë Œì¦ˆê°€ ê¿€ë ì´ëŠ” íš¨ê³¼ (Lens Distortion)
         Sequence seq = DOTween.Sequence();
         seq.Append(
             DOTween.To(() => lensDistortion.intensity.value,
@@ -70,18 +90,16 @@ public class JellyCamera : MonoBehaviour
         seq.Append(
             DOTween.To(() => lensDistortion.intensity.value,
                        x => lensDistortion.intensity.value = x,
-                       0.1f, duration).SetEase(Ease.OutElastic, 1.2f) // ¡Ú¼öÁ¤: 0.1f°¡ ¾Æ´Ï¶ó 0f¿©¾ß ±ò²ûÇÏ°Ô µ¹¾Æ¿È
+                       0f, duration).SetEase(Ease.OutElastic, elasticity) // ì„¤ì •í•œ elasticity ê°’ ì ìš©
         );
 
-        // ½ÃÄö½º°¡ ³¡³µÀ» ¶§µµ È®½ÇÇÏ°Ô 0À¸·Î °íÁ¤ (ºÎµ¿¼Ò¼öÁ¡ ¿ÀÂ÷ ¹æÁö)
         seq.OnComplete(() => {
             lensDistortion.intensity.value = 0f;
         });
 
-        // 5. Ä«¸Ş¶ó È¸Àü
+        // 4. ì¹´ë©”ë¼ê°€ ì–‘ì˜†ìœ¼ë¡œ ê¸°ìš°ëš±ê±°ë¦¬ëŠ” íš¨ê³¼
         cam.transform.DOPunchRotation(new Vector3(0, 0, 3f), duration, vibrato, elasticity)
            .OnComplete(() => {
-               // ³¡³ª¸é È¸Àüµµ È®½ÇÇÏ°Ô ¿øÀ§Ä¡
                cam.transform.localRotation = defaultRotation;
            });
     }

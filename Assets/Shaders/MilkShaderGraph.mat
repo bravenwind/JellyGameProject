@@ -51,11 +51,13 @@ Material:
     - _Normal_Strength: 0.19
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Smoothness: 1
+    - _Smoothness: 0.8
+    - _Speed: 1
     - _Swell_Speed: 0
     - _Tiling: 0.54
     - _WaveSpeed: 1
     m_Colors:
+    - _BaseColor: {r: 0.99215686, g: 1, b: 0.9607843, a: 0}
     - _DeepWaterColor: {r: 0, g: 0.41164446, b: 1, a: 0}
     - _Scale: {r: 0, g: 0, b: 0, a: 0}
     - _ShallowWaterColor: {r: 0, g: 0.7527723, b: 1, a: 0}

@@ -18,6 +18,7 @@ public class MainCamera_Action : MonoBehaviour
     public float yaw = -45f;    // Y
 
     public float currentSize;
+    public float targetSize;
 
     // 기존 Lerp 대신 SmoothDamp 사용 권장
     private Vector3 currentVelocity; // SmoothDamp용 참조 변수
@@ -54,21 +55,28 @@ public class MainCamera_Action : MonoBehaviour
         if (DataManager.Instance.playerCurrentScaleLevel <= DataManager.Instance.maxScaleLevel)
         {
             currentSize = Camera.main.orthographicSize;
-            StartCoroutine(OnScaleChanged_Co(DataManager.Instance.scaleChangedDuration));
+            float targetSize = currentSize + DataManager.Instance.scaleChangedPlusSize;
+            StartCoroutine(OnScaleChanged_Co(targetSize, DataManager.Instance.scaleChangedDuration));
         }
     }
 
-    IEnumerator OnScaleChanged_Co(float duration)
+    IEnumerator OnScaleChanged_Co(float targetSize, float duration)
     {
         float t = 0f;
         float delta = Time.deltaTime;
 
-        float targetSize = currentSize + DataManager.Instance.scaleChangedPlusSize;
         while (t <= duration)
         {
             t += delta;
             Camera.main.orthographicSize = Mathf.Lerp(currentSize, targetSize, t / duration);
             yield return null;
         }
+    }
+
+    public void GameFailSizeChange()
+    {
+        currentSize = Camera.main.orthographicSize;
+        float targetSize = currentSize + DataManager.Instance.gameFailPlusSize;
+        StartCoroutine(OnScaleChanged_Co(targetSize, 0.5f));
     }
 }

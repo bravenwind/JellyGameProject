@@ -11,7 +11,8 @@ public enum UIState
     //MainMenu,   // 메인 메뉴
     Settings,   // 설정 창
     InGame,     // 게임 플레이 중 HUD
-    GameOver,    // 게임 오버 창
+    GameSuccess,    // 게임 오버 창
+    GameFail,
     Menu
 }
 
@@ -41,6 +42,7 @@ public class UIManager : MonoBehaviour
 
     // 현재 상태를 저장하는 변수
     private UIState currentState;
+
 
     private void Start()
     {
@@ -110,7 +112,7 @@ public class UIManager : MonoBehaviour
                 }
                 break;
 
-            case UIState.GameOver:
+            case UIState.GameSuccess:
                 // 게임 오버 로직 (예: R키로 재시작)
                 if (Input.GetKeyDown(KeyCode.R))
                 {
@@ -143,9 +145,11 @@ public class UIManager : MonoBehaviour
             case UIState.Pause:
                 Time.timeScale = 0f;
                 break;
-            case UIState.GameOver:
+            case UIState.GameSuccess:
                 Time.timeScale = 0f;
                 PlayFXAudio.Instance.PlayMissionCompleteSound();
+                break;
+            case UIState.GameFail:
                 break;
         }
     }

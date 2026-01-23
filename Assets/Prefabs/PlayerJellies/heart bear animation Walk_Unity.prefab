@@ -383,6 +383,7 @@ MonoBehaviour:
     rgba: 0
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
+  scaleIncreaseTime: 1.5
   softBody3D: {fileID: 1931424961602710681}
   playerCloth: {fileID: 0}
   jellyCamera: {fileID: 0}
