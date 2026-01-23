@@ -88,35 +88,6 @@ public class JellyColliderAbsorb : MonoBehaviour
         Vector3 toTarget = target.position - transform.position;
         float dist = toTarget.magnitude;
 
-        //// 🔒 확정 흡수 모드 (시간이 지났거나, 이미 아주 가까우면 바로 락인)
-        //// 충돌로 시작된 경우 이미 거리가 0에 가깝기 때문에 바로 lockIn이 될 수 있도록 조건 추가
-        ////if ((absorbTime >= lockInTime))
-        ////{
-        ////    lockIn = true;
-        ////}
-
-        ////if (lockIn)
-        ////{
-        ////    if (!rb.isKinematic)
-        ////    {
-        ////        // 물리 끄고 강제 흡수
-        ////        rb.linearVelocity = Vector3.zero;
-        ////        rb.isKinematic = true;
-        ////    }
-
-        ////    transform.position = Vector3.MoveTowards(
-        ////        transform.position,
-        ////        target.position,
-        ////        12f * Time.fixedDeltaTime
-        ////    );
-
-        ////    if (dist < destroyDistance)
-        ////    {
-        ////        OnAbsorbed();
-        ////    }
-        ////    return;
-        ////}
-
         // 🧲 유도 단계 (멀리서 시작된 경우)
         absorbTimer += Time.fixedDeltaTime;
 

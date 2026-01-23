@@ -48,6 +48,10 @@ public class DataManager : MonoBehaviour
         public string colorName;
         public JellyColorType type;
         public Vector3Int rgbChange; // 기획서의 +30, -15 등을 저장
+
+        //public Vector3Int rgbBaseColor1;
+        //public Vector3Int rgbBaseColor2;
+        //public Vector3Int rgbFresnelColor;
     }
 
     [System.Serializable]
