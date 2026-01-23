@@ -115,9 +115,6 @@
             "m_Id": "1546a71ee2994685b211d823a529c689"
         },
         {
-            "m_Id": "d107333ef7fe43e2b811ae84ee242249"
-        },
-        {
             "m_Id": "c41b9c457fbb46fd887742dc30d10215"
         },
         {
@@ -479,20 +476,6 @@
         {
             "m_OutputSlot": {
                 "m_Node": {
-                    "m_Id": "c41b9c457fbb46fd887742dc30d10215"
-                },
-                "m_SlotId": 2
-            },
-            "m_InputSlot": {
-                "m_Node": {
-                    "m_Id": "d107333ef7fe43e2b811ae84ee242249"
-                },
-                "m_SlotId": 0
-            }
-        },
-        {
-            "m_OutputSlot": {
-                "m_Node": {
                     "m_Id": "c8c8f272ad3c433dab189442cce61ae6"
                 },
                 "m_SlotId": 2
@@ -642,9 +625,6 @@
         "m_Blocks": [
             {
                 "m_Id": "09d837e092e04af6bbeda09e3609f066"
-            },
-            {
-                "m_Id": "d107333ef7fe43e2b811ae84ee242249"
             }
         ]
     },
@@ -676,10 +656,10 @@
     "m_Guid": {
         "m_GuidSerialized": "e4d286a3-5555-4452-ac56-86d95fb438f0"
     },
-    "m_Name": "Fresnel_Color",
+    "m_Name": "FresnelColor",
     "m_DefaultRefNameVersion": 1,
-    "m_RefNameGeneratedByDisplayName": "Fresnel_Color",
-    "m_DefaultReferenceName": "_Fresnel_Color",
+    "m_RefNameGeneratedByDisplayName": "FresnelColor",
+    "m_DefaultReferenceName": "_FresnelColor",
     "m_OverrideReferenceName": "",
     "m_GeneratePropertyBlock": true,
     "m_UseCustomSlotLabel": false,
@@ -691,8 +671,8 @@
     "m_Hidden": false,
     "m_Value": {
         "r": 1.0,
-        "g": 0.6307739615440369,
-        "b": 0.0,
+        "g": 1.0,
+        "b": 1.0,
         "a": 0.0
     },
     "isMainColor": false,
@@ -1597,10 +1577,10 @@
     "m_Guid": {
         "m_GuidSerialized": "668a9533-e647-41c5-93d6-da04ac3e22dc"
     },
-    "m_Name": "Color_Aeris",
+    "m_Name": "ColorBrightness",
     "m_DefaultRefNameVersion": 1,
-    "m_RefNameGeneratedByDisplayName": "Color_Aeris",
-    "m_DefaultReferenceName": "_Color_Aeris",
+    "m_RefNameGeneratedByDisplayName": "ColorBrightness",
+    "m_DefaultReferenceName": "_ColorBrightness",
     "m_OverrideReferenceName": "",
     "m_GeneratePropertyBlock": true,
     "m_UseCustomSlotLabel": false,
@@ -1615,36 +1595,6 @@
     "m_RangeValues": {
         "x": 0.0,
         "y": 1.0
-    }
-}
-
-{
-    "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.ColorRGBMaterialSlot",
-    "m_ObjectId": "45d75f5ffd554666b2e9d80c84536af7",
-    "m_Id": 0,
-    "m_DisplayName": "Emission",
-    "m_SlotType": 0,
-    "m_Hidden": false,
-    "m_ShaderOutputName": "Emission",
-    "m_StageCapability": 2,
-    "m_Value": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0
-    },
-    "m_DefaultValue": {
-        "x": 0.0,
-        "y": 0.0,
-        "z": 0.0
-    },
-    "m_Labels": [],
-    "m_ColorMode": 1,
-    "m_DefaultColor": {
-        "r": 0.0,
-        "g": 0.0,
-        "b": 0.0,
-        "a": 1.0
     }
 }
 
@@ -1755,13 +1705,13 @@
     "m_RefNameGeneratedByDisplayName": "TextureBrightness",
     "m_DefaultReferenceName": "_TextureBrightness",
     "m_OverrideReferenceName": "",
-    "m_GeneratePropertyBlock": true,
+    "m_GeneratePropertyBlock": false,
     "m_UseCustomSlotLabel": false,
     "m_CustomSlotLabel": "",
     "m_DismissedVersion": 0,
     "m_Precision": 0,
-    "overrideHLSLDeclaration": false,
-    "hlslDeclarationOverride": 0,
+    "overrideHLSLDeclaration": true,
+    "hlslDeclarationOverride": 2,
     "m_Hidden": false,
     "m_Value": 2.0,
     "m_FloatType": 0,
@@ -1992,10 +1942,10 @@
     "m_Guid": {
         "m_GuidSerialized": "43a73893-5f31-4069-853a-929a9d4f8814"
     },
-    "m_Name": "Fresnel",
+    "m_Name": "FresnelPower",
     "m_DefaultRefNameVersion": 1,
-    "m_RefNameGeneratedByDisplayName": "Fresnel",
-    "m_DefaultReferenceName": "_Fresnel",
+    "m_RefNameGeneratedByDisplayName": "FresnelPower",
+    "m_DefaultReferenceName": "_FresnelPower",
     "m_OverrideReferenceName": "",
     "m_GeneratePropertyBlock": true,
     "m_UseCustomSlotLabel": false,
@@ -2005,7 +1955,7 @@
     "overrideHLSLDeclaration": false,
     "hlslDeclarationOverride": 0,
     "m_Hidden": false,
-    "m_Value": 0.0,
+    "m_Value": 3.0,
     "m_FloatType": 0,
     "m_RangeValues": {
         "x": 0.0,
@@ -2339,7 +2289,7 @@
     "m_Type": "UnityEditor.ShaderGraph.Vector1MaterialSlot",
     "m_ObjectId": "77fd4e4f9fe34b15ba2c2caafd41f32e",
     "m_Id": 0,
-    "m_DisplayName": "Fresnel",
+    "m_DisplayName": "FresnelPower",
     "m_SlotType": 1,
     "m_Hidden": false,
     "m_ShaderOutputName": "Out",
@@ -2378,7 +2328,7 @@
     "m_Type": "UnityEditor.ShaderGraph.Vector1MaterialSlot",
     "m_ObjectId": "81ca7524444041cb8f0e6ea8d158035a",
     "m_Id": 0,
-    "m_DisplayName": "Color_Aeris",
+    "m_DisplayName": "ColorBrightness",
     "m_SlotType": 1,
     "m_Hidden": false,
     "m_ShaderOutputName": "Out",
@@ -2597,7 +2547,7 @@
     "m_Type": "UnityEditor.ShaderGraph.Vector4MaterialSlot",
     "m_ObjectId": "8ee0e95e15a344c8a98a9be6226b41c1",
     "m_Id": 0,
-    "m_DisplayName": "Color",
+    "m_DisplayName": "ReflectColor",
     "m_SlotType": 1,
     "m_Hidden": false,
     "m_ShaderOutputName": "Out",
@@ -3556,40 +3506,6 @@
 
 {
     "m_SGVersion": 0,
-    "m_Type": "UnityEditor.ShaderGraph.BlockNode",
-    "m_ObjectId": "d107333ef7fe43e2b811ae84ee242249",
-    "m_Group": {
-        "m_Id": ""
-    },
-    "m_Name": "SurfaceDescription.Emission",
-    "m_DrawState": {
-        "m_Expanded": true,
-        "m_Position": {
-            "serializedVersion": "2",
-            "x": 0.0,
-            "y": 0.0,
-            "width": 0.0,
-            "height": 0.0
-        }
-    },
-    "m_Slots": [
-        {
-            "m_Id": "45d75f5ffd554666b2e9d80c84536af7"
-        }
-    ],
-    "synonyms": [],
-    "m_Precision": 0,
-    "m_PreviewExpanded": true,
-    "m_DismissedVersion": 0,
-    "m_PreviewMode": 0,
-    "m_CustomColors": {
-        "m_SerializableColors": []
-    },
-    "m_SerializedDescriptor": "SurfaceDescription.Emission"
-}
-
-{
-    "m_SGVersion": 0,
     "m_Type": "UnityEditor.ShaderGraph.DynamicValueMaterialSlot",
     "m_ObjectId": "d2d639f6f46141bda5d1939a2eb01d60",
     "m_Id": 2,
@@ -3979,7 +3895,7 @@
     "m_Type": "UnityEditor.ShaderGraph.Vector4MaterialSlot",
     "m_ObjectId": "e95ed0cf3acf4d2b922ec0f11339ce56",
     "m_Id": 0,
-    "m_DisplayName": "Fresnel_Color",
+    "m_DisplayName": "FresnelColor",
     "m_SlotType": 1,
     "m_Hidden": false,
     "m_ShaderOutputName": "Out",
@@ -4225,10 +4141,10 @@
     "m_Guid": {
         "m_GuidSerialized": "fe7ef55a-187b-4fd8-85c3-9a6135ef65b3"
     },
-    "m_Name": "Color",
+    "m_Name": "ReflectColor",
     "m_DefaultRefNameVersion": 1,
-    "m_RefNameGeneratedByDisplayName": "Color",
-    "m_DefaultReferenceName": "_Color",
+    "m_RefNameGeneratedByDisplayName": "ReflectColor",
+    "m_DefaultReferenceName": "_ReflectColor",
     "m_OverrideReferenceName": "",
     "m_GeneratePropertyBlock": true,
     "m_UseCustomSlotLabel": false,
@@ -4240,8 +4156,8 @@
     "m_Hidden": false,
     "m_Value": {
         "r": 1.0,
-        "g": 0.0,
-        "b": 0.8929986953735352,
+        "g": 1.0,
+        "b": 1.0,
         "a": 0.0
     },
     "isMainColor": false,

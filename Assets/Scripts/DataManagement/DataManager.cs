@@ -116,7 +116,7 @@ public class DataManager : MonoBehaviour
     //public Vector3 yellowJellyPlusRGB;
     //public Vector3 whiteJellyPlusRGB;
 
-    public Color32 initialColor;
+    public Color32 initialColor = Color.white;
     public Color32 currentColor;
     public Color32 targetColor;
 
