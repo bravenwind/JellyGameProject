@@ -147,9 +147,13 @@ public class UIPoolManager : MonoBehaviour
 
     public void DisableParent()
     {
-        for (int i = 0; i < poolDictionary.Count; i++)
+        // 딕셔너리에 저장된 모든 부모 Transform 값(Values)을 하나씩 꺼내옵니다.
+        foreach (Transform parentTransform in poolParentDictionary.Values)
         {
-            poolParentDictionary[i].transform.gameObject.SetActive(false);
+            if (parentTransform != null)
+            {
+                parentTransform.gameObject.SetActive(false);
+            }
         }
     }
 }

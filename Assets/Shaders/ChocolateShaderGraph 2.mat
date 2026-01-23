@@ -54,7 +54,7 @@ Material:
     - _Smoothness: 1
     - _Speed: 1
     - _Swell_Speed: 0
-    - _Tiling: 0.54
+    - _Tiling: 0.8
     - _WaveSpeed: 1
     m_Colors:
     - _BaseColor: {r: 0.5754717, g: 0.27306697, b: 0, a: 0}
