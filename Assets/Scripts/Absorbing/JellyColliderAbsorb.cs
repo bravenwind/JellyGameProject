@@ -18,7 +18,8 @@ public class JellyColliderAbsorb : MonoBehaviour
     public float lockInTime = 3.0f;
 
     public Collider edibleCollider;
-    private NavMeshAgent agent;
+    public NavMeshAgent agent;
+    public WanderingAI agentAI;
 
     [Header("Settings")]
     public GameObject spritePrefab; // 빌보드 효과가 적용된 프리팹
@@ -31,6 +32,7 @@ public class JellyColliderAbsorb : MonoBehaviour
         rb.useGravity = true;
         edibleCollider = GetComponentInChildren<Collider>();
         renderer = GetComponentInChildren<Renderer>();
+
         renderer.gameObject.tag = "Edible";
     }
 
@@ -63,7 +65,6 @@ public class JellyColliderAbsorb : MonoBehaviour
     public void StartAbsorb(Transform player)
     {
         if (absorbing) return; // 이미 빨려가는 중이면 무시
-
         rb.useGravity = false;
         if (agent != null)
         {

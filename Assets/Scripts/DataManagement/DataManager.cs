@@ -130,6 +130,7 @@ public class DataManager : MonoBehaviour
     public Vector3Int GetJellyEffect(JellyColorType type)
     {
         var data = jellyEffects.Find(x => x.type == type);
+        Debug.Log(data.rgbChange);
         return data != null ? data.rgbChange : Vector3Int.zero;
     }
 

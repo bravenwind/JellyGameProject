@@ -45,14 +45,9 @@ public class PlayerController : BaseFSM
             moveSpeed = 6.0f;
         }
 
-        originalJumpForce = jumpForce;
+        jumpForce = originalJumpForce;
 
         UpdateCameraVectors();
-    }
-
-    private void OnControllerColliderHit(ControllerColliderHit hit)
-    {
-        Debug.Log(hit.gameObject.name);
     }
 
     protected override void Update()

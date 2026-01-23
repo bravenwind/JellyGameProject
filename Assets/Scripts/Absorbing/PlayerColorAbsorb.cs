@@ -86,6 +86,8 @@ public class PlayerColorAbsorb : MonoBehaviour
         rend.material.SetColor("_FresnelColor", currentFresnelColor);
 
         DataManager.Instance.currentColor = currentEmissionColor;
+        // ✨ 추가: 처음 시작할 때 목표 색상도 현재 색상으로 초기화
+        DataManager.Instance.targetColor = currentEmissionColor;
 
         originalScale = Vector3.one;
         currentScale = transform.localScale;
@@ -137,26 +139,27 @@ public class PlayerColorAbsorb : MonoBehaviour
     {
         DataManager.Instance.absorbedJellyCount++;
         DataManager.Instance.currentScore += 100;
-
         jellyCamera.PlayDing();
 
-        // 데이터 매니저에서 변화량 가져오기
-        Vector3Int effect = DataManager.Instance.GetJellyEffect(type);
+        // ✨ 1. 기존에 진행 중이던 색상 변화 코루틴이 있다면 즉시 정지
+        if (currentFadeCoroutine != null) StopCoroutine(currentFadeCoroutine);
 
-        Debug.Log(effect.ToString());
+        Vector3Int effect = DataManager.Instance.GetJellyEffect(type);
 
         if (type == JellyColorType.White)
         {
             targetEmissionColor = new Color32(255, 255, 255, 255);
             targetFresnelColor = new Color32(255, 255, 255, 255);
+            DataManager.Instance.targetColor = targetEmissionColor;
         }
         else
         {
-            // 리스트에서 찾은 값으로 적용
+            // ✨ 2. ApplyJellyColor 내부에서 계산하므로 여기서는 호출만 합니다.
             ApplyJellyColor(new Vector3(effect.x, effect.y, effect.z));
         }
 
-        StartCoroutine(BlendColor(targetEmissionColor, targetFresnelColor, 0.5f));
+        // ✨ 3. 새 코루틴을 currentFadeCoroutine 변수에 담아서 실행 (중복 방지)
+        currentFadeCoroutine = StartCoroutine(BlendColor(targetEmissionColor, targetFresnelColor, 0.5f));
 
         // 미션 체크
         if (DataManager.Instance.currentScore >= DataManager.Instance.targetScore)
@@ -199,15 +202,18 @@ public class PlayerColorAbsorb : MonoBehaviour
     // 반복되는 코드를 줄이기 위한 내부 메서드 예시
     void ApplyJellyColor(Vector3 change)
     {
-        // 정수 기반 계산을 위해 (int) 캐스팅
-        targetEmissionColor = currentEmissionColor.AddRGB((int)change.x, (int)change.y, (int)change.z);
-        targetFresnelColor = currentFresnelColor.AddRGB((int)change.x, (int)change.y, (int)change.z);
+        // [핵심] 현재 눈에 보이는 색이 아니라, '누적된 목표 색상'에 값을 더해야 동시에 먹어도 중첩됩니다.
+        Color32 baseTarget = DataManager.Instance.targetColor;
 
-        // [중요] '많이 먹으면 검은색' 기획을 위해 모든 젤리 섭취 시 전체 명도를 살짝 깎음
-        // 이 줄이 있어야 흰색(255)에서 시작해도 결국 0(검정)으로 수렴합니다.
+        targetEmissionColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
+        targetFresnelColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
+
         int darknessStep = DataManager.Instance.darknessStep;
         targetEmissionColor = targetEmissionColor.AddRGB(darknessStep, darknessStep, darknessStep);
         targetFresnelColor = targetFresnelColor.AddRGB(darknessStep, darknessStep, darknessStep);
+
+        // 다음 계산을 위해 매니저의 목표 색상도 갱신
+        DataManager.Instance.targetColor = targetEmissionColor;
     }
 
     IEnumerator BlendColor(Color targetEmission, Color targetFresnel, float time)
@@ -238,8 +244,8 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         // 최종값 강제 설정 (오차 방지)
         //currentBaseColor = targetBase;
-        currentEmissionColor = targetEmission;
-        currentFresnelColor = targetFresnel;
+        currentEmissionColor = DataManager.Instance.targetColor;
+        currentFresnelColor = DataManager.Instance.targetColor;
 
        // rend.material.SetColor("_BaseColor", currentBaseColor);
         rend.material.SetColor("_Emission", currentEmissionColor);
