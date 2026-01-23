@@ -437,6 +437,8 @@ MonoBehaviour:
   absorbing: 0
   lockInTime: 3
   edibleCollider: {fileID: 8840500466090501765}
+  agent: {fileID: 0}
+  agentAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   renderer: {fileID: 0}
 --- !u!195 &7412261395953068285
@@ -473,9 +475,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c1979c040a92c4e40bbee48c2389c5f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wanderRadius: 10
-  minWaitTime: 1
-  maxWaitTime: 3
+  wanderRadius: 200
+  minWaitTime: 0
+  maxWaitTime: 0
   anchorToInitialPosition: 0
   jellyAnimController: {fileID: 2856107805081209073}
 --- !u!114 &4045410066042527932
@@ -492,6 +494,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jellyName: Yellow
   jellyType: 5
+  jellyRGB: {x: 0, y: 0, z: 0}
 --- !u!95 &2856107805081209073
 Animator:
   serializedVersion: 7

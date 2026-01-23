@@ -79,6 +79,9 @@ public class DataManager : MonoBehaviour
     [Tooltip("혼합색 오차 한도 (낮을수록 두 색의 비율이 1:1에 가까워야 함)")]
     public int maxDifference = 15;
 
+    [Header("JellySpawnSettings")]
+    public float spawnCoolTime = 10.0f;
+
     [Header("Scale Settings")]
     public int scaleLevelUpExp = 5;
     public float[] scaleMultiplyPerLevel;
@@ -87,7 +90,6 @@ public class DataManager : MonoBehaviour
     public int maxScaleLevel = 5;
     public int targetScaleLevel = 3;
     public float scaleIncreaseTime = 1.0f;
-
 
     public float IncreaseJumpForceValue = 5;
 
