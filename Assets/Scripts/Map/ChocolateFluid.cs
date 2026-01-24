@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class ChocolateFluid : MonoBehaviour
 {
@@ -85,6 +86,32 @@ public class ChocolateFluid : MonoBehaviour
         Rigidbody rb = other.attachedRigidbody;
         if (rb != null)
         {
+            NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
+            WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
+            AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
+
+
+            if (wanderingAI != null)
+            {
+                wanderingAI.enabled = false;
+            }
+
+            if (aiWaypointPatrol != null)
+            {
+                aiWaypointPatrol.enabled = false;
+            }
+
+            if (navMeshAgent != null)
+            {
+                navMeshAgent.enabled = false;
+            }
+        }
+
+
+        if (rb != null && other.CompareTag("Edible"))
+        {
+            rb.isKinematic = false;
+            rb.useGravity = true;
             // 물에 들어오면 끈적하게 (저항 증가)
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;

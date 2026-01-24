@@ -1177,6 +1177,7 @@ MonoBehaviour:
   edibleCollider: {fileID: 3953971219392328586}
   agent: {fileID: 0}
   agentAI: {fileID: 0}
+  patrolAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   renderer: {fileID: 0}
 --- !u!195 &1339579352120215717
@@ -1189,7 +1190,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 2.22
-  m_Speed: 3.5
+  m_Speed: 7
   m_Acceleration: 8
   avoidancePriority: 61
   m_AngularSpeed: 120

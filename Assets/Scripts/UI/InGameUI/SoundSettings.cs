@@ -87,9 +87,9 @@ public class SoundSettings : MonoBehaviour
     public void OnSettingsBtnClicked()
     {
         // 싱글톤 인스턴스 null 체크 권장
-        if (PlayFXAudio.Instance != null)
+        if (PlaySFXAudio.Instance != null)
         {
-            PlayFXAudio.Instance.PlayButtonClickSound();
+            PlaySFXAudio.Instance.PlayButtonClickSound();
         }
 
         uiManager.SetState(UIState.Settings);

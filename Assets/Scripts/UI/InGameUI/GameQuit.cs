@@ -6,7 +6,7 @@ public class GameQuit : MonoBehaviour
 {
     public void QuitGame()
     {
-        PlayFXAudio.Instance.PlayButtonClickSound();
+        PlaySFXAudio.Instance.PlayButtonClickSound();
         Debug.Log("게임 종료");
         Application.Quit();
     }

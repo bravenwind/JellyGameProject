@@ -1,4 +1,4 @@
-using Unity.VisualScripting;
+ï»¿using Unity.VisualScripting;
 using UnityEngine;
 
 public class ClearJudge : MonoBehaviour
@@ -11,12 +11,58 @@ public class ClearJudge : MonoBehaviour
     public float halfLength = 6.0f;
     public LayerMask playerLayerMask;
 
-    // ¡Ú Áßº¹ ½ÇÇà ¹æÁö¿ë ÇÃ·¡±× º¯¼ö Ãß°¡
+    // â˜… ì¤‘ë³µ ì‹¤í–‰ ë°©ì§€ìš© í”Œë˜ê·¸ ë³€ìˆ˜
     private bool isCleared = false;
+
+    [Header("ì €ìš¸ ì„¤ì •")]
+    [Tooltip("ë°Ÿì•˜ì„ ë•Œ ì•„ë˜ë¡œ ë‚´ë ¤ê°ˆ ê±°ë¦¬")]
+    public float sinkDistance = 1.0f;
+
+    [Tooltip("ë‚´ë ¤ê°€ê³  ì˜¬ë¼ì˜¤ëŠ” ì†ë„ (ë‚®ì„ìˆ˜ë¡ ë” ì„œì„œíˆ ì›€ì§ì„)")]
+    public float moveSpeed = 1.5f;
+
+    public Transform scaleTransform;
+
+    private Vector3 _originalPos;
+    private Vector3 _pressedPos;
+    private Vector3 _targetPos;
+
+    // ì €ìš¸ ìœ„ì— ì˜¬ë¼ê°€ ìˆëŠ” ë¬¼ì²´ì˜ ê°œìˆ˜
+    private int _objectsOnScale = 0;
+
+    void Start()
+    {
+        _originalPos = scaleTransform.position;
+        _pressedPos = _originalPos + Vector3.down * sinkDistance;
+        _targetPos = _originalPos;
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("PlayerMesh"))
+        {
+            _objectsOnScale++;
+            _targetPos = _pressedPos;
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("PlayerMesh"))
+        {
+            _objectsOnScale--;
+
+            if (_objectsOnScale <= 0)
+            {
+                _objectsOnScale = 0;
+                _targetPos = _originalPos;
+            }
+        }
+    }
 
     private void Update()
     {
-        // ¡Ú ÀÌ¹Ì Å¬¸®¾î ÆÇÁ¤ÀÌ ³µ´Ù¸é ´õ ÀÌ»ó ¾Æ·¡ ÄÚµå¸¦ ½ÇÇàÇÏÁö ¾ÊÀ½
+        // â˜… í´ë¦¬ì–´ ì´í›„ì—ëŠ” ì €ìš¸ë„ ë©ˆì¶”ê³ (ê³ ì •) ë” ì´ìƒ ë¡œì§ì„ ì‹¤í–‰í•˜ì§€ ì•ŠìŒ
         if (isCleared) return;
 
         if (Input.GetKeyDown(KeyCode.O))
@@ -25,16 +71,21 @@ public class ClearJudge : MonoBehaviour
             DataManager.Instance.playerCurrentScaleLevel = DataManager.Instance.targetScaleLevel;
         }
 
-        Collider[] cols = Physics.OverlapBox(transform.position, Vector3.one * halfLength, Quaternion.identity, playerLayerMask);
-        if (cols.Length == 0)
-        {
-            return;
-        }
+        // 1. ì €ìš¸ ì„œì„œíˆ ì´ë™
+        scaleTransform.position = Vector3.MoveTowards(scaleTransform.position, _targetPos, moveSpeed * Time.deltaTime);
 
-        if (DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType
-           && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel)
+        // 2. ğŸ”¥ ì €ìš¸ì´ 'ëˆŒë¦° ìœ„ì¹˜(ë°”ë‹¥)'ì— ì™„ì „íˆ ë„ë‹¬í–ˆê³ , í”Œë ˆì´ì–´ê°€ ë°Ÿê³  ìˆì„ ë•Œ í´ë¦¬ì–´ íŒì •
+        if (scaleTransform.position == _pressedPos && _objectsOnScale > 0)
         {
-            // ¡Ú Á¶°ÇÀ» ¸¸Á·ÇÏÀÚ¸¶ÀÚ ÇÃ·¡±×¸¦ true·Î ¹Ù²ã¼­ ¹®À» Àá±İ
+            JudgeClear();
+        }
+    }
+
+    private void JudgeClear()
+    {
+        if (DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType
+   && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel)
+        {
             isCleared = true;
 
             questStarUI.ApplySuccess(2);
@@ -45,13 +96,6 @@ public class ClearJudge : MonoBehaviour
 
             uiManager.SetState(UIState.GameSuccess);
             uIPoolManager.DisableParent();
-
-            gameObject.SetActive(false);
         }
-    }
-
-    private void OnDrawGizmos()
-    {
-        Gizmos.DrawWireCube(transform.position, Vector3.one * halfLength);
     }
 }

@@ -129,8 +129,8 @@ public class PlayerController : BaseFSM
         base.Enter_Move();
         if (jellyAnimator != null) jellyAnimator.SetBool("IsMoving", true);
 
-        if (PlayFXAudio.Instance != null)
-            PlayFXAudio.Instance.StartWalking();
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.StartWalking();
     }
 
     protected override void Update_Move()
@@ -171,8 +171,8 @@ public class PlayerController : BaseFSM
         base.Exit_Move();
         if (jellyAnimator != null) jellyAnimator.SetBool("IsMoving", false);
 
-        if (PlayFXAudio.Instance != null)
-            PlayFXAudio.Instance.StopWalking();
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.StopWalking();
     }
 
     // -----------------------------------------------------------------------
@@ -181,7 +181,7 @@ public class PlayerController : BaseFSM
     protected override void Enter_Jump()
     {
         if (jellyAnimator != null) jellyAnimator.SetTrigger("Jump");
-        PlayFXAudio.Instance.PlayJumpSound();
+        PlaySFXAudio.Instance.PlayJumpSound();
 
         // 즉시 위쪽 속도 부여 (v = sqrt(h * -2 * g) 공식 대신 단순 힘 적용)
         verticalVelocity = jumpForce;

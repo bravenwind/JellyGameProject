@@ -32,7 +32,7 @@ public class OverlapTriggerUI : MonoBehaviour
             isProcessing = true;
 
             // 1. 소리 재생하고 길이 받아오기 (예: 2초 걸린다고 가정)
-            float waitTime = PlayFXAudio.Instance.PlayMachineSound();
+            float waitTime = PlaySFXAudio.Instance.PlayMachineSound();
 
             // 2. 소리 길이만큼 대기 & 회전 연출 후 젤리 소환
             yield return StartCoroutine(rotator.RotateRoutine(waitTime, SpawnRandomJelly));

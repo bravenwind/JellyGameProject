@@ -1,8 +1,8 @@
 ﻿using UnityEngine;
 
-public class PlayFXAudio : MonoBehaviour
+public class PlaySFXAudio : MonoBehaviour
 {
-    public static PlayFXAudio Instance;
+    public static PlaySFXAudio Instance;
 
     [Header("Audio Sources")]
     public AudioSource fxAudioSource;   // 효과음용 (버튼, 점프 등)
@@ -97,18 +97,7 @@ public class PlayFXAudio : MonoBehaviour
         // 이미 소리가 나고 있다면 다시 재생하지 않음 (중복 방지)
         if (walkAudioSource.isPlaying) return;
 
-        // 걷는 소리 2개 중 하나 랜덤 선택
-        int rand = Random.Range(0, 2);
-        if (rand == 0)
-        {
-            walkAudioSource.clip = walkAudio;
-            Debug.Log("🔊 [Sound] 걷기 루프 시작 (타입 1)");
-        }
-        else
-        {
-            walkAudioSource.clip = walk2Audio;
-            Debug.Log("🔊 [Sound] 걷기 루프 시작 (타입 2)");
-        }
+        walkAudioSource.clip = walkAudio;
 
         walkAudioSource.loop = true; // 반복 재생 켜기
         walkAudioSource.Play();      // 재생 시작

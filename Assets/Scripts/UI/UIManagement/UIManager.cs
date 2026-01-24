@@ -147,7 +147,8 @@ public class UIManager : MonoBehaviour
                 break;
             case UIState.GameSuccess:
                 Time.timeScale = 0f;
-                PlayFXAudio.Instance.PlayMissionCompleteSound();
+                PlaySFXAudio.Instance.gameObject.GetComponent<AudioSource>().Stop();
+                PlaySFXAudio.Instance.PlayMissionCompleteSound();
                 break;
             case UIState.GameFail:
                 break;

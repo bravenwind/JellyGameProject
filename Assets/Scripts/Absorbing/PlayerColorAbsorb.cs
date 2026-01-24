@@ -183,7 +183,7 @@ public class PlayerColorAbsorb : MonoBehaviour
                 uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
                 StartCoroutine(IncreaseScale(DataManager.Instance.scaleIncreaseTime));
 
-                DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + 1.0f * DataManager.Instance.playerCurrentScaleLevel;
+                DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + DataManager.Instance.detectPlusRadiusPerLevel * DataManager.Instance.playerCurrentScaleLevel;
                 DataManager.Instance.playerCurrentScaleLevel++;
             }
 
@@ -247,7 +247,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         Color startBase_02 = currentBaseColor_02; // 🔥
         Color startFresnel = currentFresnelColor;
 
-        if (PlayFXAudio.Instance != null) PlayFXAudio.Instance.PlayColorMixSound();
+        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
 
         float t = 0f;
 
@@ -284,7 +284,7 @@ public class PlayerColorAbsorb : MonoBehaviour
     {
         if (softBody3D != null) softBody3D.DisableCloth();
 
-        if (PlayFXAudio.Instance != null) PlayFXAudio.Instance.PlayScaleUpSound();
+        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
 
         Vector3 startScale = currentScale;
         int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);

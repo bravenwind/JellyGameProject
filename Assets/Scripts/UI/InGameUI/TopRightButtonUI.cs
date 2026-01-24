@@ -8,13 +8,13 @@ public class TopRightButtonUI : MonoBehaviour
     public void OnMenuBtnClicked()
     {
         uiManager.SetState(UIState.Menu);
-        PlayFXAudio.Instance.PlayButtonClickSound();
+        PlaySFXAudio.Instance.PlayButtonClickSound();
     }
 
     public void OnSettingsBtnClicked()
     {
         uiManager.SetState(UIState.Settings);
-        PlayFXAudio.Instance.PlayButtonClickSound();
+        PlaySFXAudio.Instance.PlayButtonClickSound();
     }
 
     public void OnPauseBtnClicked()

@@ -10,7 +10,7 @@ public class SceneLoader : MonoBehaviour
     // Start 버튼에 연결
     public void LoadGame()
     {
-        PlayFXAudio.Instance.PlayButtonClickSound();
+        PlaySFXAudio.Instance.PlayButtonClickSound();
         //SceneManager.LoadScene(gameScene.name);
         SceneManager.LoadScene(gameSceneName);
     }
@@ -18,7 +18,7 @@ public class SceneLoader : MonoBehaviour
     // 메인으로 돌아가기 버튼에 연결
     public void LoadMain()
     {
-        PlayFXAudio.Instance.PlayButtonClickSound();
+        PlaySFXAudio.Instance.PlayButtonClickSound();
         //SceneManager.LoadScene(titleScene.name);
         SceneManager.LoadScene(titleSceneName);
     }

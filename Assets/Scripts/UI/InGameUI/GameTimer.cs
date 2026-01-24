@@ -14,6 +14,8 @@ public class GameTimer : MonoBehaviour
     public Animator playerAnimController;
     public MainCamera_Action mainCamera_Action;
 
+    public PlaySFXAudio playSFXAudio;
+
     public float currentTime;
     private int lastSecond = -1;
 
@@ -63,6 +65,8 @@ public class GameTimer : MonoBehaviour
         if (isGameEnded) return; // 중복 실행 방지
         isGameEnded = true;
 
+        playSFXAudio.StopWalking();
+
         //playerCloth.enabled = false;
         softBody3D.DisableCloth();
 
@@ -72,7 +76,7 @@ public class GameTimer : MonoBehaviour
         mainCamera_Action.GameFailSizeChange();
         // 2. 애니메이션 실행
         playerAnimController.SetTrigger("GameFail");
-        PlayFXAudio.Instance.PlayFailSound();
+        PlaySFXAudio.Instance.PlayFailSound();
 
         // 3. ★ 게임 내 모든 시간(물리, Update 등) 정지
         Time.timeScale = 0f;
