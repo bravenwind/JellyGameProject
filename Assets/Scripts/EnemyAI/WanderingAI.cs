@@ -47,6 +47,8 @@ public class WanderingAI : MonoBehaviour
         // 대기 중이라면 아무것도 안 함
         if (isWaiting) return;
 
+        if (agent == null) { return; }
+
         // 목적지에 거의 도착했는지 확인
         // pathPending: 경로 계산 중인지 확인 (계산 중일 때 도착했다고 판단하는 오류 방지)
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)

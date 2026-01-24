@@ -84,7 +84,7 @@ public class DataManager : MonoBehaviour
 
     [Header("Scale Settings")]
     public int scaleLevelUpExp = 5;
-    public float[] scaleMultiplyPerLevel;
+    public float[] scalePerLevel;
     public int playerCurrentScaleLevel = 1;
     public int absorbedJellyCount = 0;
     public int maxScaleLevel = 5;
@@ -97,7 +97,7 @@ public class DataManager : MonoBehaviour
     public float scaleChangedDuration = 1.0f;
     public float scaleChangedPlusSize = 3.0f;
 
-    public float gameFailPlusSize = -8.0f;
+    public float[] gameFailMinusSizePerLevel;
 
     [Header("Score Settings")]
     public int currentScore = 0;

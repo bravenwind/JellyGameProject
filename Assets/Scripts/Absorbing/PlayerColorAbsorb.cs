@@ -133,13 +133,25 @@ public class PlayerColorAbsorb : MonoBehaviour
             if (currentFadeCoroutine != null) StopCoroutine(currentFadeCoroutine);
 
             DataManager.Instance.absorbedJellyCount = 0;
-            DataManager.Instance.playerCurrentScaleLevel = 1;
+            DataManager.Instance.playerCurrentScaleLevel = 1; // 레벨을 1로 초기화
             Camera.main.orthographicSize = 6.1f;
 
-            StartCoroutine(DecreaseScale(1.0f, new Vector3(1.0f, 1.0f, 1.0f)));
-            // 🔥 리셋할 때 02번 컬러 원본도 함께 전달
+            // 🔥 수정됨: 매개변수로 targetScale을 넘기지 않음. (레벨이 1이 되었으므로 알아서 원래 크기로 돌아감)
+            StartCoroutine(DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+
+            // 리셋할 때 02번 컬러 원본도 함께 전달
             currentFadeCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
+
+            currentStatusUI.ChangeCurrentColorUI();
+            currentStatusUI.ChangeCurrentScaleUI();
         }
+
+        // 🔥 [추가] 숫자키 1~5를 눌러 다이렉트로 스케일 변경
+        if (Input.GetKeyDown(KeyCode.Alpha1)) StartCoroutine(ChangeScaleToLevel(1, DataManager.Instance.scaleIncreaseTime));
+        if (Input.GetKeyDown(KeyCode.Alpha2)) StartCoroutine(ChangeScaleToLevel(2, DataManager.Instance.scaleIncreaseTime));
+        if (Input.GetKeyDown(KeyCode.Alpha3)) StartCoroutine(ChangeScaleToLevel(3, DataManager.Instance.scaleIncreaseTime));
+        if (Input.GetKeyDown(KeyCode.Alpha4)) StartCoroutine(ChangeScaleToLevel(4, DataManager.Instance.scaleIncreaseTime));
+        if (Input.GetKeyDown(KeyCode.Alpha5)) StartCoroutine(ChangeScaleToLevel(5, DataManager.Instance.scaleIncreaseTime));
     }
 
     // 🔥 메인 컬러를 하얀색과 섞어 더 연하게(밝게) 만드는 함수
@@ -180,14 +192,8 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         if (DataManager.Instance.absorbedJellyCount >= DataManager.Instance.scaleLevelUpExp)
         {
-            if (DataManager.Instance.playerCurrentScaleLevel < DataManager.Instance.maxScaleLevel)
-            {
-                uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
-                StartCoroutine(IncreaseScale(DataManager.Instance.scaleIncreaseTime));
-
-                DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + DataManager.Instance.detectPlusRadiusPerLevel * DataManager.Instance.playerCurrentScaleLevel;
-                DataManager.Instance.playerCurrentScaleLevel++;
-            }
+            StartCoroutine(IncreaseScale(DataManager.Instance.scaleIncreaseTime));
+            if (mainCamera_Action != null) mainCamera_Action.ScaleIncreased();
 
             if (DataManager.Instance.playerCurrentScaleLevel >= 3)
             {
@@ -200,8 +206,6 @@ public class PlayerColorAbsorb : MonoBehaviour
 
             DataManager.Instance.absorbedJellyCount = 0;
             currentStatusUI.ChangeCurrentScaleUI();
-
-            if (mainCamera_Action != null) mainCamera_Action.ScaleChanged();
         }
     }
 
@@ -284,15 +288,25 @@ public class PlayerColorAbsorb : MonoBehaviour
     // (IncreaseScale, DecreaseScale, OnDrawGizmos 생략 - 이전과 동일)
     IEnumerator IncreaseScale(float increaseTime)
     {
+        if (DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.maxScaleLevel) 
+        {
+            yield break;
+        }
+
+        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + DataManager.Instance.detectPlusRadiusPerLevel * DataManager.Instance.playerCurrentScaleLevel;
+        DataManager.Instance.playerCurrentScaleLevel++;
+
         if (softBody3D != null) softBody3D.DisableCloth();
 
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
 
+        uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
+
         Vector3 startScale = currentScale;
         int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);
-        Vector3 targetScale = originalScale * DataManager.Instance.scaleMultiplyPerLevel[levelIndex];
+        Vector3 targetScale = originalScale * DataManager.Instance.scalePerLevel[levelIndex];
 
-        float t = 0f;
+        float t = 0f; 
 
         while (t < increaseTime)
         {
@@ -315,11 +329,33 @@ public class PlayerColorAbsorb : MonoBehaviour
         }
     }
 
-    IEnumerator DecreaseScale(float decreaseTime, Vector3 targetScale)
+    public IEnumerator DecreaseScale(float decreaseTime)
     {
+        // 1. 최소 레벨 체크 (이미 레벨 1이면 더 줄어들지 않음)
+        if (DataManager.Instance.playerCurrentScaleLevel <= 1)
+        {
+            yield break;
+        }
+
+        // 2. 레벨 및 감지 범위 선행 감소 (IncreaseScale의 반대 논리)
+        DataManager.Instance.playerCurrentScaleLevel--;
+        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius
+            + DataManager.Instance.detectPlusRadiusPerLevel * (DataManager.Instance.playerCurrentScaleLevel - 1);
+
         if (softBody3D != null) softBody3D.DisableCloth();
 
+        // 🎵 스케일 축소 효과음 (있다면 주석 해제)
+        // if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleDownSound();
+
+        // (옵션) 축소될 때도 UI 연출이 필요하다면 아래와 같이 추가할 수 있습니다.
+        uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
+
         Vector3 startScale = currentScale;
+
+        // 3. 목표 스케일 계산 (변경된 변수명 scalePerLevel 적용)
+        int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);
+        Vector3 targetScale = originalScale * DataManager.Instance.scalePerLevel[levelIndex];
+
         float t = 0f;
 
         while (t < decreaseTime)
@@ -336,11 +372,87 @@ public class PlayerColorAbsorb : MonoBehaviour
         transform.localScale = targetScale;
         currentScale = targetScale;
 
+        currentStatusUI.ChangeCurrentScaleUI();
+
+        // 4. 이동 속도 원상복구 (IncreaseScale의 *= 1.2f 에 대응)
+        if (playerController != null)
+        {
+            playerController.moveSpeed /= 1.2f;
+        }
+
         if (softBody3D != null)
         {
             StartCoroutine(softBody3D.EnableAndRebuildCloth());
         }
     }
+
+    // 🔥 특정 레벨로 다이렉트하게 스케일을 변경하는 코루틴
+    public IEnumerator ChangeScaleToLevel(int targetLevel, float transitionTime)
+    {
+        targetLevel = Mathf.Clamp(targetLevel, 1, DataManager.Instance.maxScaleLevel);
+        if (DataManager.Instance.playerCurrentScaleLevel == targetLevel) yield break;
+
+        // 🔥 [추가] 카메라 크기도 해당 레벨에 맞춰서 변경 시작
+        if (mainCamera_Action != null) mainCamera_Action.ChangeCameraSizeToLevel(targetLevel);
+
+        int previousLevel = DataManager.Instance.playerCurrentScaleLevel;
+        DataManager.Instance.playerCurrentScaleLevel = targetLevel;
+
+        // 2. 감지 반경 업데이트
+        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius
+            + DataManager.Instance.detectPlusRadiusPerLevel * (targetLevel - 1);
+
+        if (softBody3D != null) softBody3D.DisableCloth();
+
+        // UI 이펙트 표시
+        uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
+
+        // 3. 목표 스케일 계산
+        Vector3 startScale = currentScale;
+        Vector3 targetScale = originalScale * DataManager.Instance.scalePerLevel[targetLevel - 1];
+
+        float t = 0f;
+
+        while (t < transitionTime)
+        {
+            t += Time.deltaTime;
+            float progress = t / transitionTime;
+
+            currentScale = Vector3.Lerp(startScale, targetScale, progress);
+            transform.localScale = currentScale;
+
+            yield return null;
+        }
+
+        transform.localScale = targetScale;
+        currentScale = targetScale;
+
+        // 4. 점프력 업데이트 (3레벨 이상일 때 증가)
+        if (playerController != null)
+        {
+            if (targetLevel >= 3)
+            {
+                playerController.jumpForce = playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue;
+            }
+            else
+            {
+                playerController.jumpForce = playerController.originalJumpForce;
+            }
+
+            // 5. 이동 속도 업데이트 (레벨 차이만큼 1.2배 또는 1/1.2배 적용)
+            int levelDiff = targetLevel - previousLevel;
+            playerController.moveSpeed *= Mathf.Pow(1.2f, levelDiff);
+        }
+
+        currentStatusUI.ChangeCurrentScaleUI();
+
+        if (softBody3D != null)
+        {
+            StartCoroutine(softBody3D.EnableAndRebuildCloth());
+        }
+    }
+
+        // ... (이하 기존 코드 동일)
 
     private void OnDrawGizmos()
     {
