@@ -2,15 +2,20 @@ using UnityEngine;
 
 public class PlayerAbsorbField : MonoBehaviour
 {
-    public float absorbRadius = 6f;
+    public float detectRadius = 6f;
     public LayerMask jellyLayer;
-    public Transform meshTransform;
+    public Transform detectTransform;
 
-    public void OnAbsorbBtnClicked()
+    private void Start()
+    {
+        detectRadius = DataManager.Instance.detectRadius;
+    }
+
+    public void Update()
     {
         Collider[] hits = Physics.OverlapSphere(
-           meshTransform.position,
-           absorbRadius,
+           detectTransform.position,
+           detectRadius,
            jellyLayer
        );
 
@@ -22,7 +27,7 @@ public class PlayerAbsorbField : MonoBehaviour
                 //Transform target = transform;
                 //target.position = transform.position + ;
                 Debug.Log("Å¸°Ù ¼³Á¤µÊ");
-                jelly.StartAbsorb(meshTransform);
+                jelly.StartAbsorb(transform);
             }
         }
     }
@@ -31,6 +36,13 @@ public class PlayerAbsorbField : MonoBehaviour
     void OnDrawGizmos()
     {
         Gizmos.color = Color.cyan;
-        Gizmos.DrawWireSphere(meshTransform.position, absorbRadius);
+        if (DataManager.Instance != null)
+        {
+            Gizmos.DrawWireSphere(detectTransform.position, DataManager.Instance.detectRadius);
+        }
+        else
+        {
+            Gizmos.DrawWireSphere(detectTransform.position, detectRadius);
+        }
     }
 }
