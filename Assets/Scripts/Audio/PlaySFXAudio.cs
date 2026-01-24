@@ -42,6 +42,7 @@ public class PlaySFXAudio : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            DontDestroyOnLoad(walkAudioSource.gameObject);
             DontDestroyOnLoad(gameObject);
         }
         else

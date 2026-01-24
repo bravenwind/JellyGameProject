@@ -120,6 +120,8 @@ public class PlayerColorAbsorb : MonoBehaviour
                 if (jca != null && jca.absorbing == false)
                 {
                     jca.StartAbsorb(transform);
+                    Rigidbody rb = c.gameObject.GetComponentInParent<Rigidbody>();
+                    rb.constraints = RigidbodyConstraints.None;
                     c.isTrigger = true;
                 }
             }

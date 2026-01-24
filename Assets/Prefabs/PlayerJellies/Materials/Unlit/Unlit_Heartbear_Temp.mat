@@ -48,8 +48,8 @@ Material:
     - _FresnelPower: 0.89
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _ReflectIntensity: 24
-    - _ReflectionSmoothness: 0
+    - _ReflectIntensity: 0
+    - _ReflectionSmoothness: 0.4
     - _Scale: 1.24
     - _TextureBrightness: 2.72
     m_Colors:
