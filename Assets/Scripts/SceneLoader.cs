@@ -3,9 +3,19 @@ using UnityEngine.SceneManagement;
 
 public class SceneLoader : MonoBehaviour
 {
+    public LoadingBGSlideAni loadingBGSlideAni;
+
     public void LoadGame()
     {
-        SceneManager.LoadScene("Game");
+        if (SceneManager.GetActiveScene() == SceneManager.GetSceneByName("Main"))
+        {
+            loadingBGSlideAni.LoadSceneWithSlide("Game");
+        }
+        else
+        {
+            SceneManager.LoadScene("Game");
+        }
+        //SceneManager.LoadScene("Game");
     }
 
     public void LoadMain()

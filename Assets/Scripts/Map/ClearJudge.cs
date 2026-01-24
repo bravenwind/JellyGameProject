@@ -74,9 +74,11 @@ public class ClearJudge : MonoBehaviour
         // 1. 저울 서서히 이동
         scaleTransform.position = Vector3.MoveTowards(scaleTransform.position, _targetPos, moveSpeed * Time.deltaTime);
 
-        // 2. 🔥 저울이 '눌린 위치(바닥)'에 완전히 도달했고, 플레이어가 밟고 있을 때 클리어 판정
-        if (scaleTransform.position == _pressedPos && _objectsOnScale > 0)
+
+        // 수정 후 (약 0.01f 이내로 들어오면 도착한 것으로 간주)
+        if (Vector3.Distance(scaleTransform.position, _pressedPos) < 0.01f && _objectsOnScale > 0)
         {
+            Debug.Log("저울 눌림");
             JudgeClear();
         }
     }
@@ -87,11 +89,14 @@ public class ClearJudge : MonoBehaviour
    && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel)
         {
             isCleared = true;
-
-            questStarUI.ApplySuccess(2);
+            
             if (gameTimer.limitTime - gameTimer.currentTime <= DataManager.Instance.targetTime)
             {
                 questStarUI.ApplySuccess(3);
+            }
+            else
+            {
+                questStarUI.ApplySuccess(2);
             }
 
             uiManager.SetState(UIState.GameSuccess);
