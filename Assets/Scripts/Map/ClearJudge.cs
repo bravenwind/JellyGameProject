@@ -3,10 +3,11 @@ using UnityEngine;
 
 public class ClearJudge : MonoBehaviour
 {
-    public QuestStarUI questStarUI;
+    public ResultStarsUI resultStarsUI;
     public GameTimer gameTimer;
     public UIManager uiManager;
     public UIPoolManager uIPoolManager;
+    public PlayerController playerController;
 
     public float halfLength = 6.0f;
     public LayerMask playerLayerMask;
@@ -92,14 +93,18 @@ public class ClearJudge : MonoBehaviour
             
             if (gameTimer.limitTime - gameTimer.currentTime <= DataManager.Instance.targetTime)
             {
-                questStarUI.ApplySuccess(3);
+                resultStarsUI.SetStarIndex(3);
             }
             else
             {
-                questStarUI.ApplySuccess(2);
+                resultStarsUI.SetStarIndex(2);
             }
 
-            uiManager.SetState(UIState.GameSuccess);
+            PlaySFXAudio.Instance.StopWalking();
+            playerController.enabled = false;
+            PlaySFXAudio.Instance.PlayMissionCompleteSound();
+
+            uiManager.SetState(UIState.GameOver);
             uIPoolManager.DisableParent();
         }
     }

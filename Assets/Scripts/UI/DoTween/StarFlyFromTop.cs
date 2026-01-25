@@ -8,7 +8,7 @@ public class StarFlyFromTop : MonoBehaviour
     public Canvas canvas;
     public Image flyPrefab;
     public Image[] stars;
-    public QuestStarUI questStarUI;
+    //public QuestStarUI questStarUI;
 
     [Header("From Top")]
     public float startYOffset = 220f;
@@ -31,7 +31,7 @@ public class StarFlyFromTop : MonoBehaviour
             uiCam = canvas.worldCamera;
         else
             uiCam = null;
-        questStarUI = GetComponent<QuestStarUI>();
+        //questStarUI = GetComponent<QuestStarUI>();
     }
 
     public void StarAnimatiomPlay(int count)
@@ -79,7 +79,7 @@ public class StarFlyFromTop : MonoBehaviour
         seq.OnComplete(() =>
         {
             stars[index].gameObject.SetActive(true);
-            questStarUI.SetStarsByQuestCount(index + 1);
+            //questStarUI.SetStarsByQuestCount(index + 1);
             Destroy(fly.gameObject);
         });
     }

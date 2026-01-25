@@ -1,0 +1,7329 @@
+fileFormatVersion: 2
+guid: 26fd38748e9b3784d89dd9f03f9998b7
+TextureImporter:
+  internalIDToNameTable: []
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 0
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: HowToPlayBG_0
+      rect:
+        serializedVersion: 2
+        x: 12
+        y: 913
+        width: 1794
+        height: 1008
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dbbf4611202243547958fb910d398444
+      internalID: -336696712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_1
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 746
+        width: 72
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3f70d4932537f0b40bc460aa37b19346
+      internalID: -1777781554
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_2
+      rect:
+        serializedVersion: 2
+        x: 142
+        y: 746
+        width: 72
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e0b445391a34f4e438ac7db484707125
+      internalID: -1094351552
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_3
+      rect:
+        serializedVersion: 2
+        x: 285
+        y: 746
+        width: 71
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 112923dba6a1d5c4397c02cf04e1cea0
+      internalID: 728835256
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_4
+      rect:
+        serializedVersion: 2
+        x: 445
+        y: 746
+        width: 71
+        height: 74
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ad8df31802c26c46b44da2e724c45c3
+      internalID: -2048777780
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_5
+      rect:
+        serializedVersion: 2
+        x: 736
+        y: 774
+        width: 153
+        height: 87
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56deeac7ef3ce6342b4d5f7e22d1400e
+      internalID: -593202993
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_6
+      rect:
+        serializedVersion: 2
+        x: 905
+        y: 770
+        width: 150
+        height: 91
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 341457f8a7381574e809372bfab81dc9
+      internalID: -844276060
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_7
+      rect:
+        serializedVersion: 2
+        x: 1276
+        y: 747
+        width: 368
+        height: 66
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 422f888b573ee9a4fb271f9994894abb
+      internalID: 1684582563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_8
+      rect:
+        serializedVersion: 2
+        x: 1802
+        y: 764
+        width: 59
+        height: 59
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd67e482924d86d44ae2c5916d221cdb
+      internalID: -732145033
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_9
+      rect:
+        serializedVersion: 2
+        x: 886
+        y: 639
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a6e183baa795d834a9bc272957e31412
+      internalID: -1804863409
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_10
+      rect:
+        serializedVersion: 2
+        x: 921
+        y: 642
+        width: 22
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 724f47e48396d514f9b40752e0aebbf1
+      internalID: -162443498
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_11
+      rect:
+        serializedVersion: 2
+        x: 947
+        y: 624
+        width: 27
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 33e748a8d1ea4e14d8d2cabec50ac1d9
+      internalID: 173465119
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_12
+      rect:
+        serializedVersion: 2
+        x: 983
+        y: 620
+        width: 30
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8b31410affc97e43aba2930fd4163e9
+      internalID: 630716021
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_13
+      rect:
+        serializedVersion: 2
+        x: 1016
+        y: 627
+        width: 18
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b87c48a445ddb0745b40a3d42fae398f
+      internalID: -1399348784
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_14
+      rect:
+        serializedVersion: 2
+        x: 1036
+        y: 624
+        width: 7
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 679eba88a362cdb42a39ebb6439975e1
+      internalID: 530378090
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_15
+      rect:
+        serializedVersion: 2
+        x: 1047
+        y: 639
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3a45de97e6137e419f85a2276944a59
+      internalID: 2025969281
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_16
+      rect:
+        serializedVersion: 2
+        x: 1079
+        y: 620
+        width: 26
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b85ea1c3946bc0d4b94c29bd4608a7f7
+      internalID: 1143206005
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_17
+      rect:
+        serializedVersion: 2
+        x: 1107
+        y: 633
+        width: 20
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 925c7553f6777fb4aa3b6af3fd47f1fc
+      internalID: -441120025
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_18
+      rect:
+        serializedVersion: 2
+        x: 1112
+        y: 620
+        width: 23
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c0ed06801151c5540a4e3c64613145db
+      internalID: 449977315
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_19
+      rect:
+        serializedVersion: 2
+        x: 1137
+        y: 624
+        width: 28
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b8501ec8e4605cc408cc8a72f2c8f02e
+      internalID: -1963975994
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_20
+      rect:
+        serializedVersion: 2
+        x: 1167
+        y: 624
+        width: 26
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4107b3a50249f8243a82df5ab809fda8
+      internalID: -133788160
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_21
+      rect:
+        serializedVersion: 2
+        x: 884
+        y: 620
+        width: 26
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b55238cc7065f28469ef2a835d98fadb
+      internalID: -867582717
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_22
+      rect:
+        serializedVersion: 2
+        x: 919
+        y: 620
+        width: 26
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ecadc0b775e1e64880392be7ec12543
+      internalID: 308218485
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_23
+      rect:
+        serializedVersion: 2
+        x: 1045
+        y: 620
+        width: 26
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d559e1ef35db43747a515a91ea42def1
+      internalID: 828495407
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_24
+      rect:
+        serializedVersion: 2
+        x: 1194
+        y: 622
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 52963d7ad2b113147a5aadd16a16cc64
+      internalID: 1869866009
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_25
+      rect:
+        serializedVersion: 2
+        x: 365
+        y: 533
+        width: 26
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 10d0f91dc4cd27840822b49ec721151b
+      internalID: 1172168341
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_26
+      rect:
+        serializedVersion: 2
+        x: 396
+        y: 537
+        width: 20
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4e30fdfeef9fb9249a52fb4e6aca2b8a
+      internalID: -1455488407
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_27
+      rect:
+        serializedVersion: 2
+        x: 428
+        y: 523
+        width: 49
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 30df24d906e306b439259120b62e1ecf
+      internalID: 2060681987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_28
+      rect:
+        serializedVersion: 2
+        x: 478
+        y: 523
+        width: 6
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f9602fabcb28b27409a13350ab4605c9
+      internalID: -94901523
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_29
+      rect:
+        serializedVersion: 2
+        x: 493
+        y: 518
+        width: 29
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 23b83d968a1126d41a047c41bad6ff8d
+      internalID: -1500115084
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_30
+      rect:
+        serializedVersion: 2
+        x: 525
+        y: 538
+        width: 22
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 89423fe4a91a98d4f9819f1a0060fa30
+      internalID: 320042337
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_31
+      rect:
+        serializedVersion: 2
+        x: 557
+        y: 519
+        width: 30
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a3f6711ed2ee994fb1e184868d07c6c
+      internalID: -645142369
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_32
+      rect:
+        serializedVersion: 2
+        x: 590
+        y: 526
+        width: 18
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0c1ea66f1d9e13d47a570db3f5d36342
+      internalID: -1895029011
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_33
+      rect:
+        serializedVersion: 2
+        x: 610
+        y: 523
+        width: 7
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fe447903a848fbb4197c3ba7d418b1c7
+      internalID: -547000967
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_34
+      rect:
+        serializedVersion: 2
+        x: 621
+        y: 538
+        width: 22
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c4359a66f23207747a905d6be6c5faba
+      internalID: -333124642
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_35
+      rect:
+        serializedVersion: 2
+        x: 1062
+        y: 541
+        width: 22
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 60862bd88ca83f5409fab9dd8b1fc55e
+      internalID: -1320538242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_36
+      rect:
+        serializedVersion: 2
+        x: 1088
+        y: 523
+        width: 27
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6d72e18cf9d97614badb794e3ce742ef
+      internalID: -562382099
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_37
+      rect:
+        serializedVersion: 2
+        x: 1124
+        y: 533
+        width: 32
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c9e486988c7e691488d80e002d281527
+      internalID: 1029800574
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_38
+      rect:
+        serializedVersion: 2
+        x: 1160
+        y: 532
+        width: 28
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d8ddbb59388f8cd48ae06b837aad808c
+      internalID: -1430640987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_39
+      rect:
+        serializedVersion: 2
+        x: 1190
+        y: 523
+        width: 30
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e60477b2b5dbf0241ba5199ef87b6205
+      internalID: 493086199
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_40
+      rect:
+        serializedVersion: 2
+        x: 1221
+        y: 523
+        width: 29
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fbc416e94ba25594098404e88d81feba
+      internalID: -67025641
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_41
+      rect:
+        serializedVersion: 2
+        x: 1260
+        y: 532
+        width: 27
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ad702867613852e4cb336be9809e4d82
+      internalID: -1227252512
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_42
+      rect:
+        serializedVersion: 2
+        x: 1289
+        y: 534
+        width: 26
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f9bbdec6e55f2a14795a7e81882af421
+      internalID: 50780654
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_43
+      rect:
+        serializedVersion: 2
+        x: 1325
+        y: 535
+        width: 24
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 01ad619b38838aa44b482d0631f6236f
+      internalID: 525170100
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_44
+      rect:
+        serializedVersion: 2
+        x: 1359
+        y: 518
+        width: 29
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ddf2b048fb591443acd3ac62cbaabb9
+      internalID: -73090728
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_45
+      rect:
+        serializedVersion: 2
+        x: 1389
+        y: 523
+        width: 28
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 17d5b0494ff68c34ebecb53180f1f3fe
+      internalID: -1945918969
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_46
+      rect:
+        serializedVersion: 2
+        x: 1419
+        y: 523
+        width: 26
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8f3d750f20a952845b327290d220416c
+      internalID: 1104748950
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_47
+      rect:
+        serializedVersion: 2
+        x: 367
+        y: 519
+        width: 22
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 166cf6fef3df84446974f26f56c99140
+      internalID: -402974999
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_48
+      rect:
+        serializedVersion: 2
+        x: 393
+        y: 531
+        width: 26
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7e3fd9d226e652f468f1c4ee587712b8
+      internalID: -1121392990
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_49
+      rect:
+        serializedVersion: 2
+        x: 429
+        y: 519
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 93776f09bd7d4514695213dfedb7a12b
+      internalID: -1631676754
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_50
+      rect:
+        serializedVersion: 2
+        x: 523
+        y: 520
+        width: 26
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f6cadc0d9cbb06049ae761972dbc37ac
+      internalID: 1042255005
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_51
+      rect:
+        serializedVersion: 2
+        x: 619
+        y: 520
+        width: 26
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ea37a85216d772340a75590c46b80443
+      internalID: 1628502923
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_52
+      rect:
+        serializedVersion: 2
+        x: 1060
+        y: 519
+        width: 26
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 244adb5ff1918a949b0786890680701b
+      internalID: -1562869960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_53
+      rect:
+        serializedVersion: 2
+        x: 1131
+        y: 518
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 91758bd107144104299c185e6012ec0c
+      internalID: 1267204673
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_54
+      rect:
+        serializedVersion: 2
+        x: 1264
+        y: 519
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9a2e6de4f4d7ef54db3593af891040de
+      internalID: 1258164859
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_55
+      rect:
+        serializedVersion: 2
+        x: 1291
+        y: 519
+        width: 22
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b87471ea6b6e2ce408fd3272b14a44e0
+      internalID: 167849530
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_56
+      rect:
+        serializedVersion: 2
+        x: 1324
+        y: 521
+        width: 26
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c34656b2aa5bff64aa4f6c32323574bf
+      internalID: 483979223
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_57
+      rect:
+        serializedVersion: 2
+        x: 395
+        y: 520
+        width: 22
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e64e51a3d131389408d69cd4f1f58fc5
+      internalID: 1879662428
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_58
+      rect:
+        serializedVersion: 2
+        x: 1159
+        y: 523
+        width: 30
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ead3b01c7699b814c96bf391914c993e
+      internalID: -1532594188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_59
+      rect:
+        serializedVersion: 2
+        x: 1446
+        y: 521
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e0a2cf2b3facdcc4c94a90bdd3360d40
+      internalID: 481472580
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_60
+      rect:
+        serializedVersion: 2
+        x: 288
+        y: 417
+        width: 27
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1b0f97fed79310c498efa303c818d81a
+      internalID: -1058201351
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_61
+      rect:
+        serializedVersion: 2
+        x: 317
+        y: 430
+        width: 21
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3376e8b7543c79f44bca40c5070d949b
+      internalID: -1188004490
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_62
+      rect:
+        serializedVersion: 2
+        x: 339
+        y: 430
+        width: 7
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 03458b494e649a749ab257c368dac82a
+      internalID: 485924431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_63
+      rect:
+        serializedVersion: 2
+        x: 347
+        y: 427
+        width: 21
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2c54d511ff9ad2e47b3955954ed6326c
+      internalID: 43179066
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_64
+      rect:
+        serializedVersion: 2
+        x: 369
+        y: 421
+        width: 8
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1e24c27c13669d845a8f3432dcf12663
+      internalID: -1551248712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_65
+      rect:
+        serializedVersion: 2
+        x: 380
+        y: 427
+        width: 28
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a1a1e02714a07e84096f9a7ebb5fff55
+      internalID: -56356736
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_66
+      rect:
+        serializedVersion: 2
+        x: 410
+        y: 421
+        width: 30
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 92e7a1e4c9084444799c84e16e8ede1a
+      internalID: 837057052
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_67
+      rect:
+        serializedVersion: 2
+        x: 450
+        y: 424
+        width: 20
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f7db377bb82e30f4ca11384124f40334
+      internalID: 1773087846
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_68
+      rect:
+        serializedVersion: 2
+        x: 471
+        y: 416
+        width: 62
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 61e90e0e2f5168d43b0af72b4d903d19
+      internalID: 924508503
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_69
+      rect:
+        serializedVersion: 2
+        x: 534
+        y: 427
+        width: 12
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b2439d11085391a44bc67aa789550d97
+      internalID: 1501669491
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_70
+      rect:
+        serializedVersion: 2
+        x: 553
+        y: 417
+        width: 85
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 521ba71d12ccae4459ba3e70acf6d46d
+      internalID: -899932261
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_71
+      rect:
+        serializedVersion: 2
+        x: 640
+        y: 421
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c27bb4f1f04fa2242a211ac172f7637c
+      internalID: 1526496150
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_72
+      rect:
+        serializedVersion: 2
+        x: 656
+        y: 432
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 042efe6141560fd469cb22c1dd42e27d
+      internalID: -2061936777
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_73
+      rect:
+        serializedVersion: 2
+        x: 681
+        y: 433
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f7f600e8816c4e947b20647ea1f4ac9a
+      internalID: -1727405342
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_74
+      rect:
+        serializedVersion: 2
+        x: 691
+        y: 424
+        width: 19
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 032903f60480a9f41adaa2d00dca2930
+      internalID: 1874833357
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_75
+      rect:
+        serializedVersion: 2
+        x: 712
+        y: 421
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 82c469f5fe4f159479656772c614c22e
+      internalID: 1479503312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_76
+      rect:
+        serializedVersion: 2
+        x: 721
+        y: 417
+        width: 27
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a32887d811aa95047b0114063b8e2577
+      internalID: 1487038787
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_77
+      rect:
+        serializedVersion: 2
+        x: 758
+        y: 430
+        width: 28
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c90fbc80eaccdfc429e814715cfb1d7d
+      internalID: 1140399341
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_78
+      rect:
+        serializedVersion: 2
+        x: 789
+        y: 421
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 73c52d7f82a29204aaf96ff1cfd5d3df
+      internalID: -1001132747
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_79
+      rect:
+        serializedVersion: 2
+        x: 820
+        y: 421
+        width: 27
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c952f0e6215bde44097e639e628c0269
+      internalID: 1650669016
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_80
+      rect:
+        serializedVersion: 2
+        x: 847
+        y: 421
+        width: 25
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56d244ae8e08a624290e3e55857d3545
+      internalID: 1993481123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_81
+      rect:
+        serializedVersion: 2
+        x: 873
+        y: 421
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 82bb2c5a715493a47b006d5081463225
+      internalID: 1692058188
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_82
+      rect:
+        serializedVersion: 2
+        x: 881
+        y: 421
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 26b9e4419de2e344d9dddf6fe0724735
+      internalID: 1536691740
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_83
+      rect:
+        serializedVersion: 2
+        x: 924
+        y: 432
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a315e43b2b5756047912e3cc1f8a1d55
+      internalID: 1638192282
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_84
+      rect:
+        serializedVersion: 2
+        x: 949
+        y: 433
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 263b38e82d41ee34b8b81347de7579b3
+      internalID: -489316918
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_85
+      rect:
+        serializedVersion: 2
+        x: 959
+        y: 424
+        width: 19
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3ed39aacb79eb23489adbcee9291311b
+      internalID: 1853625325
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_86
+      rect:
+        serializedVersion: 2
+        x: 980
+        y: 421
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e634cbf6f9d65c4589f7a0f56166e4b
+      internalID: -217961310
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_87
+      rect:
+        serializedVersion: 2
+        x: 989
+        y: 417
+        width: 27
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e47401ec4604e024e8884dc820696a4f
+      internalID: -185030506
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_88
+      rect:
+        serializedVersion: 2
+        x: 1026
+        y: 430
+        width: 28
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 86a24b7dd9e536a40b9448cef49d3f1e
+      internalID: -1743353950
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_89
+      rect:
+        serializedVersion: 2
+        x: 1059
+        y: 429
+        width: 23
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 934c085ac7a78654ba89415f8c8a640f
+      internalID: -1386914210
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_90
+      rect:
+        serializedVersion: 2
+        x: 1086
+        y: 427
+        width: 28
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7412926b7d5eeab4d93aa09f0a6b6218
+      internalID: -524546323
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_91
+      rect:
+        serializedVersion: 2
+        x: 1123
+        y: 431
+        width: 35
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6bed74d343899e746b892d498148bb79
+      internalID: -576026692
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_92
+      rect:
+        serializedVersion: 2
+        x: 1159
+        y: 427
+        width: 21
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 92ab439abe79e48498472775a4750c8e
+      internalID: -764042007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_93
+      rect:
+        serializedVersion: 2
+        x: 1181
+        y: 421
+        width: 8
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 41a9c8cbdc643134eb407793b033f67f
+      internalID: -1821021180
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_94
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 427
+        width: 28
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2566cccb422149d42bb8fedfa4a5c3e1
+      internalID: -973654146
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_95
+      rect:
+        serializedVersion: 2
+        x: 1230
+        y: 440
+        width: 19
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ed6e5c99d3861f7468412241265bc15c
+      internalID: -3265273
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_96
+      rect:
+        serializedVersion: 2
+        x: 1251
+        y: 421
+        width: 11
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 05ecca8615564c74fb548a62d6d44276
+      internalID: -196165721
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_97
+      rect:
+        serializedVersion: 2
+        x: 1265
+        y: 429
+        width: 23
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ebfae1ec0a8c0ef4e9f2c67f42cfb183
+      internalID: -1792894028
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_98
+      rect:
+        serializedVersion: 2
+        x: 1301
+        y: 429
+        width: 26
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 71f224ff55497ac4185312b11ba7478c
+      internalID: 864409354
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_99
+      rect:
+        serializedVersion: 2
+        x: 1332
+        y: 424
+        width: 20
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 08be4b3afa8700f45b2e38b4b0ebf4aa
+      internalID: -710704555
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_100
+      rect:
+        serializedVersion: 2
+        x: 1355
+        y: 420
+        width: 8
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 998e515c09d300744a27705d62781085
+      internalID: -800375593
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_101
+      rect:
+        serializedVersion: 2
+        x: 1365
+        y: 424
+        width: 17
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2533d4106bdb4f14c91e8935593aeb5f
+      internalID: 1350490405
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_102
+      rect:
+        serializedVersion: 2
+        x: 1385
+        y: 421
+        width: 12
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 789301c62e1ca304fbf56508e2916a8f
+      internalID: 1707249852
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_103
+      rect:
+        serializedVersion: 2
+        x: 1405
+        y: 421
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f0d51648514cead4abf7a83bda39cd09
+      internalID: 1472187449
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_104
+      rect:
+        serializedVersion: 2
+        x: 1436
+        y: 421
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f684f3020025e124c8b8a1d1be976230
+      internalID: 1196819492
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_105
+      rect:
+        serializedVersion: 2
+        x: 1468
+        y: 421
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 021e915c93ab8c842af374b4cab8572b
+      internalID: -884521065
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_106
+      rect:
+        serializedVersion: 2
+        x: 323
+        y: 417
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ce050b8b760b6e9409fc86d9a78c1ffa
+      internalID: -1896507527
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_107
+      rect:
+        serializedVersion: 2
+        x: 386
+        y: 417
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f72365cbfe55fed4691b704babbfa47c
+      internalID: -2079622904
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_108
+      rect:
+        serializedVersion: 2
+        x: 520
+        y: 417
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b7e41178123cd344e8a86cabfe3990a2
+      internalID: 724551431
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_109
+      rect:
+        serializedVersion: 2
+        x: 618
+        y: 422
+        width: 21
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e621a07d9f6dc9d428ca2cea0a1b1476
+      internalID: -1347540467
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_110
+      rect:
+        serializedVersion: 2
+        x: 663
+        y: 417
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 370fcef2dbf6a1b45b27581ad4f3e220
+      internalID: -205796186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_111
+      rect:
+        serializedVersion: 2
+        x: 763
+        y: 417
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 107f2688c669dc6408232c7209313300
+      internalID: -801569127
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_112
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 418
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d1d0ee669b8ea004691fce5214b3e239
+      internalID: 1935593375
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_113
+      rect:
+        serializedVersion: 2
+        x: 931
+        y: 417
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b75ba0df6c5e19344b7b57d31088b02b
+      internalID: 986911836
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_114
+      rect:
+        serializedVersion: 2
+        x: 1031
+        y: 417
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8f55206008d6b8849b9c925edce08c97
+      internalID: -2015269184
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_115
+      rect:
+        serializedVersion: 2
+        x: 1057
+        y: 421
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3622021185ea08348a0af73fc202b4cd
+      internalID: 1849067667
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_116
+      rect:
+        serializedVersion: 2
+        x: 1092
+        y: 417
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 524399cf859eafd468242950356c6aea
+      internalID: 1102299220
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_117
+      rect:
+        serializedVersion: 2
+        x: 1131
+        y: 417
+        width: 26
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c247b6bec3fa9b541a6306a42f279b04
+      internalID: -14127009
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_118
+      rect:
+        serializedVersion: 2
+        x: 1206
+        y: 417
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 64e505c2b855b4f46ab6adb131fed069
+      internalID: -44999768
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_119
+      rect:
+        serializedVersion: 2
+        x: 1231
+        y: 423
+        width: 17
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7813ef2162201cf49a6b74afe87bd04e
+      internalID: -858952898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_120
+      rect:
+        serializedVersion: 2
+        x: 1263
+        y: 421
+        width: 27
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 167d9bdc0955f734984634f31dbdebdb
+      internalID: -1160834751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_121
+      rect:
+        serializedVersion: 2
+        x: 1299
+        y: 421
+        width: 30
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7657166b080f67d4382ab6f4a9cd3bd0
+      internalID: 904959830
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_122
+      rect:
+        serializedVersion: 2
+        x: 1496
+        y: 418
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 254c258daed5a44458c749f3082e1228
+      internalID: -1459556223
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_123
+      rect:
+        serializedVersion: 2
+        x: 331
+        y: 372
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a557a9b221be407489d5b2c1e608ec5a
+      internalID: -722804394
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_124
+      rect:
+        serializedVersion: 2
+        x: 356
+        y: 373
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9e812e4b4f2d00e44a6b32891d435143
+      internalID: -444494044
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_125
+      rect:
+        serializedVersion: 2
+        x: 366
+        y: 364
+        width: 19
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 89660074ed7a8f84fb338cd60937e1c3
+      internalID: 264575053
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_126
+      rect:
+        serializedVersion: 2
+        x: 387
+        y: 361
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 57aee795b634ee6439ee1434e5918184
+      internalID: 107895827
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_127
+      rect:
+        serializedVersion: 2
+        x: 396
+        y: 357
+        width: 27
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ff01cf8c7956b5442b097cd7a1b34903
+      internalID: 1739120372
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_128
+      rect:
+        serializedVersion: 2
+        x: 433
+        y: 370
+        width: 28
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4428428dc4b685c43a9218566dca60dd
+      internalID: 1198794089
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_129
+      rect:
+        serializedVersion: 2
+        x: 465
+        y: 369
+        width: 23
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c2d6164f9038100468e6d3174827eaaa
+      internalID: -758908081
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_130
+      rect:
+        serializedVersion: 2
+        x: 493
+        y: 367
+        width: 28
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2b2e293ac4764734db98dc63b9a38f48
+      internalID: 1728761228
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_131
+      rect:
+        serializedVersion: 2
+        x: 533
+        y: 369
+        width: 23
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6c505670eb2b6d8438ef29f1f01c8ecd
+      internalID: -298364072
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_132
+      rect:
+        serializedVersion: 2
+        x: 566
+        y: 370
+        width: 32
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1ea78a64367bb8c4faf0738c5b46319c
+      internalID: -201750544
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_133
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 370
+        width: 20
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4f17c6d40436c7549b357993448a1eb8
+      internalID: 1374263629
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_134
+      rect:
+        serializedVersion: 2
+        x: 622
+        y: 361
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 916cb17dbf8b91d4db3a6dc4cd6b9400
+      internalID: 768177539
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_135
+      rect:
+        serializedVersion: 2
+        x: 639
+        y: 360
+        width: 25
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 0c19c609b6ea96d4e898e6ffa2a6efae
+      internalID: 313678727
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_136
+      rect:
+        serializedVersion: 2
+        x: 665
+        y: 360
+        width: 30
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 31e773acf944e2847a8e7edcddb5f322
+      internalID: -1302866434
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_137
+      rect:
+        serializedVersion: 2
+        x: 698
+        y: 360
+        width: 23
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 702d9bd917649da488c2126dda705d78
+      internalID: -510845553
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_138
+      rect:
+        serializedVersion: 2
+        x: 724
+        y: 377
+        width: 23
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 06f0aaf35fd0ee54db024bbc41826132
+      internalID: 1736902184
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_139
+      rect:
+        serializedVersion: 2
+        x: 759
+        y: 357
+        width: 27
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 27718d4d194e89c428a42d29aca2026c
+      internalID: -424878157
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_140
+      rect:
+        serializedVersion: 2
+        x: 788
+        y: 364
+        width: 18
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d0e7a75f80e83d64b97d683ae3242b44
+      internalID: 684201984
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_141
+      rect:
+        serializedVersion: 2
+        x: 808
+        y: 361
+        width: 11
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9bd2583f379ecec4ea18b1872861696b
+      internalID: -484422670
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_142
+      rect:
+        serializedVersion: 2
+        x: 819
+        y: 364
+        width: 17
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 32f8d001869245e4ab07e81c4a0c00c6
+      internalID: -1719676255
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_143
+      rect:
+        serializedVersion: 2
+        x: 839
+        y: 361
+        width: 12
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a33152d767dc7af4a8791c9acf9d284d
+      internalID: -2041293862
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_144
+      rect:
+        serializedVersion: 2
+        x: 853
+        y: 369
+        width: 23
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b3b174edd51f0bb4683321f810a12c9f
+      internalID: -1431120115
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_145
+      rect:
+        serializedVersion: 2
+        x: 896
+        y: 361
+        width: 27
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9337683cff5e03544997cf353461fa61
+      internalID: -916178995
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_146
+      rect:
+        serializedVersion: 2
+        x: 924
+        y: 371
+        width: 20
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f64b0f651593e6c44b1f90e7b09d8a90
+      internalID: -833487251
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_147
+      rect:
+        serializedVersion: 2
+        x: 945
+        y: 371
+        width: 12
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7ce83fa1e629cf84e850fbc940067781
+      internalID: 54821623
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_148
+      rect:
+        serializedVersion: 2
+        x: 957
+        y: 361
+        width: 21
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a27279987f41d2a45befb7f45ceda9c9
+      internalID: -297057455
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_149
+      rect:
+        serializedVersion: 2
+        x: 979
+        y: 361
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 191db49f3b6ce13449401ea674f17fe1
+      internalID: -47262883
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_150
+      rect:
+        serializedVersion: 2
+        x: 988
+        y: 365
+        width: 21
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4692dc68f6252404f9e1cf5bd503b710
+      internalID: 196849661
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_151
+      rect:
+        serializedVersion: 2
+        x: 1010
+        y: 361
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9261ab761bbdfc94b8f8d65587f76ee7
+      internalID: 2056710699
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_152
+      rect:
+        serializedVersion: 2
+        x: 1027
+        y: 373
+        width: 19
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2c535de27af02234b89f6775263ff391
+      internalID: -1029399992
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_153
+      rect:
+        serializedVersion: 2
+        x: 1032
+        y: 356
+        width: 27
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c98715e1e25b6b44b8062bdfd4c91484
+      internalID: 527886800
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_154
+      rect:
+        serializedVersion: 2
+        x: 1062
+        y: 376
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d13db6bac76522a45bc68392e2303e9c
+      internalID: -1399295414
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_155
+      rect:
+        serializedVersion: 2
+        x: 1094
+        y: 370
+        width: 32
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ad6d8be0d4558e245bbc7ae8198860f2
+      internalID: -1673568449
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_156
+      rect:
+        serializedVersion: 2
+        x: 1130
+        y: 376
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c11003d47c20dd34987fb036779d9269
+      internalID: 1385284633
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_157
+      rect:
+        serializedVersion: 2
+        x: 1164
+        y: 361
+        width: 30
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6f13fa2434569f241a34aeaf61cc2fc5
+      internalID: -1394463538
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_158
+      rect:
+        serializedVersion: 2
+        x: 1197
+        y: 361
+        width: 28
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c185e2044b8c12043b7839f510190fd0
+      internalID: -530221234
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_159
+      rect:
+        serializedVersion: 2
+        x: 1227
+        y: 364
+        width: 17
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 635f06da35c5765419f49b1b99289b8a
+      internalID: -1335201887
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_160
+      rect:
+        serializedVersion: 2
+        x: 1247
+        y: 361
+        width: 12
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 583d56539270866478ab32833e1419aa
+      internalID: -1651994656
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_161
+      rect:
+        serializedVersion: 2
+        x: 1259
+        y: 361
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b305cdc30be53184a9a2328855c7135e
+      internalID: -2013849328
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_162
+      rect:
+        serializedVersion: 2
+        x: 1304
+        y: 358
+        width: 11
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3f5a8654624267c4e9cc6b07be14b6c0
+      internalID: -1746759252
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_163
+      rect:
+        serializedVersion: 2
+        x: 1315
+        y: 370
+        width: 32
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c99ea7777056f0241ae7cdec2151150d
+      internalID: -1042793116
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_164
+      rect:
+        serializedVersion: 2
+        x: 1347
+        y: 356
+        width: 33
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ae3d856432366954b8096179e6b2d138
+      internalID: -374902944
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_165
+      rect:
+        serializedVersion: 2
+        x: 1388
+        y: 359
+        width: 27
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4aa30b8d120f392438b767123c273c08
+      internalID: -1596678263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_166
+      rect:
+        serializedVersion: 2
+        x: 1417
+        y: 369
+        width: 21
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ff031bfc0387a5747beb2ed22ce31567
+      internalID: -1679502638
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_167
+      rect:
+        serializedVersion: 2
+        x: 1423
+        y: 357
+        width: 23
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 328cac25fc3b99444acdd7baf119d4a2
+      internalID: 691814851
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_168
+      rect:
+        serializedVersion: 2
+        x: 1447
+        y: 358
+        width: 12
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: beb90e56f3a587442962634651f36150
+      internalID: 873694095
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_169
+      rect:
+        serializedVersion: 2
+        x: 338
+        y: 357
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b9ea74ce631e0424e91e3d703425f916
+      internalID: -1102376436
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_170
+      rect:
+        serializedVersion: 2
+        x: 722
+        y: 370
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e501cd3f1c1cf24a813ce863ef11bbc
+      internalID: -231808929
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_171
+      rect:
+        serializedVersion: 2
+        x: 851
+        y: 361
+        width: 27
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 62be1b3965f0cb44a8c03b5dbce25401
+      internalID: -386429343
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_172
+      rect:
+        serializedVersion: 2
+        x: 931
+        y: 357
+        width: 21
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5696a92508b46ab498d2aceeb0e35c23
+      internalID: 317282399
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_173
+      rect:
+        serializedVersion: 2
+        x: 1059
+        y: 369
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 49bd6f8c4ae0cda438f6dc41e0ac5fc7
+      internalID: -810670007
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_174
+      rect:
+        serializedVersion: 2
+        x: 1127
+        y: 369
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c37c8446806333e4a9a53267c0cae174
+      internalID: -711567398
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_175
+      rect:
+        serializedVersion: 2
+        x: 438
+        y: 357
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b0c477a8b644c0142bc154e8d1f578b2
+      internalID: -1648237965
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_176
+      rect:
+        serializedVersion: 2
+        x: 463
+        y: 361
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d28204ba2536f04dbf138bfe224b503
+      internalID: 1789611610
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_177
+      rect:
+        serializedVersion: 2
+        x: 499
+        y: 357
+        width: 21
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd30660fa7bac0f409eaa72ec86aa827
+      internalID: 1799114481
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_178
+      rect:
+        serializedVersion: 2
+        x: 531
+        y: 361
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d05e4d34578dc7348957b2e6115836b4
+      internalID: -141570123
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_179
+      rect:
+        serializedVersion: 2
+        x: 573
+        y: 357
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7cb453fdf5887074f8a6d9bdcc5a5405
+      internalID: 1836623731
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_180
+      rect:
+        serializedVersion: 2
+        x: 600
+        y: 362
+        width: 21
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f66a9374d31edc4b9121c068da41284
+      internalID: 980326305
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_181
+      rect:
+        serializedVersion: 2
+        x: 725
+        y: 358
+        width: 22
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d3ec35e04486bc84faa6401044d3c06b
+      internalID: 1622423386
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_182
+      rect:
+        serializedVersion: 2
+        x: 880
+        y: 355
+        width: 7
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b2792a23e382b82409d375e15eceda9e
+      internalID: 238505868
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_183
+      rect:
+        serializedVersion: 2
+        x: 1062
+        y: 358
+        width: 22
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3516479a6bb3fc24895b1d41606ccf48
+      internalID: 1452360855
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_184
+      rect:
+        serializedVersion: 2
+        x: 1101
+        y: 357
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d35dcd48378ad074eb1b298e6fd551b3
+      internalID: -1251299494
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_185
+      rect:
+        serializedVersion: 2
+        x: 1130
+        y: 358
+        width: 22
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 88338bd84c3cc5a42b26d2b26a397941
+      internalID: 449282960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_186
+      rect:
+        serializedVersion: 2
+        x: 1288
+        y: 358
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9b8d2f693dd28a24cbf109820df81423
+      internalID: -1443929142
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_187
+      rect:
+        serializedVersion: 2
+        x: 1322
+        y: 357
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5986ed8c4b8fc25498d6e8a5324e1a0a
+      internalID: -1530488725
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_188
+      rect:
+        serializedVersion: 2
+        x: 366
+        y: 310
+        width: 32
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: bd339ed0184b5bd41a1d141af6ca89a3
+      internalID: 1162719508
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_189
+      rect:
+        serializedVersion: 2
+        x: 403
+        y: 316
+        width: 21
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c3a3a3f3e3ee7e544a97d65090d841c8
+      internalID: -1160191137
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_190
+      rect:
+        serializedVersion: 2
+        x: 437
+        y: 304
+        width: 18
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1f570843927d0de47b465a0e67e81284
+      internalID: -1123904671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_191
+      rect:
+        serializedVersion: 2
+        x: 459
+        y: 294
+        width: 47
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4f010b1d93b7a31439f12801048f09c3
+      internalID: 110725602
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_192
+      rect:
+        serializedVersion: 2
+        x: 516
+        y: 295
+        width: 58
+        height: 40
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: acdcb4a64835f4c4a8e9bd2dbed78fa3
+      internalID: -1901617313
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_193
+      rect:
+        serializedVersion: 2
+        x: 575
+        y: 307
+        width: 12
+        height: 26
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f238e09a7142dd442ba682dfae2db64c
+      internalID: 1436074036
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_194
+      rect:
+        serializedVersion: 2
+        x: 597
+        y: 300
+        width: 25
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e51ea2b60af758145b9c1a4acd3f9415
+      internalID: 498702723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_195
+      rect:
+        serializedVersion: 2
+        x: 622
+        y: 300
+        width: 30
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6ba4a79bc06a08141b75a78931aae29d
+      internalID: -109262484
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_196
+      rect:
+        serializedVersion: 2
+        x: 655
+        y: 300
+        width: 23
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4ce830fb2e7679243a4d1a0806913313
+      internalID: 1765078137
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_197
+      rect:
+        serializedVersion: 2
+        x: 687
+        y: 297
+        width: 30
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ac33c9f7c2afe3244b8d468943b658a6
+      internalID: 1123472270
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_198
+      rect:
+        serializedVersion: 2
+        x: 707
+        y: 310
+        width: 31
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9cccc41faa9a63347922ad4937d43e39
+      internalID: 903381447
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_199
+      rect:
+        serializedVersion: 2
+        x: 740
+        y: 301
+        width: 11
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4a8888d53bc62b442896b1e171023af5
+      internalID: -1966175246
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_200
+      rect:
+        serializedVersion: 2
+        x: 759
+        y: 304
+        width: 20
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e7e9e3c67fe74a7458fec22437c065b8
+      internalID: -173608949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_201
+      rect:
+        serializedVersion: 2
+        x: 780
+        y: 301
+        width: 11
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: da3cbc070c22f254f9b61062aeca59e7
+      internalID: -2073161720
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_202
+      rect:
+        serializedVersion: 2
+        x: 793
+        y: 314
+        width: 23
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a7d34412d3dc9f148b5375ea373971b9
+      internalID: -1988231348
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_203
+      rect:
+        serializedVersion: 2
+        x: 826
+        y: 310
+        width: 32
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3d799c7668a5548449278731648396e1
+      internalID: 2092140819
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_204
+      rect:
+        serializedVersion: 2
+        x: 862
+        y: 319
+        width: 23
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ecd4bee325b4db6499eef0fbb8892f3f
+      internalID: -546398238
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_205
+      rect:
+        serializedVersion: 2
+        x: 888
+        y: 310
+        width: 19
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 97701c26f8847374ab7fd125d4838ea0
+      internalID: -2060147723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_206
+      rect:
+        serializedVersion: 2
+        x: 909
+        y: 301
+        width: 31
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4768622c213a3a3438655fa21a4f5475
+      internalID: -1460928008
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_207
+      rect:
+        serializedVersion: 2
+        x: 942
+        y: 301
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b5d2c307ccdfdf34d8636baa9bc99e17
+      internalID: 1642790091
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_208
+      rect:
+        serializedVersion: 2
+        x: 958
+        y: 301
+        width: 53
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1b1b6a25f7f05e342a91e9ce3be34b4f
+      internalID: 1624756715
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_209
+      rect:
+        serializedVersion: 2
+        x: 1012
+        y: 301
+        width: 8
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb07545f4abc95b48b7e5949bb5daff0
+      internalID: -1791007668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_210
+      rect:
+        serializedVersion: 2
+        x: 1023
+        y: 301
+        width: 27
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5d7fad8c5c4bd984f8dcd7210b60b435
+      internalID: -1130224961
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_211
+      rect:
+        serializedVersion: 2
+        x: 1059
+        y: 297
+        width: 29
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d69e77e173a5e9e4b93fc2795a2be17b
+      internalID: 1347809980
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_212
+      rect:
+        serializedVersion: 2
+        x: 1090
+        y: 295
+        width: 29
+        height: 35
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b34bb13f15c785745af5e504094e74de
+      internalID: -2122313401
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_213
+      rect:
+        serializedVersion: 2
+        x: 1121
+        y: 303
+        width: 16
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 885681bbe329ecc46b3301550eaf05ac
+      internalID: -108377432
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_214
+      rect:
+        serializedVersion: 2
+        x: 1137
+        y: 301
+        width: 15
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 73dd91bae29820842b158fb4dfd2a4b6
+      internalID: 1848551050
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_215
+      rect:
+        serializedVersion: 2
+        x: 1154
+        y: 301
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2ebbbfc792be19b48b6e28c234ed0246
+      internalID: 2029998336
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_216
+      rect:
+        serializedVersion: 2
+        x: 1198
+        y: 298
+        width: 11
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7bd3ef7e0a0bffe46ace4c0226d0947b
+      internalID: 1368895319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_217
+      rect:
+        serializedVersion: 2
+        x: 1209
+        y: 310
+        width: 32
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 10bdc1847b218e94d9a2a3c5f55dfaed
+      internalID: 56439932
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_218
+      rect:
+        serializedVersion: 2
+        x: 1242
+        y: 296
+        width: 33
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: eea61378776cdae40b0412ff8c72825b
+      internalID: -678807951
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_219
+      rect:
+        serializedVersion: 2
+        x: 1284
+        y: 297
+        width: 28
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 839b4527283c6c5428a582f324fd6583
+      internalID: -383032686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_220
+      rect:
+        serializedVersion: 2
+        x: 1315
+        y: 300
+        width: 21
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9bd6057eaa5fc2140bdf944b20ca251f
+      internalID: -1244956651
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_221
+      rect:
+        serializedVersion: 2
+        x: 1337
+        y: 301
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 80442e430997ecc458921093a5d913b9
+      internalID: 930338211
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_222
+      rect:
+        serializedVersion: 2
+        x: 1353
+        y: 299
+        width: 27
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e767d35294f903743a96f0ec20687012
+      internalID: -914450366
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_223
+      rect:
+        serializedVersion: 2
+        x: 1382
+        y: 309
+        width: 21
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 84656822bf90f0649a3fe67c17475795
+      internalID: 162463223
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_224
+      rect:
+        serializedVersion: 2
+        x: 1388
+        y: 297
+        width: 23
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ab686d4d6adf42c41b4f40ccea6b348d
+      internalID: -167071009
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_225
+      rect:
+        serializedVersion: 2
+        x: 1412
+        y: 298
+        width: 12
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 218965279e7897948b27639454c4fda4
+      internalID: -191795626
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_226
+      rect:
+        serializedVersion: 2
+        x: 373
+        y: 297
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9dce8ecc24bdc6849a18b02aba8b0e85
+      internalID: 1258629921
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_227
+      rect:
+        serializedVersion: 2
+        x: 400
+        y: 309
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 53cd46803dc008643874a366cee75125
+      internalID: -883696695
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_228
+      rect:
+        serializedVersion: 2
+        x: 559
+        y: 297
+        width: 23
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5bfec512c83680a4cb5fb5f025be9960
+      internalID: -1674319053
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_229
+      rect:
+        serializedVersion: 2
+        x: 719
+        y: 302
+        width: 20
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 34eb737f349f10948bb7d03da40db881
+      internalID: -1183784266
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_230
+      rect:
+        serializedVersion: 2
+        x: 791
+        y: 308
+        width: 27
+        height: 5
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fb750d5cce5c0e24789c98ff1772f6db
+      internalID: 610881333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_231
+      rect:
+        serializedVersion: 2
+        x: 833
+        y: 297
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6463663eaf0c8274dae660edfecdfe05
+      internalID: 461073626
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_232
+      rect:
+        serializedVersion: 2
+        x: 860
+        y: 297
+        width: 27
+        height: 21
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4e3c596b7c488a044bd18146b1912ef0
+      internalID: -1968125764
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_233
+      rect:
+        serializedVersion: 2
+        x: 888
+        y: 302
+        width: 20
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9ea54fad1f186c94388bb9178daf7497
+      internalID: -1035415629
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_234
+      rect:
+        serializedVersion: 2
+        x: 920
+        y: 302
+        width: 21
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 07d56289070e89740bdbf495598b68d6
+      internalID: -255699163
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_235
+      rect:
+        serializedVersion: 2
+        x: 1216
+        y: 297
+        width: 24
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c55b51bd87e2ae240a028a2b9d09867a
+      internalID: 1540181197
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_236
+      rect:
+        serializedVersion: 2
+        x: 403
+        y: 298
+        width: 22
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 7f8a280ce7358d14983ce355ecd00294
+      internalID: 1670348630
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_237
+      rect:
+        serializedVersion: 2
+        x: 794
+        y: 298
+        width: 22
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5e3ad6e74bb2a6b4b9856c57129d729a
+      internalID: -32912605
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_238
+      rect:
+        serializedVersion: 2
+        x: 1182
+        y: 298
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9908ed97a29fdca4f9868454b40b80b8
+      internalID: 194456519
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_239
+      rect:
+        serializedVersion: 2
+        x: 262
+        y: 252
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: daca359fb18065243ba0ab8be7701f90
+      internalID: -257550021
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_240
+      rect:
+        serializedVersion: 2
+        x: 287
+        y: 253
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8c87ae2122692f04d8c9c7cac8c532a9
+      internalID: 444934863
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_241
+      rect:
+        serializedVersion: 2
+        x: 296
+        y: 244
+        width: 19
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd8f3c3356360e94abfa9f490235f6dd
+      internalID: -1001842973
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_242
+      rect:
+        serializedVersion: 2
+        x: 317
+        y: 241
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d2bff6b4591f28548a398bb226392dd6
+      internalID: -1206382250
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_243
+      rect:
+        serializedVersion: 2
+        x: 327
+        y: 237
+        width: 27
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 38fec4184f9859744863722f08af7b4c
+      internalID: -26623209
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_244
+      rect:
+        serializedVersion: 2
+        x: 364
+        y: 253
+        width: 17
+        height: 16
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cd7e5746859b87b4e8349cd80d0d887f
+      internalID: 430859186
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_245
+      rect:
+        serializedVersion: 2
+        x: 368
+        y: 236
+        width: 47
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3bda7e4ae6a697a47a8e3ad20b37b73b
+      internalID: -263762902
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_246
+      rect:
+        serializedVersion: 2
+        x: 416
+        y: 241
+        width: 8
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a33f61e31c0ffbd47af74b5fc0ad114c
+      internalID: 1517099772
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_247
+      rect:
+        serializedVersion: 2
+        x: 435
+        y: 250
+        width: 28
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: e8312870b35ad644ebddf712766e8e25
+      internalID: 1175489356
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_248
+      rect:
+        serializedVersion: 2
+        x: 465
+        y: 237
+        width: 27
+        height: 36
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 70011a8cd68f96a42b437b821ce10436
+      internalID: -374724643
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_249
+      rect:
+        serializedVersion: 2
+        x: 495
+        y: 253
+        width: 25
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ebed768b0e861194bac801407f5dcb2c
+      internalID: -434921322
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_250
+      rect:
+        serializedVersion: 2
+        x: 523
+        y: 249
+        width: 27
+        height: 22
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f1b69f4f21ce3004cbec7afb174f1a74
+      internalID: 459054476
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_251
+      rect:
+        serializedVersion: 2
+        x: 558
+        y: 252
+        width: 24
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4ac7a82692217eb47a0e301a3611c4aa
+      internalID: -77899515
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_252
+      rect:
+        serializedVersion: 2
+        x: 583
+        y: 253
+        width: 7
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a33d61db48b7c0f4886ff80666c0432b
+      internalID: 738517400
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_253
+      rect:
+        serializedVersion: 2
+        x: 592
+        y: 244
+        width: 19
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5f42b984ddd1dca459b389f8dc8bee3f
+      internalID: 272789464
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_254
+      rect:
+        serializedVersion: 2
+        x: 613
+        y: 241
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4ddfb8afcb4362349b128d08db32a635
+      internalID: 332855312
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_255
+      rect:
+        serializedVersion: 2
+        x: 624
+        y: 257
+        width: 23
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: dc46a9c74f87094438a5e728bb4516fe
+      internalID: -294565751
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_256
+      rect:
+        serializedVersion: 2
+        x: 659
+        y: 237
+        width: 29
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: adce3f4531fc8f144b3b70a1eeab3299
+      internalID: -1160131701
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_257
+      rect:
+        serializedVersion: 2
+        x: 690
+        y: 237
+        width: 29
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fd8e7affa1cd2174793934f6129eff77
+      internalID: 1023881883
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_258
+      rect:
+        serializedVersion: 2
+        x: 729
+        y: 240
+        width: 32
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6f9fa7c6c2cc89c4b848003c5255cbe1
+      internalID: 293176200
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_259
+      rect:
+        serializedVersion: 2
+        x: 764
+        y: 240
+        width: 32
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b07258e4422abbf468067c9893e60592
+      internalID: 465222060
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_260
+      rect:
+        serializedVersion: 2
+        x: 798
+        y: 241
+        width: 30
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 11826d68ea8839a4b8201a26454dbce6
+      internalID: -1411050760
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_261
+      rect:
+        serializedVersion: 2
+        x: 849
+        y: 248
+        width: 23
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: de57c32545e5558478c5ce68199aefbe
+      internalID: -2074072649
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_262
+      rect:
+        serializedVersion: 2
+        x: 877
+        y: 244
+        width: 18
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c2ed5005a9625e84492ee3e0ef068297
+      internalID: -222185908
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_263
+      rect:
+        serializedVersion: 2
+        x: 898
+        y: 241
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 48d5a3823d2e0fc40a77c0b22b410cc5
+      internalID: -1857460627
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_264
+      rect:
+        serializedVersion: 2
+        x: 909
+        y: 257
+        width: 23
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1207f7c8e7e69f9478b06ae054ba0ded
+      internalID: 101953333
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_265
+      rect:
+        serializedVersion: 2
+        x: 942
+        y: 240
+        width: 13
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b13fa3dfe115449429a3f6033c789491
+      internalID: -1738071024
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_266
+      rect:
+        serializedVersion: 2
+        x: 959
+        y: 252
+        width: 21
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6b8f755e19ff6c6469093763a5359811
+      internalID: 213323947
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_267
+      rect:
+        serializedVersion: 2
+        x: 981
+        y: 240
+        width: 38
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 04f3c726dee5fd44b9d33cb7d48aad7d
+      internalID: 380703463
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_268
+      rect:
+        serializedVersion: 2
+        x: 1020
+        y: 240
+        width: 7
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 5b2d484e70f840941be124a5575a4226
+      internalID: 910488502
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_269
+      rect:
+        serializedVersion: 2
+        x: 1031
+        y: 254
+        width: 26
+        height: 19
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 25239f15c08e3f74dabaacba1d15fa01
+      internalID: -1205087690
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_270
+      rect:
+        serializedVersion: 2
+        x: 1062
+        y: 244
+        width: 21
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 8e556b1e81d5ee74896721e7d6b057bb
+      internalID: -138537467
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_271
+      rect:
+        serializedVersion: 2
+        x: 1079
+        y: 240
+        width: 14
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: faca5822b3ab19644a531517ba24a8d1
+      internalID: 357615495
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_272
+      rect:
+        serializedVersion: 2
+        x: 1104
+        y: 240
+        width: 23
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 062d8db7171eb1742a6f6d5e5cedd0e6
+      internalID: -361161930
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_273
+      rect:
+        serializedVersion: 2
+        x: 1129
+        y: 252
+        width: 21
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 39c3b1ed57bee36459be0a699fbfd12d
+      internalID: 1673514682
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_274
+      rect:
+        serializedVersion: 2
+        x: 1151
+        y: 248
+        width: 12
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 747da9e552b987142bf4a3a1e7d3b129
+      internalID: 977333242
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_275
+      rect:
+        serializedVersion: 2
+        x: 1164
+        y: 240
+        width: 26
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 86d0942f84a91554289aee901a05953a
+      internalID: 99155515
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_276
+      rect:
+        serializedVersion: 2
+        x: 1191
+        y: 240
+        width: 7
+        height: 32
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 13dc349d970f69241877442c09776887
+      internalID: -456824159
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_277
+      rect:
+        serializedVersion: 2
+        x: 1200
+        y: 243
+        width: 20
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 14d9af9fb2aac7d4ea37363fddcd81c9
+      internalID: 858927325
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_278
+      rect:
+        serializedVersion: 2
+        x: 1221
+        y: 241
+        width: 11
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 4b58f28916eb19848b5cda6774c62af8
+      internalID: -616487262
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_279
+      rect:
+        serializedVersion: 2
+        x: 1232
+        y: 245
+        width: 21
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2fa14df2ae132434fad8ecd29e5a73a5
+      internalID: -394759382
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_280
+      rect:
+        serializedVersion: 2
+        x: 1254
+        y: 241
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 066221903f7d7894db28dad21997ac94
+      internalID: -1766667053
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_281
+      rect:
+        serializedVersion: 2
+        x: 1271
+        y: 252
+        width: 19
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a1c15528455a0ad48a0fa9fa96c28920
+      internalID: -1797206329
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_282
+      rect:
+        serializedVersion: 2
+        x: 1293
+        y: 252
+        width: 7
+        height: 18
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 56c267cfffd8e7648a83b7d779dcf68a
+      internalID: -1684737791
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_283
+      rect:
+        serializedVersion: 2
+        x: 1302
+        y: 241
+        width: 29
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 3cbf0acd9eeb4064ead7e61554dc63ae
+      internalID: -225358595
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_284
+      rect:
+        serializedVersion: 2
+        x: 1333
+        y: 241
+        width: 27
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6b7e42c1abe892245936ebea38b94efd
+      internalID: -1687682898
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_285
+      rect:
+        serializedVersion: 2
+        x: 1378
+        y: 238
+        width: 11
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2a3476d04e44a6d4ab1caf351ea0aa89
+      internalID: 912223021
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_286
+      rect:
+        serializedVersion: 2
+        x: 1392
+        y: 248
+        width: 23
+        height: 20
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 026111d6a9823bc44a7e14e9813b8e61
+      internalID: 1702555462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_287
+      rect:
+        serializedVersion: 2
+        x: 1420
+        y: 244
+        width: 18
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ed95c2392c039d14ca1f3552e2524c31
+      internalID: 659020822
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_288
+      rect:
+        serializedVersion: 2
+        x: 1441
+        y: 241
+        width: 7
+        height: 28
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c4a2275612e45184d92b555dc145c527
+      internalID: 1838036712
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_289
+      rect:
+        serializedVersion: 2
+        x: 1457
+        y: 239
+        width: 27
+        height: 30
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 137f23c87b10a2b4e862e761e2681bd4
+      internalID: -1675709710
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_290
+      rect:
+        serializedVersion: 2
+        x: 1486
+        y: 249
+        width: 21
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 9004915dca616684b937aaccd9e462c5
+      internalID: -36812389
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_291
+      rect:
+        serializedVersion: 2
+        x: 1492
+        y: 237
+        width: 23
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 10995df026958a44a966f78892bc598c
+      internalID: -2067426228
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_292
+      rect:
+        serializedVersion: 2
+        x: 1516
+        y: 238
+        width: 12
+        height: 33
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 599d68f06b621f845845f8f15c70c052
+      internalID: 19010723
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_293
+      rect:
+        serializedVersion: 2
+        x: 269
+        y: 237
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: ede32d63761b90c4bbd5832984c74682
+      internalID: -397825066
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_294
+      rect:
+        serializedVersion: 2
+        x: 494
+        y: 239
+        width: 27
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2f9c1f86a5ebe544fb44134ecd4a7935
+      internalID: 382017279
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_295
+      rect:
+        serializedVersion: 2
+        x: 565
+        y: 237
+        width: 24
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: cb47948239c035f4693b425134e67412
+      internalID: -624655358
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_296
+      rect:
+        serializedVersion: 2
+        x: 622
+        y: 250
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a67dedca7babc194c8bfbd20fc66ede8
+      internalID: 1657614454
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_297
+      rect:
+        serializedVersion: 2
+        x: 907
+        y: 250
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b909c10b241667b40a5ac34855fd6c8d
+      internalID: -1383429808
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_298
+      rect:
+        serializedVersion: 2
+        x: 965
+        y: 237
+        width: 23
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f5961219ec1bd7348be9791c11a6a11f
+      internalID: 664056668
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_299
+      rect:
+        serializedVersion: 2
+        x: 1029
+        y: 238
+        width: 30
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: a6756fe7cd9cce94ea6dfc74d63a8f97
+      internalID: 2084152581
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_300
+      rect:
+        serializedVersion: 2
+        x: 1135
+        y: 237
+        width: 23
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: f99b0fe78d129c34bafbe6247aafcc3d
+      internalID: -13214669
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_301
+      rect:
+        serializedVersion: 2
+        x: 1274
+        y: 236
+        width: 28
+        height: 15
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: fd55d32284e57894e8df2722cd429f76
+      internalID: -852034111
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_302
+      rect:
+        serializedVersion: 2
+        x: 440
+        y: 237
+        width: 22
+        height: 12
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 6538ad9a6a5d08d49b78c4e19f850e65
+      internalID: -1953679916
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_303
+      rect:
+        serializedVersion: 2
+        x: 525
+        y: 237
+        width: 23
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 1b28b93dd5cd0d246ab4acd123820206
+      internalID: 723485564
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_304
+      rect:
+        serializedVersion: 2
+        x: 625
+        y: 238
+        width: 22
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: c2515465ed2f86a4eb1287c79cda7ad8
+      internalID: 681863741
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_305
+      rect:
+        serializedVersion: 2
+        x: 830
+        y: 238
+        width: 8
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b6bec528458d32143b0f9d8df0008877
+      internalID: -1613685037
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_306
+      rect:
+        serializedVersion: 2
+        x: 847
+        y: 241
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 979b3a370d9e58a4793353e934df8412
+      internalID: 1836193005
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_307
+      rect:
+        serializedVersion: 2
+        x: 910
+        y: 238
+        width: 22
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 27d863ea7a5328244808f553947f7d37
+      internalID: 422530272
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_308
+      rect:
+        serializedVersion: 2
+        x: 1362
+        y: 238
+        width: 7
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 2bbf431b3cc47e0438cd83ce24488f67
+      internalID: -933595652
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_309
+      rect:
+        serializedVersion: 2
+        x: 1390
+        y: 241
+        width: 27
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: d3d7a2e64feffe248a7531c3cffb5c85
+      internalID: -845721263
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_310
+      rect:
+        serializedVersion: 2
+        x: 831
+        y: 132
+        width: 156
+        height: 46
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 270a756e9e258f24884afa5b322363b3
+      internalID: 816191264
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_311
+      rect:
+        serializedVersion: 2
+        x: 606
+        y: 65
+        width: 607
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: b5722c6cfea92844595a96e4e04600a6
+      internalID: 305715951
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_312
+      rect:
+        serializedVersion: 2
+        x: 249
+        y: 0
+        width: 1290
+        height: 709
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 114fb956fb374ff4c9cbab29a121c9d1
+      internalID: 183300532
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: a8b93d02a97ad274287ca592d5663315
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      HowToPlayBG_0: -336696712
+      HowToPlayBG_1: -1777781554
+      HowToPlayBG_10: -162443498
+      HowToPlayBG_100: -800375593
+      HowToPlayBG_101: 1350490405
+      HowToPlayBG_102: 1707249852
+      HowToPlayBG_103: 1472187449
+      HowToPlayBG_104: 1196819492
+      HowToPlayBG_105: -884521065
+      HowToPlayBG_106: -1896507527
+      HowToPlayBG_107: -2079622904
+      HowToPlayBG_108: 724551431
+      HowToPlayBG_109: -1347540467
+      HowToPlayBG_11: 173465119
+      HowToPlayBG_110: -205796186
+      HowToPlayBG_111: -801569127
+      HowToPlayBG_112: 1935593375
+      HowToPlayBG_113: 986911836
+      HowToPlayBG_114: -2015269184
+      HowToPlayBG_115: 1849067667
+      HowToPlayBG_116: 1102299220
+      HowToPlayBG_117: -14127009
+      HowToPlayBG_118: -44999768
+      HowToPlayBG_119: -858952898
+      HowToPlayBG_12: 630716021
+      HowToPlayBG_120: -1160834751
+      HowToPlayBG_121: 904959830
+      HowToPlayBG_122: -1459556223
+      HowToPlayBG_123: -722804394
+      HowToPlayBG_124: -444494044
+      HowToPlayBG_125: 264575053
+      HowToPlayBG_126: 107895827
+      HowToPlayBG_127: 1739120372
+      HowToPlayBG_128: 1198794089
+      HowToPlayBG_129: -758908081
+      HowToPlayBG_13: -1399348784
+      HowToPlayBG_130: 1728761228
+      HowToPlayBG_131: -298364072
+      HowToPlayBG_132: -201750544
+      HowToPlayBG_133: 1374263629
+      HowToPlayBG_134: 768177539
+      HowToPlayBG_135: 313678727
+      HowToPlayBG_136: -1302866434
+      HowToPlayBG_137: -510845553
+      HowToPlayBG_138: 1736902184
+      HowToPlayBG_139: -424878157
+      HowToPlayBG_14: 530378090
+      HowToPlayBG_140: 684201984
+      HowToPlayBG_141: -484422670
+      HowToPlayBG_142: -1719676255
+      HowToPlayBG_143: -2041293862
+      HowToPlayBG_144: -1431120115
+      HowToPlayBG_145: -916178995
+      HowToPlayBG_146: -833487251
+      HowToPlayBG_147: 54821623
+      HowToPlayBG_148: -297057455
+      HowToPlayBG_149: -47262883
+      HowToPlayBG_15: 2025969281
+      HowToPlayBG_150: 196849661
+      HowToPlayBG_151: 2056710699
+      HowToPlayBG_152: -1029399992
+      HowToPlayBG_153: 527886800
+      HowToPlayBG_154: -1399295414
+      HowToPlayBG_155: -1673568449
+      HowToPlayBG_156: 1385284633
+      HowToPlayBG_157: -1394463538
+      HowToPlayBG_158: -530221234
+      HowToPlayBG_159: -1335201887
+      HowToPlayBG_16: 1143206005
+      HowToPlayBG_160: -1651994656
+      HowToPlayBG_161: -2013849328
+      HowToPlayBG_162: -1746759252
+      HowToPlayBG_163: -1042793116
+      HowToPlayBG_164: -374902944
+      HowToPlayBG_165: -1596678263
+      HowToPlayBG_166: -1679502638
+      HowToPlayBG_167: 691814851
+      HowToPlayBG_168: 873694095
+      HowToPlayBG_169: -1102376436
+      HowToPlayBG_17: -441120025
+      HowToPlayBG_170: -231808929
+      HowToPlayBG_171: -386429343
+      HowToPlayBG_172: 317282399
+      HowToPlayBG_173: -810670007
+      HowToPlayBG_174: -711567398
+      HowToPlayBG_175: -1648237965
+      HowToPlayBG_176: 1789611610
+      HowToPlayBG_177: 1799114481
+      HowToPlayBG_178: -141570123
+      HowToPlayBG_179: 1836623731
+      HowToPlayBG_18: 449977315
+      HowToPlayBG_180: 980326305
+      HowToPlayBG_181: 1622423386
+      HowToPlayBG_182: 238505868
+      HowToPlayBG_183: 1452360855
+      HowToPlayBG_184: -1251299494
+      HowToPlayBG_185: 449282960
+      HowToPlayBG_186: -1443929142
+      HowToPlayBG_187: -1530488725
+      HowToPlayBG_188: 1162719508
+      HowToPlayBG_189: -1160191137
+      HowToPlayBG_19: -1963975994
+      HowToPlayBG_190: -1123904671
+      HowToPlayBG_191: 110725602
+      HowToPlayBG_192: -1901617313
+      HowToPlayBG_193: 1436074036
+      HowToPlayBG_194: 498702723
+      HowToPlayBG_195: -109262484
+      HowToPlayBG_196: 1765078137
+      HowToPlayBG_197: 1123472270
+      HowToPlayBG_198: 903381447
+      HowToPlayBG_199: -1966175246
+      HowToPlayBG_2: -1094351552
+      HowToPlayBG_20: -133788160
+      HowToPlayBG_200: -173608949
+      HowToPlayBG_201: -2073161720
+      HowToPlayBG_202: -1988231348
+      HowToPlayBG_203: 2092140819
+      HowToPlayBG_204: -546398238
+      HowToPlayBG_205: -2060147723
+      HowToPlayBG_206: -1460928008
+      HowToPlayBG_207: 1642790091
+      HowToPlayBG_208: 1624756715
+      HowToPlayBG_209: -1791007668
+      HowToPlayBG_21: -867582717
+      HowToPlayBG_210: -1130224961
+      HowToPlayBG_211: 1347809980
+      HowToPlayBG_212: -2122313401
+      HowToPlayBG_213: -108377432
+      HowToPlayBG_214: 1848551050
+      HowToPlayBG_215: 2029998336
+      HowToPlayBG_216: 1368895319
+      HowToPlayBG_217: 56439932
+      HowToPlayBG_218: -678807951
+      HowToPlayBG_219: -383032686
+      HowToPlayBG_22: 308218485
+      HowToPlayBG_220: -1244956651
+      HowToPlayBG_221: 930338211
+      HowToPlayBG_222: -914450366
+      HowToPlayBG_223: 162463223
+      HowToPlayBG_224: -167071009
+      HowToPlayBG_225: -191795626
+      HowToPlayBG_226: 1258629921
+      HowToPlayBG_227: -883696695
+      HowToPlayBG_228: -1674319053
+      HowToPlayBG_229: -1183784266
+      HowToPlayBG_23: 828495407
+      HowToPlayBG_230: 610881333
+      HowToPlayBG_231: 461073626
+      HowToPlayBG_232: -1968125764
+      HowToPlayBG_233: -1035415629
+      HowToPlayBG_234: -255699163
+      HowToPlayBG_235: 1540181197
+      HowToPlayBG_236: 1670348630
+      HowToPlayBG_237: -32912605
+      HowToPlayBG_238: 194456519
+      HowToPlayBG_239: -257550021
+      HowToPlayBG_24: 1869866009
+      HowToPlayBG_240: 444934863
+      HowToPlayBG_241: -1001842973
+      HowToPlayBG_242: -1206382250
+      HowToPlayBG_243: -26623209
+      HowToPlayBG_244: 430859186
+      HowToPlayBG_245: -263762902
+      HowToPlayBG_246: 1517099772
+      HowToPlayBG_247: 1175489356
+      HowToPlayBG_248: -374724643
+      HowToPlayBG_249: -434921322
+      HowToPlayBG_25: 1172168341
+      HowToPlayBG_250: 459054476
+      HowToPlayBG_251: -77899515
+      HowToPlayBG_252: 738517400
+      HowToPlayBG_253: 272789464
+      HowToPlayBG_254: 332855312
+      HowToPlayBG_255: -294565751
+      HowToPlayBG_256: -1160131701
+      HowToPlayBG_257: 1023881883
+      HowToPlayBG_258: 293176200
+      HowToPlayBG_259: 465222060
+      HowToPlayBG_26: -1455488407
+      HowToPlayBG_260: -1411050760
+      HowToPlayBG_261: -2074072649
+      HowToPlayBG_262: -222185908
+      HowToPlayBG_263: -1857460627
+      HowToPlayBG_264: 101953333
+      HowToPlayBG_265: -1738071024
+      HowToPlayBG_266: 213323947
+      HowToPlayBG_267: 380703463
+      HowToPlayBG_268: 910488502
+      HowToPlayBG_269: -1205087690
+      HowToPlayBG_27: 2060681987
+      HowToPlayBG_270: -138537467
+      HowToPlayBG_271: 357615495
+      HowToPlayBG_272: -361161930
+      HowToPlayBG_273: 1673514682
+      HowToPlayBG_274: 977333242
+      HowToPlayBG_275: 99155515
+      HowToPlayBG_276: -456824159
+      HowToPlayBG_277: 858927325
+      HowToPlayBG_278: -616487262
+      HowToPlayBG_279: -394759382
+      HowToPlayBG_28: -94901523
+      HowToPlayBG_280: -1766667053
+      HowToPlayBG_281: -1797206329
+      HowToPlayBG_282: -1684737791
+      HowToPlayBG_283: -225358595
+      HowToPlayBG_284: -1687682898
+      HowToPlayBG_285: 912223021
+      HowToPlayBG_286: 1702555462
+      HowToPlayBG_287: 659020822
+      HowToPlayBG_288: 1838036712
+      HowToPlayBG_289: -1675709710
+      HowToPlayBG_29: -1500115084
+      HowToPlayBG_290: -36812389
+      HowToPlayBG_291: -2067426228
+      HowToPlayBG_292: 19010723
+      HowToPlayBG_293: -397825066
+      HowToPlayBG_294: 382017279
+      HowToPlayBG_295: -624655358
+      HowToPlayBG_296: 1657614454
+      HowToPlayBG_297: -1383429808
+      HowToPlayBG_298: 664056668
+      HowToPlayBG_299: 2084152581
+      HowToPlayBG_3: 728835256
+      HowToPlayBG_30: 320042337
+      HowToPlayBG_300: -13214669
+      HowToPlayBG_301: -852034111
+      HowToPlayBG_302: -1953679916
+      HowToPlayBG_303: 723485564
+      HowToPlayBG_304: 681863741
+      HowToPlayBG_305: -1613685037
+      HowToPlayBG_306: 1836193005
+      HowToPlayBG_307: 422530272
+      HowToPlayBG_308: -933595652
+      HowToPlayBG_309: -845721263
+      HowToPlayBG_31: -645142369
+      HowToPlayBG_310: 816191264
+      HowToPlayBG_311: 305715951
+      HowToPlayBG_312: 183300532
+      HowToPlayBG_32: -1895029011
+      HowToPlayBG_33: -547000967
+      HowToPlayBG_34: -333124642
+      HowToPlayBG_35: -1320538242
+      HowToPlayBG_36: -562382099
+      HowToPlayBG_37: 1029800574
+      HowToPlayBG_38: -1430640987
+      HowToPlayBG_39: 493086199
+      HowToPlayBG_4: -2048777780
+      HowToPlayBG_40: -67025641
+      HowToPlayBG_41: -1227252512
+      HowToPlayBG_42: 50780654
+      HowToPlayBG_43: 525170100
+      HowToPlayBG_44: -73090728
+      HowToPlayBG_45: -1945918969
+      HowToPlayBG_46: 1104748950
+      HowToPlayBG_47: -402974999
+      HowToPlayBG_48: -1121392990
+      HowToPlayBG_49: -1631676754
+      HowToPlayBG_5: -593202993
+      HowToPlayBG_50: 1042255005
+      HowToPlayBG_51: 1628502923
+      HowToPlayBG_52: -1562869960
+      HowToPlayBG_53: 1267204673
+      HowToPlayBG_54: 1258164859
+      HowToPlayBG_55: 167849530
+      HowToPlayBG_56: 483979223
+      HowToPlayBG_57: 1879662428
+      HowToPlayBG_58: -1532594188
+      HowToPlayBG_59: 481472580
+      HowToPlayBG_6: -844276060
+      HowToPlayBG_60: -1058201351
+      HowToPlayBG_61: -1188004490
+      HowToPlayBG_62: 485924431
+      HowToPlayBG_63: 43179066
+      HowToPlayBG_64: -1551248712
+      HowToPlayBG_65: -56356736
+      HowToPlayBG_66: 837057052
+      HowToPlayBG_67: 1773087846
+      HowToPlayBG_68: 924508503
+      HowToPlayBG_69: 1501669491
+      HowToPlayBG_7: 1684582563
+      HowToPlayBG_70: -899932261
+      HowToPlayBG_71: 1526496150
+      HowToPlayBG_72: -2061936777
+      HowToPlayBG_73: -1727405342
+      HowToPlayBG_74: 1874833357
+      HowToPlayBG_75: 1479503312
+      HowToPlayBG_76: 1487038787
+      HowToPlayBG_77: 1140399341
+      HowToPlayBG_78: -1001132747
+      HowToPlayBG_79: 1650669016
+      HowToPlayBG_8: -732145033
+      HowToPlayBG_80: 1993481123
+      HowToPlayBG_81: 1692058188
+      HowToPlayBG_82: 1536691740
+      HowToPlayBG_83: 1638192282
+      HowToPlayBG_84: -489316918
+      HowToPlayBG_85: 1853625325
+      HowToPlayBG_86: -217961310
+      HowToPlayBG_87: -185030506
+      HowToPlayBG_88: -1743353950
+      HowToPlayBG_89: -1386914210
+      HowToPlayBG_9: -1804863409
+      HowToPlayBG_90: -524546323
+      HowToPlayBG_91: -576026692
+      HowToPlayBG_92: -764042007
+      HowToPlayBG_93: -1821021180
+      HowToPlayBG_94: -973654146
+      HowToPlayBG_95: -3265273
+      HowToPlayBG_96: -196165721
+      HowToPlayBG_97: -1792894028
+      HowToPlayBG_98: 864409354
+      HowToPlayBG_99: -710704555
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

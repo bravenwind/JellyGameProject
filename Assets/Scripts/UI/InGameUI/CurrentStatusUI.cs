@@ -6,8 +6,8 @@ public class CurrentStatusUI : MonoBehaviour
 {
     public Image[] jellyColorImages;
     public Image currentColorImage;
-    public TMP_Text currentColorText;
-    public TMP_Text currentScaleText;
+    public Text currentColorText;
+    public Text currentScaleText;
     private Image targetColorImage;
 
     //public void ChangeColorUI_CurrentJelly()
@@ -93,11 +93,11 @@ public class CurrentStatusUI : MonoBehaviour
     public void ChangeCurrentColorUI()
     {
         currentColorImage.color = new Color32(DataManager.Instance.currentColor.r, DataManager.Instance.currentColor.g, DataManager.Instance.currentColor.b, 255);
-        currentColorText.text = $"R: {DataManager.Instance.currentColor.r} G: {DataManager.Instance.currentColor.g} B: {DataManager.Instance.currentColor.b}";
+        //currentColorText.text = $"R: {DataManager.Instance.currentColor.r} G: {DataManager.Instance.currentColor.g} B: {DataManager.Instance.currentColor.b}";
     }
 
     public void ChangeCurrentScaleUI()
     {
-        currentScaleText.text = DataManager.Instance.playerCurrentScaleLevel.ToString();
+        currentScaleText.text = "Lv." + DataManager.Instance.playerCurrentScaleLevel.ToString();
     }
 }

@@ -94,7 +94,7 @@ Transform:
   m_GameObject: {fileID: 1460502662218733694}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 5.36, y: -8.07, z: -103.91}
+  m_LocalPosition: {x: 5.36, y: -8.49, z: -103.91}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -141,7 +141,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c8aeeec92ce8154abc3f84892a59757, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 0}
+  target: {fileID: 2833304901144678533}
   destroyDistance: 0.3
   absorbTimer: 0
   absorbSpeed: 30
@@ -270,7 +270,7 @@ GameObject:
   - component: {fileID: 8705030105849552674}
   - component: {fileID: 4591256038848280165}
   - component: {fileID: 4609524655045205458}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Sphere001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -286,7 +286,7 @@ Transform:
   m_GameObject: {fileID: 1618879608893713812}
   serializedVersion: 2
   m_LocalRotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -1, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -431,7 +431,7 @@ Transform:
   m_GameObject: {fileID: 6571879990529482517}
   serializedVersion: 2
   m_LocalRotation: {x: -0.49193922, y: 0.50793296, z: -0.49193907, w: 0.50793296}
-  m_LocalPosition: {x: -0.0000000011300482, y: -0.740347, z: -0.025852522}
+  m_LocalPosition: {x: -0.0000000011300482, y: -1.740347, z: -0.025852522}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:

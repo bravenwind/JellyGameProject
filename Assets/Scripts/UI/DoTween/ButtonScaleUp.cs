@@ -21,7 +21,7 @@ public class ButtonScaleUp : MonoBehaviour, IPointerEnterHandler, IPointerExitHa
         transform.DOScale(originalScale * scaleUp, duration).SetEase(Ease.OutBack).SetUpdate(true);
     }
 
-    public void OnPointerExit(PointerEventData eventData)
+    public void OnPointerExit(PointerEventData eventData = null)
     {
         transform.DOScale(originalScale, duration).SetEase(Ease.OutBack).SetUpdate(true);
     }

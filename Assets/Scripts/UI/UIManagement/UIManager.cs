@@ -13,11 +13,14 @@ public enum UIState
     InGame,     // 게임 플레이 중 HUD
     GameSuccess,    // 게임 오버 창
     GameFail,
+    GameOver,
     Menu
 }
 
 public class UIManager : MonoBehaviour
 {
+    public static UIManager Instance { get; private set; }
+
     // 2. 인스펙터에서 Enum과 오브젝트를 짝지을 수 있게 만든 클래스
     [System.Serializable]
     public class UIStateMapping
@@ -43,6 +46,10 @@ public class UIManager : MonoBehaviour
     // 현재 상태를 저장하는 변수
     private UIState currentState;
 
+    private void Awake()
+    {
+        Instance = this;
+    }
 
     private void Start()
     {
@@ -145,10 +152,8 @@ public class UIManager : MonoBehaviour
             case UIState.Pause:
                 Time.timeScale = 0f;
                 break;
-            case UIState.GameSuccess:
+            case UIState.GameOver:
                 Time.timeScale = 0f;
-                PlaySFXAudio.Instance.gameObject.GetComponent<AudioSource>().Stop();
-                PlaySFXAudio.Instance.PlayMissionCompleteSound();
                 break;
             case UIState.GameFail:
                 break;

@@ -249,6 +249,6 @@ public class PlayerController : BaseFSM
 
     public void OnFailAnimationFinished()
     {
-        uiManager.SetState(UIState.GameFail);
+        uiManager.SetState(UIState.GameOver);
     }
 }

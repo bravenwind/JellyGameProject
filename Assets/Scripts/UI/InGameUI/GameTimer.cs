@@ -7,9 +7,10 @@ public class GameTimer : MonoBehaviour
 {
     public float limitTime = 300f;
     public TextMeshProUGUI timerText;
-    public QuestStarUI questStarUI;
+    public ResultStarsUI resultStarsUI;
     public UIManager uiManager;
     public SoftBody3D softBody3D;
+    public PlayerController playerController;
 
     public Animator playerAnimController;
     public MainCamera_Action mainCamera_Action;
@@ -65,7 +66,12 @@ public class GameTimer : MonoBehaviour
         if (isGameEnded) return; // 중복 실행 방지
         isGameEnded = true;
 
+        // 3. ★ 게임 내 모든 시간(물리, Update 등) 정지
+        Time.timeScale = 0f;
+
         playSFXAudio.StopWalking();
+
+        playerController.enabled = false;
 
         //playerCloth.enabled = false;
         softBody3D.DisableCloth();
@@ -75,11 +81,9 @@ public class GameTimer : MonoBehaviour
 
         mainCamera_Action.GameFailSizeChange();
         // 2. 애니메이션 실행
+        resultStarsUI.SetStarIndex(0);
         playerAnimController.SetTrigger("GameFail");
         PlaySFXAudio.Instance.PlayFailSound();
-
-        // 3. ★ 게임 내 모든 시간(물리, Update 등) 정지
-        Time.timeScale = 0f;
 
         // 주의: gameObject.SetActive(false)를 지워야 합니다. 
         // 타이머 오브젝트가 꺼지면 아래의 OnFailAnimationFinished 함수도 호출될 수 없습니다.

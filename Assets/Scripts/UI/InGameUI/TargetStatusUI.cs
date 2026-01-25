@@ -4,9 +4,7 @@ using UnityEngine.UI;
 
 public class TargetStatusUI : MonoBehaviour
 {
-    public Image targetColorImage;
-    public TMP_Text targetColorText;
-    public TMP_Text targetScaleText;
+    public Text targetStatusText;
 
     // 1. 타입을 Color32로 변경
     private Color32[] colors = new Color32[7];
@@ -35,8 +33,41 @@ public class TargetStatusUI : MonoBehaviour
         // 2. 텍스트 포맷팅: (255, 0, 0) 형식으로 직접 지정
         //colorText.text = $"R: {selectedColor.r} G: {selectedColor.g} B: {selectedColor.b}";
         DataManager.ColorRangeRule thisGameRangeRule = DataManager.Instance.thisGameRangeRule;
-        targetColorText.text = $"R: {thisGameRangeRule.minRGB.x} G: {thisGameRangeRule.minRGB.y} B: {thisGameRangeRule.minRGB.z}";
-        targetColorImage.color = thisGameRangeRule.color;
-        targetScaleText.text = DataManager.Instance.targetScaleLevel.ToString();
+        string targetColorText = "";
+        switch (DataManager.Instance.thisGameRangeRule.resultType)
+        {
+            case JellyColorType.Red:
+                targetColorText = "빨강 젤리 ";
+                break;
+            case JellyColorType.Green:
+                targetColorText = "초록 젤리 ";
+                break;
+            case JellyColorType.Blue:
+                targetColorText = "파랑 젤리 ";
+                break;
+            case JellyColorType.Cyan:
+                targetColorText = "청록 젤리 "; // 게임 분위기에 따라 "하늘 젤리 "로 변경하셔도 좋습니다.
+                break;
+            case JellyColorType.Magenta:
+                targetColorText = "자홍 젤리 "; // 게임 분위기에 따라 "보라 젤리 " 또는 "분홍 젤리 "로 변경하셔도 좋습니다.
+                break;
+            case JellyColorType.Yellow:
+                targetColorText = "노랑 젤리 ";
+                break;
+            case JellyColorType.White:
+                targetColorText = "하양 젤리 ";
+                break;
+            case JellyColorType.Black:
+                targetColorText = "검정 젤리 ";
+                break;
+            case JellyColorType.Temp:
+                targetColorText = "임시 젤리 "; // 디버그/임시용
+                break;
+            case JellyColorType.None:
+                targetColorText = "알 수 없는 젤리 "; // 또는 "" (빈 문자열)
+                break;
+        }
+        string targetScaleLevelText = "Lv." + DataManager.Instance.targetScaleLevel;
+        targetStatusText.text = targetColorText + targetScaleLevelText + " 만들기";
     }
 }

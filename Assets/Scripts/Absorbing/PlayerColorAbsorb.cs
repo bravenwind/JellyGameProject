@@ -86,6 +86,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
         currentStatusUI.ChangeCurrentColorUI();
+        currentStatusUI.ChangeCurrentScaleUI();
 
         DataManager.Instance.currentColor = DataManager.Instance.initialSystemColor;
         DataManager.Instance.targetColor = DataManager.Instance.currentColor;
