@@ -16,11 +16,14 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
-        if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
+        if (other.CompareTag("PlayerMesh"))
+        {
+            StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+            if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
 
-        // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
-        scaleDecreaseTimer = 0.0f;
+            // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
+            scaleDecreaseTimer = 0.0f;
+        }
     }
 
     private void OnTriggerStay(Collider other)
