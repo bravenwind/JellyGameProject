@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 // (ColorExtensions 코드는 그대로 유지)
@@ -65,6 +66,36 @@ public class PlayerColorAbsorb : MonoBehaviour
     public string FresnelProperty = "_Fresnel_Color";
 
     public Transform detectTransform;
+
+    // 기존 변수 선언부 아래에 추가
+    [Header("Scale Queue System")]
+    private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
+    private bool isScaling = false;
+
+    // 큐에 스케일 변경 코루틴을 등록하고, 실행 중이 아니면 큐 실행 시작
+    public void QueueScaleChange(IEnumerator scaleRoutine)
+    {
+        scaleQueue.Enqueue(scaleRoutine);
+        if (!isScaling)
+        {
+            StartCoroutine(ProcessScaleQueue());
+        }
+    }
+
+    // 큐에 있는 코루틴을 순서대로 하나씩 실행
+    private IEnumerator ProcessScaleQueue()
+    {
+        isScaling = true;
+
+        while (scaleQueue.Count > 0)
+        {
+            // 큐에서 가장 먼저 들어온 작업을 꺼내서 끝날 때까지 대기
+            IEnumerator nextRoutine = scaleQueue.Dequeue();
+            yield return StartCoroutine(nextRoutine);
+        }
+
+        isScaling = false;
+    }
 
     void Start()
     {
@@ -193,7 +224,9 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         if (DataManager.Instance.absorbedJellyCount >= DataManager.Instance.scaleLevelUpExp)
         {
-            StartCoroutine(IncreaseScale(DataManager.Instance.scaleIncreaseTime));
+            // 🔥 수정됨: StartCoroutine 대신 QueueScaleChange 사용
+            QueueScaleChange(IncreaseScale(DataManager.Instance.scaleIncreaseTime));
+
             if (mainCamera_Action != null) mainCamera_Action.ScaleIncreased();
 
             if (DataManager.Instance.playerCurrentScaleLevel >= 3)

@@ -33,12 +33,14 @@ public class Milk : MonoBehaviour
         }
     }
 
+    // Milk.cs의 ApplyEffectAndHide 함수 수정
     private void ApplyEffectAndHide()
     {
         // 1. 효과 실행 (스케일 감소 및 카메라 연출)
         if (playerColorAbsorb != null)
         {
-            StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+            // 🔥 수정됨: StartCoroutine -> QueueScaleChange로 변경
+            playerColorAbsorb.QueueScaleChange(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
         }
 
         if (mainCamera_Action != null)

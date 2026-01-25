@@ -15,8 +15,6 @@ public class GameTimer : MonoBehaviour
     public Animator playerAnimController;
     public MainCamera_Action mainCamera_Action;
 
-    public PlaySFXAudio playSFXAudio;
-
     public float currentTime;
     private int lastSecond = -1;
 
@@ -69,7 +67,7 @@ public class GameTimer : MonoBehaviour
         // 3. ★ 게임 내 모든 시간(물리, Update 등) 정지
         Time.timeScale = 0f;
 
-        playSFXAudio.StopWalking();
+        PlaySFXAudio.Instance.StopWalking();
 
         playerController.enabled = false;
 

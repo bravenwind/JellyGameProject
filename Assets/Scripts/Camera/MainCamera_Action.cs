@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using static UnityEngine.GraphicsBuffer;
@@ -54,18 +55,56 @@ public class MainCamera_Action : MonoBehaviour
         );
     }
 
+    // 변수 선언부 추가
+    private Queue<float> cameraSizeQueue = new Queue<float>();
+    private bool isCameraScaling = false;
+
+    // 🔥 수정됨: 큐에 크기 변화량(+ 또는 -)만 등록합니다.
     public void ScaleIncreased()
     {
-        currentSize = Camera.main.orthographicSize;
-        float targetSize = currentSize + DataManager.Instance.scaleChangedPlusSize;
-        StartCoroutine(OnScaleChanged_Co(targetSize, DataManager.Instance.scaleChangedDuration));
+        cameraSizeQueue.Enqueue(DataManager.Instance.scaleChangedPlusSize);
+        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue());
     }
 
     public void ScaleDecreased()
     {
-        currentSize = Camera.main.orthographicSize;
-        float targetSize = currentSize - DataManager.Instance.scaleChangedPlusSize;
-        StartCoroutine(OnScaleChanged_Co(targetSize, DataManager.Instance.scaleChangedDuration));
+        cameraSizeQueue.Enqueue(-DataManager.Instance.scaleChangedPlusSize);
+        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue());
+    }
+
+    // 큐 처리 코루틴
+    private IEnumerator ProcessCameraQueue()
+    {
+        isCameraScaling = true;
+
+        while (cameraSizeQueue.Count > 0)
+        {
+            float deltaSize = cameraSizeQueue.Dequeue();
+
+            // 코루틴이 시작되는 바로 '이 시점'의 카메라 크기를 기준으로 목표치 설정
+            float startSize = Camera.main.orthographicSize;
+            float targetSize = startSize + deltaSize;
+
+            // 하나의 카메라 연출이 끝날 때까지 대기
+            yield return StartCoroutine(OnScaleChanged_Co(startSize, targetSize, DataManager.Instance.scaleChangedDuration));
+        }
+
+        isCameraScaling = false;
+    }
+
+    // 🔥 수정됨: 시작 크기(startSize)와 목표 크기(targetSize)를 매개변수로 직접 받음
+    IEnumerator OnScaleChanged_Co(float startSize, float targetSize, float duration)
+    {
+        float t = 0f;
+
+        while (t <= duration)
+        {
+            t += Time.unscaledDeltaTime;
+            Camera.main.orthographicSize = Mathf.Lerp(startSize, targetSize, t / duration);
+            yield return null;
+        }
+
+        Camera.main.orthographicSize = targetSize; // 정확한 값으로 안착
     }
 
     // 🔥 [추가] 특정 레벨에 맞는 카메라 크기로 바로 변경하는 함수
