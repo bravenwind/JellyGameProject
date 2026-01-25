@@ -1,60 +1,80 @@
 ﻿using UnityEngine;
+using System.Collections;
 
 public class Milk : MonoBehaviour
 {
-    [SerializeField]
-    private float milkScaleDecreaseTime = 5.0f;
+    [Header("Settings")]
+    [SerializeField] private float respawnTime = 5.0f; // 다시 나타날 시간
 
-    [SerializeField]
-    private float scaleDecreaseTimer = 0.0f;
+    [Header("References")]
+    [SerializeField] private PlayerColorAbsorb playerColorAbsorb;
+    [SerializeField] private MainCamera_Action mainCamera_Action;
 
-    [SerializeField]
-    private PlayerColorAbsorb playerColorAbsorb;
+    // 초기화 시 컴포넌트 자동 할당 (없을 경우)
+    private void Awake()
+    {
+        if (playerColorAbsorb == null)
+            playerColorAbsorb = FindFirstObjectByType<PlayerColorAbsorb>();
 
-    [SerializeField]
-    private MainCamera_Action mainCamera_Action;
+        if (mainCamera_Action == null)
+            mainCamera_Action = FindFirstObjectByType<MainCamera_Action>();
+    }
 
     private void OnTriggerEnter(Collider other)
     {
+        // 플레이어와 충돌했는지 확인
         if (other.CompareTag("PlayerMesh"))
         {
+            // 플레이어 스케일 레벨이 1이 아닐 때만 실행
             if (DataManager.Instance.playerCurrentScaleLevel != 1)
             {
-                StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
-                if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
-
-                // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
-                scaleDecreaseTimer = 0.0f;
+                ApplyEffectAndHide();
             }
         }
     }
 
-    private void OnTriggerStay(Collider other)
+    private void ApplyEffectAndHide()
     {
-        if (other.CompareTag("PlayerMesh"))
+        // 1. 효과 실행 (스케일 감소 및 카메라 연출)
+        if (playerColorAbsorb != null)
         {
-            if (DataManager.Instance.playerCurrentScaleLevel != 1)
-            {
-                scaleDecreaseTimer += Time.deltaTime;
-
-                if (scaleDecreaseTimer >= milkScaleDecreaseTime)
-                {
-                    // 크기 및 카메라 감소 실행
-                    StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
-                    if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
-
-                    // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
-                    scaleDecreaseTimer = 0.0f;
-                }
-            }
+            StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
         }
+
+        if (mainCamera_Action != null)
+        {
+            mainCamera_Action.ScaleDecreased();
+        }
+
+        // 2. 우유 오브젝트 숨기기 및 리스폰 코루틴 시작
+        StartCoroutine(RespawnRoutine());
     }
 
-    private void OnTriggerExit(Collider other)
+    private IEnumerator RespawnRoutine()
     {
-        if (other.CompareTag("PlayerMesh"))
+        // 렌더러와 컬라이더만 꺼서 오브젝트는 '살아있는' 상태로 유지 (그래야 코루틴이 돌아감)
+        SetAppearance(false);
+
+        // 5초 대기 (Time.scale의 영향을 받지 않으려면 WaitForSecondsRealtime 사용 가능)
+        yield return new WaitForSeconds(respawnTime);
+
+        // 다시 나타나기
+        SetAppearance(true);
+    }
+
+    // 오브젝트의 외형과 충돌체만 끄고 켜는 함수
+    private void SetAppearance(bool active)
+    {
+        //// MeshRenderer 또는 SpriteRenderer가 있을 경우
+        //if (TryGetComponent<Renderer>(out var renderer)) renderer.enabled = active;
+
+        // Collider 끄기
+        if (TryGetComponent<Collider>(out var collider)) collider.enabled = active;
+
+        // 만약 자식 오브젝트들이 있다면 자식들도 끄고 켜기
+        foreach (Transform child in transform)
         {
-            scaleDecreaseTimer = 0.0f;
+            child.gameObject.SetActive(active);
         }
     }
 }
