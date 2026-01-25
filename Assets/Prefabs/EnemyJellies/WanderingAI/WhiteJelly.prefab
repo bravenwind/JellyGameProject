@@ -78,7 +78,7 @@ GameObject:
   - component: {fileID: 2185954577424291294}
   - component: {fileID: 9018536355000695294}
   - component: {fileID: 8623054182885648473}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: WhiteJelly
   m_TagString: Edible
   m_Icon: {fileID: 0}
