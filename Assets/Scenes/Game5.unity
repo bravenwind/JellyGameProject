@@ -42915,7 +42915,6 @@ GameObject:
   - component: {fileID: 1432361340}
   - component: {fileID: 1432361339}
   - component: {fileID: 1432361338}
-  - component: {fileID: 1432361342}
   m_Layer: 5
   m_Name: Canvas
   m_TagString: Untagged
@@ -43020,18 +43019,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0, y: 0}
---- !u!114 &1432361342
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1432361337}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6e2cfff1044408e46821d0f8c3c3a7f9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &1435322994
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -43801,6 +43788,7 @@ GameObject:
   - component: {fileID: 1457019008}
   - component: {fileID: 1457019007}
   - component: {fileID: 1457019006}
+  - component: {fileID: 1457019009}
   m_Layer: 0
   m_Name: Milk (1)
   m_TagString: Untagged
@@ -43898,6 +43886,22 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
+--- !u!114 &1457019009
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1457019004}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  milkScaleDecreaseTime: 5
+  scaleDecreaseTimer: 0
+  playerColorAbsorb: {fileID: 2098180466}
+  mainCamera_Action: {fileID: 1707815814}
 --- !u!1001 &1461857749
 PrefabInstance:
   m_ObjectHideFlags: 0

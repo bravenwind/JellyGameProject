@@ -20,7 +20,7 @@ public class LoadingCenterMultiAni : MonoBehaviour
     }
 
     [Header("Targets")]
-    [SerializeField] private List<TargetUI> targets = new List<TargetUI>();
+    [SerializeField] public List<TargetUI> targets = new List<TargetUI>();
 
     [Header("Phase 1: Fade In + Shrink")]
     [SerializeField] private float phase1Duration = 0.5f;
