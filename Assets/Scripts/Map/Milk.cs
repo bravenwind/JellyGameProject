@@ -18,11 +18,14 @@ public class Milk : MonoBehaviour
     {
         if (other.CompareTag("PlayerMesh"))
         {
-            StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
-            if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
+            if (DataManager.Instance.playerCurrentScaleLevel != 1)
+            {
+                StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+                if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
 
-            // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
-            scaleDecreaseTimer = 0.0f;
+                // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
+                scaleDecreaseTimer = 0.0f;
+            }
         }
     }
 
@@ -30,16 +33,19 @@ public class Milk : MonoBehaviour
     {
         if (other.CompareTag("PlayerMesh"))
         {
-            scaleDecreaseTimer += Time.deltaTime;
-
-            if (scaleDecreaseTimer >= milkScaleDecreaseTime)
+            if (DataManager.Instance.playerCurrentScaleLevel != 1)
             {
-                // 크기 및 카메라 감소 실행
-                StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
-                if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
+                scaleDecreaseTimer += Time.deltaTime;
 
-                // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
-                scaleDecreaseTimer = 0.0f;
+                if (scaleDecreaseTimer >= milkScaleDecreaseTime)
+                {
+                    // 크기 및 카메라 감소 실행
+                    StartCoroutine(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+                    if (mainCamera_Action != null) mainCamera_Action.ScaleDecreased();
+
+                    // 🔥 핵심 수정: 실행 후 타이머를 0으로 초기화해야 중복 실행을 막을 수 있음!
+                    scaleDecreaseTimer = 0.0f;
+                }
             }
         }
     }
