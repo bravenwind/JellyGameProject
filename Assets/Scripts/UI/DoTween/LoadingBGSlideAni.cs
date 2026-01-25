@@ -133,6 +133,8 @@ public class LoadingBGSlideAni : MonoBehaviour
         // 1. 왼 -> 센터 이동 (화면 가리기)
         seq.Append(target.DOAnchorPos(centerPos, inDuration).SetEase(inEase));
 
+        seq.AppendInterval(holdSeconds);
+
         DisableSelfButton[] disableSelfButtons = FindObjectsByType<DisableSelfButton>(FindObjectsSortMode.None);
         foreach (DisableSelfButton button in disableSelfButtons)
         {
@@ -142,12 +144,15 @@ public class LoadingBGSlideAni : MonoBehaviour
         // 2. 이동이 완료되면 씬 로딩 코루틴 실행
         seq.OnComplete(() =>
         {
+            Debug.Log("중앙으로 이동");
             StartCoroutine(LoadSceneCoroutine(sceneName, onComplete));
         });
     }
 
     private IEnumerator LoadSceneCoroutine(string sceneName, Action onComplete = null)
     {
+        yield return new WaitForSeconds(3.0f);
+
         // 로딩이 너무 빠를 때 화면이 깜빡이는 것을 방지하기 위한 최소 대기 시간
         float minHoldTime = 1.0f;
         float timer = 0f;

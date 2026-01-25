@@ -20813,37 +20813,6 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 86087c4e2cd26b34cb4377d0ad869448, type: 3}
---- !u!1 &547284382
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 547284383}
-  m_Layer: 0
-  m_Name: Transform
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &547284383
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 547284382}
-  serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0.7071068, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -2.8399992, y: -23.85, z: -6.546001}
-  m_LocalScale: {x: 2.1759996, y: 0.4, z: 0.8519999}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 2098720144}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &547832024
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -48140,6 +48109,7 @@ GameObject:
   - component: {fileID: 1599455418}
   - component: {fileID: 1599455423}
   - component: {fileID: 1599455417}
+  - component: {fileID: 1599455424}
   m_Layer: 0
   m_Name: Cube
   m_TagString: Untagged
@@ -48228,12 +48198,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d48a1fd08f2a7ef4f8571d1ce57187bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buoyancyForce: 10
-  chocolateViscosity: 10
+  buoyancyForce: 6
+  chocolateViscosity: 100
   changeDirectionInterval: 3
-  flowForce: 10
-  waveSpeed: 10
-  waveForce: 10
+  flowForce: 1
+  waveSpeed: 1
+  waveForce: 1
+--- !u!65 &1599455424
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1599455415}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 12.559907, y: 6.820721, z: 6.445471}
+  m_Center: {x: -0.08113791, y: -3.4103606, z: -0.13491048}
 --- !u!1 &1600082894
 GameObject:
   m_ObjectHideFlags: 0
@@ -63791,7 +63782,6 @@ Transform:
   - {fileID: 1311954594}
   - {fileID: 594098342}
   - {fileID: 1599455421}
-  - {fileID: 547284383}
   - {fileID: 1948921027}
   - {fileID: 1877451554}
   - {fileID: 383715487}

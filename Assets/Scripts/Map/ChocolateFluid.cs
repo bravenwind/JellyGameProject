@@ -1,51 +1,51 @@
-using System.Collections;
+ï»¿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
 public class ChocolateFluid : MonoBehaviour
 {
-    [Header("±âº» ¼³Á¤")]
-    [Tooltip("±âº» ºÎ·Â (°¡¶ó¾ÉÁö ¾Ê°Ô ¹Ğ¾î¿Ã¸®´Â Èû)")]
+    [Header("ê¸°ë³¸ ì„¤ì •")]
+    [Tooltip("ê¸°ë³¸ ë¶€ë ¥ (ê°€ë¼ì•‰ì§€ ì•Šê²Œ ë°€ì–´ì˜¬ë¦¬ëŠ” í˜)")]
     public float buoyancyForce = 15f;
 
-    [Tooltip("ÃÊÄİ¸´ÀÇ Á¡¼º (³ôÀ»¼ö·Ï ²öÀûÇÔ)")]
+    [Tooltip("ì´ˆì½œë¦¿ì˜ ì ì„± (ë†’ì„ìˆ˜ë¡ ëˆì í•¨)")]
     public float chocolateViscosity = 3f;
 
-    [Header("·£´ı ¿òÁ÷ÀÓ ¼³Á¤")]
-    [Tooltip("X, Z ¹æÇâÀÌ ¹Ù²î´Â ÁÖ±â (ÃÊ)")]
+    [Header("ëœë¤ ì›€ì§ì„ ì„¤ì •")]
+    [Tooltip("X, Z ë°©í–¥ì´ ë°”ë€ŒëŠ” ì£¼ê¸° (ì´ˆ)")]
     public float changeDirectionInterval = 3f;
 
-    [Tooltip("¼öÆò(X, Z)À¸·Î Èå¸£´Â Èû")]
+    [Tooltip("ìˆ˜í‰(X, Z)ìœ¼ë¡œ íë¥´ëŠ” í˜")]
     public float flowForce = 5f;
 
-    [Tooltip("YÃà Ãâ··ÀÓ ¼Óµµ (ÆÄµµÀÇ ºü¸£±â)")]
+    [Tooltip("Yì¶• ì¶œë ì„ ì†ë„ (íŒŒë„ì˜ ë¹ ë¥´ê¸°)")]
     public float waveSpeed = 2f;
 
-    [Tooltip("YÃà Ãâ··ÀÓ °­µµ (À§¾Æ·¡·Î ¹Ğ¾îÁÖ´Â Èû)")]
+    [Tooltip("Yì¶• ì¶œë ì„ ê°•ë„ (ìœ„ì•„ë˜ë¡œ ë°€ì–´ì£¼ëŠ” í˜)")]
     public float waveForce = 3f;
 
-    // ÇöÀç Èå¸£´Â ¹æÇâ (ÄÚ·çÆ¾¿¡¼­ ½Ç½Ã°£À¸·Î º¯°æµÊ)
+    // í˜„ì¬ íë¥´ëŠ” ë°©í–¥ (ì½”ë£¨í‹´ì—ì„œ ì‹¤ì‹œê°„ìœ¼ë¡œ ë³€ê²½ë¨)
     private Vector3 _currentFlowDirection;
 
     private void Start()
     {
-        // °ÔÀÓ ½ÃÀÛ ½Ã ÁÖ±âÀûÀ¸·Î ¹æÇâÀ» ¹Ù²Ù´Â ÄÚ·çÆ¾ ½ÇÇà
+        // ê²Œì„ ì‹œì‘ ì‹œ ì£¼ê¸°ì ìœ¼ë¡œ ë°©í–¥ì„ ë°”ê¾¸ëŠ” ì½”ë£¨í‹´ ì‹¤í–‰
         StartCoroutine(ChangeDirectionRoutine());
     }
 
-    // ÁöÁ¤µÈ ½Ã°£¸¶´Ù X, Z ¹æÇâÀ» ·£´ıÀ¸·Î ¹Ù²Ù´Â ÇÔ¼ö
+    // ì§€ì •ëœ ì‹œê°„ë§ˆë‹¤ X, Z ë°©í–¥ì„ ëœë¤ìœ¼ë¡œ ë°”ê¾¸ëŠ” í•¨ìˆ˜
     private IEnumerator ChangeDirectionRoutine()
     {
         while (true)
         {
-            // X, Z ¹æÇâÀ» -1 ~ 1 »çÀÌÀÇ ·£´ı °ªÀ¸·Î ¼³Á¤
+            // X, Z ë°©í–¥ì„ -1 ~ 1 ì‚¬ì´ì˜ ëœë¤ ê°’ìœ¼ë¡œ ì„¤ì •
             float randomX = Random.Range(-1f, 1f);
             float randomZ = Random.Range(-1f, 1f);
 
-            // Y´Â Update¿¡¼­ ½Ç½Ã°£ °è»êÇÏ¹Ç·Î ÀÏ´Ü 0À¸·Î µÒ
+            // YëŠ” Updateì—ì„œ ì‹¤ì‹œê°„ ê³„ì‚°í•˜ë¯€ë¡œ ì¼ë‹¨ 0ìœ¼ë¡œ ë‘ 
             _currentFlowDirection = new Vector3(randomX, 0, randomZ).normalized;
 
-            // changeDirectionInterval(¿¹: 3ÃÊ) ¸¸Å­ ´ë±â ÈÄ ´Ù½Ã ¹æÇâ º¯°æ
+            // changeDirectionInterval(ì˜ˆ: 3ì´ˆ) ë§Œí¼ ëŒ€ê¸° í›„ ë‹¤ì‹œ ë°©í–¥ ë³€ê²½
             yield return new WaitForSeconds(changeDirectionInterval);
         }
     }
@@ -56,27 +56,27 @@ public class ChocolateFluid : MonoBehaviour
 
         if (rb != null)
         {
-            // 1. ±âº» ºÎ·Â Àû¿ë (¹°Ã¼°¡ ÃÊÄİ¸´ Ç¥¸éº¸´Ù ¾Æ·¡¿¡ ÀÖÀ¸¸é À§·Î ¹Ğ¾î¿Ã¸²)
+            // 1. ê¸°ë³¸ ë¶€ë ¥ ì ìš© (ë¬¼ì²´ê°€ ì´ˆì½œë¦¿ í‘œë©´ë³´ë‹¤ ì•„ë˜ì— ìˆìœ¼ë©´ ìœ„ë¡œ ë°€ì–´ì˜¬ë¦¼)
             if (other.transform.position.y < transform.position.y)
             {
                 rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
             }
 
-            // 2. ½Ã°£¿¡ µû¸¥ YÃà Ãâ··ÀÓ °è»ê (-1 ~ 1 »çÀÌ¸¦ ºÎµå·´°Ô Áøµ¿)
+            // 2. ì‹œê°„ì— ë”°ë¥¸ Yì¶• ì¶œë ì„ ê³„ì‚° (-1 ~ 1 ì‚¬ì´ë¥¼ ë¶€ë“œëŸ½ê²Œ ì§„ë™)
             float waveY = Mathf.Sin(Time.time * waveSpeed);
 
-            // 3. ÃÖÁ¾ Èå¸§ Èû °è»ê (·£´ı X, Z + Ãâ··ÀÌ´Â Y)
+            // 3. ìµœì¢… íë¦„ í˜ ê³„ì‚° (ëœë¤ X, Z + ì¶œë ì´ëŠ” Y)
             Vector3 finalFlowDirection = _currentFlowDirection;
-            finalFlowDirection.y = waveY; // YÃà¿¡ -1 ~ 1 °ª ´ëÀÔ
+            finalFlowDirection.y = waveY; // Yì¶•ì— -1 ~ 1 ê°’ ëŒ€ì…
 
-            // X, Z´Â flowForce¸¸Å­, Y´Â waveForce¸¸Å­ÀÇ Å©±â·Î ÈûÀ» °¡ÇÔ
+            // X, ZëŠ” flowForceë§Œí¼, YëŠ” waveForceë§Œí¼ì˜ í¬ê¸°ë¡œ í˜ì„ ê°€í•¨
             Vector3 appliedForce = new Vector3(
                 finalFlowDirection.x * flowForce,
                 finalFlowDirection.y * waveForce,
                 finalFlowDirection.z * flowForce
             );
 
-            // 4. ¹°Ã¼¿¡ Èû °¡ÇÏ±â
+            // 4. ë¬¼ì²´ì— í˜ ê°€í•˜ê¸°
             rb.AddForce(appliedForce, ForceMode.Acceleration);
         }
     }
@@ -84,48 +84,54 @@ public class ChocolateFluid : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
+
+        if (rb != null && other.CompareTag("Edible"))
+        {
+            rb.isKinematic = false;
+            rb.useGravity = false;
+
+            // ë¬¼ì— ë“¤ì–´ì˜¤ë©´ ëˆì í•˜ê²Œ (ì €í•­ ì¦ê°€)
+            rb.linearDamping = chocolateViscosity;
+            rb.angularDamping = chocolateViscosity;
+
+            // ğŸ”¥ [ì¶”ê°€] ë¬¼ì— ë¹ ì§€ìë§ˆì ìœ„ë¡œ ì‚´ì§ ë„ì›Œì£¼ê³  íë¥´ëŠ” ë°©í–¥ìœ¼ë¡œ ë°€ì–´ì£¼ê¸°
+            // (ì ì„± ë•Œë¬¸ì— ë°”ë‹¥ì— ë“¤ëŸ¬ë¶™ì–´ ë©ˆì¶”ëŠ” ê²ƒì„ ë°©ì§€)
+            //rb.AddForce(Vector3.up * 5f, ForceMode.Impulse);
+        }
+
         if (rb != null)
         {
             NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
             WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
             AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
 
+            // ğŸ”¥ [ì¶”ê°€] ì ¤ë¦¬ ìºë¦­í„°ì˜ ì• ë‹ˆë©”ì´í„° ê°€ì ¸ì˜¤ê¸°
+            Animator animator = rb.GetComponentInChildren<Animator>();
 
-            if (wanderingAI != null)
+            if (animator != null)
             {
-                wanderingAI.enabled = false;
+                // ì ¤ë¦¬ ì• ë‹ˆë©”ì´ì…˜ ë©ˆì¶”ê¸° (ë³¸ì¸ í”„ë¡œì íŠ¸ì˜ íŒŒë¼ë¯¸í„° ì´ë¦„ì— ë§ê²Œ í•˜ë‚˜ë§Œ ë‚¨ê¸°ê³  ìˆ˜ì •í•˜ì„¸ìš”!)
+                //animator.SetFloat("Speed", 0f);      // Floatë¡œ ì†ë„ë¥¼ ì œì–´í•˜ëŠ” ê²½ìš°
+                animator.SetBool("IsWalking", false); // Boolë¡œ ê±·ê¸°ë¥¼ ì œì–´í•˜ëŠ” ê²½ìš°
             }
 
-            if (aiWaypointPatrol != null)
-            {
-                aiWaypointPatrol.enabled = false;
-            }
-
-            if (navMeshAgent != null)
-            {
-                navMeshAgent.enabled = false;
-            }
-        }
-
-
-        if (rb != null && other.CompareTag("Edible"))
-        {
-            rb.isKinematic = false;
-            rb.useGravity = true;
-            // ¹°¿¡ µé¾î¿À¸é ²öÀûÇÏ°Ô (ÀúÇ× Áõ°¡)
-            rb.linearDamping = chocolateViscosity;
-            rb.angularDamping = chocolateViscosity;
+            // AI ë„ê¸°
+            if (wanderingAI != null) wanderingAI.enabled = false;
+            if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
+            if (navMeshAgent != null) navMeshAgent.enabled = false;
         }
     }
 
     private void OnTriggerExit(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
-        if (rb != null)
+        if (rb != null && other.CompareTag("Edible"))
         {
-            // ¹°¿¡¼­ ³ª°¡¸é ¿ø·¡´ë·Î (°ø±â ÀúÇ× º¹±¸)
+            // ë¬¼ì—ì„œ ë‚˜ê°€ë©´ ì›ë˜ëŒ€ë¡œ (ê³µê¸° ì €í•­ ë³µêµ¬)
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
+
+            rb.useGravity = true;
         }
     }
 }
