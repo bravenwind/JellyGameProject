@@ -128,23 +128,65 @@ public class SoftBody3D : MonoBehaviour
     }
 
     // 🔥 스케일 변경 후 버그 없이 천을 재구성하는 핵심 함수
+    // 🔥 스케일 변경 후 버그 없이 천을 재구성하는 핵심 함수
     public IEnumerator EnableAndRebuildCloth()
     {
         if (_skinnedMeshRenderer == null) yield break;
 
-        // 1. 기존 Cloth 컴포넌트 삭제 (찌그러짐 방지)
+        Animator animator = GetComponentInParent<Animator>();
+
+        // ✅ [핵심 수정] 클로스 생성 전, 캐릭터를 강제로 "기본 자세"로 초기화합니다.
+        if (animator != null)
+        {
+            animator.Rebind();   // 애니메이터를 초기 상태(T-포즈 또는 Idle)로 리셋
+            animator.Update(0f); // 리셋된 자세를 1프레임도 기다리지 않고 메쉬에 즉시 적용
+            animator.enabled = false; // 기본 자세 그대로 정지
+        }
+
+        // 1. 기존 Cloth 컴포넌트 삭제
         if (_cloth != null) DestroyImmediate(_cloth);
 
-        // 2. 1프레임 대기 (메쉬가 스케일에 맞춰 안정화될 시간)
+        // 2. 메쉬가 기본 자세로 완전히 펴질 때까지 2프레임 대기
+        yield return null;
         yield return null;
 
-        // 3. Cloth 새로 생성
+        // 3. 반듯한 기본 자세 위에서 Cloth 새로 생성
         _cloth = gameObject.AddComponent<Cloth>();
 
-        // 4. 물리 설정 및 하이브리드 소프트니스 재적용! (팔은 안 늘어나게)
+        // 4. 물리 설정 및 소프트니스 적용
         ApplyClothSettings();
         UpdateSoftness();
 
+        // 5. 물리 엔진 관성 무시
+        _cloth.ClearTransformMotion();
+
         _cloth.enabled = true;
+
+        // ✅ [추가 및 수정] 안정화가 끝난 후 애니메이션 상태 즉시 복구
+        if (animator != null)
+        {
+            animator.enabled = true;
+
+            // 부모 오브젝트의 플레이어 컨트롤러를 가져옵니다.
+            PlayerController playerController = GetComponentInParent<PlayerController>();
+            if (playerController != null)
+            {
+                // 1. 공중에 떠 있다면 점프 모션 즉시 재생
+                if (!playerController.isGrounded)
+                {
+                    animator.SetTrigger("Jump");
+                }
+                else
+                {
+                    // 2. 바닥에 있고 이동 키를 누르고 있다면 걷기 모션 즉시 재생
+                    float h = Input.GetAxis("Horizontal");
+                    float v = Input.GetAxis("Vertical");
+                    bool isMoving = (h * h + v * v) > 0.001f;
+
+                    // 애니메이터 파라미터에 현재 이동 여부를 바로 덮어씁니다.
+                    animator.SetBool("IsMoving", isMoving);
+                }
+            }
+        }
     }
 }
