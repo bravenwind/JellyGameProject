@@ -94,14 +94,7 @@ public class CurrentStatusUI : MonoBehaviour
 
     public void ChangeCurrentColorUI()
     {
-        if (DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType) 
-        {
-            checkImage.SetActive(true);
-        }
-        else
-        {
-            checkImage.SetActive(false);
-        }
+
 
         currentColorImage.color = new Color32(DataManager.Instance.currentColor.r, DataManager.Instance.currentColor.g, DataManager.Instance.currentColor.b, 255);
         //currentColorText.text = $"R: {DataManager.Instance.currentColor.r} G: {DataManager.Instance.currentColor.g} B: {DataManager.Instance.currentColor.b}";

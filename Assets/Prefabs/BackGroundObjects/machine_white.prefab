@@ -1528,13 +1528,20 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   spawnJellies:
-  - {fileID: 9061212866173874377, guid: f1a4134be443e334a9730d9f7a0cf1ee, type: 3}
-  - {fileID: 8368899581075514795, guid: 020937055cec91c40961c5ea78fa22a7, type: 3}
-  - {fileID: 1333569896481833141, guid: de11cdbc764bb514a971a12cef23b152, type: 3}
-  - {fileID: 8836493012765761566, guid: 4455ae8679132cc4caafc25123d34791, type: 3}
-  - {fileID: 8144378974185360781, guid: 5bd453632ad8f9f4394d80e4d2460a15, type: 3}
-  - {fileID: 1460502662218733694, guid: 0e6e5453ea9ad7e47a109f4d4c6de6ca, type: 3}
-  - {fileID: 3121453740919938520, guid: df629ecffcc6c6643843951978dba877, type: 3}
+  - jellyPrefab: {fileID: 8144378974185360781, guid: 5bd453632ad8f9f4394d80e4d2460a15, type: 3}
+    spawnWeight: 10
+  - jellyPrefab: {fileID: 1333569896481833141, guid: de11cdbc764bb514a971a12cef23b152, type: 3}
+    spawnWeight: 10
+  - jellyPrefab: {fileID: 9061212866173874377, guid: f1a4134be443e334a9730d9f7a0cf1ee, type: 3}
+    spawnWeight: 10
+  - jellyPrefab: {fileID: 8368899581075514795, guid: 020937055cec91c40961c5ea78fa22a7, type: 3}
+    spawnWeight: 10
+  - jellyPrefab: {fileID: 8836493012765761566, guid: 4455ae8679132cc4caafc25123d34791, type: 3}
+    spawnWeight: 10
+  - jellyPrefab: {fileID: 3121453740919938520, guid: df629ecffcc6c6643843951978dba877, type: 3}
+    spawnWeight: 10
+  - jellyPrefab: {fileID: 1460502662218733694, guid: 0e6e5453ea9ad7e47a109f4d4c6de6ca, type: 3}
+    spawnWeight: 15
   jellySpawnTransform: {fileID: 4651752630620062559}
   rotator: {fileID: 6557032254825271043}
 --- !u!1 &4433526443114495702

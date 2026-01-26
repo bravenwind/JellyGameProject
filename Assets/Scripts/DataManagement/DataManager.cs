@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using System;
@@ -14,10 +14,10 @@ public class DataManager : MonoBehaviour
     public static DataManager Instance;
 
     //[Header("Color Settings (Enemy)")]
-    //public ColorSet[] enemyJellyColorSets; // ±âÁ¸ ¿¡³Ê¹Ì¿ë
+    //public ColorSet[] enemyJellyColorSets; // ê¸°ì¡´ ì—ë„ˆë¯¸ìš©
 
     //[Header("Color Settings (Player)")]
-    //public ColorSet[] playerJellyColorSets; // [Ãß°¡] ÇÃ·¹ÀÌ¾î¿ë
+    //public ColorSet[] playerJellyColorSets; // [ì¶”ê°€] í”Œë ˆì´ì–´ìš©
 
     //[Header("Current Status")]
     //public ColorSet initialColorSet;
@@ -36,18 +36,18 @@ public class DataManager : MonoBehaviour
         public string colorName;
         public Material colorMaterial;
         public JellyColorType colorType;
-        public Color weak;   // 1´Ü°è
-        public Color normal; // 2´Ü°è
-        public Color strong; // 3´Ü°è
+        public Color weak;   // 1ë‹¨ê³„
+        public Color normal; // 2ë‹¨ê³„
+        public Color strong; // 3ë‹¨ê³„
     }
 
-    // 1. Á©¸®º° RGB º¯È­·® µ¥ÀÌÅÍ (Ã¹ ¹øÂ° ÀÌ¹ÌÁö)
+    // 1. ì ¤ë¦¬ë³„ RGB ë³€í™”ëŸ‰ ë°ì´í„° (ì²« ë²ˆì§¸ ì´ë¯¸ì§€)
     [System.Serializable]
     public class JellyEffectData
     {
         public string colorName;
         public JellyColorType type;
-        public Vector3Int rgbChange; // ±âÈ¹¼­ÀÇ +30, -15 µîÀ» ÀúÀå
+        public Vector3Int rgbChange; // ê¸°íšì„œì˜ +30, -15 ë“±ì„ ì €ì¥
 
         //public Vector3Int rgbBaseColor1;
         //public Vector3Int rgbBaseColor2;
@@ -61,22 +61,22 @@ public class DataManager : MonoBehaviour
         public Color color;
         public Vector3 minRGB;
         public JellyColorType resultType;
-        public int minPrimary;      // ¿¹: 170 ÀÌ»ó
-        public int maxOthers;       // ¿¹: 120 ÀÌÇÏ
-        public int primaryMinDifference;   // ¿¹: ´Ù¸¥ »öº¸´Ù 50 ³ô´Ù
+        public int minPrimary;      // ì˜ˆ: 170 ì´ìƒ
+        public int maxOthers;       // ì˜ˆ: 120 ì´í•˜
+        public int primaryMinDifference;   // ì˜ˆ: ë‹¤ë¥¸ ìƒ‰ë³´ë‹¤ 50 ë†’ë‹¤
 
-        // º¹ÇÕ »ö»ó(³ë¶û, ½Ã¾È µî)À» À§ÇÑ Ãß°¡ ÇÊµå
-        public bool isComposite;     // R+G °°ÀÌ µÎ °³¸¦ º¸´ÂÁö ¿©ºÎ
-        public int minComposite;    // µÎ »öÀÇ Â÷ÀÌ (40 ÀÌÇÏ)
+        // ë³µí•© ìƒ‰ìƒ(ë…¸ë‘, ì‹œì•ˆ ë“±)ì„ ìœ„í•œ ì¶”ê°€ í•„ë“œ
+        public bool isComposite;     // R+G ê°™ì´ ë‘ ê°œë¥¼ ë³´ëŠ”ì§€ ì—¬ë¶€
+        public int minComposite;    // ë‘ ìƒ‰ì˜ ì°¨ì´ (40 ì´í•˜)
         public int compositeMaxDifference;
         public int maxOther;
     }
 
     [Header("Color Rules Settings")]
-    [Tooltip("Àâ»ö Çã¿ëÄ¡ (³·À»¼ö·Ï ´Ù¸¥ »öÀÌ Á¶±İ¸¸ ¼¯¿©µµ ½ÇÆĞ)")]
+    [Tooltip("ì¡ìƒ‰ í—ˆìš©ì¹˜ (ë‚®ì„ìˆ˜ë¡ ë‹¤ë¥¸ ìƒ‰ì´ ì¡°ê¸ˆë§Œ ì„ì—¬ë„ ì‹¤íŒ¨)")]
     public int maxImpurity = 40;
 
-    [Tooltip("È¥ÇÕ»ö ¿ÀÂ÷ ÇÑµµ (³·À»¼ö·Ï µÎ »öÀÇ ºñÀ²ÀÌ 1:1¿¡ °¡±î¿ö¾ß ÇÔ)")]
+    [Tooltip("í˜¼í•©ìƒ‰ ì˜¤ì°¨ í•œë„ (ë‚®ì„ìˆ˜ë¡ ë‘ ìƒ‰ì˜ ë¹„ìœ¨ì´ 1:1ì— ê°€ê¹Œì›Œì•¼ í•¨)")]
     public int maxDifference = 15;
 
     [Header("JellySpawnSettings")]
@@ -125,8 +125,8 @@ public class DataManager : MonoBehaviour
 
     //[Header("Data Access")]
     //public JellyDataDAO jellyDAO;
-    //public List<JellyDataDTO> loadedEnemyData;  // È®ÀÎ¿ë
-    //public List<JellyDataDTO> loadedPlayerData; // È®ÀÎ¿ë [Ãß°¡]
+    //public List<JellyDataDTO> loadedEnemyData;  // í™•ì¸ìš©
+    //public List<JellyDataDTO> loadedPlayerData; // í™•ì¸ìš© [ì¶”ê°€]
 
     [Header("Color Settings")]
     //public Vector3 redJellyPlusRGB;
@@ -141,6 +141,9 @@ public class DataManager : MonoBehaviour
     public Color32 currentColor;
     public Color32 targetColor;
 
+    // ğŸ”¥ [ì¶”ê°€] ë‚´ë¶€ì—ì„œ ì ¤ë¦¬ RGB í•©ì‚° ê°’ì„ ì˜êµ¬ì ìœ¼ë¡œ ê¸°ë¡í•  ë³€ìˆ˜
+    public Color32 systemCurrentColor;
+
     public int darknessStep = -20;
 
     public Color32 initialSystemColor = Color.black;
@@ -151,9 +154,11 @@ public class DataManager : MonoBehaviour
     [Header("Color Range Rules (Image 2)")]
     public List<ColorRangeRule> rangeRules;
 
+
+
     public ColorRangeRule thisGameRangeRule;
 
-    // Æ¯Á¤ Á©¸® Å¸ÀÔÀÇ º¯È­·®À» °¡Á®¿À´Â ÇÔ¼ö
+    // íŠ¹ì • ì ¤ë¦¬ íƒ€ì…ì˜ ë³€í™”ëŸ‰ì„ ê°€ì ¸ì˜¤ëŠ” í•¨ìˆ˜
     public Vector3Int GetJellyEffect(JellyColorType type)
     {
         var data = jellyEffects.Find(x => x.type == type);
@@ -187,7 +192,7 @@ public class DataManager : MonoBehaviour
         }
 
         InitializeGameData();
-        //LoadAndApplyData(); // µ¥ÀÌÅÍ ·Îµå ¹× Àû¿ë
+        //LoadAndApplyData(); // ë°ì´í„° ë¡œë“œ ë° ì ìš©
     }
 
     private void InitializeGameData()
@@ -203,7 +208,7 @@ public class DataManager : MonoBehaviour
         //}
     }
 
-    // ... (±âÁ¸ ÄÚµåµé) ...
+    // ... (ê¸°ì¡´ ì½”ë“œë“¤) ...
 
     public JellyColorType DetermineCurrentColor(Color32 c)
     {
@@ -214,76 +219,76 @@ public class DataManager : MonoBehaviour
         ColorRangeRule magentaRule = rangeRules[4];
         ColorRangeRule yellowRule = rangeRules[5];
 
-        // 1. Red (»¡°­)
-        // ±âÁ¸ Á¶°Ç + Àâ»ö(G, B)ÀÌ maxImpurity ÀÌÇÏ¿©¾ß ÇÔ
+        // 1. Red (ë¹¨ê°•)
+        // ê¸°ì¡´ ì¡°ê±´ + ì¡ìƒ‰(G, B)ì´ maxImpurity ì´í•˜ì—¬ì•¼ í•¨
         if (c.r >= redRule.minPrimary &&
             (c.r - Mathf.Max(c.g, c.b) >= redRule.primaryMinDifference) &&
             c.g <= maxImpurity && c.b <= maxImpurity)
             return JellyColorType.Red;
 
-        // 2. Green (ÃÊ·Ï)
-        // ±âÁ¸ Á¶°Ç + Àâ»ö(R, B)ÀÌ maxImpurity ÀÌÇÏ¿©¾ß ÇÔ
+        // 2. Green (ì´ˆë¡)
+        // ê¸°ì¡´ ì¡°ê±´ + ì¡ìƒ‰(R, B)ì´ maxImpurity ì´í•˜ì—¬ì•¼ í•¨
         if (c.g >= greenRule.minPrimary &&
             (c.g - Mathf.Max(c.r, c.b) >= greenRule.primaryMinDifference) &&
             c.r <= maxImpurity && c.b <= maxImpurity)
             return JellyColorType.Green;
 
-        // 3. Blue (ÆÄ¶û)
-        // ±âÁ¸ Á¶°Ç + Àâ»ö(R, G)ÀÌ maxImpurity ÀÌÇÏ¿©¾ß ÇÔ
+        // 3. Blue (íŒŒë‘)
+        // ê¸°ì¡´ ì¡°ê±´ + ì¡ìƒ‰(R, G)ì´ maxImpurity ì´í•˜ì—¬ì•¼ í•¨
         if (c.b >= blueRule.minPrimary &&
             (c.b - Mathf.Max(c.r, c.g) >= blueRule.primaryMinDifference) &&
             c.r <= maxImpurity && c.g <= maxImpurity)
             return JellyColorType.Blue;
 
-        // 4. Cyan (½Ã¾È = G + B)
-        // RÀÌ ³·¾Æ¾ß ÇÏ°í, G¿Í BÀÇ Â÷ÀÌ°¡ maxDifference ÀÌÇÏ¿©¾ß ÇÔ
+        // 4. Cyan (ì‹œì•ˆ = G + B)
+        // Rì´ ë‚®ì•„ì•¼ í•˜ê³ , Gì™€ Bì˜ ì°¨ì´ê°€ maxDifference ì´í•˜ì—¬ì•¼ í•¨
         if (c.g >= cyanRule.minComposite && c.b >= cyanRule.minComposite &&
             Mathf.Abs(c.g - c.b) <= maxDifference && c.r <= maxImpurity)
             return JellyColorType.Cyan;
 
-        // 5. Magenta (¸¶Á¨Å¸ = R + B)
-        // G°¡ ³·¾Æ¾ß ÇÏ°í, R°ú BÀÇ Â÷ÀÌ°¡ maxDifference ÀÌÇÏ¿©¾ß ÇÔ
+        // 5. Magenta (ë§ˆì  íƒ€ = R + B)
+        // Gê°€ ë‚®ì•„ì•¼ í•˜ê³ , Rê³¼ Bì˜ ì°¨ì´ê°€ maxDifference ì´í•˜ì—¬ì•¼ í•¨
         if (c.r >= magentaRule.minComposite && c.b >= magentaRule.minComposite &&
             Mathf.Abs(c.r - c.b) <= maxDifference && c.g <= maxImpurity)
             return JellyColorType.Magenta;
 
-        // 6. Yellow (³ë¶û = R + G)
-        // B°¡ ³·¾Æ¾ß ÇÏ°í, R°ú GÀÇ Â÷ÀÌ°¡ maxDifference ÀÌÇÏ¿©¾ß ÇÔ
+        // 6. Yellow (ë…¸ë‘ = R + G)
+        // Bê°€ ë‚®ì•„ì•¼ í•˜ê³ , Rê³¼ Gì˜ ì°¨ì´ê°€ maxDifference ì´í•˜ì—¬ì•¼ í•¨
         if (c.r >= yellowRule.minComposite && c.g >= yellowRule.minComposite &&
             Mathf.Abs(c.r - c.g) <= maxDifference && c.b <= maxImpurity)
             return JellyColorType.Yellow;
 
-        // ¾î¶² Á¶°Çµµ ¸¸Á·ÇÏÁö ¸øÇÔ (»öÀÌ Å¹ÇÏ°Å³ª ºñÀ²ÀÌ ¾È ¸ÂÀ½)
+        // ì–´ë–¤ ì¡°ê±´ë„ ë§Œì¡±í•˜ì§€ ëª»í•¨ (ìƒ‰ì´ íƒí•˜ê±°ë‚˜ ë¹„ìœ¨ì´ ì•ˆ ë§ìŒ)
         return JellyColorType.None;
     }
 
     //private void LoadAndApplyData()
     //{
-    //    // 1. DAO ÃÊ±âÈ­
+    //    // 1. DAO ì´ˆê¸°í™”
     //    if (jellyDAO == null) jellyDAO = gameObject.AddComponent<JellyDataDAO>();
 
-    //    // 2. CSV µ¥ÀÌÅÍ ·Îµå (DAO È£Ãâ)
-    //    loadedEnemyData = jellyDAO.LoadJellyData();   // ±âÁ¸ (¿¡³Ê¹Ì)
-    //    loadedPlayerData = jellyDAO.LoadPlayerData(); // ½Å±Ô (ÇÃ·¹ÀÌ¾î)
+    //    // 2. CSV ë°ì´í„° ë¡œë“œ (DAO í˜¸ì¶œ)
+    //    loadedEnemyData = jellyDAO.LoadJellyData();   // ê¸°ì¡´ (ì—ë„ˆë¯¸)
+    //    loadedPlayerData = jellyDAO.LoadPlayerData(); // ì‹ ê·œ (í”Œë ˆì´ì–´)
 
-    //    // 3. µ¥ÀÌÅÍ¸¦ ColorSetÀ¸·Î º¯È¯ÇÏ¿© Àû¿ë
-    //    // ¿¡³Ê¹Ì Á©¸® Àû¿ë
+    //    // 3. ë°ì´í„°ë¥¼ ColorSetìœ¼ë¡œ ë³€í™˜í•˜ì—¬ ì ìš©
+    //    // ì—ë„ˆë¯¸ ì ¤ë¦¬ ì ìš©
     //    if (loadedEnemyData != null)
     //    {
     //        enemyJellyColorSets = ConvertDtosToColorSets(loadedEnemyData);
     //    }
 
-    //    // ÇÃ·¹ÀÌ¾î Á©¸® Àû¿ë [Ãß°¡]
+    //    // í”Œë ˆì´ì–´ ì ¤ë¦¬ ì ìš© [ì¶”ê°€]
     //    if (loadedPlayerData != null)
     //    {
     //        playerJellyColorSets = ConvertDtosToColorSets(loadedPlayerData);
     //    }
     //    else
     //    {
-    //        Debug.LogWarning("ÇÃ·¹ÀÌ¾î µ¥ÀÌÅÍ°¡ ·ÎµåµÇÁö ¾Ê¾Ò½À´Ï´Ù. (Resources/Data/PlayerData.csv È®ÀÎ ÇÊ¿ä)");
+    //        Debug.LogWarning("í”Œë ˆì´ì–´ ë°ì´í„°ê°€ ë¡œë“œë˜ì§€ ì•Šì•˜ìŠµë‹ˆë‹¤. (Resources/Data/PlayerData.csv í™•ì¸ í•„ìš”)");
     //    }
 
-    //    // 4. ÃÊ±â°ª ¼³Á¤ (¿¡³Ê¹Ì µ¥ÀÌÅÍ ±âÁØ ¿¹½Ã, ÇÊ¿ä½Ã ÇÃ·¹ÀÌ¾î·Î º¯°æ °¡´É)
+    //    // 4. ì´ˆê¸°ê°’ ì„¤ì • (ì—ë„ˆë¯¸ ë°ì´í„° ê¸°ì¤€ ì˜ˆì‹œ, í•„ìš”ì‹œ í”Œë ˆì´ì–´ë¡œ ë³€ê²½ ê°€ëŠ¥)
     //    if (playerJellyColorSets != null && playerJellyColorSets.Length > 0)
     //    {
     //        initialColorSet = playerJellyColorSets[0];
@@ -291,15 +296,15 @@ public class DataManager : MonoBehaviour
     //        targetColorSet = initialColorSet;
     //    }
 
-    //    Debug.Log($"µ¥ÀÌÅÍ ·Îµå ¿Ï·á - Enemy: {playerJellyColorSets?.Length ?? 0}°³, Player: {playerJellyColorSets?.Length ?? 0}°³");
+    //    Debug.Log($"ë°ì´í„° ë¡œë“œ ì™„ë£Œ - Enemy: {playerJellyColorSets?.Length ?? 0}ê°œ, Player: {playerJellyColorSets?.Length ?? 0}ê°œ");
     //}
 
-    //// [ÇÙ½É] DTO ¸®½ºÆ®¸¦ ColorSet ¹è¿­·Î º¯È¯ÇÏ´Â °øÅë ÇÔ¼ö
+    //// [í•µì‹¬] DTO ë¦¬ìŠ¤íŠ¸ë¥¼ ColorSet ë°°ì—´ë¡œ ë³€í™˜í•˜ëŠ” ê³µí†µ í•¨ìˆ˜
     //private ColorSet[] ConvertDtosToColorSets(List<JellyDataDTO> dataList)
     //{
     //    if (dataList == null || dataList.Count == 0) return new ColorSet[0];
 
-    //    // 1. ±×·ìÈ­
+    //    // 1. ê·¸ë£¹í™”
     //    Dictionary<JellyColorType, List<JellyDataDTO>> groupedData = new Dictionary<JellyColorType, List<JellyDataDTO>>();
     //    foreach (var dto in dataList)
     //    {
@@ -310,7 +315,7 @@ public class DataManager : MonoBehaviour
     //        groupedData[dto.ColorType].Add(dto);
     //    }
 
-    //    // 2. ColorSet »ı¼º
+    //    // 2. ColorSet ìƒì„±
     //    List<ColorSet> resultColorSets = new List<ColorSet>();
 
     //    foreach (var group in groupedData)
@@ -322,7 +327,7 @@ public class DataManager : MonoBehaviour
     //        set.colorType = type;
     //        set.colorName = type.ToString();
 
-    //        // °­µµº° »ö»ó ÇÒ´ç
+    //        // ê°•ë„ë³„ ìƒ‰ìƒ í• ë‹¹
     //        JellyDataDTO weakDto = dtos.Find(d => d.ColorIntensity == 1);
     //        if (weakDto != null) set.weak = weakDto.GetColor();
 
@@ -332,20 +337,20 @@ public class DataManager : MonoBehaviour
     //        JellyDataDTO strongDto = dtos.Find(d => d.ColorIntensity == 3);
     //        if (strongDto != null) set.strong = strongDto.GetColor();
 
-    //        // ¸ÓÆ¼¸®¾ó ·Îµå
+    //        // ë¨¸í‹°ë¦¬ì–¼ ë¡œë“œ
     //        JellyDataDTO representativeDto = normalDto ?? weakDto ?? strongDto;
     //        if (representativeDto != null)
     //        {
-    //            // °æ·Î ¿¹½Ã: Models/BearJelly/Materials/MaterialName
-    //            // ÁÖÀÇ: ÇÃ·¹ÀÌ¾î¿Í ¿¡³Ê¹ÌÀÇ ¸ÓÆ¼¸®¾ó Æú´õ °æ·Î°¡ ´Ù¸£´Ù¸é DTO¿¡ °æ·Î ÇÊµå¸¦ Ãß°¡ÇÏ°Å³ª ¿©±â¼­ ºĞ±â Ã³¸®°¡ ÇÊ¿äÇÒ ¼ö ÀÖÀ½.
-    //            // ÇöÀç´Â CSVÀÇ 'MaterialPath' °ªÀ» ±×´ë·Î »ç¿ëÇÑ´Ù°í °¡Á¤.
+    //            // ê²½ë¡œ ì˜ˆì‹œ: Models/BearJelly/Materials/MaterialName
+    //            // ì£¼ì˜: í”Œë ˆì´ì–´ì™€ ì—ë„ˆë¯¸ì˜ ë¨¸í‹°ë¦¬ì–¼ í´ë” ê²½ë¡œê°€ ë‹¤ë¥´ë‹¤ë©´ DTOì— ê²½ë¡œ í•„ë“œë¥¼ ì¶”ê°€í•˜ê±°ë‚˜ ì—¬ê¸°ì„œ ë¶„ê¸° ì²˜ë¦¬ê°€ í•„ìš”í•  ìˆ˜ ìˆìŒ.
+    //            // í˜„ì¬ëŠ” CSVì˜ 'MaterialPath' ê°’ì„ ê·¸ëŒ€ë¡œ ì‚¬ìš©í•œë‹¤ê³  ê°€ì •.
     //            string path = $"Models/BearJelly/Materials/{representativeDto.MaterialPath}";
     //            set.colorMaterial = Resources.Load<Material>(path);
 
     //            if (set.colorMaterial == null)
     //            {
-    //                // È¤½Ã °æ·Î°¡ ´Ù¸¦ ¼ö ÀÖÀ¸´Ï ·Î±×¸¸ ¶ç¿ò
-    //                // Debug.LogWarning($"¸ÓÆ¼¸®¾ó ·Îµå ½ÇÆĞ: {path}");
+    //                // í˜¹ì‹œ ê²½ë¡œê°€ ë‹¤ë¥¼ ìˆ˜ ìˆìœ¼ë‹ˆ ë¡œê·¸ë§Œ ë„ì›€
+    //                // Debug.LogWarning($"ë¨¸í‹°ë¦¬ì–¼ ë¡œë“œ ì‹¤íŒ¨: {path}");
     //            }
     //        }
 

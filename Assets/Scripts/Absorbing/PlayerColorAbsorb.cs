@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 // (ColorExtensions 코드는 그대로 유지)
 public static class ColorExtensions
@@ -57,8 +58,10 @@ public class PlayerColorAbsorb : MonoBehaviour
     private MainCamera_Action mainCamera_Action;
     private Coroutine currentFadeCoroutine;
     public UIFollowTarget scaleIncreasedEffect;
+    public UIFollowTarget scaleDecreasedEffect;
     public UIPoolManager uIPoolManager;
     public PlayerController playerController;
+    public GameObject checkImage;
 
     [Header("Material_Property")]
     public string BaseColor_01Property = "_BaseColor_01";
@@ -126,6 +129,12 @@ public class PlayerColorAbsorb : MonoBehaviour
 
         DataManager.Instance.currentColor = DataManager.Instance.initialViewColor;
         DataManager.Instance.targetColor = DataManager.Instance.currentColor;
+
+        DataManager.Instance.currentColor = DataManager.Instance.initialViewColor;
+        DataManager.Instance.targetColor = DataManager.Instance.currentColor;
+
+        // 🔥 [추가] 시작할 때 시스템 컬러도 초기 색상으로 맞춤
+        DataManager.Instance.systemCurrentColor = DataManager.Instance.initialViewColor;
 
         rend.material.SetColor(BaseColor_01Property, currentBaseColor);
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
@@ -205,9 +214,13 @@ public class PlayerColorAbsorb : MonoBehaviour
         if (type == JellyColorType.White)
         {
             targetBaseColor = new Color32(255, 255, 255, 255);
-            targetBaseColor_02 = new Color32(255, 255, 255, 255); // 흰색일 땐 둘 다 흰색
+            targetBaseColor_02 = new Color32(255, 255, 255, 255);
             targetFresnelColor = new Color32(255, 255, 255, 255);
-            DataManager.Instance.targetColor = targetBaseColor;
+
+            DataManager.Instance.currentColor = targetBaseColor;
+
+            // 🔥 [추가] 하얀색을 먹으면 내부 시스템 데이터도 순백색으로 완전 초기화
+            DataManager.Instance.systemCurrentColor = targetBaseColor;
         }
         else
         {
@@ -245,39 +258,52 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     void ApplyJellyColor(Vector3 change)
     {
-        Color32 baseTarget = DataManager.Instance.targetColor;
-        Color32 nextColor = baseTarget.AddRGB((int)change.x, (int)change.y, (int)change.z);
-        JellyColorType determinedType = DataManager.Instance.DetermineCurrentColor(nextColor);
+        // 1. [데이터] currentColor가 아닌 'systemCurrentColor'를 가져와서 계산
+        Color32 baseSystem = DataManager.Instance.systemCurrentColor;
+        Color32 nextSystemColor = baseSystem.AddRGB((int)change.x, (int)change.y, (int)change.z);
+
+        // 🔥 2. [데이터] 계산된 순수 RGB 값을 DataManager의 시스템 변수에 저장
+        DataManager.Instance.systemCurrentColor = nextSystemColor;
+
+        // 3. [판정] 시스템 컬러를 기준으로 현재 색상 타입 판정
+        JellyColorType determinedType = DataManager.Instance.DetermineCurrentColor(nextSystemColor);
+
+        // 4. [시각] 화면에 보여줄 색상 결정 (기본은 시스템 컬러)
+        Color32 visualTarget = nextSystemColor;
 
         if (determinedType != JellyColorType.None)
         {
+            // 판정 범위 안이라면 화면에는 '완전한 순색'을 고정해서 보여줌
             switch (determinedType)
             {
-                case JellyColorType.Red: nextColor = Color.red; break;
-                case JellyColorType.Green: nextColor = Color.green; break;
-                case JellyColorType.Blue: nextColor = Color.blue; break;
-                case JellyColorType.Cyan: nextColor = Color.cyan; break;
-                case JellyColorType.Magenta: nextColor = Color.magenta; break;
-                case JellyColorType.Yellow: nextColor = Color.yellow; break;
+                case JellyColorType.Red: visualTarget = Color.red; break;
+                case JellyColorType.Green: visualTarget = Color.green; break;
+                case JellyColorType.Blue: visualTarget = Color.blue; break;
+                case JellyColorType.Cyan: visualTarget = Color.cyan; break;
+                case JellyColorType.Magenta: visualTarget = Color.magenta; break;
+                case JellyColorType.Yellow: visualTarget = Color.yellow; break;
             }
 
             if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
             {
+                checkImage.SetActive(true);
                 Debug.Log($"🎉 [게임 클리어] 목표 색상인 {determinedType} 달성! 🎉");
+            }
+            else
+            {
+                checkImage.SetActive(false);
             }
         }
 
-        targetBaseColor = nextColor;
-        targetFresnelColor = nextColor;
+        // 5. [시각] 최종적으로 렌더링될 타겟 색상 적용 (nextSystemColor 대신 visualTarget 사용)
+        targetBaseColor = visualTarget;
+        targetFresnelColor = visualTarget;
 
         int darknessStep = DataManager.Instance.darknessStep;
         targetBaseColor = targetBaseColor.AddRGB(darknessStep, darknessStep, darknessStep);
         targetFresnelColor = targetFresnelColor.AddRGB(darknessStep, darknessStep, darknessStep);
 
-        // 🔥 BaseColor_02 타겟 설정 (BaseColor_01보다 baseColor02Lightness 만큼 하얀색에 가깝게)
         targetBaseColor_02 = GetLighterColor(targetBaseColor, baseColor02Lightness);
-
-        DataManager.Instance.targetColor = targetBaseColor;
     }
 
     // 🔥 파라미터에 targetBase_02 추가
@@ -307,15 +333,19 @@ public class PlayerColorAbsorb : MonoBehaviour
             yield return null;
         }
 
-        currentBaseColor = DataManager.Instance.targetColor;
-        currentBaseColor_02 = targetBase_02; // 🔥 목표색으로 정확히 안착
-        currentFresnelColor = DataManager.Instance.targetColor;
+        // 🔥 [수정] DataManager.Instance.targetColor 대신 파라미터로 받은 targetBase 사용!
+        currentBaseColor = targetBase;
+        currentBaseColor_02 = targetBase_02;
+        currentFresnelColor = targetFresnel; // 여기도 targetFresnel로 수정
 
         rend.material.SetColor(BaseColor_01Property, currentBaseColor);
-        rend.material.SetColor(BaseColor_02Property, currentBaseColor_02); // 🔥
+        rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
+        // 🔥 [추가] 이제 시각적 컬러도 DataManager에 동기화해줍니다.
         DataManager.Instance.currentColor = currentBaseColor;
+        DataManager.Instance.targetColor = currentBaseColor;
+
         currentStatusUI.ChangeCurrentColorUI();
     }
 
@@ -382,7 +412,7 @@ public class PlayerColorAbsorb : MonoBehaviour
         // if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleDownSound();
 
         // (옵션) 축소될 때도 UI 연출이 필요하다면 아래와 같이 추가할 수 있습니다.
-        uIPoolManager.SpawnUI(scaleIncreasedEffect, transform);
+        uIPoolManager.SpawnUI(scaleDecreasedEffect, transform);
 
         Vector3 startScale = currentScale;
 

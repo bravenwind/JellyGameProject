@@ -14,7 +14,8 @@ public enum UIState
     GameSuccess,    // 게임 오버 창
     GameFail,
     GameOver,
-    Menu
+    Menu, 
+    Help
 }
 
 public class UIManager : MonoBehaviour

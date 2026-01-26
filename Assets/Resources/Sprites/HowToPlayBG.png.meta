@@ -106,6 +106,19 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: iOS
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
@@ -6978,9 +6991,9 @@ TextureImporter:
       rect:
         serializedVersion: 2
         x: 249
-        y: 0
+        y: 215
         width: 1290
-        height: 709
+        height: 256
       alignment: 0
       pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -6991,6 +7004,50 @@ TextureImporter:
       bones: []
       spriteID: 114fb956fb374ff4c9cbab29a121c9d1
       internalID: 183300532
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_313
+      rect:
+        serializedVersion: 2
+        x: 249
+        y: 506
+        width: 1290
+        height: 157
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 936e3f2944503d544a461c5993647779
+      internalID: 908213324
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: HowToPlayBG_314
+      rect:
+        serializedVersion: 2
+        x: 249
+        y: 0
+        width: 1290
+        height: 180
+      alignment: 0
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: 0
+      bones: []
+      spriteID: 781d76e549ab7e245a83861aea3fa75e
+      internalID: 623372736
       vertices: []
       indices: 
       edges: []
@@ -7248,6 +7305,8 @@ TextureImporter:
       HowToPlayBG_310: 816191264
       HowToPlayBG_311: 305715951
       HowToPlayBG_312: 183300532
+      HowToPlayBG_313: 908213324
+      HowToPlayBG_314: 623372736
       HowToPlayBG_32: -1895029011
       HowToPlayBG_33: -547000967
       HowToPlayBG_34: -333124642

@@ -5,9 +5,11 @@ using UnityEngine.UI;
 public class TargetStatusUI : MonoBehaviour
 {
     public Text targetStatusText;
-    public TMP_Text missionText1;
-    public TMP_Text missionText2;
-    public TMP_Text missionText3;
+    public Text missionText1;
+    public Text missionText2;
+    public Text missionText3;
+    public Image targetImage;
+    public Text targetScaleText;
 
     // 1. 타입을 Color32로 변경
     private Color32[] colors = new Color32[7];
@@ -71,7 +73,9 @@ public class TargetStatusUI : MonoBehaviour
                 break;
         }
         string targetScaleLevelText = "Lv." + DataManager.Instance.targetScaleLevel;
-        targetStatusText.text = targetColorText + " 젤리 " + targetScaleLevelText + " 만들기";
+        targetScaleText.text = targetScaleLevelText;
+        targetStatusText.text = targetColorText + " 젤리 " + targetScaleLevelText + " 가 될거야!";
+        targetImage.color = DataManager.Instance.thisGameRangeRule.color;
         missionText1.text = targetColorText + "색 젤리 만들기";
         missionText2.text = "크기 " + targetScaleLevelText + "레벨" + " 만들기";
         missionText3.text = DataManager.Instance.targetTime + "초 이내 클리어하기";

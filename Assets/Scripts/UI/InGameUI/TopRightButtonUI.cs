@@ -11,6 +11,23 @@ public class TopRightButtonUI : MonoBehaviour
         PlaySFXAudio.Instance.PlayButtonClickSound();
     }
 
+    public void OnHelpBtnClicked()
+    {
+        uiManager.SetState(UIState.Help);
+        PlaySFXAudio.Instance.PlayButtonClickSound();
+    }
+
+    public void OnHelpExitBtnClicked()
+    {
+        uiManager.SetState(UIState.InGame);
+        PlaySFXAudio.Instance.PlayButtonClickSound();
+    }
+
+    private void OnApplicationPause(bool pause)
+    {
+        
+    }
+
     public void OnSettingsBtnClicked()
     {
         uiManager.SetState(UIState.Settings);

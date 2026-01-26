@@ -4178,6 +4178,7 @@ MonoBehaviour:
   scaleIncreasedEffect: {fileID: 2262802120574393467, guid: c8ce3894efd83f340bc736c607dc16b1, type: 3}
   uIPoolManager: {fileID: 0}
   playerController: {fileID: 355966115616070896}
+  checkImage: {fileID: 0}
   BaseColor_01Property: _BaseColor_01
   BaseColor_02Property: _BaseColor_02
   FresnelProperty: _FresnelColor
@@ -4259,7 +4260,7 @@ CharacterController:
   serializedVersion: 3
   m_Height: 1.5
   m_Radius: 0.5
-  m_SlopeLimit: 70
+  m_SlopeLimit: 90
   m_StepOffset: 0.3
   m_SkinWidth: 0.08
   m_MinMoveDistance: 0.001

@@ -1038,7 +1038,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &252079542
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4892,7 +4892,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1488326620
 RectTransform:
   m_ObjectHideFlags: 0
@@ -5491,13 +5491,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4c922edf692c43b46a8a4aa04e500c94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stars:
-  - {fileID: 1568267359729483793}
-  - {fileID: 687707616}
-  - {fileID: 2008802944}
-  Index: 0
-  resultText: {fileID: 1387869490}
-  starFly: {fileID: 1566285015}
 --- !u!114 &1566285015
 MonoBehaviour:
   m_ObjectHideFlags: 0
