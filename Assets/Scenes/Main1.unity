@@ -9093,7 +9093,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2ca4eab7f96a9846a992d0c7ffdb282, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loadingBGSlideAni: {fileID: 1533141498}
 --- !u!1 &2104606468
 GameObject:
   m_ObjectHideFlags: 0
