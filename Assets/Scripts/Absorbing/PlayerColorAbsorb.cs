@@ -258,22 +258,17 @@ public class PlayerColorAbsorb : MonoBehaviour
 
     void ApplyJellyColor(Vector3 change)
     {
-        // 1. [데이터] currentColor가 아닌 'systemCurrentColor'를 가져와서 계산
         Color32 baseSystem = DataManager.Instance.systemCurrentColor;
         Color32 nextSystemColor = baseSystem.AddRGB((int)change.x, (int)change.y, (int)change.z);
 
-        // 🔥 2. [데이터] 계산된 순수 RGB 값을 DataManager의 시스템 변수에 저장
         DataManager.Instance.systemCurrentColor = nextSystemColor;
 
-        // 3. [판정] 시스템 컬러를 기준으로 현재 색상 타입 판정
         JellyColorType determinedType = DataManager.Instance.DetermineCurrentColor(nextSystemColor);
 
-        // 4. [시각] 화면에 보여줄 색상 결정 (기본은 시스템 컬러)
         Color32 visualTarget = nextSystemColor;
 
         if (determinedType != JellyColorType.None)
         {
-            // 판정 범위 안이라면 화면에는 '완전한 순색'을 고정해서 보여줌
             switch (determinedType)
             {
                 case JellyColorType.Red: visualTarget = Color.red; break;
@@ -283,19 +278,21 @@ public class PlayerColorAbsorb : MonoBehaviour
                 case JellyColorType.Magenta: visualTarget = Color.magenta; break;
                 case JellyColorType.Yellow: visualTarget = Color.yellow; break;
             }
-
-            if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
-            {
-                checkImage.SetActive(true);
-                Debug.Log($"🎉 [게임 클리어] 목표 색상인 {determinedType} 달성! 🎉");
-            }
-            else
-            {
-                checkImage.SetActive(false);
-            }
+            // 🔥 [삭제] 여기서 체크 이미지를 처리하던 코드를 지우고 아래로 내립니다.
         }
 
-        // 5. [시각] 최종적으로 렌더링될 타겟 색상 적용 (nextSystemColor 대신 visualTarget 사용)
+        // 🔥 [추가/수정] 조건문 밖으로 빼서, 잡색(None)일 때도 무조건 실행되게 합니다.
+        if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
+        {
+            checkImage.SetActive(true);
+            Debug.Log($"🎉 [게임 클리어] 목표 색상인 {determinedType} 달성! 🎉");
+        }
+        else
+        {
+            checkImage.SetActive(false); // None이거나 다른 색이면 무조건 꺼짐
+        }
+
+        // ... (이하 visualTarget 적용 로직 동일)
         targetBaseColor = visualTarget;
         targetFresnelColor = visualTarget;
 

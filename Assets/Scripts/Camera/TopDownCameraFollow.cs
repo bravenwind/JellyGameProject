@@ -30,6 +30,7 @@ public class TopDownCameraFollow : MonoBehaviour
         transform.position = smoothedPosition;
 
         // 4. (중요) 아주 위에서 내려다보므로, 항상 플레이어를 향해 회전하도록 설정
+        //
         //transform.LookAt(target);
     }
 }

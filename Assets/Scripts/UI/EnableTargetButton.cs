@@ -7,6 +7,9 @@ public class EnableTargetButton : MonoBehaviour
     public void EnableTarget()
     {
         if (target != null)
+        {
+            PlaySFXAudio.Instance.PlayButton1Sound();
             target.SetActive(true);
+        }
     }
 }
