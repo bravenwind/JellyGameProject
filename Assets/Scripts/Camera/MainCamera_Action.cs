@@ -63,17 +63,17 @@ public class MainCamera_Action : MonoBehaviour
     public void ScaleIncreased()
     {
         cameraSizeQueue.Enqueue(DataManager.Instance.scaleChangedPlusSize);
-        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue());
+        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue(DataManager.Instance.scaleIncreaseDuration));
     }
 
     public void ScaleDecreased()
     {
         cameraSizeQueue.Enqueue(-DataManager.Instance.scaleChangedPlusSize);
-        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue());
+        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue(DataManager.Instance.scaleDecreaseDuration));
     }
 
     // 큐 처리 코루틴
-    private IEnumerator ProcessCameraQueue()
+    private IEnumerator ProcessCameraQueue(float changeDuration)
     {
         isCameraScaling = true;
 
@@ -86,7 +86,7 @@ public class MainCamera_Action : MonoBehaviour
             float targetSize = startSize + deltaSize;
 
             // 하나의 카메라 연출이 끝날 때까지 대기
-            yield return StartCoroutine(OnScaleChanged_Co(startSize, targetSize, DataManager.Instance.scaleChangedDuration));
+            yield return StartCoroutine(OnScaleChanged_Co(startSize, targetSize, changeDuration));
         }
 
         isCameraScaling = false;
@@ -115,7 +115,7 @@ public class MainCamera_Action : MonoBehaviour
         // 목표 사이즈 계산: 기본 사이즈 + (레벨 차이 * 단계당 증가 사이즈)
         float targetSize = baseOrthographicSize + (targetLevel - 1) * DataManager.Instance.scaleChangedPlusSize;
 
-        StartCoroutine(OnScaleChanged_Co(targetSize, DataManager.Instance.scaleChangedDuration));
+        StartCoroutine(OnScaleChanged_Co(targetSize, DataManager.Instance.scaleIncreaseDuration));
     }
 
     IEnumerator OnScaleChanged_Co(float targetSize, float duration)

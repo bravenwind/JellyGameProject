@@ -5,6 +5,9 @@ using UnityEngine.UI;
 public class TargetStatusUI : MonoBehaviour
 {
     public Text targetStatusText;
+    public TMP_Text missionText1;
+    public TMP_Text missionText2;
+    public TMP_Text missionText3;
 
     // 1. 타입을 Color32로 변경
     private Color32[] colors = new Color32[7];
@@ -37,37 +40,40 @@ public class TargetStatusUI : MonoBehaviour
         switch (DataManager.Instance.thisGameRangeRule.resultType)
         {
             case JellyColorType.Red:
-                targetColorText = "빨강 젤리 ";
+                targetColorText = "빨강";
                 break;
             case JellyColorType.Green:
-                targetColorText = "초록 젤리 ";
+                targetColorText = "초록";
                 break;
             case JellyColorType.Blue:
-                targetColorText = "파랑 젤리 ";
+                targetColorText = "파랑";
                 break;
             case JellyColorType.Cyan:
-                targetColorText = "청록 젤리 "; // 게임 분위기에 따라 "하늘 젤리 "로 변경하셔도 좋습니다.
+                targetColorText = "청록"; // 게임 분위기에 따라 "하늘 젤리 "로 변경하셔도 좋습니다.
                 break;
             case JellyColorType.Magenta:
-                targetColorText = "자홍 젤리 "; // 게임 분위기에 따라 "보라 젤리 " 또는 "분홍 젤리 "로 변경하셔도 좋습니다.
+                targetColorText = "자홍"; // 게임 분위기에 따라 "보라 젤리 " 또는 "분홍 젤리 "로 변경하셔도 좋습니다.
                 break;
             case JellyColorType.Yellow:
-                targetColorText = "노랑 젤리 ";
+                targetColorText = "노랑";
                 break;
             case JellyColorType.White:
-                targetColorText = "하양 젤리 ";
+                targetColorText = "하양";
                 break;
             case JellyColorType.Black:
-                targetColorText = "검정 젤리 ";
+                targetColorText = "검정";
                 break;
             case JellyColorType.Temp:
-                targetColorText = "임시 젤리 "; // 디버그/임시용
+                targetColorText = "임시"; // 디버그/임시용
                 break;
             case JellyColorType.None:
-                targetColorText = "알 수 없는 젤리 "; // 또는 "" (빈 문자열)
+                targetColorText = "알 수 없는"; // 또는 "" (빈 문자열)
                 break;
         }
         string targetScaleLevelText = "Lv." + DataManager.Instance.targetScaleLevel;
-        targetStatusText.text = targetColorText + targetScaleLevelText + " 만들기";
+        targetStatusText.text = targetColorText + " 젤리 " + targetScaleLevelText + " 만들기";
+        missionText1.text = targetColorText + "색 젤리 만들기";
+        missionText2.text = "크기 " + targetScaleLevelText + "레벨" + " 만들기";
+        missionText3.text = DataManager.Instance.targetTime + "초 이내 클리어하기";
     }
 }

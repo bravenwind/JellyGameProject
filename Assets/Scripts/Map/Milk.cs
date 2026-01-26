@@ -40,7 +40,7 @@ public class Milk : MonoBehaviour
         if (playerColorAbsorb != null)
         {
             // 🔥 수정됨: StartCoroutine -> QueueScaleChange로 변경
-            playerColorAbsorb.QueueScaleChange(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+            playerColorAbsorb.QueueScaleChange(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleDecreaseDuration));
         }
 
         if (mainCamera_Action != null)

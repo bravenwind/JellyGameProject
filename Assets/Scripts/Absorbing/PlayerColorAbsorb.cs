@@ -97,6 +97,21 @@ public class PlayerColorAbsorb : MonoBehaviour
         isScaling = false;
     }
 
+    private void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        if (hit.gameObject.CompareTag("Edible"))
+        {
+            JellyColliderAbsorb jca = hit.gameObject.GetComponentInParent<JellyColliderAbsorb>();
+            if (jca != null)
+            {
+                jca.StartAbsorb(transform);
+            }
+            Rigidbody rb = hit.gameObject.GetComponentInParent<Rigidbody>();
+            rb.constraints = RigidbodyConstraints.None;
+            hit.collider.isTrigger = true;
+        }
+    }
+
     void Start()
     {
         if (rend == null) rend = GetComponentInChildren<Renderer>();
@@ -144,21 +159,6 @@ public class PlayerColorAbsorb : MonoBehaviour
         // Capsule(캡슐) 형태로 감지 (바닥부터 머리까지 반경 detectRadius만큼 감지)
         Collider[] detectedJellies = Physics.OverlapCapsule(bottomPoint, topPoint, DataManager.Instance.detectRadius, DataManager.Instance.detectLayerMask);
 
-        if (detectedJellies.Length > 0)
-        {
-            foreach (Collider c in detectedJellies)
-            {
-                JellyColliderAbsorb jca = c.gameObject.GetComponentInParent<JellyColliderAbsorb>();
-                if (jca != null && jca.absorbing == false)
-                {
-                    jca.StartAbsorb(transform);
-                    Rigidbody rb = c.gameObject.GetComponentInParent<Rigidbody>();
-                    rb.constraints = RigidbodyConstraints.None;
-                    c.isTrigger = true;
-                }
-            }
-        }
-
         // 디버그용 리셋
         if (Input.GetKeyDown(KeyCode.R))
         {
@@ -169,7 +169,7 @@ public class PlayerColorAbsorb : MonoBehaviour
             Camera.main.orthographicSize = 6.1f;
 
             // 🔥 수정됨: 매개변수로 targetScale을 넘기지 않음. (레벨이 1이 되었으므로 알아서 원래 크기로 돌아감)
-            StartCoroutine(DecreaseScale(DataManager.Instance.scaleIncreaseTime));
+            StartCoroutine(DecreaseScale(DataManager.Instance.scaleDecreaseDuration));
 
             // 리셋할 때 02번 컬러 원본도 함께 전달
             currentFadeCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
