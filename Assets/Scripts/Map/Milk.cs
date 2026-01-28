@@ -25,11 +25,20 @@ public class Milk : MonoBehaviour
         // 플레이어와 충돌했는지 확인
         if (other.CompareTag("PlayerMesh"))
         {
+            PlaySFXAudio.Instance.isSteppingMilk = true;
             // 플레이어 스케일 레벨이 1이 아닐 때만 실행
             if (DataManager.Instance.playerCurrentScaleLevel != 1)
             {
                 ApplyEffectAndHide();
             }
+        }
+    }
+
+    private void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("PlayerMesh"))
+        {
+            PlaySFXAudio.Instance.isSteppingMilk = false;
         }
     }
 

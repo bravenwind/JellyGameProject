@@ -51241,9 +51241,11 @@ MonoBehaviour:
   crashAudio: {fileID: 8300000, guid: 4069115208f3e7240b113fd15c8204e5, type: 3}
   walkAudio: {fileID: 8300000, guid: 5b98ad6245175a844987201d9e279296, type: 3}
   walk2Audio: {fileID: 8300000, guid: f28a61a298e10c042b511e1dc8606fec, type: 3}
+  milkWalkAudio: {fileID: 8300000, guid: 208c78687041b53478cd6eaa85aa357f, type: 3}
   jumpAudio: {fileID: 8300000, guid: 55891c8a42c2af845b604ad3b756bdf7, type: 3}
   missionCompleteAudio: {fileID: 8300000, guid: f59e1772dae4294418e6c3117377d95c, type: 3}
   failAudio: {fileID: 8300000, guid: fa96115cfa41f10499729de9b54301b2, type: 3}
+  isSteppingMilk: 0
   zoomInAudio: {fileID: 8300000, guid: c44f13b2c1d5c914490d9a838069fa61, type: 3}
   zoomOutAudio: {fileID: 8300000, guid: 38eaa9674013a5a4d9e1706874c1f3c5, type: 3}
 --- !u!82 &1634229696

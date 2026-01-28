@@ -26,11 +26,13 @@ public class PlaySFXAudio : MonoBehaviour
     public AudioClip crashAudio;
     public AudioClip walkAudio;
     public AudioClip walk2Audio;
+    public AudioClip milkWalkAudio;
     public AudioClip jumpAudio;
 
     [Header("Game State")]
     public AudioClip missionCompleteAudio;
     public AudioClip failAudio;
+    public bool isSteppingMilk;
 
     [Header("Camera")]
     public AudioClip zoomInAudio;
@@ -48,6 +50,18 @@ public class PlaySFXAudio : MonoBehaviour
         else
         {
             Destroy(gameObject);
+        }
+    }
+
+    private void Update()
+    {
+        if (isSteppingMilk)
+        {
+            walkAudioSource.clip = milkWalkAudio;
+        }
+        else
+        {
+            walkAudioSource.clip = walkAudio;
         }
     }
 
@@ -97,8 +111,6 @@ public class PlaySFXAudio : MonoBehaviour
     {
         // 이미 소리가 나고 있다면 다시 재생하지 않음 (중복 방지)
         if (walkAudioSource.isPlaying) return;
-
-        walkAudioSource.clip = walkAudio;
 
         walkAudioSource.loop = true; // 반복 재생 켜기
         walkAudioSource.Play();      // 재생 시작
