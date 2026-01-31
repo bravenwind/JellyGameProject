@@ -1,5 +1,7 @@
 ﻿using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.UI; // UI 관련 기능을 위해 추가
+using System.Collections;
 
 public class ClearJudge : MonoBehaviour
 {
@@ -8,6 +10,14 @@ public class ClearJudge : MonoBehaviour
     public UIManager uiManager;
     public UIPoolManager uIPoolManager;
     public PlayerController playerController;
+
+    [Header("연출용 UI 연결")]
+    [Tooltip("화면 전체를 덮는 검은색 패널의 CanvasGroup (페이드 효과용)")]
+    public CanvasGroup fadeCanvasGroup;
+    [Tooltip("보여줄 에필로그 UI 오브젝트")]
+    public GameObject epilogueUI;
+    [Tooltip("페이드 효과 걸리는 시간")]
+    public float fadeDuration = 1.0f;
 
     public float halfLength = 6.0f;
     public LayerMask playerLayerMask;
@@ -36,6 +46,13 @@ public class ClearJudge : MonoBehaviour
         _originalPos = scaleTransform.position;
         _pressedPos = _originalPos + Vector3.down * sinkDistance;
         _targetPos = _originalPos;
+
+        if (epilogueUI != null) epilogueUI.SetActive(false);
+        if (fadeCanvasGroup != null)
+        {
+            fadeCanvasGroup.alpha = 0f;
+            fadeCanvasGroup.blocksRaycasts = false; // 평소에는 클릭 방해하지 않도록
+        }
     }
 
     private void OnTriggerEnter(Collider other)
@@ -86,26 +103,84 @@ public class ClearJudge : MonoBehaviour
 
     private void JudgeClear()
     {
-        if (DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType
-   && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel)
-        {
-            isCleared = true;
-            
-            if (gameTimer.limitTime - gameTimer.currentTime <= DataManager.Instance.targetTime)
-            {
-                resultStarsUI.SetStarIndex(3);
-            }
-            else
-            {
-                resultStarsUI.SetStarIndex(2);
-            }
+        // 조건 체크
+        bool isConditionMet = DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType
+                              && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel;
 
+        if (isConditionMet)
+        {
+            isCleared = true; // 중복 실행 방지
+
+            // 걷는 소리 즉시 중지 및 컨트롤 비활성화
             PlaySFXAudio.Instance.StopWalking();
             playerController.enabled = false;
-            PlaySFXAudio.Instance.PlayMissionCompleteSound();
 
-            uiManager.SetState(UIState.GameOver);
-            uIPoolManager.DisableParent();
+            // ★ 연출 코루틴 시작
+            StartCoroutine(ClearSequence());
+        }
+    }
+
+    // ★ 클리어 연출 시퀀스 (페이드 -> 에필로그 -> 페이드 -> 결과창)
+    private IEnumerator ClearSequence()
+    {
+        // 1. 화면 페이드 아웃 (화면이 검어짐: Alpha 0 -> 1)
+        yield return StartCoroutine(FadeRoutine(0f, 1f));
+
+        // 2. 에필로그 화면 켜기 (아직 화면은 검은 상태)
+        if (epilogueUI != null) epilogueUI.SetActive(true);
+
+        // 3. 화면 페이드 인 (에필로그가 서서히 보임: Alpha 1 -> 0)
+        yield return StartCoroutine(FadeRoutine(1f, 0f));
+
+        // 4. 클릭 대기 (유저가 화면을 클릭할 때까지 대기)
+        // PC는 마우스 클릭(0), 모바일은 터치 대응을 위해 GetMouseButtonDown(0) 사용
+        yield return new WaitUntil(() => Input.GetMouseButtonDown(0));
+
+        // 5. 화면 페이드 아웃 (다시 화면이 검어짐: Alpha 0 -> 1)
+        yield return StartCoroutine(FadeRoutine(0f, 1f));
+
+        // 6. 에필로그 끄고 미션 완료 사운드 재생
+        if (epilogueUI != null) epilogueUI.SetActive(false);
+
+        // 7. 별점 계산 및 UI 상태 변경 (결과 화면 준비)
+        if (gameTimer.limitTime - gameTimer.currentTime <= DataManager.Instance.targetTime)
+        {
+            resultStarsUI.SetStarIndex(3);
+        }
+        else
+        {
+            resultStarsUI.SetStarIndex(2);
+        }
+
+        uIPoolManager.DisableParent();
+        uiManager.SetState(UIState.GameOver);
+
+        // 8. 화면 페이드 인 (결과 화면이 서서히 보임: Alpha 1 -> 0)
+        yield return StartCoroutine(FadeRoutine(1f, 0f));
+        PlaySFXAudio.Instance.PlayMissionCompleteSound();
+    }
+
+    // 투명도 조절을 위한 헬퍼 코루틴
+    private IEnumerator FadeRoutine(float startAlpha, float endAlpha)
+    {
+        if (fadeCanvasGroup == null) yield break;
+
+        fadeCanvasGroup.blocksRaycasts = true; // 페이드 중 터치 방지
+        float timer = 0f;
+
+        while (timer < fadeDuration)
+        {
+            timer += Time.unscaledDeltaTime; // 게임 시간이 멈춰도 UI 연출은 되도록 unscaled 사용
+            fadeCanvasGroup.alpha = Mathf.Lerp(startAlpha, endAlpha, timer / fadeDuration);
+            yield return null;
+        }
+
+        fadeCanvasGroup.alpha = endAlpha;
+
+        // 페이드가 완전히 끝나서 화면이 다 보일 때(Alpha 0)만 터치 허용
+        if (endAlpha == 0f)
+        {
+            fadeCanvasGroup.blocksRaycasts = false;
         }
     }
 }

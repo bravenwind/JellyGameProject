@@ -81,6 +81,7 @@ public class ProloguePanelSequence : MonoBehaviour
         var s = steps[_index];
         if (s == null || s.image == null || s.centerPos == null)
         {
+            PlaySFXAudio.Instance.PlayButton1Sound();
             Next();
             return;
         }
@@ -93,12 +94,12 @@ public class ProloguePanelSequence : MonoBehaviour
 
     private void Finish()
     {
-        _playing = false;
-        _tween?.Kill();
-        _tween = null;
+        //_playing = false;
+        //_tween?.Kill();
+        //_tween = null;
 
-        if (closePanelOnFinish && prologuePanel != null)
-            prologuePanel.SetActive(false);
+        //if (closePanelOnFinish && prologuePanel != null)
+        //    prologuePanel.SetActive(false);
 
         sceneLoader.LoadGame();
     }
