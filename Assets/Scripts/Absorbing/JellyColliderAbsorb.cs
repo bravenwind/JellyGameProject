@@ -4,7 +4,6 @@ using UnityEngine.AI;
 public class JellyColliderAbsorb : MonoBehaviour
 {
     public Transform target;          // Player
-    // public float maxForce = 100f;  // (삭제 혹은 미사용) 더 이상 힘으로 밀지 않습니다.
     public float destroyDistance = 0.3f;
 
     public float absorbTimer = 0.0f;
