@@ -1,5 +1,12 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
+
+public enum UIType { JellyEat, ScaleIncrease, MilkScaleDecrease }
+
+public class PooledUI : MonoBehaviour
+{
+    public UIType originType;
+}
 
 public class UIPoolManager : MonoBehaviour
 {
@@ -11,19 +18,22 @@ public class UIPoolManager : MonoBehaviour
     [System.Serializable]
     public struct PoolDefinition
     {
-        public UIFollowTarget prefab;
+        public UIType uiType;
+        public GameObject prefab;
+        public Transform parentTransform;
         public int initialSize;
     }
+
     public List<PoolDefinition> prewarmPools;
 
-    // ÇÁ¸®ÆÕ IDº° ¿ÀºêÁ§Æ® ´ë±â¿­
-    private Dictionary<int, Queue<UIFollowTarget>> poolDictionary = new Dictionary<int, Queue<UIFollowTarget>>();
+    private class Pool
+    {
+        public Queue<GameObject> objectQueue = new Queue<GameObject>();
+        public GameObject prefab;
+        public Transform parentTransform;
+    }
 
-    // Ãß°¡: ÇÁ¸®ÆÕ IDº° ºÎ¸ğ Æ®·£½ºÆû °ü¸®
-    private Dictionary<int, Transform> poolParentDictionary = new Dictionary<int, Transform>();
-
-    // È°¼ºÈ­µÈ °´Ã¼°¡ ¾î¶² ÇÁ¸®ÆÕ Ãâ½ÅÀÎÁö ÃßÀû
-    private Dictionary<int, int> activeObjectMap = new Dictionary<int, int>();
+    private Dictionary<UIType, Pool> poolDictionary = new Dictionary<UIType, Pool>();
 
     void Awake()
     {
@@ -39,120 +49,89 @@ public class UIPoolManager : MonoBehaviour
         {
             if (poolDef.prefab == null) continue;
 
-            // Ç®°ú ºÎ¸ğ ¿ÀºêÁ§Æ® »ı¼º
-            CreatePoolIfNeeded(poolDef.prefab);
+            UIType type = poolDef.uiType;
+
+            if (!poolDictionary.ContainsKey(type))
+            {
+                Transform parent = poolDef.parentTransform != null ? poolDef.parentTransform : canvasTransform;
+
+                Pool newPool = new Pool
+                {
+                    prefab = poolDef.prefab,
+                    parentTransform = parent
+                };
+
+                poolDictionary.Add(type, newPool);
+            }
 
             for (int i = 0; i < poolDef.initialSize; i++)
             {
-                CreateNewUIObject(poolDef.prefab);
+                CreateNewUIObject(type);
             }
         }
     }
 
-    private void CreatePoolIfNeeded(UIFollowTarget prefab)
+    private GameObject CreateNewUIObject(UIType type)
     {
-        int prefabID = prefab.GetInstanceID();
+        Pool pool = poolDictionary[type];
 
-        if (!poolDictionary.ContainsKey(prefabID))
-        {
-            poolDictionary.Add(prefabID, new Queue<UIFollowTarget>());
+        GameObject ui = Instantiate(pool.prefab, pool.parentTransform);
+        ui.SetActive(false);
 
-            // --- ºÎ¸ğ ¿ÀºêÁ§Æ® »ı¼º ·ÎÁ÷ Ãß°¡ ---
-            GameObject poolParent = new GameObject($"Pool_{prefab.name}");
-            poolParent.transform.SetParent(canvasTransform, false);
+        PooledUI pooledUI = ui.AddComponent<PooledUI>();
+        pooledUI.originType = type;
 
-            // Äµ¹ö½º¿¡¼­ °¡Àå µÚ¿¡ À§Ä¡ÇÏ°Ô ÇÔ (°èÃş ±¸Á¶ ¸Ç À§·Î ÀÌµ¿)
-            poolParent.transform.SetAsFirstSibling();
-
-            // UI °ü¸®¸¦ À§ÇØ RectTransform ¼³Á¤ (ÇÊ¿ä½Ã)
-            RectTransform rt = poolParent.AddComponent<RectTransform>();
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.sizeDelta = Vector2.zero;
-
-            poolParentDictionary.Add(prefabID, poolParent.transform);
-        }
-    }
-
-    private UIFollowTarget CreateNewUIObject(UIFollowTarget prefab)
-    {
-        int prefabID = prefab.GetInstanceID();
-        Transform parent = poolParentDictionary[prefabID];
-
-        // ÇØ´ç ÇÁ¸®ÆÕ Àü¿ë ºÎ¸ğ ¹Ø¿¡ »ı¼º
-        UIFollowTarget ui = Instantiate(prefab, parent);
-        ui.gameObject.SetActive(false);
-
-        poolDictionary[prefabID].Enqueue(ui);
+        pool.objectQueue.Enqueue(ui);
         return ui;
     }
 
-    public UIFollowTarget SpawnUI(UIFollowTarget prefab, Transform target)
+    public GameObject SpawnUI(UIType type)
     {
-        if (prefab == null) return null;
-
-        int prefabID = prefab.GetInstanceID();
-        CreatePoolIfNeeded(prefab);
-
-        UIFollowTarget ui;
-        Queue<UIFollowTarget> targetPool = poolDictionary[prefabID];
-
-        if (targetPool.Count > 0)
+        if (!poolDictionary.TryGetValue(type, out Pool targetPool))
         {
-            ui = targetPool.Dequeue();
+            Debug.LogError($"[UIPoolManager] {type}ì— í•´ë‹¹í•˜ëŠ” í’€ì´ ì—†ìŠµë‹ˆë‹¤!");
+            return null;
+        }
+
+        GameObject ui;
+
+        if (targetPool.objectQueue.Count > 0)
+        {
+            ui = targetPool.objectQueue.Dequeue();
         }
         else
         {
-            // Ç®¿¡ ¾øÀ¸¸é »õ·Î »ı¼º (ÀÌ¶§ ÀÚµ¿À¸·Î ÇØ´ç ºÎ¸ğ ¹Ø¿¡ µé¾î°¨)
-            ui = CreateNewUIObject(prefab);
-            ui = targetPool.Dequeue();
+            ui = CreateNewUIObject(type);
+            ui = targetPool.objectQueue.Dequeue();
         }
 
-        ui.gameObject.SetActive(true);
-        ui.SetTarget(target);
-
-        int objID = ui.GetInstanceID();
-        if (!activeObjectMap.ContainsKey(objID))
-        {
-            activeObjectMap.Add(objID, prefabID);
-        }
-
+        ui.SetActive(true);
         return ui;
     }
 
-    public void ReturnUI(UIFollowTarget ui)
+    public void ReturnUI(GameObject ui)
     {
         if (ui == null) return;
 
-        int objID = ui.GetInstanceID();
-
-        if (activeObjectMap.TryGetValue(objID, out int originPrefabID))
+        if (ui.TryGetComponent(out PooledUI pooledUI))
         {
-            ui.ClearTarget();
-            ui.gameObject.SetActive(false);
-
-            if (poolDictionary.ContainsKey(originPrefabID))
-            {
-                poolDictionary[originPrefabID].Enqueue(ui);
-            }
-
-            activeObjectMap.Remove(objID);
+            ui.SetActive(false);
+            poolDictionary[pooledUI.originType].objectQueue.Enqueue(ui);
         }
         else
         {
-            Debug.LogWarning("UIPoolManager¿¡ µî·ÏµÇÁö ¾ÊÀº °´Ã¼ ¹İÈ¯: " + ui.name);
-            Destroy(ui.gameObject);
+            Debug.LogWarning("UIPoolManagerì— ë“±ë¡ë˜ì§€ ì•Šì€ ê°ì²´ ë°˜í™˜ ì‹œë„: " + ui.name);
+            Destroy(ui);
         }
     }
 
     public void DisableParent()
     {
-        // µñ¼Å³Ê¸®¿¡ ÀúÀåµÈ ¸ğµç ºÎ¸ğ Transform °ª(Values)À» ÇÏ³ª¾¿ ²¨³»¿É´Ï´Ù.
-        foreach (Transform parentTransform in poolParentDictionary.Values)
+        foreach (var pool in poolDictionary.Values)
         {
-            if (parentTransform != null)
+            if (pool.parentTransform != null)
             {
-                parentTransform.gameObject.SetActive(false);
+                pool.parentTransform.gameObject.SetActive(false);
             }
         }
     }

@@ -47,6 +47,17 @@ public class UIFollowTarget : MonoBehaviour
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
     }
 
+    private void OnEnable()
+    {
+        Transform playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
+        SetTarget(playerTransform);
+    }
+
+    private void OnDisable()
+    {
+        ClearTarget();
+    }
+
     public void SetTarget(Transform newTarget)
     {
         targetObj = newTarget;
@@ -87,7 +98,7 @@ public class UIFollowTarget : MonoBehaviour
             yield return null;
         }
 
-        UIPoolManager.Instance.ReturnUI(this);
+        UIPoolManager.Instance.ReturnUI(gameObject);
     }
 
     void LateUpdate()

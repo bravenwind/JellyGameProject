@@ -33,6 +33,7 @@ public class PlaySFXAudio : MonoBehaviour
     public AudioClip missionCompleteAudio;
     public AudioClip failAudio;
     public bool isSteppingMilk;
+    private bool prevIsSteppingMilk;
 
     [Header("Camera")]
     public AudioClip zoomInAudio;
@@ -51,24 +52,31 @@ public class PlaySFXAudio : MonoBehaviour
         {
             Destroy(gameObject);
         }
+
+        prevIsSteppingMilk = isSteppingMilk;
+        walkAudioSource.clip = isSteppingMilk ? milkWalkAudio : walkAudio;
     }
 
     private void Update()
     {
-        if (isSteppingMilk)
+        if (isSteppingMilk != prevIsSteppingMilk)
         {
-            walkAudioSource.clip = milkWalkAudio;
-        }
-        else
-        {
-            walkAudioSource.clip = walkAudio;
+            prevIsSteppingMilk = isSteppingMilk;
+
+            // 소리가 바뀌기 전에 캐릭터가 걷고 있었는지(재생 중이었는지) 확인
+            bool isCurrentlyWalking = walkAudioSource.isPlaying;
+
+            // 클립 교체
+            walkAudioSource.clip = isSteppingMilk ? milkWalkAudio : walkAudio;
+
+            // 만약 걷고 있던 중이었다면, 바뀐 소리로 즉시 이어서 재생
+            if (isCurrentlyWalking)
+            {
+                walkAudioSource.Play();
+            }
         }
     }
 
-    // ... (기존 걷기 관련 코드 생략) ...
-
-    // 🔴 [수정됨] void -> float 반환으로 변경
-    // 🔴 [수정됨] 기계 소리 2배속 재생 (Pitch 조절)
     public float PlayMachineSound()
     {
         if (machineAudio == null) return 0f;
@@ -78,7 +86,7 @@ public class PlaySFXAudio : MonoBehaviour
         // 1. 임시 게임 오브젝트 생성 (이름: TempMachineSound)
         // (기존 fxAudioSource의 피치를 건드리면 다른 소리도 빨라지므로 별도로 만듭니다)
         GameObject tempGO = new GameObject("TempMachineSound");
-        tempGO.transform.SetParent(this.transform); // 하이라키 정리용
+        tempGO.transform.SetParent(transform); // 하이라키 정리용
 
         // 2. AudioSource 컴포넌트 추가 및 설정
         AudioSource tempSource = tempGO.AddComponent<AudioSource>();
@@ -106,17 +114,17 @@ public class PlaySFXAudio : MonoBehaviour
     // [걷기 소리 제어 - 루프 방식]
     // -----------------------------------------------------------
 
-    // 캐릭터가 움직이기 시작할 때 한 번만 호출하세요
+    // 캐릭터가 움직이기 시작할 때 한 번만 호출
     public void StartWalking()
     {
-        // 이미 소리가 나고 있다면 다시 재생하지 않음 (중복 방지)
-        if (walkAudioSource.isPlaying) return;
+        // 시작할 때 현재 바닥 상태에 맞는 클립인지 한 번 더 확인
+        walkAudioSource.clip = isSteppingMilk ? milkWalkAudio : walkAudio;
 
-        walkAudioSource.loop = true; // 반복 재생 켜기
-        walkAudioSource.Play();      // 재생 시작
+        walkAudioSource.loop = true;
+        walkAudioSource.Play();
     }
 
-    // 캐릭터가 멈출 때 호출하세요
+    // 캐릭터가 멈출 때 호출
     public void StopWalking()
     {
         if (walkAudioSource.isPlaying)
@@ -150,9 +158,7 @@ public class PlaySFXAudio : MonoBehaviour
 
     public void PlayColorMixSound()
     {
-        int rand = Random.Range(0, 2);
-        if (rand == 0) fxAudioSource.PlayOneShot(colorMixAudio);
-        else fxAudioSource.PlayOneShot(colorMix2Audio);
+        fxAudioSource.PlayOneShot(colorMix2Audio);
 
         Debug.Log("🔊 [Sound] 색 조합 소리");
     }

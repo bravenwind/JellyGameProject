@@ -4101,7 +4101,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8783750368445461478}
   - component: {fileID: 7193128243420796867}
-  - component: {fileID: 9030417639005009444}
   - component: {fileID: 355966115616070896}
   - component: {fileID: 874371072681281848}
   - component: {fileID: 3131908077549362287}
@@ -4146,44 +4145,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jellyColor: {r: 1, g: 0.2, b: 0.2, a: 1}
   colorType: 0
---- !u!114 &9030417639005009444
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1545187532055052821}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7abd79d80b503a546bf92d6c229bb294, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rend: {fileID: 4675464973727225916}
-  originalFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  currentFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  targetFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  rigidbodies: []
-  originalScale: {x: 1, y: 1, z: 1}
-  playerBaseHeight: 1.5
-  baseColor02Lightness: 0.6
-  softBody3D: {fileID: 1931424961602710681}
-  jellyCamera: {fileID: 0}
-  currentStatusUI: {fileID: 0}
-  scaleIncreasedEffect: {fileID: 2262802120574393467, guid: c8ce3894efd83f340bc736c607dc16b1, type: 3}
-  scaleDecreasedEffect: {fileID: 0}
-  uIPoolManager: {fileID: 0}
-  playerController: {fileID: 355966115616070896}
-  checkImage: {fileID: 0}
-  BaseColor_01Property: _BaseColor_01
-  BaseColor_02Property: _BaseColor_02
-  FresnelProperty: _FresnelColor
-  detectTransform: {fileID: 8195853768389651380}
 --- !u!114 &355966115616070896
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4196,7 +4157,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 430f0298cb436fe439bbd3f0d3e1b480, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentState: 0
   moveSpeed: 14
   rotateSpeed: 12
   jumpForce: 15
@@ -4205,6 +4165,10 @@ MonoBehaviour:
   terminalVelocity: -53
   jellyAnimator: {fileID: 3131908077549362287}
   uiManager: {fileID: 0}
+  controller: {fileID: 0}
+  inputDir: {x: 0, y: 0, z: 0}
+  verticalVelocity: 0
+  targetRotation: {x: 0, y: 0, z: 0, w: 0}
   isGrounded: 0
 --- !u!114 &874371072681281848
 MonoBehaviour:

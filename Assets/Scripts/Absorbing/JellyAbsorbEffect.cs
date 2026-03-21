@@ -84,7 +84,7 @@ public class JellyAbsorbEffect : MonoBehaviour
 
     void OnAbsorbed()
     {
-        PlayerColorAbsorb player = target.GetComponentInParent<PlayerColorAbsorb>();
+        PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
         if (player != null)
         {
             Debug.Log("흡수됨");

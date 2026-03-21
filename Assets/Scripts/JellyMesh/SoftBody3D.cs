@@ -70,7 +70,7 @@ public class SoftBody3D : MonoBehaviour
 
         ApplyClothSettings();
 
-        // 1. 게임 시작 시 에디터에서 칠한 제약 조건 백업
+        // 1. 게임 시작 시 에디터에서 칠한 추가 제약 적용
         _initialCoefficients = _cloth.coefficients;
 
         UpdateSoftness();
@@ -91,7 +91,6 @@ public class SoftBody3D : MonoBehaviour
     {
         if (_skinnedMeshRenderer == null || _cloth == null || _initialCoefficients == null) return;
 
-        // 🔥 수정된 부분: 메쉬의 정점 개수가 아닌, 실제 Cloth(initialCoefficients)의 개수를 기준으로 설정
         int vertexCount = _initialCoefficients.Length;
         ClothSkinningCoefficient[] currentCoefficients = new ClothSkinningCoefficient[vertexCount];
 
@@ -99,7 +98,6 @@ public class SoftBody3D : MonoBehaviour
         {
             if (useHybridSoftness)
             {
-                // _initialCoefficients 배열의 범위를 벗어나지 않으므로 안전함
                 if (_initialCoefficients[i].maxDistance < softness)
                 {
                     currentCoefficients[i].maxDistance = _initialCoefficients[i].maxDistance;
@@ -120,15 +118,13 @@ public class SoftBody3D : MonoBehaviour
         _cloth.coefficients = currentCoefficients;
     }
 
-    // 🔥 타이머 및 스케일 변경에서 호출할 함수들 (추가됨)
     public void DisableCloth()
     {
         if (_cloth != null)
             _cloth.enabled = false;
     }
 
-    // 🔥 스케일 변경 후 버그 없이 천을 재구성하는 핵심 함수
-    // 🔥 스케일 변경 후 버그 없이 천을 재구성하는 핵심 함수
+
     public IEnumerator EnableAndRebuildCloth()
     {
         if (_skinnedMeshRenderer == null) yield break;

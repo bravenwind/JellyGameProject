@@ -11,8 +11,6 @@ public enum UIState
     //MainMenu,   // 메인 메뉴
     Settings,   // 설정 창
     InGame,     // 게임 플레이 중 HUD
-    GameSuccess,    // 게임 오버 창
-    GameFail,
     GameOver,
     Menu, 
     Help
@@ -95,17 +93,9 @@ public class UIManager : MonoBehaviour
     {
         switch (currentState)
         {
-            //case UIState.MainMenu:
-            //    // 메인 메뉴에서의 로직 (예: 아무 키나 누르면 게임 시작)
-            //    if (Input.GetKeyDown(KeyCode.Space))
-            //    {
-            //        Debug.Log("게임 시작!");
-            //        SetState(UIState.InGame);
-            //    }
-            //    break;
 
             case UIState.InGame:
-                // 게임 중 로직 (예: ESC 누르면 일시정지/설정)
+                // 게임 중 로직
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     SetState(UIState.Settings);
@@ -113,19 +103,19 @@ public class UIManager : MonoBehaviour
                 break;
 
             case UIState.Settings:
-                // 설정 창 로직 (예: ESC 누르면 다시 게임으로)
+                // 설정 창 로직
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     SetState(UIState.InGame);
                 }
                 break;
 
-            case UIState.GameSuccess:
-                // 게임 오버 로직 (예: R키로 재시작)
-                if (Input.GetKeyDown(KeyCode.R))
-                {
-                    SceneManager.LoadScene("LevelDesign");
-                }
+            case UIState.GameOver:
+                // 게임 오버 로직
+                //if (Input.GetKeyDown(KeyCode.R))
+                //{
+                //    SceneManager.LoadScene("LevelDesign");
+                //}
                 break;
 
             case UIState.Pause:
@@ -155,8 +145,6 @@ public class UIManager : MonoBehaviour
                 break;
             case UIState.GameOver:
                 Time.timeScale = 0f;
-                break;
-            case UIState.GameFail:
                 break;
         }
     }

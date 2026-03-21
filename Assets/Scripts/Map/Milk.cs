@@ -7,14 +7,14 @@ public class Milk : MonoBehaviour
     [SerializeField] private float respawnTime = 5.0f; // 다시 나타날 시간
 
     [Header("References")]
-    [SerializeField] private PlayerColorAbsorb playerColorAbsorb;
+    [SerializeField] private PlayerScaleController scaleController;
     [SerializeField] private MainCamera_Action mainCamera_Action;
 
     // 초기화 시 컴포넌트 자동 할당 (없을 경우)
     private void Awake()
     {
-        if (playerColorAbsorb == null)
-            playerColorAbsorb = FindFirstObjectByType<PlayerColorAbsorb>();
+        if (scaleController == null)
+            scaleController = FindFirstObjectByType<PlayerScaleController>();
 
         if (mainCamera_Action == null)
             mainCamera_Action = FindFirstObjectByType<MainCamera_Action>();
@@ -46,10 +46,10 @@ public class Milk : MonoBehaviour
     private void ApplyEffectAndHide()
     {
         // 1. 효과 실행 (스케일 감소 및 카메라 연출)
-        if (playerColorAbsorb != null)
+        if (scaleController != null)
         {
             // 🔥 수정됨: StartCoroutine -> QueueScaleChange로 변경
-            playerColorAbsorb.QueueScaleChange(playerColorAbsorb.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
+            scaleController.QueueScaleChange(scaleController.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
         }
 
         if (mainCamera_Action != null)
