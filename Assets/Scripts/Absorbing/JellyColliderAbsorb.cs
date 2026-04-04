@@ -20,19 +20,19 @@ public class JellyColliderAbsorb : MonoBehaviour
 
     [Header("Settings")]
     public GameObject spritePrefab;
-    public Renderer renderer;
+    public Renderer jellyRenderer;
 
     void Awake()
     {
         rb = GetComponent<Rigidbody>();
         rb.useGravity = true;
         edibleCollider = GetComponentInChildren<Collider>();
-        renderer = GetComponentInChildren<Renderer>();
+        jellyRenderer = GetComponentInChildren<Renderer>();
         agent = GetComponentInChildren<NavMeshAgent>();
         agentAI = GetComponentInChildren<WanderingAI>();
         patrolAI = GetComponentInChildren<AIWaypointPatrol>();
 
-        renderer.gameObject.tag = "Edible";
+        jellyRenderer.gameObject.tag = "Edible";
     }
 
     private void OnTriggerStay(Collider other)

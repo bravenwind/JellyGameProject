@@ -49,8 +49,10 @@ public class UIFollowTarget : MonoBehaviour
 
     private void OnEnable()
     {
-        Transform playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
-        SetTarget(playerTransform);
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj == null) return; // 플레이어가 아직 스폰 안 됐으면 스킵
+
+        SetTarget(playerObj.transform);
     }
 
     private void OnDisable()

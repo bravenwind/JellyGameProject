@@ -7,43 +7,43 @@ public class JellyTyperTMP : MonoBehaviour
 {
     [Header("Text Content")]
     [TextArea(3, 10)]
-    public string textToType = "¹Ì~²ô~µ¢~ÇÏ°Ô ³ªÅ¸³µ´Ù »ç¶óÁ®¿ä";
+    public string textToType = "ï¿½ï¿½~ï¿½ï¿½~ï¿½ï¿½~ï¿½Ï°ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½";
 
     [Header("Animation Timing")]
-    [Tooltip("°¢ ±ÛÀÚ°¡ ³ªÅ¸³ª´Â ½Ã°£ °£°Ý")]
+    [Tooltip("ï¿½ï¿½ ï¿½ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     public float delayBetweenChars = 0.1f;
-    [Tooltip("ÇÑ ±ÛÀÚ°¡ ¿ÏÀüÈ÷ Ä¿Áö´Â µ¥ °É¸®´Â ½Ã°£")]
+    [Tooltip("ï¿½ï¿½ ï¿½ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä¿ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½É¸ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½")]
     public float appearDuration = 0.5f;
-    [Tooltip("¸ðµÎ ³ªÅ¸³­ ÈÄ ´ë±â ½Ã°£")]
+    [Tooltip("ï¿½ï¿½ï¿½ ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½")]
     public float holdDuration = 2.0f;
-    [Tooltip("ÇÑ ±ÛÀÚ°¡ »ç¶óÁö´Â µ¥ °É¸®´Â ½Ã°£")]
+    [Tooltip("ï¿½ï¿½ ï¿½ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½É¸ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½")]
     public float disappearDuration = 0.4f;
 
     [Header("Animation Feel (Curves)")]
-    [Tooltip("³ªÅ¸³¯ ¶§ÀÇ ½ºÄÉÀÏ º¯È­ Ä¿ºê (Åº¼º ´À³¦À» À§ÇØ ³¡À» »ìÂ¦ ¿Ã·ÁÁÖ¼¼¿ä)")]
+    [Tooltip("ï¿½ï¿½Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È­ Ä¿ï¿½ï¿½ (Åºï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Â¦ ï¿½Ã·ï¿½ï¿½Ö¼ï¿½ï¿½ï¿½)")]
     public AnimationCurve appearCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.7f, 1.2f), new Keyframe(1, 1));
-    [Tooltip("»ç¶óÁú ¶§ÀÇ ½ºÄÉÀÏ º¯È­ Ä¿ºê")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È­ Ä¿ï¿½ï¿½")]
     public AnimationCurve disappearCurve = AnimationCurve.EaseInOut(0, 1, 1, 0);
 
     private TMP_Text tmpText;
     private Coroutine mainRoutine;
 
-    // °¢ ±ÛÀÚÀÇ ¾Ö´Ï¸ÞÀÌ¼Ç »óÅÂ¸¦ ÃßÀûÇÏ±â À§ÇÑ ¹è¿­
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­
     private float[] charAnimationTimes;
-    private bool isAppearingPhase = true;
+    private bool isAppearingPhase;
 
     void Start()
     {
         tmpText = GetComponent<TMP_Text>();
         tmpText.text = textToType;
 
-        // Áß¿ä: TMP°¡ Áö¿À¸ÞÆ®¸®¸¦ »ý¼ºÇÏµµ·Ï °­Á¦ÇÏ°í ÃÊ±âÈ­
+        // ï¿½ß¿ï¿½: TMPï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ïµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Ê±ï¿½È­
         tmpText.ForceMeshUpdate();
 
-        // »óÅÂ ¹è¿­ ÃÊ±âÈ­
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½è¿­ ï¿½Ê±ï¿½È­
         charAnimationTimes = new float[tmpText.textInfo.characterCount];
 
-        // ½ÃÀÛ ½Ã ¸ðµç ±ÛÀÚ¸¦ ¾È º¸ÀÌ°Ô(½ºÄÉÀÏ 0) ¼³Á¤
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ú¸ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ì°ï¿½(ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 0) ï¿½ï¿½ï¿½ï¿½
         InitializeTextVisibility(false);
 
         PlayAnimation();
@@ -55,7 +55,7 @@ public class JellyTyperTMP : MonoBehaviour
         mainRoutine = StartCoroutine(TypewriterRoutine());
     }
 
-    // ÃÊ±â »óÅÂ ¼³Á¤ (¸ðµÎ ¼û±â°Å³ª º¸ÀÌ°Ô)
+    // ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å³ï¿½ ï¿½ï¿½ï¿½Ì°ï¿½)
     void InitializeTextVisibility(bool visible)
     {
         tmpText.ForceMeshUpdate();
@@ -73,35 +73,35 @@ public class JellyTyperTMP : MonoBehaviour
 
     IEnumerator TypewriterRoutine()
     {
-        // 1. µîÀå ÆäÀÌÁî
+        // 1. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         isAppearingPhase = true;
-        // ½Ã°£ ¹è¿­ ÃÊ±âÈ­ (¸ðµÎ ½ÃÀÛ Àü »óÅÂ·Î)
+        // ï¿½Ã°ï¿½ ï¿½è¿­ ï¿½Ê±ï¿½È­ (ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Â·ï¿½)
         for (int i = 0; i < charAnimationTimes.Length; i++) charAnimationTimes[i] = 0f;
 
         int totalChars = tmpText.textInfo.characterCount;
         float startTime = Time.time;
 
-        // ¸ðµç ±ÛÀÚÀÇ ¾Ö´Ï¸ÞÀÌ¼ÇÀÌ ³¡³¯ ¶§±îÁö ¹Ýº¹
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýºï¿½
         while (true)
         {
             bool allFinished = true;
             float elapsedTime = Time.time - startTime;
 
-            tmpText.ForceMeshUpdate(); // Áß¿ä: ¸Å ÇÁ·¹ÀÓ ¸Þ½¬ µ¥ÀÌÅÍ °»½Å ÁØºñ
+            tmpText.ForceMeshUpdate(); // ï¿½ß¿ï¿½: ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Þ½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Øºï¿½
 
             for (int i = 0; i < totalChars; i++)
             {
-                // °¢ ±ÛÀÚÀÇ ¾Ö´Ï¸ÞÀÌ¼Ç ½ÃÀÛ ½Ã°£ °è»ê (¼øÂ÷Àû Áö¿¬)
+                // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
                 float charStartTime = i * delayBetweenChars;
 
-                // ¾ÆÁ÷ ÀÌ ±ÛÀÚ°¡ ½ÃÀÛÇÒ ½Ã°£ÀÌ ¾Æ´Ï¸é ³Ñ¾î°¨
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ï¿½ï¿½ ï¿½Æ´Ï¸ï¿½ ï¿½Ñ¾î°¨
                 if (elapsedTime < charStartTime)
                 {
                     allFinished = false;
                     continue;
                 }
 
-                // ÀÌ ±ÛÀÚÀÇ ¾Ö´Ï¸ÞÀÌ¼Ç ÁøÇàµµ °è»ê
+                // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½ï¿½ï¿½àµµ ï¿½ï¿½ï¿½
                 float currentDuration = elapsedTime - charStartTime;
                 float progress = Mathf.Clamp01(currentDuration / appearDuration);
 
@@ -109,22 +109,22 @@ public class JellyTyperTMP : MonoBehaviour
 
                 if (progress < 1f) allFinished = false;
 
-                // Ä¿ºê¸¦ Àû¿ëÇÏ¿© ÇöÀç ½ºÄÉÀÏ °è»ê
+                // Ä¿ï¿½ê¸¦ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
                 float currentScale = appearCurve.Evaluate(progress);
                 ApplyScaleToCharacter(i, currentScale);
             }
 
-            // º¯°æµÈ ¹öÅØ½º µ¥ÀÌÅÍ¸¦ ½ÇÁ¦·Î Àû¿ë
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             tmpText.UpdateVertexData(TMP_VertexDataUpdateFlags.Vertices);
 
             if (allFinished) break;
             yield return null;
         }
 
-        // 2. ´ë±â ÆäÀÌÁî
+        // 2. ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         yield return new WaitForSeconds(holdDuration);
 
-        // 3. ÅðÀå ÆäÀÌÁî
+        // 3. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         isAppearingPhase = false;
         startTime = Time.time;
 
@@ -150,7 +150,7 @@ public class JellyTyperTMP : MonoBehaviour
 
                 if (progress < 1f) allFinished = false;
 
-                // »ç¶óÁö´Â Ä¿ºê Àû¿ë
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ä¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 float currentScale = disappearCurve.Evaluate(progress);
                 ApplyScaleToCharacter(i, currentScale);
             }
@@ -161,24 +161,24 @@ public class JellyTyperTMP : MonoBehaviour
         }
     }
 
-    // *** ÇÙ½É ±â´É: °³º° ±ÛÀÚÀÇ ½ºÄÉÀÏÀ» Á¶ÀýÇÏ´Â ÇÔ¼ö ***
+    // *** ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ô¼ï¿½ ***
     void ApplyScaleToCharacter(int charIndex, float scale)
     {
         TMP_CharacterInfo charInfo = tmpText.textInfo.characterInfo[charIndex];
 
-        // °ø¹éÀÌ³ª º¸ÀÌÁö ¾Ê´Â ¹®ÀÚ´Â °Ç³Ê¶Ü
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ì³ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê´ï¿½ ï¿½ï¿½ï¿½Ú´ï¿½ ï¿½Ç³Ê¶ï¿½
         if (!charInfo.isVisible) return;
 
         int materialIndex = charInfo.materialReferenceIndex;
         int vertexIndex = charInfo.vertexIndex;
 
-        // ÇØ´ç ±ÛÀÚÀÇ 4°³ ¹öÅØ½º ¿øº» °¡Á®¿À±â
+        // ï¿½Ø´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ 4ï¿½ï¿½ ï¿½ï¿½ï¿½Ø½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         Vector3[] sourceVertices = tmpText.textInfo.meshInfo[materialIndex].vertices;
 
-        // ±ÛÀÚÀÇ Áß½ÉÁ¡ °è»ê (´ë°¢¼± ¹öÅØ½ºÀÇ Áß°£)
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ß½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½ë°¢ï¿½ï¿½ ï¿½ï¿½ï¿½Ø½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½)
         Vector3 center = (sourceVertices[vertexIndex + 0] + sourceVertices[vertexIndex + 2]) / 2;
 
-        // Áß½ÉÁ¡À» ±âÁØÀ¸·Î ½ºÄÉÀÏ Àû¿ë
+        // ï¿½ß½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         Vector3[] destinationVertices = tmpText.textInfo.meshInfo[materialIndex].vertices;
 
         destinationVertices[vertexIndex + 0] = center + (sourceVertices[vertexIndex + 0] - center) * scale;

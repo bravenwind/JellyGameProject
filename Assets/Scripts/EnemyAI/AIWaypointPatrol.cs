@@ -4,11 +4,11 @@ using System.Collections;
 
 public class AIWaypointPatrol : MonoBehaviour
 {
-    [Header("¼³Á¤")]
-    [Tooltip("AI°¡ ¼øÂûÇÒ ¿þÀÌÆ÷ÀÎÆ® ÁöÁ¡µéÀÔ´Ï´Ù.")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
+    [Tooltip("AIï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô´Ï´ï¿½.")]
     public Transform[] waypoints;
 
-    [Tooltip("°¢ ÁöÁ¡¿¡ µµÂø ÈÄ ´ë±âÇÒ ½Ã°£(ÃÊ)ÀÔ´Ï´Ù.")]
+    [Tooltip("ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½(ï¿½ï¿½)ï¿½Ô´Ï´ï¿½.")]
     public float waitTime = 1.0f;
 
     private NavMeshAgent agent;
@@ -16,7 +16,7 @@ public class AIWaypointPatrol : MonoBehaviour
     private int currentWaypointIndex = 0;
     private bool isWaiting = false;
 
-    // [Ãß°¡] Á¤¹æÇâ(1->4)ÀÎÁö ¿ª¹æÇâ(4->1)ÀÎÁö Ã¼Å©ÇÏ´Â º¯¼ö
+    // [ï¿½ß°ï¿½] ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(1->4)ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½(4->1)ï¿½ï¿½ï¿½ï¿½ Ã¼Å©ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½
     private bool movingForward = true;
 
     void Start()
@@ -24,9 +24,10 @@ public class AIWaypointPatrol : MonoBehaviour
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
 
-        if (waypoints.Length == 0)
+        // waypointsê°€ ì—†ê±°ë‚˜, ë°°ì—´ì€ ìžˆì–´ë„ ì‹¤ì œ ì°¸ì¡°ê°€ ì—†ìœ¼ë©´ ë¹„í™œì„±í™”
+        if (waypoints == null || waypoints.Length == 0 || waypoints[0] == null)
         {
-            Debug.LogError("¿þÀÌÆ÷ÀÎÆ®°¡ ¼³Á¤µÇÁö ¾Ê¾Ò½À´Ï´Ù! Inspector¿¡¼­ ÇÒ´çÇØÁÖ¼¼¿ä.");
+            enabled = false;
             return;
         }
 
@@ -45,22 +46,22 @@ public class AIWaypointPatrol : MonoBehaviour
 
     void MoveToNextWaypoint()
     {
-        // 1. ÇöÀç ÀÎµ¦½º·Î ÀÌµ¿ ¼³Á¤
+        // 1. ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
         agent.destination = waypoints[currentWaypointIndex].position;
 
-        // ¾Ö´Ï¸ÞÀÌ¼Ç ÄÑ±â
+        // ï¿½Ö´Ï¸ï¿½ï¿½Ì¼ï¿½ ï¿½Ñ±ï¿½
         if (animator != null)
         {
             animator.SetBool("IsMoving", true);
         }
 
-        // 2. [¼öÁ¤µÊ] ´ÙÀ½ ÀÎµ¦½º °è»ê (¿Õº¹ ·ÎÁ÷)
+        // 2. [ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½] ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½Õºï¿½ ï¿½ï¿½ï¿½ï¿½)
         if (movingForward)
         {
-            // Á¤¹æÇâ ÀÌµ¿ ÁßÀÌ¶ó¸é ÀÎµ¦½º Áõ°¡
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             if (currentWaypointIndex >= waypoints.Length - 1)
             {
-                // ¸¶Áö¸· ÁöÁ¡¿¡ µµ´ÞÇß´Ù¸é ¹æÇâÀ» µÚÁý°í ÀÎµ¦½º °¨¼Ò
+                // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 movingForward = false;
                 currentWaypointIndex--;
             }
@@ -71,10 +72,10 @@ public class AIWaypointPatrol : MonoBehaviour
         }
         else
         {
-            // ¿ª¹æÇâ ÀÌµ¿ ÁßÀÌ¶ó¸é ÀÎµ¦½º °¨¼Ò
+            // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             if (currentWaypointIndex <= 0)
             {
-                // ½ÃÀÛ ÁöÁ¡¿¡ µµ´ÞÇß´Ù¸é ¹æÇâÀ» ´Ù½Ã Á¤¹æÇâÀ¸·Î ÇÏ°í ÀÎµ¦½º Áõ°¡
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ï°ï¿½ ï¿½Îµï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 movingForward = true;
                 currentWaypointIndex++;
             }

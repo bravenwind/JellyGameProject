@@ -81,7 +81,7 @@ public class PlaySFXAudio : MonoBehaviour
     {
         if (machineAudio == null) return 0f;
 
-        Debug.Log("🔊 [Sound] 기계 소리 (2배속 재생)");
+        //Debug.Log("🔊 [Sound] 기계 소리 (2배속 재생)");
 
         // 1. 임시 게임 오브젝트 생성 (이름: TempMachineSound)
         // (기존 fxAudioSource의 피치를 건드리면 다른 소리도 빨라지므로 별도로 만듭니다)

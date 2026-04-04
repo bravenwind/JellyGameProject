@@ -143,14 +143,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 4921550461605741617}
-  maxForce: 100
   destroyDistance: 0.3
   absorbTimer: 0
+  absorbSpeed: 30
   absorbing: 0
-  lockInTime: 3
   edibleCollider: {fileID: 2116435265980455555}
   agent: {fileID: 0}
   agentAI: {fileID: 0}
+  patrolAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   renderer: {fileID: 0}
 --- !u!195 &1655594743515107131

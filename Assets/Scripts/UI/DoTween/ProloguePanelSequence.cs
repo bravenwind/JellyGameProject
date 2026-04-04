@@ -6,8 +6,8 @@ public class ProloguePanelSequence : MonoBehaviour
     [System.Serializable]
     public class Step
     {
-        public RectTransform image;      // ¿À¸¥ÂÊ ¹Û¿¡ ³õÀÎ ÀÌ¹ÌÁö
-        public RectTransform centerPos;  // Áß¾Ó ¸ñÇ¥ À§Ä¡(ºó ¿ÀºêÁ§Æ® RectTransform)
+        public RectTransform image;      // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Û¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¹ï¿½ï¿½ï¿½
+        public RectTransform centerPos;  // ï¿½ß¾ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½Ä¡(ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® RectTransform)
     }
 
     [Header("Panel")]
@@ -22,7 +22,7 @@ public class ProloguePanelSequence : MonoBehaviour
     [SerializeField] private bool ignoreTimeScale = true;
 
     [Header("Finish")]
-    [SerializeField] private bool closePanelOnFinish = true;
+    [SerializeField] private bool closePanelOnFinish;
 
     public SceneLoader sceneLoader;
 

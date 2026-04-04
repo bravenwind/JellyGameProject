@@ -1,44 +1,46 @@
 using System.Collections;
 using UnityEngine;
-using System; // ActionÀ» »ç¿ëÇÏ±â À§ÇØ ÇÊ¿ä
+using System; // Actionï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½
 
 public class Rotator : MonoBehaviour
 {
 
-    [Tooltip("È¸Àü ¼Óµµ ±×·¡ÇÁ (ÀÎ½ºÆåÅÍ¿¡¼­ Á¶Àý)")]
-    // ±âº»ÀûÀ¸·Î EaseInOut °î¼±À» »ý¼ºÇÕ´Ï´Ù.
+    [Tooltip("È¸ï¿½ï¿½ ï¿½Óµï¿½ ï¿½×·ï¿½ï¿½ï¿½ (ï¿½Î½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)")]
+    // ï¿½âº»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ EaseInOut ï¿½î¼±ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
     public AnimationCurve rotationCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
+#pragma warning disable 0414
     private Coroutine rotateCoroutine;
+#pragma warning restore 0414
 
     /// <summary>
-    /// ¿ÜºÎ ½ºÅ©¸³Æ®¿¡¼­ È£ÃâÇÒ ÇÔ¼öÀÔ´Ï´Ù.
+    /// ï¿½Üºï¿½ ï¿½ï¿½Å©ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ È£ï¿½ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½ï¿½Ô´Ï´ï¿½.
     /// </summary>
-    /// <param name="onComplete">È¸ÀüÀÌ ³¡³­ ÈÄ ½ÇÇàÇÒ ÄÝ¹é(¼±ÅÃ »çÇ×)</param>
+    /// <param name="onComplete">È¸ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ý¹ï¿½(ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)</param>
 
     public IEnumerator RotateRoutine(float duration, Action onComplete)
     {
         float elapsed = 0f;
 
-        // ÇöÀç Y°¢µµ ÀúÀå
+        // ï¿½ï¿½ï¿½ï¿½ Yï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         float startY = transform.eulerAngles.z;
-        // ¸ñÇ¥ Y°¢µµ (ÇöÀç + 360µµ)
+        // ï¿½ï¿½Ç¥ Yï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ + 360ï¿½ï¿½)
         float targetY = startY + 360f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
 
-            // 0¿¡¼­ 1 »çÀÌÀÇ ÁøÇà·ü(t) °è»ê
+            // 0ï¿½ï¿½ï¿½ï¿½ 1 ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½(t) ï¿½ï¿½ï¿½
             float t = elapsed / duration;
 
-            // Ä¿ºê¸¦ ÅëÇØ °¡¼Ó/°¨¼Ó/µî¼Ó ºñÀ²À» °¡Á®¿È (0 ~ 1)
+            // Ä¿ï¿½ê¸¦ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ï¿½/ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (0 ~ 1)
             float curveValue = rotationCurve.Evaluate(t);
 
-            // ½ÃÀÛ °¢µµ¿Í ¸ñÇ¥ °¢µµ »çÀÌ¸¦ Ä¿ºê °ª¿¡ µû¶ó º¸°£
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¸ï¿½ Ä¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             float currentAngle = Mathf.Lerp(startY, targetY, curveValue);
 
-            // È¸Àü Àû¿ë
+            // È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             Vector3 currentRot = transform.eulerAngles;
             currentRot.z = currentAngle;
             transform.eulerAngles = currentRot;
@@ -46,14 +48,14 @@ public class Rotator : MonoBehaviour
             yield return null;
         }
 
-        // ·çÇÁ Á¾·á ÈÄ Á¤È®ÇÑ °¢µµ·Î º¸Á¤
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½È®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         Vector3 finalRot = transform.eulerAngles;
         finalRot.z = targetY;
         transform.eulerAngles = finalRot;
 
         rotateCoroutine = null;
 
-        // ¿Ï·á ÈÄ ½ÇÇàÇÒ ·ÎÁ÷ÀÌ ÀÖ´Ù¸é ½ÇÇà
+        // ï¿½Ï·ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ö´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½
         onComplete?.Invoke();
     }
 }

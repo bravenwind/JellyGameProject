@@ -27,8 +27,6 @@ public class OverlapTriggerUI : MonoBehaviour
     public Transform jellySpawnTransform;
     public Rotator rotator;
 
-    private bool isProcessing = false;
-
     void Start()
     {
         if (uiObject != null) uiObject.SetActive(false);
@@ -41,15 +39,11 @@ public class OverlapTriggerUI : MonoBehaviour
     {
         while (true)
         {
-            isProcessing = true;
-
             // 1. 소리 재생하고 길이 받아오기
             float waitTime = PlaySFXAudio.Instance.PlayMachineSound();
 
             // 2. 소리 길이만큼 대기 & 회전 연출 후 젤리 소환
             yield return StartCoroutine(rotator.RotateRoutine(waitTime, SpawnRandomJelly));
-
-            isProcessing = false;
 
             // 3. 주기 맞추기
             float remainingTime = Mathf.Max(0, DataManager.Instance.spawnCoolTime - waitTime);

@@ -1,25 +1,25 @@
 using UnityEngine;
-using UnityEngine.AI; // NavMeshAgent »ç¿ëÀ» À§ÇØ ÇÊ¼ö
+using UnityEngine.AI; // NavMeshAgent ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¼ï¿½
 using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class WanderingAI : MonoBehaviour
 {
     [Header("Wandering Settings")]
-    [Tooltip("ÀÌµ¿ÇÒ ¹İ°æ (ÇöÀç À§Ä¡ ±âÁØ È¤Àº ÃÊ±â À§Ä¡ ±âÁØ)")]
+    [Tooltip("ï¿½Ìµï¿½ï¿½ï¿½ ï¿½İ°ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½ È¤ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½)")]
     public float wanderRadius = 10f;
 
-    [Tooltip("ÀÌµ¿ ÈÄ ´ë±â ½Ã°£ (ÃÖ¼Ò)")]
+    [Tooltip("ï¿½Ìµï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ (ï¿½Ö¼ï¿½)")]
     public float minWaitTime = 1f;
 
-    [Tooltip("ÀÌµ¿ ÈÄ ´ë±â ½Ã°£ (ÃÖ´ë)")]
+    [Tooltip("ï¿½Ìµï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ (ï¿½Ö´ï¿½)")]
     public float maxWaitTime = 3f;
 
-    [Tooltip("true¸é Ã³À½ ½ºÆùµÈ À§Ä¡¸¦ Áß½ÉÀ¸·Î ¹èÈ¸, false¸é ÇöÀç À§Ä¡¸¦ Áß½ÉÀ¸·Î °è¼Ó ÀÌµ¿")]
+    [Tooltip("trueï¿½ï¿½ Ã³ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ß½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¸, falseï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ß½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½Ìµï¿½")]
     public bool anchorToInitialPosition = false;
 
     private NavMeshAgent agent;
-    private Vector3 initialPosition; // ±âÁØÁ¡ ÀúÀå¿ë
+    private Vector3 initialPosition; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
     private bool isWaiting = false;
 
     public Animator jellyAnimController;
@@ -31,45 +31,46 @@ public class WanderingAI : MonoBehaviour
 
     void Start()
     {
-        // [Ãß°¡µÊ] ¿ì¼±¼øÀ§¸¦ ·£´ıÇÏ°Ô ¼³Á¤ÇÏ¿© ´©°¡ ¸ÕÀú Áö³ª°¥Áö °áÁ¤ÇØÁÜ (0~99)
-        // ¼ıÀÚ°¡ ³·À»¼ö·Ï ¿ì¼±¼øÀ§°¡ ³ôÀ½ (¸ÕÀú Áö³ª°¨)
+        // [ï¿½ß°ï¿½ï¿½ï¿½] ï¿½ì¼±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ (0~99)
+        // ï¿½ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ì¼±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
         agent.avoidancePriority = Random.Range(0, 100);
 
-        // ½ÃÀÛ À§Ä¡ ÀúÀå
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½
         initialPosition = transform.position;
 
-        // Ã¹ ÀÌµ¿ ½ÃÀÛ
+        // Ã¹ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
         MoveToRandomPosition();
     }
 
     void Update()
     {
-        // ´ë±â ÁßÀÌ¶ó¸é ¾Æ¹«°Íµµ ¾È ÇÔ
+        // ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ì¶ï¿½ï¿½ ï¿½Æ¹ï¿½ï¿½Íµï¿½ ï¿½ï¿½ ï¿½ï¿½
         if (isWaiting) return;
 
         if (agent == null) { return; }
 
-        // ¸ñÀûÁö¿¡ °ÅÀÇ µµÂøÇß´ÂÁö È®ÀÎ
-        // pathPending: °æ·Î °è»ê ÁßÀÎÁö È®ÀÎ (°è»ê ÁßÀÏ ¶§ µµÂøÇß´Ù°í ÆÇ´ÜÇÏ´Â ¿À·ù ¹æÁö)
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´ï¿½ï¿½ï¿½ È®ï¿½ï¿½
+        // pathPending: ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ (ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ß´Ù°ï¿½ ï¿½Ç´ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
+        if (!agent.isOnNavMesh) return;
+
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
         {
             if (!agent.hasPath || agent.velocity.sqrMagnitude == 0f)
             {
-                // µµÂø ¿Ï·á -> ´ë±â ÄÚ·çÆ¾ ½ÃÀÛ
                 StartCoroutine(WaitAndMove());
             }
         }
     }
 
     /// <summary>
-    /// µµÂø ÈÄ ÀÏÁ¤ ½Ã°£ ´ë±âÇß´Ù°¡ ´ÙÀ½ ¸ñÀûÁö ¼³Á¤
+    /// ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ ï¿½ï¿½ï¿½ï¿½ß´Ù°ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     /// </summary>
     IEnumerator WaitAndMove()
     {
         isWaiting = true;
         jellyAnimController.SetBool("IsMoving", !isWaiting);
 
-        // ·£´ıÇÑ ½Ã°£¸¸Å­ ´ë±â
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½ï¿½ï¿½Å­ ï¿½ï¿½ï¿½
         float waitTime = Random.Range(minWaitTime, maxWaitTime);
         yield return new WaitForSeconds(waitTime);
 
@@ -79,43 +80,42 @@ public class WanderingAI : MonoBehaviour
     }
 
     /// <summary>
-    /// ¹«ÀÛÀ§ À§Ä¡¸¦ °è»êÇÏ°í Agent¿¡°Ô ÀÌµ¿ ¸í·É
+    /// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ Agentï¿½ï¿½ï¿½ï¿½ ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½
     /// </summary>
     void MoveToRandomPosition()
     {
-        // ±âÁØÁ¡ ¼³Á¤ (ÃÊ±â À§Ä¡ °íÁ¤ or ÇöÀç À§Ä¡ ±âÁØ)
+        // NavMesh ìœ„ì— ì—†ìœ¼ë©´ ì´ë™ ëª…ë ¹ ìŠ¤í‚µ
+        if (!agent.isOnNavMesh) return;
+
         Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
-
-        // NavMesh À§ÀÇ À¯È¿ÇÑ ·£´ı ÁÂÇ¥ ±¸ÇÏ±â
         Vector3 newPos = GetRandomPointOnNavMesh(origin, wanderRadius);
-
         agent.SetDestination(newPos);
     }
 
     /// <summary>
-    /// NavMesh.SamplePositionÀ» ÀÌ¿ëÇØ À¯È¿ÇÑ ¹«ÀÛÀ§ ÁÂÇ¥ ¹İÈ¯
+    /// NavMesh.SamplePositionï¿½ï¿½ ï¿½Ì¿ï¿½ï¿½ï¿½ ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½È¯
     /// </summary>
     public static Vector3 GetRandomPointOnNavMesh(Vector3 center, float range)
     {
-        for (int i = 0; i < 30; i++) // 30¹ø Á¤µµ ½Ãµµ (¸ø Ã£À» ¼öµµ ÀÖÀ¸¹Ç·Î)
+        for (int i = 0; i < 30; i++) // 30ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ãµï¿½ (ï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½)
         {
-            // 1. ±¸Ã¼ ÇüÅÂÀÇ ·£´ı ÁÂÇ¥ »ı¼º
+            // 1. ï¿½ï¿½Ã¼ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½ï¿½ï¿½
             Vector3 randomPoint = center + Random.insideUnitSphere * range;
 
-            // 2. ÇØ´ç ÁÂÇ¥ ±ÙÃ³¿¡ NavMesh(ÀÌµ¿ °¡´É ±¸¿ª)°¡ ÀÖ´ÂÁö È®ÀÎ
+            // 2. ï¿½Ø´ï¿½ ï¿½ï¿½Ç¥ ï¿½ï¿½Ã³ï¿½ï¿½ NavMesh(ï¿½Ìµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½ È®ï¿½ï¿½
             NavMeshHit hit;
             if (NavMesh.SamplePosition(randomPoint, out hit, 1.0f, NavMesh.AllAreas))
             {
-                // 3. Ã£¾Ò´Ù¸é ±× À§Ä¡ ¹İÈ¯
+                // 3. Ã£ï¿½Ò´Ù¸ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½È¯
                 return hit.position;
             }
         }
 
-        // ¸ø Ã£¾ÒÀ¸¸é ±×³É ¼¾ÅÍ ¹İÈ¯ (¿¡·¯ ¹æÁö)
+        // ï¿½ï¿½ Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½×³ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½È¯ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         return center;
     }
 
-    // ¿¡µğÅÍ »ó¿¡¼­ ÀÌµ¿ ¹İ°æÀ» ´«À¸·Î º¸±â À§ÇÑ ±âÁî¸ğ
+    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ó¿¡¼ï¿½ ï¿½Ìµï¿½ ï¿½İ°ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;

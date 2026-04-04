@@ -8,6 +8,8 @@ TagManager:
   - PlayerMesh
   - Edible
   - Sphere
+  - Bullet
+  - SpawnPoint
   layers:
   - Default
   - TransparentFX

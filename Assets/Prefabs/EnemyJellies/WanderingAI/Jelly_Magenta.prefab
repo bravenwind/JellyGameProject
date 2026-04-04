@@ -1041,11 +1041,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 5817949865764415074}
-  maxForce: 100
   destroyDistance: 0.3
   absorbTimer: 0
+  absorbSpeed: 30
   absorbing: 0
-  lockInTime: 3
   edibleCollider: {fileID: 6808936215534749870}
   agent: {fileID: 0}
   agentAI: {fileID: 0}
@@ -1060,8 +1059,8 @@ NavMeshAgent:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8836493012765761566}
   m_Enabled: 1
-  m_AgentTypeID: 0
-  m_Radius: 2.22
+  m_AgentTypeID: -334000983
+  m_Radius: 1
   m_Speed: 7
   m_Acceleration: 8
   avoidancePriority: 61
@@ -1070,7 +1069,7 @@ NavMeshAgent:
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
-  m_Height: 3.26
+  m_Height: 3
   m_BaseOffset: 1.84
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4

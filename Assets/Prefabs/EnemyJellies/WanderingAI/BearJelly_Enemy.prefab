@@ -237,12 +237,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 6486730944879907916}
-  maxForce: 100
   destroyDistance: 0.3
   absorbTimer: 0
-  lockInTime: 3
+  absorbSpeed: 30
+  absorbing: 0
   edibleCollider: {fileID: 0}
+  agent: {fileID: 0}
+  agentAI: {fileID: 0}
+  patrolAI: {fileID: 0}
   spritePrefab: {fileID: 3690400693589823696, guid: c1abc5d1dbf433148b1b6bcce719e8f0, type: 3}
+  renderer: {fileID: 0}
 --- !u!195 &2454194288807290536
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -296,6 +300,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   jellyName: 
   jellyType: 9
+  jellyRGB: {x: 0, y: 0, z: 0}
 --- !u!95 &4690639939252218573
 Animator:
   serializedVersion: 7

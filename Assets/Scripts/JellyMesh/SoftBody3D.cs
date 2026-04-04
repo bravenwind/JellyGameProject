@@ -165,7 +165,7 @@ public class SoftBody3D : MonoBehaviour
 
             // 부모 오브젝트의 플레이어 컨트롤러를 가져옵니다.
             PlayerController playerController = GetComponentInParent<PlayerController>();
-            if (playerController != null)
+            if (playerController != null && playerController.enabled)
             {
                 // 1. 공중에 떠 있다면 점프 모션 즉시 재생
                 if (!playerController.isGrounded)

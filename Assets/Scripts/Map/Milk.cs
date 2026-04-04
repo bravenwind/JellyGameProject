@@ -1,36 +1,33 @@
 ﻿using UnityEngine;
 using System.Collections;
+using Photon.Pun;
 
 public class Milk : MonoBehaviour
 {
     [Header("Settings")]
     [SerializeField] private float respawnTime = 5.0f; // 다시 나타날 시간
 
-    [Header("References")]
-    [SerializeField] private PlayerScaleController scaleController;
-    [SerializeField] private MainCamera_Action mainCamera_Action;
-
-    // 초기화 시 컴포넌트 자동 할당 (없을 경우)
-    private void Awake()
-    {
-        if (scaleController == null)
-            scaleController = FindFirstObjectByType<PlayerScaleController>();
-
-        if (mainCamera_Action == null)
-            mainCamera_Action = FindFirstObjectByType<MainCamera_Action>();
-    }
-
     private void OnTriggerEnter(Collider other)
     {
-        // 플레이어와 충돌했는지 확인
-        if (other.CompareTag("PlayerMesh"))
+        if (!other.CompareTag("PlayerMesh")) return;
+
+        // 멀티플레이어: 로컬 플레이어만 처리
+        NetworkPlayerSync nps = other.GetComponentInParent<NetworkPlayerSync>();
+        if (nps != null && !nps.photonView.IsMine) return;
+
+        PlayerScaleController sc = other.GetComponentInParent<PlayerScaleController>();
+        if (sc == null) return;
+
+        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.isSteppingMilk = true;
+
+        if (DataManager.Instance.playerCurrentScaleLevel != 1)
         {
-            PlaySFXAudio.Instance.isSteppingMilk = true;
-            // 플레이어 스케일 레벨이 1이 아닐 때만 실행
-            if (DataManager.Instance.playerCurrentScaleLevel != 1)
-            {
-                ApplyEffectAndHide();
-            }
+            sc.QueueScaleChange(sc.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
+
+            MainCamera_Action camAction = Camera.main?.GetComponent<MainCamera_Action>();
+            camAction?.ScaleDecreased();
+
+            StartCoroutine(RespawnRoutine());
         }
     }
 
@@ -38,27 +35,8 @@ public class Milk : MonoBehaviour
     {
         if (other.CompareTag("PlayerMesh"))
         {
-            PlaySFXAudio.Instance.isSteppingMilk = false;
+            if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.isSteppingMilk = false;
         }
-    }
-
-    // Milk.cs의 ApplyEffectAndHide 함수 수정
-    private void ApplyEffectAndHide()
-    {
-        // 1. 효과 실행 (스케일 감소 및 카메라 연출)
-        if (scaleController != null)
-        {
-            // 🔥 수정됨: StartCoroutine -> QueueScaleChange로 변경
-            scaleController.QueueScaleChange(scaleController.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
-        }
-
-        if (mainCamera_Action != null)
-        {
-            mainCamera_Action.ScaleDecreased();
-        }
-
-        // 2. 우유 오브젝트 숨기기 및 리스폰 코루틴 시작
-        StartCoroutine(RespawnRoutine());
     }
 
     private IEnumerator RespawnRoutine()

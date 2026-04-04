@@ -33,7 +33,34 @@ public class MainCamera_Action : MonoBehaviour
 
     void Awake()
     {
-        targetRb = target.GetComponent<Rigidbody>();
+        if (target != null)
+            targetRb = target.GetComponent<Rigidbody>();
+    }
+
+    private void OnEnable()
+    {
+        PlayerEvents.OnCameraScaleIncreased += ScaleIncreased;
+        PlayerEvents.OnCameraScaleDecreased += ScaleDecreased;
+        PlayerEvents.OnCameraOrthoSizeChanged += SetOrthographicSizeDirect;
+    }
+
+    private void OnDisable()
+    {
+        PlayerEvents.OnCameraScaleIncreased -= ScaleIncreased;
+        PlayerEvents.OnCameraScaleDecreased -= ScaleDecreased;
+        PlayerEvents.OnCameraOrthoSizeChanged -= SetOrthographicSizeDirect;
+    }
+
+    private void SetOrthographicSizeDirect(float size)
+    {
+        if (Camera.main != null)
+            Camera.main.orthographicSize = size;
+    }
+
+    public void SetTarget(Transform newTarget)
+    {
+        target = newTarget;
+        targetRb = target != null ? target.GetComponent<Rigidbody>() : null;
     }
 
     void LateUpdate()

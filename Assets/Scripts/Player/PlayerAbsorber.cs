@@ -23,20 +23,20 @@ public class PlayerAbsorber : MonoBehaviour
         }
     }
 
+    public bool isBot = false;
+
     public void AbsorbColor(JellyColorType type)
     {
-        DataManager.Instance.absorbedJellyCount++;
-        DataManager.Instance.currentScore += 100;
-
-        UIPoolManager.Instance.SpawnUI(UIType.JellyEat);
-        PlaySFXAudio.Instance.PlayColorMixSound();
-
-        // PlayerManager에게 젤리를 먹었다고 보고
-        OnJellyEaten?.Invoke(type);
-
-        if (DataManager.Instance.currentScore >= DataManager.Instance.targetScore)
+        if (!isBot)
         {
-            DataManager.Instance.missions[1].missionCleared = true;
+            DataManager.Instance.absorbedJellyCount++;
+            DataManager.Instance.currentScore += 100;
+            UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
+            if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
+            if (DataManager.Instance.currentScore >= DataManager.Instance.targetScore)
+                DataManager.Instance.missions[1].missionCleared = true;
         }
+
+        OnJellyEaten?.Invoke(type);
     }
 }

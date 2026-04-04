@@ -1,0 +1,229 @@
+// ============================================================
+// NetworkJellyManager.cs
+// ============================================================
+// 역할: 멀티플레이 환경에서 젤리 스폰/삭제를 관리
+//
+// [핵심 규칙]
+//   - 젤리 생성: MasterClient(방장)만 담당
+//     → "누가 스폰했는지"가 달라지면 중복/누락이 생김
+//   - 젤리 삭제: 흡수한 플레이어 클라이언트가 RPC로 요청
+//     → MasterClient가 PhotonNetwork.Destroy()로 실제 삭제
+//
+// [기존 RandomJellySpawner와의 차이]
+//   RandomJellySpawner → 싱글플레이용 (로컬 Instantiate)
+//   NetworkJellyManager → 멀티플레이용 (PhotonNetwork.Instantiate)
+// ============================================================
+
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using Photon.Pun;
+using Photon.Realtime;  // Player 타입이 여기 있음
+
+public class NetworkJellyManager : MonoBehaviourPunCallbacks
+{
+    // ─────────────────────────────────────────────────────────
+    // 싱글톤
+    // ─────────────────────────────────────────────────────────
+    public static NetworkJellyManager Instance { get; private set; }
+
+    // ─────────────────────────────────────────────────────────
+    // 인스펙터 설정
+    // ─────────────────────────────────────────────────────────
+    [Header("젤리 스폰 설정")]
+    [Tooltip("Resources 폴더 안에 있는 젤리 프리팹 이름들 (PhotonView 컴포넌트 필수!)")]
+    public string[] jellyPrefabNames;
+
+    [Tooltip("맵에 동시에 존재할 최대 젤리 수")]
+    public int maxJellyCount = 100;
+
+    [Tooltip("젤리 스폰 간격 (초)")]
+    public float spawnInterval = 2f;
+
+    [Header("스폰 범위")]
+    public float spawnRangeX = 30f;
+    public float spawnRangeZ = 30f;
+    public float spawnHeight = 0.5f;
+
+    // ─────────────────────────────────────────────────────────
+    // 내부 상태
+    // ─────────────────────────────────────────────────────────
+
+    // 현재 스폰된 젤리 목록 (MasterClient만 관리)
+    private List<GameObject> _spawnedJellies = new List<GameObject>();
+
+    private void Awake()
+    {
+        if (Instance == null) Instance = this;
+        else Destroy(gameObject);
+    }
+
+    private void Start()
+    {
+        // MasterClient만 젤리 스폰을 담당
+        if (PhotonNetwork.IsMasterClient)
+        {
+            StartCoroutine(SpawnRoutine());
+            Debug.Log("[JellyManager] MasterClient: 젤리 스폰 시작");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 스폰 루틴 (MasterClient 전용)
+    // ─────────────────────────────────────────────────────────
+
+    private IEnumerator SpawnRoutine()
+    {
+        // 처음에 젤리를 빠르게 채움 (배치 스폰)
+        int initialBatch = maxJellyCount / 2;
+        for (int i = 0; i < initialBatch; i++)
+        {
+            SpawnOneJelly();
+        }
+
+        // 이후 spawnInterval마다 하나씩 보충
+        while (true)
+        {
+            yield return new WaitForSeconds(spawnInterval);
+
+            // 삭제된 젤리 참조 정리
+            _spawnedJellies.RemoveAll(j => j == null);
+
+            if (_spawnedJellies.Count < maxJellyCount)
+            {
+                SpawnOneJelly();
+            }
+        }
+    }
+
+    private void SpawnOneJelly()
+    {
+        if (jellyPrefabNames == null || jellyPrefabNames.Length == 0) return;
+
+        // 랜덤 젤리 타입 선택
+        string prefabName = jellyPrefabNames[Random.Range(0, jellyPrefabNames.Length)];
+
+        // NavMesh 위의 유효한 위치에 스폰
+        Vector3 pos;
+        if (!TryGetNavMeshSpawnPosition(out pos))
+        {
+            Debug.LogWarning("[JellyManager] NavMesh 위 스폰 위치를 찾지 못했습니다. 스킵.");
+            return;
+        }
+
+        GameObject jelly = PhotonNetwork.Instantiate(prefabName, pos, Quaternion.identity);
+        _spawnedJellies.Add(jelly);
+    }
+
+    /// <summary>
+    /// NavMesh 위의 유효한 랜덤 위치를 찾아 반환
+    /// 젤리에 NavMeshAgent가 있으면 NavMesh 위에 스폰해야 에러가 안 남
+    /// </summary>
+    // NavMesh 실제 Y 높이 (자동 감지)
+    private float _navMeshBaseY = float.MinValue;
+
+    /// <summary>
+    /// NavMesh 실제 Y 좌표를 한 번만 감지해서 캐싱
+    /// SpawnPoint 태그 오브젝트 기준으로 찾거나, 넓은 반경으로 탐색
+    /// </summary>
+    private float GetNavMeshBaseY()
+    {
+        if (_navMeshBaseY != float.MinValue) return _navMeshBaseY;
+
+        // SpawnPoint 태그로 기준 Y 가져오기
+        GameObject[] spawnPts = GameObject.FindGameObjectsWithTag("SpawnPoint");
+        if (spawnPts.Length > 0)
+        {
+            _navMeshBaseY = spawnPts[0].transform.position.y;
+            Debug.Log($"[JellyManager] NavMesh 기준 Y = {_navMeshBaseY} (SpawnPoint 기준)");
+            return _navMeshBaseY;
+        }
+
+        // SpawnPoint 없으면 넓은 반경으로 탐색
+        UnityEngine.AI.NavMeshHit hit;
+        if (UnityEngine.AI.NavMesh.SamplePosition(Vector3.zero, out hit, 500f, UnityEngine.AI.NavMesh.AllAreas))
+        {
+            _navMeshBaseY = hit.position.y;
+            Debug.Log($"[JellyManager] NavMesh 기준 Y = {_navMeshBaseY} (자동 탐색)");
+            return _navMeshBaseY;
+        }
+
+        _navMeshBaseY = 0f;
+        return _navMeshBaseY;
+    }
+
+    private bool TryGetNavMeshSpawnPosition(out Vector3 result)
+    {
+        float baseY = GetNavMeshBaseY();
+
+        // 최대 30번 시도
+        for (int i = 0; i < 30; i++)
+        {
+            float x = Random.Range(-spawnRangeX, spawnRangeX);
+            float z = Random.Range(-spawnRangeZ, spawnRangeZ);
+            // 실제 NavMesh Y 기준으로 candidate 생성 (위로 5f 여유)
+            Vector3 candidate = new Vector3(x, baseY + 5f, z);
+
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 20f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                result = hit.position;
+                return true;
+            }
+        }
+
+        result = Vector3.zero;
+        return false;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 젤리 삭제 (누구든 요청 가능, MasterClient가 실제 삭제)
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 플레이어가 젤리를 흡수했을 때 호출
+    /// → MasterClient에게 삭제 요청 RPC 전송
+    /// </summary>
+    public void RequestDestroyJelly(GameObject jellyObject)
+    {
+        PhotonView jellyView = jellyObject.GetComponent<PhotonView>();
+        if (jellyView == null) return;
+
+        // MasterClient에게만 RPC 전송 (MasterClient가 Destroy 권한을 가짐)
+        photonView.RPC(nameof(RPC_DestroyJelly), RpcTarget.MasterClient, jellyView.ViewID);
+    }
+
+    /// <summary>
+    /// [RPC] MasterClient에서 젤리를 실제로 삭제
+    /// </summary>
+    [PunRPC]
+    private void RPC_DestroyJelly(int jellyViewID)
+    {
+        // MasterClient만 실행
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        PhotonView jellyView = PhotonView.Find(jellyViewID);
+        if (jellyView != null)
+        {
+            _spawnedJellies.Remove(jellyView.gameObject);
+            // PhotonNetwork.Destroy → 모든 클라이언트에서 오브젝트 제거
+            PhotonNetwork.Destroy(jellyView.gameObject);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // MasterClient 이전 처리
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// [자동 콜백] 방장이 나갔을 때 새 방장이 스폰 루틴 이어받음
+    /// </summary>
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log("[JellyManager] 새 MasterClient가 됨 → 스폰 루틴 이어받기");
+            StartCoroutine(SpawnRoutine());
+        }
+    }
+}

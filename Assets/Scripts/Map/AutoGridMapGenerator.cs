@@ -1,32 +1,32 @@
 using UnityEngine;
-// AI Navigation ÆÐÅ°Áö°¡ ¼³Ä¡µÇ¾î ÀÖ´Ù¸é ¾Æ·¡ ³×ÀÓ½ºÆäÀÌ½º¸¦ »ç¿ëÇÕ´Ï´Ù.
+// AI Navigation ï¿½ï¿½Å°ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Ç¾ï¿½ ï¿½Ö´Ù¸ï¿½ ï¿½Æ·ï¿½ ï¿½ï¿½ï¿½Ó½ï¿½ï¿½ï¿½ï¿½Ì½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
 using UnityEngine.AI;
-// Unity.AI.Navigation ÆÐÅ°Áö¸¦ ¾´´Ù¸é using Unity.AI.Navigation; ÀÌ ÇÊ¿äÇÒ ¼ö ÀÖ½À´Ï´Ù.
+// Unity.AI.Navigation ï¿½ï¿½Å°ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ù¸ï¿½ using Unity.AI.Navigation; ï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö½ï¿½ï¿½Ï´ï¿½.
 
 #if UNITY_EDITOR
-using UnityEditor; // ¿¡µðÅÍ °ü·Ã ±â´ÉÀ» À§ÇØ Ãß°¡
+using UnityEditor; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½
 #endif
 
 public class AutoGridMapGenerator : MonoBehaviour
 {
-    [Header("¼³Á¤")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
     public GameObject tilePrefab;
     public int width = 10;
     public int height = 10;
     public float gap = 0.0f;
 
-    [Header("¿É¼Ç")]
+    [Header("ï¿½É¼ï¿½")]
     public bool centerGrid = true;
     public bool addAreaCollider = true;
 
-    [Header("NavMesh ¼³Á¤")]
-    [Tooltip("»ý¼º ÈÄ ÀÚµ¿À¸·Î NavMesh¸¦ º£ÀÌÅ©ÇÒÁö ¿©ºÎ")]
+    [Header("NavMesh ï¿½ï¿½ï¿½ï¿½")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ NavMeshï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å©ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     public bool autoBakeNavMesh = true;
-    [Tooltip("»ý¼ºµÈ Å¸ÀÏÀ» StaticÀ¸·Î ¼³Á¤ÇÒÁö ¿©ºÎ (NavMesh ÇÊ¼ö)")]
+    [Tooltip("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Å¸ï¿½ï¿½ï¿½ï¿½ Staticï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (NavMesh ï¿½Ê¼ï¿½)")]
     public bool setStatic = true;
 
-    // AI Navigation ÆÐÅ°ÁöÀÇ NavMeshSurface ÄÄÆ÷³ÍÆ® ÂüÁ¶
-    // (ÄÄÆÄÀÏ ¿¡·¯ ¹æÁö¸¦ À§ÇØ µ¿ÀûÀ¸·Î Ã£°Å³ª, ÆÐÅ°Áö ¼³Ä¡ ÈÄ ÁÖ¼® ÇØÁ¦ÇÏ¿© »ç¿ë ±ÇÀå)
+    // AI Navigation ï¿½ï¿½Å°ï¿½ï¿½ï¿½ï¿½ NavMeshSurface ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+    // (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã£ï¿½Å³ï¿½, ï¿½ï¿½Å°ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ ï¿½Ö¼ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¿ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
     // public Unity.AI.Navigation.NavMeshSurface navMeshSurface; 
 
     private void Start()
@@ -34,24 +34,24 @@ public class AutoGridMapGenerator : MonoBehaviour
         // GenerateGrid();
     }
 
-    [ContextMenu("ÁöÇü »ý¼ºÇÏ±â (Generate)")]
+    [ContextMenu("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï±ï¿½ (Generate)")]
     public void GenerateGrid()
     {
         ClearGrid();
 
         if (tilePrefab == null)
         {
-            Debug.LogError("Å¸ÀÏ ÇÁ¸®ÆÕÀÌ ¾ø½À´Ï´Ù.");
+            Debug.LogError("Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.");
             return;
         }
 
-        // 1. ÇÁ¸®ÆÕ Å©±â ÃøÁ¤
+        // 1. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         Renderer prefabRenderer = tilePrefab.GetComponent<Renderer>();
         if (prefabRenderer == null) prefabRenderer = tilePrefab.GetComponentInChildren<Renderer>();
 
         if (prefabRenderer == null)
         {
-            Debug.LogError("Renderer¸¦ Ã£À» ¼ö ¾ø½À´Ï´Ù.");
+            Debug.LogError("Rendererï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.");
             return;
         }
 
@@ -60,7 +60,7 @@ public class AutoGridMapGenerator : MonoBehaviour
         float stepX = tileSize.x + gap;
         float stepZ = tileSize.z + gap;
 
-        // 2. Å¸ÀÏ »ý¼º (·çÇÁ)
+        // 2. Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½)
         for (int x = 0; x < width; x++)
         {
             for (int z = 0; z < height; z++)
@@ -80,28 +80,28 @@ public class AutoGridMapGenerator : MonoBehaviour
                 newTile.transform.SetParent(this.transform);
                 newTile.name = $"Tile_{x}_{z}";
 
-                // [Ãß°¡µÊ] NavMesh ÀÎ½ÄÀ» À§ÇØ Static ¼³Á¤
+                // [ï¿½ß°ï¿½ï¿½ï¿½] NavMesh ï¿½Î½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Static ï¿½ï¿½ï¿½ï¿½
                 if (setStatic)
                 {
                     newTile.isStatic = true;
 
-                    // ¿¡µðÅÍ ¸ðµåÀÏ °æ¿ì Navigation Static ÇÃ·¡±×¸¦ È®½ÇÇÏ°Ô ¼³Á¤
+                    // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ Navigation Static ï¿½Ã·ï¿½ï¿½×¸ï¿½ È®ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½
 #if UNITY_EDITOR
-                    GameObjectUtility.SetStaticEditorFlags(newTile, StaticEditorFlags.NavigationStatic);
+                    GameObjectUtility.SetStaticEditorFlags(newTile, GameObjectUtility.GetStaticEditorFlags(newTile) | StaticEditorFlags.BatchingStatic);
 #endif
                 }
             }
         }
 
-        // 3. ÄÝ¶óÀÌ´õ Àû¿ë
+        // 3. ï¿½Ý¶ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½
         if (addAreaCollider)
         {
             ApplyColliderMath(tileSize, stepX, stepZ, centerOffsetY);
         }
 
-        Debug.Log($"»ý¼º ¿Ï·á: {width}x{height}");
+        Debug.Log($"ï¿½ï¿½ï¿½ï¿½ ï¿½Ï·ï¿½: {width}x{height}");
 
-        // 4. [Ãß°¡µÊ] NavMesh ÀÚµ¿ º£ÀÌÅ©
+        // 4. [ï¿½ß°ï¿½ï¿½ï¿½] NavMesh ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½Å©
         if (autoBakeNavMesh)
         {
             BakeNavMesh();
@@ -110,24 +110,24 @@ public class AutoGridMapGenerator : MonoBehaviour
 
     private void BakeNavMesh()
     {
-        // ¹æ¹ý A: NavMeshSurface ÄÄÆ÷³ÍÆ®¸¦ »ç¿ëÇÏ´Â ÃÖ½Å ¹æ½Ä (±ÇÀå)
-        // Unity.AI.Navigation ÆÐÅ°Áö°¡ ÇÊ¿äÇÕ´Ï´Ù.
-        // ¿©±â¼­´Â ¸®ÇÃ·º¼ÇÀÌ³ª GetComponent¸¦ ÅëÇØ µ¿ÀûÀ¸·Î Ã³¸®ÇÏ°Å³ª,
-        // »ç¿ëÀÚ°¡ Á÷Á¢ public NavMeshSurface surface; º¯¼ö¸¦ ¼±¾ðÇØ¼­ ¿¬°áÇØ¾ß ÇÕ´Ï´Ù.
+        // ï¿½ï¿½ï¿½ A: NavMeshSurface ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ö½ï¿½ ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½)
+        // Unity.AI.Navigation ï¿½ï¿½Å°ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½Õ´Ï´ï¿½.
+        // ï¿½ï¿½ï¿½â¼­ï¿½ï¿½ ï¿½ï¿½ï¿½Ã·ï¿½ï¿½ï¿½ï¿½Ì³ï¿½ GetComponentï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½Ï°Å³ï¿½,
+        // ï¿½ï¿½ï¿½ï¿½Ú°ï¿½ ï¿½ï¿½ï¿½ï¿½ public NavMeshSurface surface; ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¼ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½Õ´Ï´ï¿½.
 
-        // ÆíÀÇ»ó NavMeshSurface¶ó´Â ÀÌ¸§ÀÇ ÄÄÆ÷³ÍÆ®°¡ ºÙ¾îÀÖÀ¸¸é BuildNavMesh¸¦ È£ÃâÇÕ´Ï´Ù.
+        // ï¿½ï¿½ï¿½Ç»ï¿½ NavMeshSurfaceï¿½ï¿½ï¿½ ï¿½Ì¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½Ù¾ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ BuildNavMeshï¿½ï¿½ È£ï¿½ï¿½ï¿½Õ´Ï´ï¿½.
         Component surface = GetComponent("NavMeshSurface");
         if (surface != null)
         {
-            // surface.BuildNavMesh(); ¿Í µ¿ÀÏÇÑ µ¿ÀÛÀ» ¼öÇà
-            // (ÆÐÅ°Áö ¹Ì¼³Ä¡ ½Ã ÄÄÆÄÀÏ ¿¡·¯¸¦ ¸·±â À§ÇØ SendMessage »ç¿ë ¿¹½Ã)
+            // surface.BuildNavMesh(); ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
+            // (ï¿½ï¿½Å°ï¿½ï¿½ ï¿½Ì¼ï¿½Ä¡ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ SendMessage ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
             surface.SendMessage("BuildNavMesh", SendMessageOptions.DontRequireReceiver);
-            Debug.Log("NavMeshSurface¸¦ ÅëÇØ º£ÀÌÅ© ¿Ï·á.");
+            Debug.Log("NavMeshSurfaceï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å© ï¿½Ï·ï¿½.");
         }
         else
         {
-            Debug.LogWarning("NavMeshSurface ÄÄÆ÷³ÍÆ®°¡ ¾ø½À´Ï´Ù. ÀÚµ¿À¸·Î º£ÀÌÅ©µÇÁö ¾Ê¾Ò½À´Ï´Ù.\n" +
-                             "GameObject¿¡ 'NavMeshSurface' ÄÄÆ÷³ÍÆ®¸¦ Ãß°¡ÇÏ¼¼¿ä.");
+            Debug.LogWarning("NavMeshSurface ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½. ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Å©ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¾Ò½ï¿½ï¿½Ï´ï¿½.\n" +
+                             "GameObjectï¿½ï¿½ 'NavMeshSurface' ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ß°ï¿½ï¿½Ï¼ï¿½ï¿½ï¿½.");
         }
     }
 
@@ -158,7 +158,7 @@ public class AutoGridMapGenerator : MonoBehaviour
         boxCol.center = new Vector3(centerX, centerOffsetY, centerZ);
     }
 
-    [ContextMenu("ÁöÇü Áö¿ì±â (Clear)")]
+    [ContextMenu("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ (Clear)")]
     public void ClearGrid()
     {
         while (transform.childCount > 0)
@@ -175,7 +175,7 @@ public class AutoGridMapGenerator : MonoBehaviour
             else DestroyImmediate(boxCol);
         }
 
-        // NavMesh µ¥ÀÌÅÍ´Â Clear ½Ã ÀÚµ¿À¸·Î Áö¿öÁöÁö ¾ÊÁö¸¸, 
-        // ´Ù½Ã GenerateÇÏ¸é µ¤¾î¾º¿öÁö¹Ç·Î º°µµ Ã³¸®´Â ÇÊ¿ä ¾ø½À´Ï´Ù.
+        // NavMesh ï¿½ï¿½ï¿½ï¿½ï¿½Í´ï¿½ Clear ï¿½ï¿½ ï¿½Úµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½, 
+        // ï¿½Ù½ï¿½ Generateï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½î¾ºï¿½ï¿½ï¿½ï¿½ï¿½Ç·ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.
     }
 }

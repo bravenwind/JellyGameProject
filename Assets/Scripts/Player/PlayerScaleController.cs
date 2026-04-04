@@ -16,17 +16,57 @@ public class PlayerScaleController : MonoBehaviour
     private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
     private bool isScaling = false;
 
+    public bool isBot = false;
+    private int _botScaleLevel = 1;
+    public int BotScaleLevel => _botScaleLevel;
+
     private void Start()
     {
         originalScale = Vector3.one;
         currentScale = transform.localScale;
-        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
-        PlayerEvents.OnScaleUIUpdate?.Invoke();
+        if (!isBot)
+        {
+            DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
+            PlayerEvents.OnScaleUIUpdate?.Invoke();
+        }
+    }
+
+    /// <summary>봇 전용 레벨업 (DataManager 독립)</summary>
+    public void BotLevelUp()
+    {
+        if (_botScaleLevel >= DataManager.Instance.maxScaleLevel) return;
+        _botScaleLevel++;
+        QueueScaleChange(BotIncreaseScale(_botScaleLevel, DataManager.Instance.scaleIncreaseTime));
+    }
+
+    private IEnumerator BotIncreaseScale(int level, float duration)
+    {
+        int idx = Mathf.Clamp(level - 1, 0, DataManager.Instance.scalePerLevel.Length - 1);
+        Vector3 start  = currentScale;
+        Vector3 target = originalScale * DataManager.Instance.scalePerLevel[idx];
+
+        if (softBody3D != null) softBody3D.DisableCloth();
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            currentScale = Vector3.Lerp(start, target, t / duration);
+            transform.localScale = currentScale;
+            yield return null;
+        }
+        transform.localScale = currentScale = target;
+
+        if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
+
+        // 스케일 변경 후 CharacterController 캡슐이 지면에 박히지 않도록 재정렬
+        AIPlayerMovement aiMovement = GetComponent<AIPlayerMovement>();
+        if (aiMovement != null) aiMovement.RecenterCC();
     }
 
     private void Update()
     {
-        // ���̷�Ʈ ������ ���� (����� 1~5)
+        // ���̷�Ʈ ������ ���� (����� 1~5)
         if (Input.GetKeyDown(KeyCode.Alpha1)) StartCoroutine(ChangeScaleToLevel(1, DataManager.Instance.scaleIncreaseTime));
         if (Input.GetKeyDown(KeyCode.Alpha2)) StartCoroutine(ChangeScaleToLevel(2, DataManager.Instance.scaleIncreaseTime));
         if (Input.GetKeyDown(KeyCode.Alpha3)) StartCoroutine(ChangeScaleToLevel(3, DataManager.Instance.scaleIncreaseTime));
@@ -74,7 +114,7 @@ public class PlayerScaleController : MonoBehaviour
         if (softBody3D != null) softBody3D.DisableCloth();
 
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
-        UIPoolManager.Instance.SpawnUI(UIType.ScaleIncrease);
+        UIPoolManager.Instance?.SpawnUI(UIType.ScaleIncrease);
 
         PlayerEvents.OnCameraScaleIncreased?.Invoke();
 
@@ -108,7 +148,7 @@ public class PlayerScaleController : MonoBehaviour
         DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + DataManager.Instance.detectPlusRadiusPerLevel * (DataManager.Instance.playerCurrentScaleLevel - 1);
 
         if (softBody3D != null) softBody3D.DisableCloth();
-        UIPoolManager.Instance.SpawnUI(UIType.MilkScaleDecrease);
+        UIPoolManager.Instance?.SpawnUI(UIType.MilkScaleDecrease);
 
         Vector3 startScale = currentScale;
         int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);
@@ -178,6 +218,15 @@ public class PlayerScaleController : MonoBehaviour
 
 
         if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
+    }
+
+    /// <summary>봇 전용: DataManager 없이 특정 레벨로 즉시 스케일 변경</summary>
+    public void SetScaleLevel(int level)
+    {
+        int idx = Mathf.Clamp(level - 1, 0, DataManager.Instance.scalePerLevel.Length - 1);
+        float s = DataManager.Instance.scalePerLevel[idx];
+        currentScale = Vector3.one * s;
+        transform.localScale = currentScale;
     }
 
     public void ResetScale()

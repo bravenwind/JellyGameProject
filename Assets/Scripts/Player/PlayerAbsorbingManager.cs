@@ -25,13 +25,26 @@ public class PlayerAbsorbingManager : MonoBehaviour
         }
     }
 
+    public bool isBot = false;
+    private int _botAbsorbCount = 0;
+
     private void HandleJellyEaten(JellyColorType type)
     {
-        // 1. 색 변경
         colorVisual.HandleJellyAbsorbed(type);
 
-        // 2. 크기 변경 체크
-        scaleController.CheckScaleUp();
+        if (isBot)
+        {
+            _botAbsorbCount++;
+            if (_botAbsorbCount >= DataManager.Instance.scaleLevelUpExp)
+            {
+                _botAbsorbCount = 0;
+                scaleController.BotLevelUp();
+            }
+        }
+        else
+        {
+            scaleController.CheckScaleUp();
+        }
     }
 
     private void HandleReset()

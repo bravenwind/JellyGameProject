@@ -112,7 +112,7 @@ public class ChocolateFluid : MonoBehaviour
             {
                 // 젤리 애니메이션 멈추기 (본인 프로젝트의 파라미터 이름에 맞게 하나만 남기고 수정하세요!)
                 //animator.SetFloat("Speed", 0f);      // Float로 속도를 제어하는 경우
-                animator.SetBool("IsWalking", false); // Bool로 걷기를 제어하는 경우
+                //animator.SetBool("IsWalking", false); // Bool로 걷기를 제어하는 경우
             }
 
             // AI 끄기

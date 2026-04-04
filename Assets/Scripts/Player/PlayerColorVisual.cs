@@ -25,32 +25,36 @@ public class PlayerColorVisual : MonoBehaviour
     public string BaseColor_02Property = "_BaseColor_02";
     public string FresnelProperty = "_FresnelColor";
 
+    public bool isBot = false;
+    private Color32 _botSystemColor = Color.black; // 봇 전용 누산 색상
+
     private Coroutine currentCoroutine;
 
     private void Start()
     {
         if (rend == null) rend = GetComponentInChildren<Renderer>();
 
-        originalBaseColor = DataManager.Instance.initialViewColor;
+        originalBaseColor    = DataManager.Instance.initialViewColor;
         originalFresnelColor = DataManager.Instance.initialViewColor;
         originalBaseColor_02 = GetLighterColor(originalBaseColor, baseColor02Lightness);
 
-        currentBaseColor = originalBaseColor;
+        currentBaseColor    = originalBaseColor;
         currentFresnelColor = originalFresnelColor;
         currentBaseColor_02 = originalBaseColor_02;
 
-        DataManager.Instance.currentColor = DataManager.Instance.initialViewColor;
-        DataManager.Instance.targetColor = DataManager.Instance.currentColor;
-        DataManager.Instance.systemCurrentColor = DataManager.Instance.initialViewColor;
-
         rend.material.SetColor(BaseColor_01Property, currentBaseColor);
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
-        rend.material.SetColor(FresnelProperty, currentFresnelColor);
+        rend.material.SetColor(FresnelProperty,       currentFresnelColor);
 
-        DataManager.Instance.currentColor = DataManager.Instance.initialSystemColor;
-        DataManager.Instance.targetColor = DataManager.Instance.currentColor;
-
-        PlayerEvents.OnColorUIUpdate?.Invoke();
+        if (!isBot)
+        {
+            DataManager.Instance.currentColor       = DataManager.Instance.initialViewColor;
+            DataManager.Instance.targetColor        = DataManager.Instance.currentColor;
+            DataManager.Instance.systemCurrentColor = DataManager.Instance.initialViewColor;
+            DataManager.Instance.currentColor       = DataManager.Instance.initialSystemColor;
+            DataManager.Instance.targetColor        = DataManager.Instance.currentColor;
+            PlayerEvents.OnColorUIUpdate?.Invoke();
+        }
     }
 
     public void HandleJellyAbsorbed(JellyColorType type)
@@ -75,9 +79,10 @@ public class PlayerColorVisual : MonoBehaviour
 
     private void ApplyJellyColor(Vector3 change)
     {
-        Color32 baseSystem = DataManager.Instance.systemCurrentColor;
+        Color32 baseSystem = isBot ? _botSystemColor : DataManager.Instance.systemCurrentColor;
         Color32 nextSystemColor = baseSystem.AddRGB((int)change.x, (int)change.y, (int)change.z);
-        DataManager.Instance.systemCurrentColor = nextSystemColor;
+        if (isBot) _botSystemColor = nextSystemColor;
+        else DataManager.Instance.systemCurrentColor = nextSystemColor;
 
         JellyColorType determinedType = DataManager.Instance.DetermineCurrentColor(nextSystemColor);
         Color32 visualTarget = nextSystemColor;
@@ -95,15 +100,15 @@ public class PlayerColorVisual : MonoBehaviour
             }
         }
 
-        // 체크 이미지 UI 업데이트 요청
-        if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
+        if (!isBot)
         {
-            PlayerEvents.OnTargetColorChecked?.Invoke(true);
-            Debug.Log($"[게임 클리어] 목표 색상인 {determinedType} 달성!");
-        }
-        else
-        {
-            PlayerEvents.OnTargetColorChecked?.Invoke(false);
+            if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
+            {
+                PlayerEvents.OnTargetColorChecked?.Invoke(true);
+                Debug.Log($"[게임 클리어] 목표 색상인 {determinedType} 달성!");
+            }
+            else
+                PlayerEvents.OnTargetColorChecked?.Invoke(false);
         }
 
         targetBaseColor = visualTarget;
