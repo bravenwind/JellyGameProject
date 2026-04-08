@@ -115,8 +115,8 @@ GameObject:
   - component: {fileID: 7905855228646713728}
   - component: {fileID: 4271440125799119361}
   - component: {fileID: 365858056229833277}
-  - component: {fileID: 3832500137166153991}
   - component: {fileID: 2786491381095114607}
+  - component: {fileID: 9149948584432912989}
   m_Layer: 6
   m_Name: AIBot
   m_TagString: Player
@@ -156,9 +156,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 6
   rotateSpeed: 10
-  gravity: -20
   detectRadius: 15
   pathRefreshRate: 2
+  baseAgentRadius: 0.77
+  baseAgentHeight: 1.51
+  _currentState: 0
+  _dbg_isOnNavMesh: 0
+  _dbg_hasPath: 0
+  _dbg_remainingDist: 0
+  _dbg_velocity: 0
+  _dbg_distToWanderTarget: 0
+  _dbg_hasWanderTarget: 0
+  _dbg_wanderSkipReason: '-'
+  _dbg_chaseTargetExists: 0
+  _dbg_distToChaseTarget: 0
+  _dbg_chasePathStatus: '-'
 --- !u!114 &3536485665450355811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -346,31 +358,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!143 &3832500137166153991
-CharacterController:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Height: 1.5
-  m_Radius: 0.5
-  m_SlopeLimit: 90
-  m_StepOffset: 0.3
-  m_SkinWidth: 0.08
-  m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &2786491381095114607
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -398,6 +385,28 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!195 &9149948584432912989
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_AgentTypeID: 0
+  m_Radius: 0.77
+  m_Speed: 3.5
+  m_Acceleration: 8
+  avoidancePriority: 50
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0.5
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 1.51
+  m_BaseOffset: 0.67
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
 --- !u!1 &1243590521275635783
 GameObject:
   m_ObjectHideFlags: 0

@@ -15,6 +15,7 @@ public class PlayerScaleController : MonoBehaviour
 
     private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
     private bool isScaling = false;
+    public bool IsScaling => isScaling;
 
     public bool isBot = false;
     private int _botScaleLevel = 1;
