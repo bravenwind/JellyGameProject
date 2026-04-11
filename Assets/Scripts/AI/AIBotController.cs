@@ -279,33 +279,27 @@ public class AIBotController : MonoBehaviourPun, IPunObservable
     }
 
     // ================================================================
-    // 색상 (Renderer 직접 제어, DataManager 독립)
+    // 색상 (RYB 기반, Renderer 직접 제어)
     // ================================================================
-    private Color32 _sysColor = Color.black;
+    private RYBColor _botRYB = RYBColor.white;
 
     private void ApplyColor(JellyColorType type)
     {
         if (jellyRenderer == null) return;
 
-        Vector3Int eff = DataManager.Instance.GetJellyEffect(type);
-        int r = Mathf.Clamp(_sysColor.r + eff.x, 0, 255);
-        int g = Mathf.Clamp(_sysColor.g + eff.y, 0, 255);
-        int b = Mathf.Clamp(_sysColor.b + eff.z, 0, 255);
-        _sysColor = new Color32((byte)r, (byte)g, (byte)b, 255);
-
-        JellyColorType determined = DataManager.Instance.DetermineCurrentColor(_sysColor);
-        Color32 visual = _sysColor;
-        switch (determined)
+        if (type == JellyColorType.White)
         {
-            case JellyColorType.Red:     visual = Color.red;     break;
-            case JellyColorType.Green:   visual = Color.green;   break;
-            case JellyColorType.Blue:    visual = Color.blue;    break;
-            case JellyColorType.Cyan:    visual = Color.cyan;    break;
-            case JellyColorType.Magenta: visual = Color.magenta; break;
-            case JellyColorType.Yellow:  visual = Color.yellow;  break;
+            _botRYB = RYBColor.white;
+        }
+        else
+        {
+            RYBColor effect = DataManager.Instance.GetJellyRYBEffect(type);
+            _botRYB = _botRYB.Add(effect);
         }
 
-        jellyRenderer.material.SetColor("_BaseColor_01", visual);
+        Color visual = _botRYB.ToRGB();
+
+        jellyRenderer.material.SetColor("_BaseColor_01", visual * 0.85f);
         jellyRenderer.material.SetColor("_FresnelColor",  visual);
         jellyRenderer.material.SetColor("_BaseColor_02",  Color.Lerp(visual, Color.white, 0.6f));
     }

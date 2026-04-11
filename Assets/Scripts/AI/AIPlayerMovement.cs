@@ -85,7 +85,8 @@ public class AIPlayerMovement : MonoBehaviourPun
     [SerializeField] private string _dbg_chasePathStatus   = "-";
     // 멈춤 감지용
     private float _stopTimer = 0f;
-    private const float STOP_LOG_THRESHOLD = 0.5f;
+    private const float STOP_LOG_THRESHOLD    = 0.5f;
+    private const float STUCK_RECOVERY_THRESHOLD = 1.5f; // 이 시간 이상 정지 시 강제 목적지 갱신
 
     private void Awake()
     {
@@ -300,7 +301,18 @@ public class AIPlayerMovement : MonoBehaviourPun
             if (_agent.velocity.magnitude < 0.05f)
             {
                 _stopTimer += Time.deltaTime;
-                if (_stopTimer >= STOP_LOG_THRESHOLD)
+                if (_stopTimer >= STUCK_RECOVERY_THRESHOLD)
+                {
+                    // 일정 시간 이상 정지 → 강제로 현재 목적지·경로 초기화 후 WanderRoutine이 새 목적지 선택
+                    _hasWanderTarget      = false;
+                    _agent.ResetPath();
+                    _stopTimer            = 0f;
+                    _dbg_wanderSkipReason = "stuck recovery";
+                    Debug.LogWarning(
+                        $"[AIBot:{name}] Wander 장기 정지 감지 → 목적지 강제 갱신 | " +
+                        $"remainingDist={_dbg_remainingDist:F2} skipReason 이전={_dbg_wanderSkipReason}");
+                }
+                else if (_stopTimer >= STOP_LOG_THRESHOLD)
                 {
                     Debug.LogWarning(
                         $"[AIBot:{name}] Wander 정지 {_stopTimer:F1}s | " +
@@ -308,7 +320,6 @@ public class AIPlayerMovement : MonoBehaviourPun
                         $"remainingDist={_dbg_remainingDist:F2} " +
                         $"hasWanderTarget={_dbg_hasWanderTarget} distToTarget={_dbg_distToWanderTarget:F2} " +
                         $"skipReason={_dbg_wanderSkipReason}");
-                    _stopTimer = 0f;
                 }
             }
             else { _stopTimer = 0f; }
@@ -426,7 +437,11 @@ public class AIPlayerMovement : MonoBehaviourPun
             // SetPath 이후 0.5초 쿨다운 내에는 hasPath=False여도 실패로 보지 않음
             bool pathFailed = _hasWanderTarget && !_agent.hasPath
                               && (Time.time - _lastSetDestTime) > 0.5f;
-            bool needNew = !_hasWanderTarget || distToTarget < 1.5f || pathFailed;
+            // PathPartial 경로는 remainingDistance=Infinity를 유발 → 같은 쿨다운 뒤 강제 갱신
+            bool pathInfinity = _hasWanderTarget && _agent.hasPath
+                                && float.IsPositiveInfinity(_agent.remainingDistance)
+                                && (Time.time - _lastSetDestTime) > 0.5f;
+            bool needNew = !_hasWanderTarget || distToTarget < 1.5f || pathFailed || pathInfinity;
 
             if (!needNew)
             {
@@ -449,22 +464,10 @@ public class AIPlayerMovement : MonoBehaviourPun
                 }
                 else
                 {
-                    // 경로 부분적이거나 없음 → Partial이면 일단 허용, Invalid면 재시도
-                    if (_cachedPath.status == NavMeshPathStatus.PathPartial
-                        && _cachedPath.corners.Length > 1)
-                    {
-                        _wanderTarget    = _cachedPath.corners[^1];
-                        _hasWanderTarget = true;
-                        _agent.SetPath(_cachedPath);
-                        _lastSetDestTime = Time.time;
-                        _dbg_wanderSkipReason = $"set partial path corners={_cachedPath.corners.Length}";
-                    }
-                    else
-                    {
-                        _hasWanderTarget      = false;
-                        _dbg_wanderSkipReason = $"CalculatePath failed status={_cachedPath.status} dest={dest}";
-                        Debug.LogWarning($"[AIBot:{name}] CalculatePath 실패 status={_cachedPath.status} dest={dest}");
-                    }
+                    // PathPartial 경로는 remainingDistance=Infinity를 유발해 왔다갔다 버그 원인
+                    // → Wander에서는 PathComplete만 허용, 실패 시 다음 프레임에 재시도
+                    _hasWanderTarget      = false;
+                    _dbg_wanderSkipReason = $"CalculatePath failed status={_cachedPath.status} dest={dest}";
                 }
             }
             else
@@ -509,9 +512,10 @@ public class AIPlayerMovement : MonoBehaviourPun
             _agent.Warp(hit.position);
 
         // 상태 복귀
-        _prevScaleLevel = GetMyScaleLevel();
-        _currentState = _stateBeforeScale;
-        _chaseTarget = null;
+        _prevScaleLevel  = GetMyScaleLevel();
+        _currentState    = _stateBeforeScale;
+        _chaseTarget     = null;
+        _hasWanderTarget = false; // Warp로 경로가 초기화되므로 새 목적지 즉시 탐색
     }
 
     /// <summary>봇 스케일 감소 시작 시 외부에서 호출 (ex. 우유 맞음)</summary>

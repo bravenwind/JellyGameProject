@@ -16,10 +16,13 @@ public static class ColorExtensions
 
 public static class PlayerEvents
 {
-    // Á©¸®¸¦ ¸Ô¾úÀ» ¶§ ¹ß»ıÇÏ´Â ÀÌº¥Æ®
+    // ì ¤ë¦¬ í¡ìˆ˜ ì‹œ ë°œìƒí•˜ëŠ” ì´ë²¤íŠ¸
     public static Action<JellyColorType> OnJellyAbsorbed;
 
-    // UI ¾÷µ¥ÀÌÆ® ¿äÃ» ÀÌº¥Æ®
+    // ìƒ‰ìƒ ë³€ê²½ ì´ë²¤íŠ¸ (RYB) â€” ì§€ë°° ìƒ‰ìƒ íƒ€ì… + í˜„ì¬ RYB ê°’
+    public static Action<JellyColorType, RYBColor> OnColorChanged;
+
+    // UI ì—…ë°ì´íŠ¸ ìš”ì²­ ì´ë²¤íŠ¸
     public static Action OnColorUIUpdate;
     public static Action OnScaleUIUpdate;
 
@@ -30,7 +33,7 @@ public static class PlayerEvents
     public static Action<int> OnCameraLevelChanged;
     public static Action<float> OnCameraOrthoSizeChanged;
 
-    // °ÔÀÓ »óÅÂ ÀÌº¥Æ®
+    // ëª©í‘œ ìƒ‰ìƒ ì´ë²¤íŠ¸
     public static Action<bool> OnTargetColorChecked;
-    public static Action OnPlayerResetRequested; // RÅ° ´­·¶À» ¶§
+    public static Action OnPlayerResetRequested;
 }

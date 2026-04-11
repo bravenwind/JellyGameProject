@@ -15,7 +15,7 @@ public class CurrentStatusUI : MonoBehaviour
 
     public void UpdateColorUI()
     {
-        currentColorImage.color = new Color32(DataManager.Instance.currentColor.r, DataManager.Instance.currentColor.g, DataManager.Instance.currentColor.b, 255);
+        currentColorImage.color = DataManager.Instance.GetCurrentDisplayColor();
     }
 
     public void UpdateScaleUI()

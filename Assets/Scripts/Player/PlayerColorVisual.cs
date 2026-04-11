@@ -1,24 +1,22 @@
-﻿using System.Collections;
+using System.Collections;
 using UnityEngine;
 
 public class PlayerColorVisual : MonoBehaviour
 {
     public Renderer rend;
 
-    private Color32 originalBaseColor;
-    private Color32 originalBaseColor_02;
-    public Color32 originalFresnelColor;
+    private Color originalBaseColor;
+    private Color originalBaseColor_02;
+    public Color originalFresnelColor;
 
-    private Color32 currentBaseColor;
-    private Color32 currentBaseColor_02;
-    public Color32 currentFresnelColor;
-
-    private Color32 targetBaseColor;
-    private Color32 targetBaseColor_02;
-    public Color32 targetFresnelColor;
+    private Color currentBaseColor;
+    private Color currentBaseColor_02;
+    public Color currentFresnelColor;
 
     [Header("Color Settings")]
     [Range(0f, 1f)] public float baseColor02Lightness = 0.6f;
+    [Tooltip("색상 전환 애니메이션 시간")]
+    public float blendTime = 0.5f;
 
     [Header("Material_Property")]
     public string BaseColor_01Property = "_BaseColor_01";
@@ -26,7 +24,7 @@ public class PlayerColorVisual : MonoBehaviour
     public string FresnelProperty = "_FresnelColor";
 
     public bool isBot = false;
-    private Color32 _botSystemColor = Color.black; // 봇 전용 누산 색상
+    private RYBColor _botRYBColor = RYBColor.white; // 봇 전용 RYB 색상
 
     private Coroutine currentCoroutine;
 
@@ -34,8 +32,8 @@ public class PlayerColorVisual : MonoBehaviour
     {
         if (rend == null) rend = GetComponentInChildren<Renderer>();
 
-        originalBaseColor    = DataManager.Instance.initialViewColor;
-        originalFresnelColor = DataManager.Instance.initialViewColor;
+        originalBaseColor    = Color.white;
+        originalFresnelColor = Color.white;
         originalBaseColor_02 = GetLighterColor(originalBaseColor, baseColor02Lightness);
 
         currentBaseColor    = originalBaseColor;
@@ -48,78 +46,69 @@ public class PlayerColorVisual : MonoBehaviour
 
         if (!isBot)
         {
-            DataManager.Instance.currentColor       = DataManager.Instance.initialViewColor;
-            DataManager.Instance.targetColor        = DataManager.Instance.currentColor;
-            DataManager.Instance.systemCurrentColor = DataManager.Instance.initialViewColor;
-            DataManager.Instance.currentColor       = DataManager.Instance.initialSystemColor;
-            DataManager.Instance.targetColor        = DataManager.Instance.currentColor;
+            DataManager.Instance.currentRYBColor = RYBColor.white;
+            DataManager.Instance.currentDisplayColor = Color.white;
             PlayerEvents.OnColorUIUpdate?.Invoke();
         }
     }
 
+    /// <summary>젤리 흡수 시 호출 — RYB 누산 + 시각화</summary>
     public void HandleJellyAbsorbed(JellyColorType type)
     {
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
 
-        Vector3Int effect = DataManager.Instance.GetJellyEffect(type);
-
         if (type == JellyColorType.White)
         {
-            targetBaseColor = new Color32(255, 255, 255, 255);
-            targetBaseColor_02 = new Color32(255, 255, 255, 255);
-            targetFresnelColor = new Color32(255, 255, 255, 255);
-            DataManager.Instance.currentColor = targetBaseColor;
-            DataManager.Instance.systemCurrentColor = targetBaseColor;
+            HandleWhiteJelly();
+            return;
         }
-        else
-        {
-            ApplyJellyColor(new Vector3(effect.x, effect.y, effect.z));
-        }
+
+        ApplyJellyColor(type);
     }
 
-    private void ApplyJellyColor(Vector3 change)
+    private void HandleWhiteJelly()
     {
-        Color32 baseSystem = isBot ? _botSystemColor : DataManager.Instance.systemCurrentColor;
-        Color32 nextSystemColor = baseSystem.AddRGB((int)change.x, (int)change.y, (int)change.z);
-        if (isBot) _botSystemColor = nextSystemColor;
-        else DataManager.Instance.systemCurrentColor = nextSystemColor;
+        // RYB 초기화
+        if (isBot)
+            _botRYBColor = RYBColor.white;
+        else
+            DataManager.Instance.ResetRYBColor();
 
-        JellyColorType determinedType = DataManager.Instance.DetermineCurrentColor(nextSystemColor);
-        Color32 visualTarget = nextSystemColor;
+        Color white = Color.white;
+        currentCoroutine = StartCoroutine(BlendColor(white, GetLighterColor(white, baseColor02Lightness), white, blendTime));
+    }
 
-        if (determinedType != JellyColorType.None)
-        {
-            switch (determinedType)
-            {
-                case JellyColorType.Red: visualTarget = Color.red; break;
-                case JellyColorType.Green: visualTarget = Color.green; break;
-                case JellyColorType.Blue: visualTarget = Color.blue; break;
-                case JellyColorType.Cyan: visualTarget = Color.cyan; break;
-                case JellyColorType.Magenta: visualTarget = Color.magenta; break;
-                case JellyColorType.Yellow: visualTarget = Color.yellow; break;
-            }
-        }
+    private void ApplyJellyColor(JellyColorType type)
+    {
+        // 1. RYB 누산
+        RYBColor effect = DataManager.Instance.GetJellyRYBEffect(type);
+        RYBColor baseRYB = isBot ? _botRYBColor : DataManager.Instance.currentRYBColor;
+        RYBColor nextRYB = baseRYB.Add(effect);
 
+        if (isBot)
+            _botRYBColor = nextRYB;
+        else
+            DataManager.Instance.currentRYBColor = nextRYB;
+
+        // 2. RYB → RGB 변환 (시각화용)
+        Color visualTarget = nextRYB.ToRGB();
+
+        // 3. 목표 색상 판정 (플레이어만)
         if (!isBot)
         {
-            if (determinedType == DataManager.Instance.thisGameRangeRule.resultType)
-            {
-                PlayerEvents.OnTargetColorChecked?.Invoke(true);
-                Debug.Log($"[게임 클리어] 목표 색상인 {determinedType} 달성!");
-            }
-            else
-                PlayerEvents.OnTargetColorChecked?.Invoke(false);
+            DataManager.Instance.currentDisplayColor = visualTarget;
+            JellyColorType dominantType = nextRYB.GetDominantType();
+
+            // GameModeManager가 목표 판정을 처리하도록 이벤트 발행
+            PlayerEvents.OnColorChanged?.Invoke(dominantType, nextRYB);
         }
 
-        targetBaseColor = visualTarget;
-        targetFresnelColor = visualTarget;
+        // 4. 시각화 — 약간 어둡게 + BaseColor_02는 밝게
+        Color targetBase = DarkenColor(visualTarget, 0.85f);
+        Color targetFresnel = visualTarget;
+        Color targetBase02 = GetLighterColor(targetBase, baseColor02Lightness);
 
-        int darknessStep = DataManager.Instance.darknessStep;
-        targetBaseColor = targetBaseColor.AddRGB(darknessStep, darknessStep, darknessStep);
-        targetFresnelColor = targetFresnelColor.AddRGB(darknessStep, darknessStep, darknessStep);
-        targetBaseColor_02 = GetLighterColor(targetBaseColor, baseColor02Lightness);
-
-        currentCoroutine = StartCoroutine(BlendColor(targetBaseColor, targetBaseColor_02, targetFresnelColor, 0.5f));
+        currentCoroutine = StartCoroutine(BlendColor(targetBase, targetBase02, targetFresnel, blendTime));
     }
 
     private IEnumerator BlendColor(Color targetBase, Color targetBase_02, Color targetFresnel, float time)
@@ -153,21 +142,28 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
-        DataManager.Instance.currentColor = currentBaseColor;
-        DataManager.Instance.targetColor = currentBaseColor;
-
         PlayerEvents.OnColorUIUpdate?.Invoke();
     }
 
-    private Color32 GetLighterColor(Color32 baseColor, float lightAmount)
-    {
-        return Color.Lerp(baseColor, Color.white, lightAmount);
-    }
+    private Color GetLighterColor(Color baseColor, float lightAmount)
+        => Color.Lerp(baseColor, Color.white, lightAmount);
+
+    private Color DarkenColor(Color color, float factor)
+        => new Color(color.r * factor, color.g * factor, color.b * factor, 1f);
 
     public void ResetColor()
     {
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
+
+        if (isBot)
+            _botRYBColor = RYBColor.white;
+        else
+            DataManager.Instance.ResetRYBColor();
+
         currentCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
         PlayerEvents.OnColorUIUpdate?.Invoke();
     }
+
+    /// <summary>봇의 현재 RYB 색상 (외부 참조용)</summary>
+    public RYBColor BotRYBColor => _botRYBColor;
 }

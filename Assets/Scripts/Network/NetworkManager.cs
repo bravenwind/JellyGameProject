@@ -10,6 +10,7 @@
 //   4. OnJoinedRoom() 콜백 → 플레이어 프리팹 생성 후 게임 시작
 // ============================================================
 
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Photon.Pun;           // PhotonNetwork, PhotonView 등 핵심 클래스
@@ -45,6 +46,13 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     [Tooltip("게임 씬 이름")]
     public string gameSceneName = "Game_io";
+
+    [Header("스폰 겹침 방지")]
+    [Tooltip("이미 사용된 스폰포인트와의 최소 거리")]
+    public float minSpawnDistance = 3f;
+
+    // 이번 게임에서 이미 사용된 스폰 위치들 (플레이어 + 봇 공용)
+    private readonly List<Vector3> _usedSpawnPositions = new List<Vector3>();
 
     // ─────────────────────────────────────────────────────────
     // 싱글톤
@@ -214,10 +222,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         var validPoints = GetValidSpawnPoints();
         if (validPoints.Length > 0)
         {
-            int idx = Random.Range(0, validPoints.Length);
+            int idx = PickNonOverlappingSpawnIndex(validPoints);
             spawnPos = validPoints[idx].position;
             spawnRot = validPoints[idx].rotation;
         }
+
+        _usedSpawnPositions.Add(spawnPos);
 
         // PhotonNetwork.Instantiate: "Resources/playerPrefabName" 프리팹을 네트워크 전체에 생성
         // → 다른 클라이언트 화면에도 자동으로 생성됨
@@ -253,12 +263,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             Vector3 candidate = Vector3.zero;
             if (validPoints.Length > 0)
             {
-                int idx = Random.Range(0, validPoints.Length);
+                int idx = PickNonOverlappingSpawnIndex(validPoints);
                 candidate = validPoints[idx].position;
             }
             else
             {
-                candidate = new Vector3(Random.Range(-10f, 10f), 0, Random.Range(-10f, 10f));
+                candidate = PickNonOverlappingRandom();
             }
 
             // NavMesh 위 가장 가까운 위치로 보정
@@ -267,10 +277,74 @@ public class NetworkManager : MonoBehaviourPunCallbacks
                 ? hit.position
                 : candidate;
 
+            _usedSpawnPositions.Add(spawnPos);
+
             Debug.Log($"[Network] AI봇 스폰 위치: {spawnPos} (candidate: {candidate})");
             PhotonNetwork.Instantiate(botPrefabName, spawnPos, Quaternion.identity);
             Debug.Log($"[Network] AI 봇 {i + 1} 스폰 완료");
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 스폰 겹침 방지
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// validPoints 중 이미 사용된 위치와 minSpawnDistance 이상 떨어진 인덱스를 반환.
+    /// 모든 포인트가 겹치면 가장 먼 포인트를 선택.
+    /// </summary>
+    private int PickNonOverlappingSpawnIndex(Transform[] points)
+    {
+        // 셔플된 인덱스 순서로 탐색
+        int[] indices = new int[points.Length];
+        for (int i = 0; i < indices.Length; i++) indices[i] = i;
+        for (int i = indices.Length - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (indices[i], indices[j]) = (indices[j], indices[i]);
+        }
+
+        int bestIdx = indices[0];
+        float bestMinDist = 0f;
+
+        foreach (int idx in indices)
+        {
+            float closest = ClosestUsedDistance(points[idx].position);
+            if (closest >= minSpawnDistance)
+                return idx;                 // 충분히 멀면 즉시 반환
+            if (closest > bestMinDist)
+            {
+                bestMinDist = closest;
+                bestIdx = idx;              // 가장 먼 후보 기록
+            }
+        }
+
+        return bestIdx; // 모두 겹치면 그나마 가장 먼 포인트
+    }
+
+    /// <summary>
+    /// SpawnPoint가 없을 때 랜덤 좌표 중 겹치지 않는 위치 반환.
+    /// </summary>
+    private Vector3 PickNonOverlappingRandom()
+    {
+        for (int attempt = 0; attempt < 20; attempt++)
+        {
+            Vector3 candidate = new Vector3(Random.Range(-10f, 10f), 0, Random.Range(-10f, 10f));
+            if (ClosestUsedDistance(candidate) >= minSpawnDistance)
+                return candidate;
+        }
+        return new Vector3(Random.Range(-10f, 10f), 0, Random.Range(-10f, 10f));
+    }
+
+    private float ClosestUsedDistance(Vector3 pos)
+    {
+        float closest = float.MaxValue;
+        foreach (var used in _usedSpawnPositions)
+        {
+            float d = Vector3.Distance(pos, used);
+            if (d < closest) closest = d;
+        }
+        return closest;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -282,6 +356,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     public void LeaveRoom()
     {
+        _usedSpawnPositions.Clear();
         PhotonNetwork.LeaveRoom();
     }
 }

@@ -85,7 +85,7 @@ public class ClearJudge : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.O))
         {
-            DataManager.Instance.currentColor = DataManager.Instance.thisGameRangeRule.color;
+            // 디버그: 스케일 레벨 강제 달성
             DataManager.Instance.playerCurrentScaleLevel = DataManager.Instance.targetScaleLevel;
         }
 
@@ -103,9 +103,9 @@ public class ClearJudge : MonoBehaviour
 
     private void JudgeClear()
     {
-        // 조건 체크
-        bool isConditionMet = DataManager.Instance.DetermineCurrentColor(DataManager.Instance.currentColor) == DataManager.Instance.thisGameRangeRule.resultType
-                              && DataManager.Instance.playerCurrentScaleLevel == DataManager.Instance.targetScaleLevel;
+        // 조건 체크: 스케일 레벨 달성 + 현재 목표 색상 달성 여부
+        bool isConditionMet = DataManager.Instance.playerCurrentScaleLevel >= DataManager.Instance.targetScaleLevel
+                              && GameModeManager.Instance != null && GameModeManager.Instance.IsTargetAchieved;
 
         if (isConditionMet)
         {

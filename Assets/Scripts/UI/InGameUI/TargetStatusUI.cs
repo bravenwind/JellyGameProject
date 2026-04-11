@@ -1,4 +1,3 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,73 +10,49 @@ public class TargetStatusUI : MonoBehaviour
     public Image targetImage;
     public Text targetScaleText;
 
-    // 1. Å¸ÀÔÀ» Color32·Î º¯°æ
-    private Color32[] colors = new Color32[7];
-
     private void Start()
     {
-        //// Color32´Â Color(float)¿¡¼­ ÀÚµ¿À¸·Î º¯È¯µË´Ï´Ù.
-        //colors[0] = Color.red;     // (255, 0, 0, 255)
-        //colors[1] = Color.green;   // (0, 255, 0, 255)
-        //colors[2] = Color.blue;    // (0, 0, 255, 255)
-        //colors[3] = Color.yellow;
-        //colors[4] = Color.magenta;
-        //colors[5] = Color.cyan;
-        //colors[6] = Color.white;
+        UpdateTargetDisplay();
+    }
 
-        //// [Áß¿ä ¼öÁ¤] Á¤¼öÇü Random.Range¿¡¼­ µÎ ¹øÂ° ÀÎÀÚ´Â 'Á¦¿Ü'µË´Ï´Ù.
-        //// ¹è¿­ÀÇ ¸ğµç ¿ä¼Ò¸¦ Æ÷ÇÔÇÏ·Á¸é Length-1ÀÌ ¾Æ´Ï¶ó Length¸¦ ½á¾ß ÇÕ´Ï´Ù.
-        //int index = Random.Range(0, colors.Length);
+    private void OnEnable()
+    {
+        // GameModeManagerì˜ ë¼ìš´ë“œ ë³€ê²½ ì‹œ ê°±ì‹ 
+        PlayerEvents.OnColorUIUpdate += UpdateTargetDisplay;
+    }
 
-        //Color32 selectedColor = colors[index];
-        //DataManager.Instance.targetColor = selectedColor;
+    private void OnDisable()
+    {
+        PlayerEvents.OnColorUIUpdate -= UpdateTargetDisplay;
+    }
 
-        //// ÀÌ¹ÌÁö »ö»ó Àû¿ë
-        //colorImage.color = selectedColor;
+    private void UpdateTargetDisplay()
+    {
+        if (GameModeManager.Instance == null) return;
 
-        // 2. ÅØ½ºÆ® Æ÷¸ËÆÃ: (255, 0, 0) Çü½ÄÀ¸·Î Á÷Á¢ ÁöÁ¤
-        //colorText.text = $"R: {selectedColor.r} G: {selectedColor.g} B: {selectedColor.b}";
-        DataManager.ColorRangeRule thisGameRangeRule = DataManager.Instance.thisGameRangeRule;
-        string targetColorText = "";
-        switch (DataManager.Instance.thisGameRangeRule.resultType)
-        {
-            case JellyColorType.Red:
-                targetColorText = "»¡°­";
-                break;
-            case JellyColorType.Green:
-                targetColorText = "ÃÊ·Ï";
-                break;
-            case JellyColorType.Blue:
-                targetColorText = "ÆÄ¶û";
-                break;
-            case JellyColorType.Cyan:
-                targetColorText = "Ã»·Ï"; // °ÔÀÓ ºĞÀ§±â¿¡ µû¶ó "ÇÏ´Ã Á©¸® "·Î º¯°æÇÏ¼Åµµ ÁÁ½À´Ï´Ù.
-                break;
-            case JellyColorType.Magenta:
-                targetColorText = "ÀÚÈ«"; // °ÔÀÓ ºĞÀ§±â¿¡ µû¶ó "º¸¶ó Á©¸® " ¶Ç´Â "ºĞÈ« Á©¸® "·Î º¯°æÇÏ¼Åµµ ÁÁ½À´Ï´Ù.
-                break;
-            case JellyColorType.Yellow:
-                targetColorText = "³ë¶û";
-                break;
-            case JellyColorType.White:
-                targetColorText = "ÇÏ¾ç";
-                break;
-            case JellyColorType.Black:
-                targetColorText = "°ËÁ¤";
-                break;
-            case JellyColorType.Temp:
-                targetColorText = "ÀÓ½Ã"; // µğ¹ö±×/ÀÓ½Ã¿ë
-                break;
-            case JellyColorType.None:
-                targetColorText = "¾Ë ¼ö ¾ø´Â"; // ¶Ç´Â "" (ºó ¹®ÀÚ¿­)
-                break;
-        }
+        var gm = GameModeManager.Instance;
+        string targetColorText = GameModeManager.GetColorName(gm.TargetColor);
+        Color targetRGB = RYBColor.GetTargetRGB(gm.TargetColor);
+
+        // ëª©í‘œ ìƒ‰ìƒ ì•„ì´ì½˜
+        if (targetImage != null)
+            targetImage.color = targetRGB;
+
+        // ìŠ¤ì¼€ì¼ ë ˆë²¨
         string targetScaleLevelText = "Lv." + DataManager.Instance.targetScaleLevel;
-        targetScaleText.text = targetScaleLevelText;
-        targetStatusText.text = targetColorText + " Á©¸® " + targetScaleLevelText + " °¡ µÉ°Å¾ß!";
-        targetImage.color = DataManager.Instance.thisGameRangeRule.color;
-        missionText1.text = targetColorText + "»ö Á©¸® ¸¸µé±â";
-        missionText2.text = "Å©±â " + targetScaleLevelText + "·¹º§" + " ¸¸µé±â";
-        missionText3.text = DataManager.Instance.targetTime + "ÃÊ ÀÌ³» Å¬¸®¾îÇÏ±â";
+        if (targetScaleText != null)
+            targetScaleText.text = targetScaleLevelText;
+
+        // ëª©í‘œ ìƒíƒœ í…ìŠ¤íŠ¸
+        if (targetStatusText != null)
+            targetStatusText.text = $"{targetColorText} ìƒ‰ì˜ {targetScaleLevelText} ê°€ ë˜ì–´ì•¼í•´!";
+
+        // ë¯¸ì…˜ í…ìŠ¤íŠ¸
+        if (missionText1 != null)
+            missionText1.text = $"{targetColorText}ìƒ‰ ì ¤ë¦¬ ë§Œë“¤ê¸°";
+        if (missionText2 != null)
+            missionText2.text = $"ìˆœë„ {gm.CurrentPurityThreshold * 100f:F0}% ì´ìƒ ë‹¬ì„±";
+        if (missionText3 != null)
+            missionText3.text = $"ëª©í‘œ {gm.CycleCount}ë²ˆì§¸ ìƒì¡´ ì¤‘";
     }
 }

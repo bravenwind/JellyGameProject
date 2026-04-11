@@ -1,11 +1,16 @@
 // ============================================================
 // GameModeManager.cs
 // ============================================================
-// 역할: .io 게임 규칙 관리
-//   - 제한시간 내 점수 순위 결정 (점수제)
-//   - 더 큰 플레이어가 작은 플레이어 흡수 (생존제)
-//   - 게임 시작/종료 처리
-//   - 순위표 UI 업데이트
+// 역할: .io 색상 서바이벌 게임 규칙 관리
+//
+// 타이머 구조:
+//   1. 전체 게임 시간 (gameDuration) — 한 판 총 시간, 끝까지 살면 승리
+//   2. 목표 색상 시간 (targetTimer) — 이 목표 달성 제한시간, 실패 시 탈락
+//
+// 게임 루프:
+//   게임 시작 → 목표 색상 지정 → 제한시간 내 달성 → 다음 목표 → ...
+//   목표 미달성 → 탈락 (게임 오버)
+//   전체 시간 종료 → 생존 성공 (승리)
 // ============================================================
 
 using System.Collections;
@@ -26,26 +31,91 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     // ─────────────────────────────────────────────────────────
     // 인스펙터 설정
     // ─────────────────────────────────────────────────────────
-    [Header("게임 설정")]
-    [Tooltip("게임 제한 시간 (초)")]
-    public float gameDuration = 180f;   // 3분
 
-    [Header("UI 연결")]
-    public TMPro.TextMeshProUGUI timerText;         // 남은 시간 표시
-    public Transform leaderboardContainer;           // 순위표 항목들의 부모
-    public GameObject leaderboardEntryPrefab;        // 순위표 한 줄 프리팹
-    public GameObject gameResultPanel;               // 게임 끝 결과 패널
-    public TMPro.TextMeshProUGUI resultTitleText;    // "1위!" / "패배" 텍스트
+    [Header("전체 게임 시간")]
+    [Tooltip("한 판의 총 시간 (초). 끝까지 살아남으면 승리")]
+    public float gameDuration = 180f;
+
+    [Header("목표 색상 제한시간")]
+    [Tooltip("단색(R/Y/B) 제한 시간")]
+    public float singleColorTime = 20f;
+    [Tooltip("혼합색(주황/초록/보라) 제한 시간")]
+    public float mixedColorTime = 30f;
+    [Tooltip("흰색 목표 제한 시간")]
+    public float whiteColorTime = 25f;
+
+    [Header("흰색 목표")]
+    [Tooltip("흰색 목표 출현 확률 (0~1)")]
+    [Range(0f, 1f)] public float whiteChance = 0.1f;
+
+    [Header("순도 설정")]
+    [Tooltip("초기 순도 통과 기준")]
+    [Range(0f, 1f)] public float initialPurityThreshold = 0.55f;
+    [Tooltip("최대 순도 통과 기준")]
+    [Range(0f, 1f)] public float maxPurityThreshold = 0.90f;
+    [Tooltip("목표 갱신마다 순도 상승량")]
+    [Range(0f, 0.1f)] public float purityIncreasePerCycle = 0.03f;
+
+    [Header("UI 연결 — 전체 게임")]
+    public TMPro.TextMeshProUGUI gameTimerText;          // 전체 남은 시간
+
+    [Header("UI 연결 — 목표 색상")]
+    public TMPro.TextMeshProUGUI targetTimerText;        // 목표 남은 시간
+    public TMPro.TextMeshProUGUI targetColorNameText;    // "빨강"
+    public UnityEngine.UI.Image targetColorImage;        // 목표 색상 아이콘
+    public UnityEngine.UI.Image purityFillImage;         // 순도 게이지 바
+    public TMPro.TextMeshProUGUI purityPercentText;      // "72% / 70%"
+
+    [Header("UI 연결 — 결과")]
+    public GameObject gameResultPanel;
+    public TMPro.TextMeshProUGUI resultTitleText;
+
+    [Header("UI 연결 — 순위표")]
+    public Transform leaderboardContainer;
+    public GameObject leaderboardEntryPrefab;
 
     // ─────────────────────────────────────────────────────────
-    // 내부 상태
+    // 상태
     // ─────────────────────────────────────────────────────────
-    private float _remainingTime;
     private bool _gameRunning = false;
+    private float _gameTimer = 0f;          // 전체 게임 남은 시간
+    private float _targetTimer = 0f;        // 현재 목표 남은 시간
+    private int _cycleCount = 0;            // 목표 색상이 몇 번 바뀌었는지
+    private JellyColorType _targetColor = JellyColorType.None;
+    private float _currentPurityThreshold;
+    private bool _targetAchieved = false;
     private NetworkPlayerSync _localPlayer;
-
-    // 순위표 항목 캐시 (매 프레임 재생성 방지)
     private List<GameObject> _leaderboardEntries = new List<GameObject>();
+
+    // 목표 색상 풀 (흰색 제외)
+    private static readonly JellyColorType[] NormalTargetColors =
+    {
+        JellyColorType.Red, JellyColorType.Yellow, JellyColorType.Blue,
+        JellyColorType.Orange, JellyColorType.Green, JellyColorType.Purple
+    };
+
+    // ─────────────────────────────────────────────────────────
+    // 한국어 색상명
+    // ─────────────────────────────────────────────────────────
+    public static string GetColorName(JellyColorType type)
+    {
+        switch (type)
+        {
+            case JellyColorType.Red:    return "빨강";
+            case JellyColorType.Yellow: return "노랑";
+            case JellyColorType.Blue:   return "파랑";
+            case JellyColorType.Orange: return "주황";
+            case JellyColorType.Green:  return "초록";
+            case JellyColorType.Purple: return "보라";
+            case JellyColorType.White:  return "흰색";
+            case JellyColorType.Black:  return "검정";
+            default:                    return "없음";
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 초기화
+    // ─────────────────────────────────────────────────────────
 
     private void Awake()
     {
@@ -53,31 +123,18 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         else Destroy(gameObject);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 게임 시작
-    // ─────────────────────────────────────────────────────────
-
     private void Start()
     {
-        _remainingTime = gameDuration;
-
-        // 이미 방에 입장해 있으면 바로 스폰 (씬 전환 후 도착한 경우)
-        // 아직 입장 전이면 OnJoinedRoom 콜백에서 스폰
         if (PhotonNetwork.InRoom)
-        {
             SpawnAndStartGame();
-        }
-        // else: OnJoinedRoom()에서 처리
     }
 
-    // [자동 콜백] 방 입장 완료 시 호출
-    // → 씬 로드보다 방 입장이 늦게 완료되는 경우를 대비
     public override void OnJoinedRoom()
     {
         SpawnAndStartGame();
     }
 
-    private bool _spawned = false; // 중복 스폰 방지
+    private bool _spawned = false;
     private void SpawnAndStartGame()
     {
         if (_spawned) return;
@@ -86,18 +143,28 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         NetworkManager.Instance?.SpawnLocalPlayer();
         NetworkManager.Instance?.SpawnBots();
 
-        // MasterClient가 게임 시작 신호를 모든 클라이언트에 전송
         if (PhotonNetwork.IsMasterClient)
-        {
             photonView.RPC(nameof(RPC_StartGame), RpcTarget.All);
-        }
     }
 
     [PunRPC]
     private void RPC_StartGame()
     {
         _gameRunning = true;
-        Debug.Log("[GameMode] 게임 시작!");
+        _gameTimer = gameDuration;
+        _currentPurityThreshold = initialPurityThreshold;
+        _cycleCount = 0;
+
+        PlayerEvents.OnColorChanged += OnPlayerColorChanged;
+
+        AssignNewTarget();
+
+        Debug.Log($"[GameMode] 게임 시작! 전체시간={gameDuration}s");
+    }
+
+    private void OnDestroy()
+    {
+        PlayerEvents.OnColorChanged -= OnPlayerColorChanged;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -108,65 +175,226 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         if (!_gameRunning) return;
 
-        // 타이머 감소
-        _remainingTime -= Time.deltaTime;
-        UpdateTimerUI();
+        // 1. 전체 게임 타이머 감소
+        _gameTimer -= Time.deltaTime;
+        UpdateGameTimerUI();
 
-        // 순위표 갱신 (0.5초마다 갱신해도 충분)
+        // 2. 목표 색상 타이머 감소
+        _targetTimer -= Time.deltaTime;
+        UpdateTargetTimerUI();
+        UpdatePurityUI();
+
+        // 순위표 갱신 (0.5초마다)
         if (Time.frameCount % 30 == 0)
-        {
             UpdateLeaderboard();
-        }
 
-        // 시간 종료
-        if (_remainingTime <= 0f)
+        // 3. 전체 시간 종료 → 승리
+        if (_gameTimer <= 0f)
         {
-            _remainingTime = 0f;
-            EndGame();
+            _gameTimer = 0f;
+            GameWin();
+            return;
+        }
+
+        // 4. 목표 시간 종료 → 달성 여부 확인
+        if (_targetTimer <= 0f)
+        {
+            _targetTimer = 0f;
+
+            if (_targetAchieved)
+            {
+                // 달성했으면 다음 목표
+                AssignNewTarget();
+            }
+            else
+            {
+                // 미달성 → 탈락
+                GameOver();
+            }
         }
     }
 
-    private void UpdateTimerUI()
-    {
-        if (timerText == null) return;
-        int min = Mathf.FloorToInt(_remainingTime / 60f);
-        int sec = Mathf.FloorToInt(_remainingTime % 60f);
-        timerText.text = $"{min:00}:{sec:00}";
+    // ─────────────────────────────────────────────────────────
+    // 목표 색상 관리
+    // ─────────────────────────────────────────────────────────
 
-        // 30초 미만이면 빨간색
-        timerText.color = _remainingTime < 30f ? Color.red : Color.white;
+    private void AssignNewTarget()
+    {
+        _cycleCount++;
+        _targetAchieved = false;
+
+        // 순도 기준 상승
+        _currentPurityThreshold = Mathf.Min(
+            initialPurityThreshold + purityIncreasePerCycle * (_cycleCount - 1),
+            maxPurityThreshold
+        );
+
+        // 이전 목표와 다른 색 선택
+        JellyColorType prev = _targetColor;
+        if (Random.value < whiteChance)
+        {
+            _targetColor = JellyColorType.White;
+        }
+        else
+        {
+            // 이전과 겹치지 않게 최대 10회 시도
+            for (int i = 0; i < 10; i++)
+            {
+                _targetColor = NormalTargetColors[Random.Range(0, NormalTargetColors.Length)];
+                if (_targetColor != prev) break;
+            }
+        }
+
+        // 제한시간 결정
+        if (_targetColor == JellyColorType.White)
+            _targetTimer = whiteColorTime;
+        else if (IsSingleColor(_targetColor))
+            _targetTimer = singleColorTime;
+        else
+            _targetTimer = mixedColorTime;
+
+        // 이미 달성 상태일 수 있으니 즉시 체크
+        CheckTargetAchieved();
+
+        UpdateTargetUI();
+
+        Debug.Log($"[GameMode] 새 목표: {GetColorName(_targetColor)}, " +
+                  $"제한시간={_targetTimer:F0}s, 순도기준={_currentPurityThreshold:P0}, " +
+                  $"전체 남은시간={_gameTimer:F0}s");
+    }
+
+    private bool IsSingleColor(JellyColorType type)
+        => type == JellyColorType.Red || type == JellyColorType.Yellow || type == JellyColorType.Blue;
+
+    // ─────────────────────────────────────────────────────────
+    // 목표 달성 판정
+    // ─────────────────────────────────────────────────────────
+
+    private void OnPlayerColorChanged(JellyColorType dominantType, RYBColor currentRYB)
+    {
+        CheckTargetAchieved();
+    }
+
+    private void CheckTargetAchieved()
+    {
+        if (_targetAchieved || !_gameRunning) return;
+
+        RYBColor current = DataManager.Instance.currentRYBColor;
+        JellyColorType dominant = current.GetDominantType();
+        float purity = current.GetPurity(_targetColor);
+
+        if (dominant == _targetColor && purity >= _currentPurityThreshold)
+        {
+            _targetAchieved = true;
+            PlayerEvents.OnTargetColorChecked?.Invoke(true);
+            Debug.Log($"[GameMode] 목표 달성! {GetColorName(_targetColor)} 순도={purity:P0}");
+        }
+        else
+        {
+            PlayerEvents.OnTargetColorChecked?.Invoke(false);
+        }
     }
 
     // ─────────────────────────────────────────────────────────
-    // 순위표 업데이트
+    // 게임 종료
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 모든 플레이어(+ AI 봇)의 점수를 모아 순위표 갱신
-    /// </summary>
+    private void GameOver()
+    {
+        _gameRunning = false;
+
+        float survived = gameDuration - _gameTimer;
+        int min = Mathf.FloorToInt(survived / 60f);
+        int sec = Mathf.FloorToInt(survived % 60f);
+
+        Debug.Log($"[GameMode] 탈락! {GetColorName(_targetColor)} 미달성, 생존시간={min}분 {sec}초");
+
+        if (gameResultPanel != null)
+            gameResultPanel.SetActive(true);
+
+        if (resultTitleText != null)
+            resultTitleText.text = $"탈락\n{min}분 {sec}초 생존";
+    }
+
+    private void GameWin()
+    {
+        _gameRunning = false;
+
+        Debug.Log("[GameMode] 승리! 끝까지 생존!");
+
+        if (gameResultPanel != null)
+            gameResultPanel.SetActive(true);
+
+        if (resultTitleText != null)
+            resultTitleText.text = "생존 성공!";
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // UI 업데이트
+    // ─────────────────────────────────────────────────────────
+
+    private void UpdateGameTimerUI()
+    {
+        if (gameTimerText == null) return;
+        int min = Mathf.FloorToInt(_gameTimer / 60f);
+        int sec = Mathf.FloorToInt(_gameTimer % 60f);
+        gameTimerText.text = $"{min:00}:{sec:00}";
+        gameTimerText.color = _gameTimer < 30f ? Color.red : Color.white;
+    }
+
+    private void UpdateTargetTimerUI()
+    {
+        if (targetTimerText == null) return;
+        int sec = Mathf.CeilToInt(Mathf.Max(_targetTimer, 0f));
+        targetTimerText.text = $"{sec}";
+        targetTimerText.color = _targetTimer < 5f ? Color.red : Color.white;
+    }
+
+    private void UpdateTargetUI()
+    {
+        if (targetColorNameText != null)
+            targetColorNameText.text = GetColorName(_targetColor);
+
+        if (targetColorImage != null)
+            targetColorImage.color = RYBColor.GetTargetRGB(_targetColor);
+    }
+
+    private void UpdatePurityUI()
+    {
+        if (purityFillImage == null && purityPercentText == null) return;
+
+        float purity = DataManager.Instance.GetCurrentPurity(_targetColor);
+
+        if (purityFillImage != null)
+        {
+            purityFillImage.fillAmount = purity;
+            purityFillImage.color = purity >= _currentPurityThreshold
+                ? new Color(0.2f, 0.9f, 0.3f)
+                : new Color(0.9f, 0.3f, 0.2f);
+        }
+
+        if (purityPercentText != null)
+            purityPercentText.text = $"{purity * 100f:F0}% / {_currentPurityThreshold * 100f:F0}%";
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 순위표
+    // ─────────────────────────────────────────────────────────
+
     private void UpdateLeaderboard()
     {
-        // 1. 점수 수집
-        // ─────────────────────
-        // [PlayerEntry]: 이름, 점수, 레벨, AI 여부
         var entries = new List<(string name, int score, int level, bool isBot)>();
 
-        // 실제 플레이어 점수 (Photon CustomProperties에서 읽음)
         foreach (Player player in PhotonNetwork.PlayerList)
         {
-            int score = 0;
-            int level = 1;
-
+            int score = 0, level = 1;
             if (player.CustomProperties.ContainsKey("Score"))
                 score = (int)player.CustomProperties["Score"];
             if (player.CustomProperties.ContainsKey("ScaleLevel"))
                 level = (int)player.CustomProperties["ScaleLevel"];
-
             entries.Add((player.NickName, score, level, false));
         }
 
-        // AI 봇 점수 (Room CustomProperties에서 읽음)
-        // AIBotController.SyncBotProperties()에서 저장한 값
         var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
         foreach (var key in roomProps.Keys)
         {
@@ -175,38 +403,28 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             {
                 string prefix = keyStr.Replace("_Score", "");
                 string botName = roomProps.ContainsKey($"{prefix}_Name")
-                    ? roomProps[$"{prefix}_Name"].ToString()
-                    : "Bot";
+                    ? roomProps[$"{prefix}_Name"].ToString() : "Bot";
                 int botScore = (int)roomProps[keyStr];
                 int botLevel = roomProps.ContainsKey($"{prefix}_Level")
-                    ? (int)roomProps[$"{prefix}_Level"]
-                    : 1;
-
+                    ? (int)roomProps[$"{prefix}_Level"] : 1;
                 entries.Add((botName, botScore, botLevel, true));
             }
         }
 
-        // 2. 점수 내림차순 정렬
         entries = entries.OrderByDescending(e => e.score).ToList();
 
-        // 3. UI 업데이트
         if (leaderboardContainer == null || leaderboardEntryPrefab == null) return;
 
-        // 기존 항목 정리
-        foreach (var entry in _leaderboardEntries)
-            Destroy(entry);
+        foreach (var entry in _leaderboardEntries) Destroy(entry);
         _leaderboardEntries.Clear();
 
-        // 상위 5개만 표시
         int displayCount = Mathf.Min(entries.Count, 5);
         for (int i = 0; i < displayCount; i++)
         {
             var (name, score, level, isBot) = entries[i];
-
             GameObject entryGo = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
             _leaderboardEntries.Add(entryGo);
 
-            // 프리팹에 LeaderboardEntry 컴포넌트가 있다고 가정
             LeaderboardEntry entryComp = entryGo.GetComponent<LeaderboardEntry>();
             if (entryComp != null)
             {
@@ -217,93 +435,28 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     }
 
     // ─────────────────────────────────────────────────────────
-    // 플레이어 흡수 이벤트 처리
+    // 외부
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// NetworkPlayerSync.RPC_GetAbsorbed에서 호출
-    /// </summary>
+    public void RegisterLocalPlayer(NetworkPlayerSync player) => _localPlayer = player;
     public void OnPlayerAbsorbed(NetworkPlayerSync absorbedPlayer)
-    {
-        Debug.Log($"[GameMode] {absorbedPlayer.PlayerName} 흡수됨!");
-        // 추가 이벤트 처리 가능 (킬 피드 UI 등)
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 게임 종료
-    // ─────────────────────────────────────────────────────────
-
-    private void EndGame()
-    {
-        if (!_gameRunning) return;
-        _gameRunning = false;
-
-        // MasterClient가 최종 순위를 계산해서 모든 클라이언트에 알림
-        if (PhotonNetwork.IsMasterClient)
-        {
-            // 로컬 플레이어 점수
-            int myScore = _localPlayer != null ? DataManager.Instance.currentScore : 0;
-            photonView.RPC(nameof(RPC_EndGame), RpcTarget.All, myScore);
-        }
-    }
-
-    [PunRPC]
-    private void RPC_EndGame(int winnerScore)
-    {
-        _gameRunning = false;
-
-        // 결과 패널 표시
-        if (gameResultPanel != null)
-            gameResultPanel.SetActive(true);
-
-        // 내 순위 계산
-        if (resultTitleText != null)
-        {
-            int myScore = DataManager.Instance?.currentScore ?? 0;
-            int myRank = GetMyRank(myScore);
-
-            if (myRank == 1)
-                resultTitleText.text = "1위! 🎉";
-            else
-                resultTitleText.text = $"{myRank}위";
-        }
-
-        Debug.Log("[GameMode] 게임 종료!");
-    }
-
-    private int GetMyRank(int myScore)
-    {
-        int rank = 1;
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (player.CustomProperties.ContainsKey("Score"))
-            {
-                int otherScore = (int)player.CustomProperties["Score"];
-                if (otherScore > myScore) rank++;
-            }
-        }
-        return rank;
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 외부 등록
-    // ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// NetworkPlayerSync.SetupLocalPlayer()에서 호출
-    /// </summary>
-    public void RegisterLocalPlayer(NetworkPlayerSync player)
-    {
-        _localPlayer = player;
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // Photon 콜백
-    // ─────────────────────────────────────────────────────────
+        => Debug.Log($"[GameMode] {absorbedPlayer.PlayerName} 흡수됨!");
 
     public override void OnPlayerLeftRoom(Player otherPlayer)
-    {
-        Debug.Log($"[GameMode] {otherPlayer.NickName} 나감");
-        // 필요시 봇으로 대체하는 로직 추가 가능
-    }
+        => Debug.Log($"[GameMode] {otherPlayer.NickName} 나감");
+
+    // ─────────────────────────────────────────────────────────
+    // 공개 프로퍼티
+    // ─────────────────────────────────────────────────────────
+
+    public JellyColorType TargetColor => _targetColor;
+    public float GameTimer => _gameTimer;
+    public float TargetTimer => _targetTimer;
+    public int CycleCount => _cycleCount;
+    public float CurrentPurityThreshold => _currentPurityThreshold;
+    public bool IsTargetAchieved => _targetAchieved;
+    public bool IsGameRunning => _gameRunning;
+
+    /// <summary>총 생존 시간</summary>
+    public float SurvivedTime => gameDuration - _gameTimer;
 }

@@ -187,16 +187,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rend: {fileID: 4241201823037191511}
-  originalFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  currentFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  targetFresnelColor:
-    serializedVersion: 2
-    rgba: 0
+  originalFresnelColor: {r: 0, g: 0, b: 0, a: 0}
+  currentFresnelColor: {r: 0, g: 0, b: 0, a: 0}
   baseColor02Lightness: 0.6
+  blendTime: 0.5
   BaseColor_01Property: _BaseColor_01
   BaseColor_02Property: _BaseColor_02
   FresnelProperty: _FresnelColor

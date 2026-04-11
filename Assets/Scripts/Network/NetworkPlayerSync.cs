@@ -155,8 +155,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             stream.SendNext(transform.position);
             stream.SendNext(transform.rotation);
             stream.SendNext(DataManager.Instance.playerCurrentScaleLevel);
-            stream.SendNext((Vector4)(Color)DataManager.Instance.currentColor);
-            // Color32는 직접 보낼 수 없어서 Vector4로 변환
+            stream.SendNext((Vector4)DataManager.Instance.GetCurrentDisplayColor());
         }
         else
         {
