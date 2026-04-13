@@ -67,7 +67,8 @@ public class PlayerScaleController : MonoBehaviour
 
     private void Update()
     {
-        // ���̷�Ʈ ������ ���� (����� 1~5)
+        // 디버그 키 (봇은 DataManager를 공유하므로 실제 플레이어만 허용)
+        if (isBot) return;
         if (Input.GetKeyDown(KeyCode.Alpha1)) StartCoroutine(ChangeScaleToLevel(1, DataManager.Instance.scaleIncreaseTime));
         if (Input.GetKeyDown(KeyCode.Alpha2)) StartCoroutine(ChangeScaleToLevel(2, DataManager.Instance.scaleIncreaseTime));
         if (Input.GetKeyDown(KeyCode.Alpha3)) StartCoroutine(ChangeScaleToLevel(3, DataManager.Instance.scaleIncreaseTime));
@@ -114,10 +115,10 @@ public class PlayerScaleController : MonoBehaviour
 
         if (softBody3D != null) softBody3D.DisableCloth();
 
-        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
-        UIPoolManager.Instance?.SpawnUI(UIType.ScaleIncrease);
+        if (!isBot && PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
+        if (!isBot) UIPoolManager.Instance?.SpawnUI(UIType.ScaleIncrease);
 
-        PlayerEvents.OnCameraScaleIncreased?.Invoke();
+        if (!isBot) PlayerEvents.OnCameraScaleIncreased?.Invoke();
 
         Vector3 startScale = currentScale;
         int levelIndex = Mathf.Clamp(DataManager.Instance.playerCurrentScaleLevel - 1, 0, DataManager.Instance.maxScaleLevel - 1);
@@ -134,15 +135,40 @@ public class PlayerScaleController : MonoBehaviour
 
         transform.localScale = targetScale;
         currentScale = targetScale;
-        playerController.moveSpeed *= 1.2f;
+        if (!isBot && playerController != null) playerController.moveSpeed *= 1.2f;
 
         if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
 
-        PlayerEvents.OnScaleUIUpdate?.Invoke();
+        if (!isBot) PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
     public IEnumerator DecreaseScale(float decreaseTime)
     {
+        if (isBot)
+        {
+            if (_botScaleLevel <= 1) yield break;
+            _botScaleLevel--;
+
+            int idx = Mathf.Clamp(_botScaleLevel - 1, 0, DataManager.Instance.scalePerLevel.Length - 1);
+            Vector3 botStart  = currentScale;
+            Vector3 botTarget = originalScale * DataManager.Instance.scalePerLevel[idx];
+
+            if (softBody3D != null) softBody3D.DisableCloth();
+
+            float bt = 0f;
+            while (bt < decreaseTime)
+            {
+                bt += Time.deltaTime;
+                currentScale = Vector3.Lerp(botStart, botTarget, bt / decreaseTime);
+                transform.localScale = currentScale;
+                yield return null;
+            }
+            transform.localScale = currentScale = botTarget;
+
+            if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
+            yield break;
+        }
+
         if (DataManager.Instance.playerCurrentScaleLevel <= 1) yield break;
 
         DataManager.Instance.playerCurrentScaleLevel--;
@@ -175,9 +201,8 @@ public class PlayerScaleController : MonoBehaviour
     public IEnumerator ChangeScaleToLevel(int targetLevel, float transitionTime)
     {
         targetLevel = Mathf.Clamp(targetLevel, 1, DataManager.Instance.maxScaleLevel);
-        if (DataManager.Instance.playerCurrentScaleLevel == targetLevel) yield break;
-
-        int previousLevel = DataManager.Instance.playerCurrentScaleLevel;
+        int previousLevel = isBot ? _botScaleLevel : DataManager.Instance.playerCurrentScaleLevel;
+        if (previousLevel == targetLevel) yield break;
 
         if (softBody3D != null) softBody3D.DisableCloth();
 
@@ -197,24 +222,23 @@ public class PlayerScaleController : MonoBehaviour
         currentScale = targetScale;
 
 
-        DataManager.Instance.playerCurrentScaleLevel = targetLevel;
-        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + DataManager.Instance.detectPlusRadiusPerLevel * (targetLevel - 1);
-
-        if (playerController != null)
+        if (!isBot)
         {
-            playerController.jumpForce = targetLevel >= 3 ? playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue : playerController.originalJumpForce;
-            int levelDiff = targetLevel - previousLevel;
-            playerController.moveSpeed *= Mathf.Pow(1.2f, levelDiff);
-        }
+            DataManager.Instance.playerCurrentScaleLevel = targetLevel;
+            DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius + DataManager.Instance.detectPlusRadiusPerLevel * (targetLevel - 1);
 
+            if (playerController != null)
+            {
+                playerController.jumpForce = targetLevel >= 3 ? playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue : playerController.originalJumpForce;
+                int levelDiff = targetLevel - previousLevel;
+                playerController.moveSpeed *= Mathf.Pow(1.2f, levelDiff);
+            }
 
-        if (DataManager.Instance.playerCurrentScaleLevel > previousLevel)
-        {
             PlayerEvents.OnScaleUIUpdate?.Invoke();
         }
         else
         {
-            PlayerEvents.OnScaleUIUpdate?.Invoke();
+            _botScaleLevel = targetLevel;
         }
 
 
@@ -232,14 +256,18 @@ public class PlayerScaleController : MonoBehaviour
 
     public void ResetScale()
     {
-        DataManager.Instance.absorbedJellyCount = 0;
-        PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
+        if (!isBot)
+        {
+            DataManager.Instance.absorbedJellyCount = 0;
+            PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
+        }
 
         StopAllCoroutines();
         scaleQueue.Clear();
         isScaling = false;
 
         StartCoroutine(ChangeScaleToLevel(1, DataManager.Instance.scaleDecreaseDuration));
-        PlayerEvents.OnScaleUIUpdate?.Invoke();
+
+        if (!isBot) PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 }

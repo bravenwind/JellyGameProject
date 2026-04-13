@@ -188,8 +188,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wanderRadius: 200
-  minWaitTime: 0
-  maxWaitTime: 0
+  minWaitTime: 1
+  maxWaitTime: 3
   anchorToInitialPosition: 0
   jellyAnimController: {fileID: 8623054182885648473}
 --- !u!114 &9018536355000695294

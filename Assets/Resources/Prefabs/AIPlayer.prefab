@@ -109,7 +109,6 @@ GameObject:
   - component: {fileID: 5309223496067073866}
   - component: {fileID: 8452815471202114268}
   - component: {fileID: 6975552852123859224}
-  - component: {fileID: 6985490244350918629}
   - component: {fileID: 4114611337571506407}
   - component: {fileID: 4724251955215320959}
   - component: {fileID: 7905855228646713728}
@@ -118,7 +117,7 @@ GameObject:
   - component: {fileID: 2786491381095114607}
   - component: {fileID: 9149948584432912989}
   m_Layer: 6
-  m_Name: AIBot
+  m_Name: AIPlayer
   m_TagString: Player
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -157,20 +156,10 @@ MonoBehaviour:
   moveSpeed: 6
   rotateSpeed: 10
   detectRadius: 15
-  pathRefreshRate: 2
+  stateEvalRate: 0.4
   baseAgentRadius: 0.77
   baseAgentHeight: 1.51
-  _currentState: 0
-  _dbg_isOnNavMesh: 0
-  _dbg_hasPath: 0
-  _dbg_remainingDist: 0
-  _dbg_velocity: 0
-  _dbg_distToWanderTarget: 0
-  _dbg_hasWanderTarget: 0
-  _dbg_wanderSkipReason: '-'
-  _dbg_chaseTargetExists: 0
-  _dbg_distToChaseTarget: 0
-  _dbg_chasePathStatus: '-'
+  _dbg_currentState: '-'
 --- !u!114 &3536485665450355811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -240,23 +229,6 @@ MonoBehaviour:
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
   isBot: 1
---- !u!114 &6985490244350918629
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b8529383b0922848a43d74ffec44ca1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  currentStatusUI: {fileID: 0}
-  jellyCamera: {fileID: 0}
-  mainCamera_Action: {fileID: 0}
-  uIPoolManager: {fileID: 0}
-  checkImage: {fileID: 0}
 --- !u!114 &4114611337571506407
 MonoBehaviour:
   m_ObjectHideFlags: 0

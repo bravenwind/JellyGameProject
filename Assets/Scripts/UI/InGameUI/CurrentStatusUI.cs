@@ -5,13 +5,8 @@ using UnityEngine.UI;
 
 public class CurrentStatusUI : MonoBehaviour
 {
-    public Image[] jellyColorImages;
     public Image currentColorImage;
-    public Text currentColorText;
     public Text currentScaleText;
-    private Image targetColorImage;
-
-    public GameObject checkImage;
 
     public void UpdateColorUI()
     {

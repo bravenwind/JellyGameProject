@@ -40,6 +40,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [Tooltip("방 안에 항상 유지할 AI 봇 수")]
     public int botCount = 2;
 
+    [Header("프리팹 경로")]
+    [Tooltip("Resources 폴더 기준 서브폴더 경로. 예: 'Prefabs/' → Resources/Prefabs/ 에서 로드")]
+    public string prefabFolder = "Prefabs/";
+
     [Header("방 설정")]
     [Tooltip("방 최대 인원 (AI 포함)")]
     public byte maxPlayersPerRoom = 4;
@@ -232,7 +236,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // PhotonNetwork.Instantiate: "Resources/playerPrefabName" 프리팹을 네트워크 전체에 생성
         // → 다른 클라이언트 화면에도 자동으로 생성됨
         GameObject player = PhotonNetwork.Instantiate(
-            playerPrefabName,   // 반드시 Resources 폴더 안에 있어야 함!
+            prefabFolder + playerPrefabName,
             spawnPos,
             spawnRot
         );
@@ -280,7 +284,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             _usedSpawnPositions.Add(spawnPos);
 
             Debug.Log($"[Network] AI봇 스폰 위치: {spawnPos} (candidate: {candidate})");
-            PhotonNetwork.Instantiate(botPrefabName, spawnPos, Quaternion.identity);
+            PhotonNetwork.Instantiate(prefabFolder + botPrefabName, spawnPos, Quaternion.identity);
             Debug.Log($"[Network] AI 봇 {i + 1} 스폰 완료");
         }
     }

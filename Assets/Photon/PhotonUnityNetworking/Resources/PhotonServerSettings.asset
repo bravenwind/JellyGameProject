@@ -44,6 +44,7 @@ MonoBehaviour:
   - RPC_GetAbsorbed
   - RPC_OnRespawn
   - RPC_StartGame
+  - RPC_BotAbsorbed
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0

@@ -30,8 +30,12 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     // ─────────────────────────────────────────────────────────
     // 인스펙터 설정
     // ─────────────────────────────────────────────────────────
+    [Header("프리팹 경로")]
+    [Tooltip("Resources 폴더 기준 서브폴더 경로. 예: 'Prefabs/' → Resources/Prefabs/ 에서 로드")]
+    public string prefabFolder = "Prefabs/";
+
     [Header("젤리 스폰 설정")]
-    [Tooltip("Resources 폴더 안에 있는 젤리 프리팹 이름들 (PhotonView 컴포넌트 필수!)")]
+    [Tooltip("젤리 프리팹 이름들 (확장자 제외, Resources/Prefabs/ 안에 있어야 함)")]
     public string[] jellyPrefabNames;
 
     [Tooltip("맵에 동시에 존재할 최대 젤리 수")]
@@ -111,7 +115,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        GameObject jelly = PhotonNetwork.Instantiate(prefabName, pos, Quaternion.identity);
+        GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, pos, Quaternion.identity);
         _spawnedJellies.Add(jelly);
     }
 
@@ -174,6 +178,25 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
 
         result = Vector3.zero;
         return false;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 외부 소환 (JellySpawnMachine 등에서 특정 위치 지정 시)
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// MasterClient만 호출. 특정 위치에 젤리를 네트워크 소환하고 관리 목록에 추가.
+    /// JellySpawnMachine에서 사용.
+    /// </summary>
+    public void SpawnJellyAt(string prefabName, Vector3 position)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        _spawnedJellies.RemoveAll(j => j == null);
+        if (_spawnedJellies.Count >= maxJellyCount) return;
+
+        GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, position, Quaternion.identity);
+        _spawnedJellies.Add(jelly);
     }
 
     // ─────────────────────────────────────────────────────────

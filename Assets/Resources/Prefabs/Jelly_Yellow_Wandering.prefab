@@ -363,11 +363,13 @@ GameObject:
   - component: {fileID: 941911484880754229}
   - component: {fileID: 7842871874056211509}
   - component: {fileID: 1672010750321658886}
+  - component: {fileID: 7412261395953068285}
+  - component: {fileID: 8573331284381780740}
   - component: {fileID: 4045410066042527932}
   - component: {fileID: 2856107805081209073}
-  - component: {fileID: 1540694036245592552}
+  - component: {fileID: -60461755937143170}
   m_Layer: 7
-  m_Name: Jelly_Yellow_NonAI
+  m_Name: Jelly_Yellow_Wandering
   m_TagString: Edible
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -413,7 +415,7 @@ Rigidbody:
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 1
-  m_IsKinematic: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
@@ -440,6 +442,45 @@ MonoBehaviour:
   patrolAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   jellyRenderer: {fileID: 0}
+--- !u!195 &7412261395953068285
+NavMeshAgent:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3121453740919938520}
+  m_Enabled: 1
+  m_AgentTypeID: -334000983
+  m_Radius: 1
+  m_Speed: 7
+  m_Acceleration: 8
+  avoidancePriority: 61
+  m_AngularSpeed: 120
+  m_StoppingDistance: 0
+  m_AutoTraverseOffMeshLink: 1
+  m_AutoBraking: 1
+  m_AutoRepath: 1
+  m_Height: 3
+  m_BaseOffset: 1.84
+  m_WalkableMask: 4294967295
+  m_ObstacleAvoidanceType: 4
+--- !u!114 &8573331284381780740
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3121453740919938520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c1979c040a92c4e40bbee48c2389c5f5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  wanderRadius: 200
+  minWaitTime: 1
+  maxWaitTime: 3
+  anchorToInitialPosition: 0
+  jellyAnimController: {fileID: 2856107805081209073}
 --- !u!114 &4045410066042527932
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -453,7 +494,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   jellyName: Yellow
-  jellyType: 5
+  jellyType: 1
   jellyRGB: {x: 0, y: 0, z: 0}
 --- !u!95 &2856107805081209073
 Animator:
@@ -477,7 +518,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &1540694036245592552
+--- !u!114 &-60461755937143170
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

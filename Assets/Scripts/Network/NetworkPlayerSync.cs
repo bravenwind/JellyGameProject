@@ -226,11 +226,26 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             }
         }
 
-        // AI 봇이 나보다 큰지 확인
-        AIBotController bot = other.GetComponentInParent<AIBotController>();
-        if (bot != null && bot.CurrentScaleLevel > DataManager.Instance.playerCurrentScaleLevel)
+        // AI 봇(AIPlayerMovement)이 나보다 큰지 확인
+        AIPlayerMovement aiBot = other.GetComponentInParent<AIPlayerMovement>();
+        if (aiBot != null)
         {
-            photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1); // -1 = AI에게 흡수됨
+            int myLevel = DataManager.Instance.playerCurrentScaleLevel;
+            int botLevel = aiBot.CurrentScaleLevel;
+
+            if (botLevel > myLevel)
+            {
+                // AI가 더 큼 → 내가 흡수됨
+                photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1);
+            }
+            else if (myLevel > botLevel)
+            {
+                // 내가 더 큼 → AI 흡수 (점수 획득 + 봇 파괴 요청)
+                int bonus = aiBot.CurrentScaleLevel * 500;
+                DataManager.Instance.currentScore += bonus;
+                SyncScore(DataManager.Instance.currentScore);
+                aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
+            }
         }
     }
 

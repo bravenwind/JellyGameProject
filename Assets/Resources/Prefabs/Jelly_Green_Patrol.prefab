@@ -345,7 +345,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   jellyName: Green
-  jellyType: 1
+  jellyType: 4
   jellyRGB: {x: 0, y: 0, z: 0}
 --- !u!95 &8817363984293454160
 Animator:

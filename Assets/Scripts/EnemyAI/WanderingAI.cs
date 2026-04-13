@@ -1,25 +1,25 @@
 using UnityEngine;
-using UnityEngine.AI; // NavMeshAgent ����� ���� �ʼ�
+using UnityEngine.AI;
 using System.Collections;
 
 [RequireComponent(typeof(NavMeshAgent))]
 public class WanderingAI : MonoBehaviour
 {
     [Header("Wandering Settings")]
-    [Tooltip("�̵��� �ݰ� (���� ��ġ ���� Ȥ�� �ʱ� ��ġ ����)")]
+    [Tooltip("이동할 반경 (현재 위치 기준 혹은 초기 위치 기준)")]
     public float wanderRadius = 10f;
 
-    [Tooltip("�̵� �� ��� �ð� (�ּ�)")]
+    [Tooltip("이동 후 대기 시간 (최소)")]
     public float minWaitTime = 1f;
 
-    [Tooltip("�̵� �� ��� �ð� (�ִ�)")]
+    [Tooltip("이동 후 대기 시간 (최대)")]
     public float maxWaitTime = 3f;
 
-    [Tooltip("true�� ó�� ������ ��ġ�� �߽����� ��ȸ, false�� ���� ��ġ�� �߽����� ��� �̵�")]
+    [Tooltip("true면 처음 스폰된 위치를 중심으로 배회, false면 현재 위치를 중심으로 계속 이동")]
     public bool anchorToInitialPosition = false;
 
     private NavMeshAgent agent;
-    private Vector3 initialPosition; // ������ �����
+    private Vector3 initialPosition;
     private bool isWaiting = false;
 
     public Animator jellyAnimController;
@@ -31,26 +31,14 @@ public class WanderingAI : MonoBehaviour
 
     void Start()
     {
-        // [�߰���] �켱������ �����ϰ� �����Ͽ� ���� ���� �������� �������� (0~99)
-        // ���ڰ� �������� �켱������ ���� (���� ������)
         agent.avoidancePriority = Random.Range(0, 100);
-
-        // ���� ��ġ ����
         initialPosition = transform.position;
-
-        // ù �̵� ����
         MoveToRandomPosition();
     }
 
     void Update()
     {
-        // ��� ���̶�� �ƹ��͵� �� ��
         if (isWaiting) return;
-
-        if (agent == null) { return; }
-
-        // �������� ���� �����ߴ��� Ȯ��
-        // pathPending: ��� ��� ������ Ȯ�� (��� ���� �� �����ߴٰ� �Ǵ��ϴ� ���� ����)
         if (!agent.isOnNavMesh) return;
 
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
@@ -62,60 +50,68 @@ public class WanderingAI : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// ���� �� ���� �ð� ����ߴٰ� ���� ������ ����
-    /// </summary>
     IEnumerator WaitAndMove()
     {
         isWaiting = true;
-        jellyAnimController.SetBool("IsMoving", !isWaiting);
+        SetMovingAnim(false);
 
-        // ������ �ð���ŭ ���
         float waitTime = Random.Range(minWaitTime, maxWaitTime);
         yield return new WaitForSeconds(waitTime);
 
         MoveToRandomPosition();
         isWaiting = false;
-        jellyAnimController.SetBool("IsMoving", !isWaiting);
+        SetMovingAnim(true);
     }
 
-    /// <summary>
-    /// ������ ��ġ�� ����ϰ� Agent���� �̵� ����
-    /// </summary>
     void MoveToRandomPosition()
     {
-        // NavMesh 위에 없으면 이동 명령 스킵
         if (!agent.isOnNavMesh) return;
 
         Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
-        Vector3 newPos = GetRandomPointOnNavMesh(origin, wanderRadius);
-        agent.SetDestination(newPos);
+
+        if (TryGetRandomPointOnNavMesh(origin, wanderRadius, out Vector3 newPos))
+        {
+            agent.SetDestination(newPos);
+        }
+        // 찾기 실패 시 SetDestination 호출 안 함 → 다음 WaitAndMove에서 재시도
     }
 
-    /// <summary>
-    /// NavMesh.SamplePosition�� �̿��� ��ȿ�� ������ ��ǥ ��ȯ
-    /// </summary>
-    public static Vector3 GetRandomPointOnNavMesh(Vector3 center, float range)
+    // 반환값으로 성공/실패 명확히 구분
+    public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, out Vector3 result)
     {
-        for (int i = 0; i < 30; i++) // 30�� ���� �õ� (�� ã�� ���� �����Ƿ�)
+        for (int i = 0; i < 30; i++)
         {
-            // 1. ��ü ������ ���� ��ǥ ����
-            Vector3 randomPoint = center + Random.insideUnitSphere * range;
+            // insideUnitCircle: XZ 평면 2D 원 안에서 뽑아 y 튀는 문제 방지
+            Vector2 circle = Random.insideUnitCircle * range;
+            Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
 
-            // 2. �ش� ��ǥ ��ó�� NavMesh(�̵� ���� ����)�� �ִ��� Ȯ��
+            // SamplePosition 탐색 반경을 range 비례로 설정 (고정 1.0f → 동적)
+            float sampleRadius = Mathf.Max(2f, range * 0.3f);
             NavMeshHit hit;
-            if (NavMesh.SamplePosition(randomPoint, out hit, 1.0f, NavMesh.AllAreas))
+            if (NavMesh.SamplePosition(candidate, out hit, sampleRadius, NavMesh.AllAreas))
             {
-                // 3. ã�Ҵٸ� �� ��ġ ��ȯ
-                return hit.position;
+                result = hit.position;
+                return true;
             }
         }
 
-        // �� ã������ �׳� ���� ��ȯ (���� ����)
-        return center;
+        result = center;
+        return false;
     }
 
-    // ������ �󿡼� �̵� �ݰ��� ������ ���� ���� �����
+    // 하위 호환용 static 메서드 (기존 코드에서 호출하는 곳 있으면 그대로 동작)
+    public static Vector3 GetRandomPointOnNavMesh(Vector3 center, float range)
+    {
+        TryGetRandomPointOnNavMesh(center, range, out Vector3 result);
+        return result;
+    }
+
+    private void SetMovingAnim(bool moving)
+    {
+        if (jellyAnimController != null)
+            jellyAnimController.SetBool("IsMoving", moving);
+    }
+
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;

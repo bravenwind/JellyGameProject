@@ -11,21 +11,30 @@ public class Milk : MonoBehaviour
     {
         if (!other.CompareTag("PlayerMesh")) return;
 
-        // 멀티플레이어: 로컬 플레이어만 처리
+        // 멀티플레이어: 로컬(혹은 MasterClient 권한) 오브젝트만 처리
         NetworkPlayerSync nps = other.GetComponentInParent<NetworkPlayerSync>();
         if (nps != null && !nps.photonView.IsMine) return;
 
         PlayerScaleController sc = other.GetComponentInParent<PlayerScaleController>();
         if (sc == null) return;
 
-        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.isSteppingMilk = true;
+        // 봇이 아닐 때만 오디오 처리
+        if (!sc.isBot && PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.isSteppingMilk = true;
 
-        if (DataManager.Instance.playerCurrentScaleLevel != 1)
+        // 봇은 BotScaleLevel, 플레이어는 DataManager로 현재 레벨 확인
+        int currentLevel = sc.isBot ? sc.BotScaleLevel : DataManager.Instance.playerCurrentScaleLevel;
+
+        if (currentLevel != 1)
         {
             sc.QueueScaleChange(sc.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
 
-            MainCamera_Action camAction = Camera.main?.GetComponent<MainCamera_Action>();
-            camAction?.ScaleDecreased();
+            // 봇이 아닐 때만 카메라 크기 변경
+            if (!sc.isBot)
+            {
+                MainCamera_Action camAction = Camera.main?.GetComponent<MainCamera_Action>();
+                camAction?.ScaleDecreased();
+            }
 
             StartCoroutine(RespawnRoutine());
         }
@@ -33,10 +42,11 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (other.CompareTag("PlayerMesh"))
-        {
-            if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.isSteppingMilk = false;
-        }
+        if (!other.CompareTag("PlayerMesh")) return;
+
+        PlayerScaleController sc = other.GetComponentInParent<PlayerScaleController>();
+        if (sc != null && !sc.isBot && PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.isSteppingMilk = false;
     }
 
     private IEnumerator RespawnRoutine()

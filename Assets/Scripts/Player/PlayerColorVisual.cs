@@ -142,7 +142,7 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
-        PlayerEvents.OnColorUIUpdate?.Invoke();
+        if (!isBot) PlayerEvents.OnColorUIUpdate?.Invoke();
     }
 
     private Color GetLighterColor(Color baseColor, float lightAmount)
@@ -161,7 +161,7 @@ public class PlayerColorVisual : MonoBehaviour
             DataManager.Instance.ResetRYBColor();
 
         currentCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
-        PlayerEvents.OnColorUIUpdate?.Invoke();
+        if (!isBot) PlayerEvents.OnColorUIUpdate?.Invoke();
     }
 
     /// <summary>봇의 현재 RYB 색상 (외부 참조용)</summary>

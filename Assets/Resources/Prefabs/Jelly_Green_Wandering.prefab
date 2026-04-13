@@ -285,8 +285,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wanderRadius: 200
-  minWaitTime: 0
-  maxWaitTime: 0
+  minWaitTime: 1
+  maxWaitTime: 3
   anchorToInitialPosition: 0
   jellyAnimController: {fileID: 2230158210206318775}
 --- !u!114 &2546846293565735289
@@ -302,7 +302,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   jellyName: Green
-  jellyType: 1
+  jellyType: 4
   jellyRGB: {x: 0, y: 0, z: 0}
 --- !u!95 &2230158210206318775
 Animator:
