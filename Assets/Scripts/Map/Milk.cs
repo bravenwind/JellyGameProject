@@ -22,19 +22,11 @@ public class Milk : MonoBehaviour
         if (!sc.isBot && PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.isSteppingMilk = true;
 
-        // 봇은 BotScaleLevel, 플레이어는 DataManager로 현재 레벨 확인
-        int currentLevel = sc.isBot ? sc.BotScaleLevel : DataManager.Instance.playerCurrentScaleLevel;
+        float currentScale = sc.currentScaleValue;
 
-        if (currentLevel != 1)
+        if (currentScale > DataManager.Instance.minScale)
         {
             sc.QueueScaleChange(sc.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
-
-            // 봇이 아닐 때만 카메라 크기 변경
-            if (!sc.isBot)
-            {
-                MainCamera_Action camAction = Camera.main?.GetComponent<MainCamera_Action>();
-                camAction?.ScaleDecreased();
-            }
 
             StartCoroutine(RespawnRoutine());
         }

@@ -181,7 +181,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   textSprites:
-  - {fileID: -453626062, guid: 870b718931509e240a38762a70591d4b, type: 3}
   - {fileID: 698082583, guid: 870b718931509e240a38762a70591d4b, type: 3}
   - {fileID: -1768974126, guid: 870b718931509e240a38762a70591d4b, type: 3}
   textImage: {fileID: 3923451356244640983}

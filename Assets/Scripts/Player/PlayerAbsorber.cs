@@ -10,39 +10,21 @@ public class PlayerAbsorber : MonoBehaviour
     public Transform detectTransform;
     public float playerBaseHeight = 1.5f;
 
-    private void OnControllerColliderHit(ControllerColliderHit hit)
-    {
-        if (hit.gameObject.CompareTag("Edible"))
-        {
-            JellyColliderAbsorb jca = hit.gameObject.GetComponentInParent<JellyColliderAbsorb>();
-            if (jca != null) jca.StartAbsorb(transform);
-
-            Rigidbody rb = hit.gameObject.GetComponentInParent<Rigidbody>();
-            rb.constraints = RigidbodyConstraints.None;
-            hit.collider.isTrigger = true;
-        }
-    }
-
     public bool isBot = false;
 
-    // ── 봇 전용: NavMeshAgent는 OnControllerColliderHit 미지원 → OverlapSphere로 대체 ──
-    private void Update()
+    // ── 통합된 젤리 흡수 로직 (사람 & 봇 공통) ──
+    private void OnTriggerEnter(Collider other)
     {
-        if (!isBot) return;
-
-        // 봇 크기에 비례한 흡수 반경
-        float radius = transform.localScale.x * 0.8f;
-        Collider[] cols = Physics.OverlapSphere(transform.position, radius);
-        foreach (var col in cols)
+        // 부딪힌 대상이 맵에 깔린 젤리("Edible")일 때만 작동
+        if (other.CompareTag("Edible"))
         {
-            if (!col.CompareTag("Edible")) continue;
-
-            JellyColliderAbsorb jca = col.GetComponentInParent<JellyColliderAbsorb>();
+            JellyColliderAbsorb jca = other.GetComponentInParent<JellyColliderAbsorb>();
             if (jca != null) jca.StartAbsorb(transform);
 
-            Rigidbody rb = col.GetComponentInParent<Rigidbody>();
+            // 젤리의 물리 반응 해제 (중복 흡수 방지 등)
+            Rigidbody rb = other.GetComponentInParent<Rigidbody>();
             if (rb != null) rb.constraints = RigidbodyConstraints.None;
-            col.isTrigger = true;
+            other.isTrigger = true;
         }
     }
 
@@ -50,8 +32,8 @@ public class PlayerAbsorber : MonoBehaviour
     {
         if (!isBot)
         {
-            DataManager.Instance.absorbedJellyCount++;
             DataManager.Instance.currentScore += 100;
+            GetComponent<NetworkPlayerSync>().SyncScore(DataManager.Instance.currentScore);
             UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
             if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
             if (DataManager.Instance.currentScore >= DataManager.Instance.targetScore)

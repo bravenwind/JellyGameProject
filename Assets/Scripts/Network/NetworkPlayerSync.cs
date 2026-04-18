@@ -16,6 +16,7 @@
 //   + PhotonTransformView 컴포넌트 (위치 자동 동기화용)
 // ============================================================
 
+using System.Collections;
 using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
@@ -48,7 +49,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private Vector3 _networkPosition;       // 받은 위치 값
     private Quaternion _networkRotation;    // 받은 회전 값
     private Color _networkColor;            // 받은 색상 값
-    private int _networkScaleLevel = 1;     // 받은 스케일 레벨
+    private float _networkScaleValue = 1f;  // 받은 스케일 값
 
     // 보간 속도 (값이 클수록 다른 플레이어가 더 빠르게 목표 위치로 이동)
     private const float LerpSpeed = 10f;
@@ -154,7 +155,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
             stream.SendNext(transform.position);
             stream.SendNext(transform.rotation);
-            stream.SendNext(DataManager.Instance.playerCurrentScaleLevel);
+            stream.SendNext(scaleController != null ? scaleController.currentScaleValue : 1f);
             stream.SendNext((Vector4)DataManager.Instance.GetCurrentDisplayColor());
         }
         else
@@ -162,16 +163,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             // ── 다른 플레이어의 데이터를 받음 ──
             _networkPosition = (Vector3)stream.ReceiveNext();
             _networkRotation = (Quaternion)stream.ReceiveNext();
-            _networkScaleLevel = (int)stream.ReceiveNext();
+            _networkScaleValue = (float)stream.ReceiveNext();
             Vector4 colorVec = (Vector4)stream.ReceiveNext();
             _networkColor = new Color(colorVec.x, colorVec.y, colorVec.z, colorVec.w);
 
-            // 스케일 레벨에 따라 오브젝트 크기 적용
-            if (DataManager.Instance != null)
-            {
-                int levelIdx = Mathf.Clamp(_networkScaleLevel - 1, 0, DataManager.Instance.scalePerLevel.Length - 1);
-                transform.localScale = Vector3.one * DataManager.Instance.scalePerLevel[levelIdx];
-            }
+            transform.localScale = Vector3.one * _networkScaleValue;
         }
     }
 
@@ -189,10 +185,10 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
         // Hashtable: key-value 쌍으로 데이터를 저장하는 딕셔너리
         // Photon에서는 이 방식으로 플레이어 속성을 공유
-        Hashtable props = new Hashtable
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
         {
             { "Score", newScore },
-            { "ScaleLevel", DataManager.Instance.playerCurrentScaleLevel }
+            { "Scale", DataManager.Instance.playerCurrentScale }
         };
 
         // SetCustomProperties: 변경된 내용만 네트워크로 전송 (효율적)
@@ -214,14 +210,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         NetworkPlayerSync other_player = other.GetComponentInParent<NetworkPlayerSync>();
         if (other_player != null)
         {
-            int myLevel = DataManager.Instance.playerCurrentScaleLevel;
-            int otherLevel = other_player._networkScaleLevel;
+            float myScale = transform.localScale.x;
+            float otherScale = other_player.transform.localScale.x;
 
-            // 상대방이 나보다 크면 내가 흡수됨
-            if (otherLevel > myLevel)
+            if (otherScale > myScale)
             {
-                // RPC: 모든 클라이언트에서 GetAbsorbed() 실행
-                // RpcTarget.All = 나 포함 모든 클라이언트
                 photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, other_player.photonView.ViewID);
             }
         }
@@ -230,21 +223,21 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         AIPlayerMovement aiBot = other.GetComponentInParent<AIPlayerMovement>();
         if (aiBot != null)
         {
-            int myLevel = DataManager.Instance.playerCurrentScaleLevel;
-            int botLevel = aiBot.CurrentScaleLevel;
+            float myScale = transform.localScale.x;
+            float botScale = aiBot.transform.localScale.x;
 
-            if (botLevel > myLevel)
+            if (botScale > myScale)
             {
-                // AI가 더 큼 → 내가 흡수됨
                 photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1);
             }
-            else if (myLevel > botLevel)
+            else if (myScale > botScale && !aiBot.IsBeingAbsorbed)
             {
-                // 내가 더 큼 → AI 흡수 (점수 획득 + 봇 파괴 요청)
-                int bonus = aiBot.CurrentScaleLevel * 500;
+                aiBot.IsBeingAbsorbed = true;
+                int bonus = (int)(botScale * 500f);
                 DataManager.Instance.currentScore += bonus;
                 SyncScore(DataManager.Instance.currentScore);
                 aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
+                scaleController?.GrowByAbsorbing(botScale);
             }
         }
     }
@@ -264,26 +257,46 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             PhotonView absorberView = PhotonView.Find(absorberViewID);
             if (absorberView != null && absorberView.IsMine)
             {
-                // 흡수한 플레이어에게 점수 보너스
-                int bonus = DataManager.Instance.playerCurrentScaleLevel * 500;
+                int bonus = (int)(transform.localScale.x * 500f);
                 DataManager.Instance.currentScore += bonus;
                 SyncScore(DataManager.Instance.currentScore);
+                absorberView.GetComponent<PlayerScaleController>()?.GrowByAbsorbing(transform.localScale.x);
             }
         }
 
-        // 내 클라이언트에서: 오브젝트 숨기고 리스폰 대기
-        if (photonView.IsMine)
+        GameModeManager.Instance?.OnPlayerAbsorbed(this);
+        StartCoroutine(AbsorbedSequence(absorberViewID));
+    }
+
+    private IEnumerator AbsorbedSequence(int absorberViewID)
+    {
+        if (playerController != null) playerController.enabled = false;
+        CharacterController cc = GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+
+        PhotonView absorberView = absorberViewID >= 0 ? PhotonView.Find(absorberViewID) : null;
+        Transform absorberTf = absorberView?.transform;
+
+        Vector3 startScale = transform.localScale;
+        float elapsed = 0f;
+        const float duration = 0.8f;
+        const float moveSpeed = 12f;
+        const float snapDist = 0.4f;
+
+        while (elapsed < duration)
         {
-            gameObject.SetActive(false);
-            Invoke(nameof(Respawn), respawnDelay);
-        }
-        else
-        {
-            // 다른 클라이언트에서: 시각적으로만 숨김
-            gameObject.SetActive(false);
+            if (absorberTf != null)
+            {
+                if (Vector3.Distance(transform.position, absorberTf.position) <= snapDist) break;
+                transform.position = Vector3.MoveTowards(transform.position, absorberTf.position, moveSpeed * Time.deltaTime);
+            }
+            transform.localScale = Vector3.Lerp(startScale, Vector3.zero, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
         }
 
-        GameModeManager.Instance?.OnPlayerAbsorbed(this);
+        transform.localScale = Vector3.zero;
+        gameObject.SetActive(false);
     }
 
     /// <summary>
@@ -322,11 +335,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 이 플레이어의 현재 스케일 레벨 (로컬이면 DataManager, 원격이면 네트워크 값)
+    /// 이 플레이어의 현재 스케일 값 (로컬이면 PlayerScaleController, 원격이면 네트워크 값)
     /// </summary>
-    public int ScaleLevel => photonView.IsMine
-        ? DataManager.Instance.playerCurrentScaleLevel
-        : _networkScaleLevel;
+    public float ScaleValue => photonView.IsMine
+        ? (scaleController != null ? scaleController.currentScaleValue : 1f)
+        : _networkScaleValue;
 
     /// <summary>
     /// 이 플레이어의 닉네임

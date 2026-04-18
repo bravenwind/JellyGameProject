@@ -118,6 +118,7 @@ GameObject:
   - component: {fileID: 3832500137166153991}
   - component: {fileID: 2786491381095114607}
   - component: {fileID: 3636960471047772}
+  - component: {fileID: 7237219356356850016}
   m_Layer: 6
   m_Name: NetworkPlayer
   m_TagString: Player
@@ -362,7 +363,7 @@ CharacterController:
     m_Bits: 0
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 128
   m_LayerOverridePriority: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
@@ -397,10 +398,10 @@ Rigidbody:
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 0
-  m_IsKinematic: 0
+  m_IsKinematic: 1
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
 --- !u!81 &3636960471047772
 AudioListener:
   m_ObjectHideFlags: 0
@@ -409,6 +410,29 @@ AudioListener:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1177273754728550086}
   m_Enabled: 1
+--- !u!136 &7237219356356850016
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.43
+  m_Height: 1.34
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1243590521275635783
 GameObject:
   m_ObjectHideFlags: 0
@@ -1348,8 +1372,8 @@ SkinnedMeshRenderer:
   m_BlendShapeWeights: []
   m_RootBone: {fileID: 3043747659061160219}
   m_AABB:
-    m_Center: {x: -0.69943285, y: -0.023956656, z: -0.08602479}
-    m_Extent: {x: 0.9738326, y: 0.60277104, z: 0.9447572}
+    m_Center: {x: NaN, y: NaN, z: NaN}
+    m_Extent: {x: NaN, y: NaN, z: NaN}
   m_DirtyAABB: 0
 --- !u!64 &4730401332578991999
 MeshCollider:

@@ -977,6 +977,7 @@ GameObject:
   - component: {fileID: 4073043915670602289}
   - component: {fileID: 3240712282074674285}
   - component: {fileID: -7830627452894159981}
+  - component: {fileID: -8029970029573066489}
   m_Layer: 7
   m_Name: Jelly_Orange_Wandering
   m_TagString: Edible
@@ -1051,6 +1052,7 @@ MonoBehaviour:
   patrolAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   jellyRenderer: {fileID: 0}
+  jellyScore: 100
 --- !u!195 &4089442043705721045
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -1065,7 +1067,7 @@ NavMeshAgent:
   m_Acceleration: 8
   avoidancePriority: 61
   m_AngularSpeed: 120
-  m_StoppingDistance: 0
+  m_StoppingDistance: 0.2
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 1
   m_AutoRepath: 1
@@ -1149,6 +1151,29 @@ MonoBehaviour:
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!136 &-8029970029573066489
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8368899581075514795}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 1.36
+  m_Height: 4.2
+  m_Direction: 1
+  m_Center: {x: 0, y: -0.32, z: 0}
 --- !u!1 &8593662479978070662
 GameObject:
   m_ObjectHideFlags: 0

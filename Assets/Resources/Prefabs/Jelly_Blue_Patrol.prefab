@@ -78,6 +78,7 @@ GameObject:
   - component: {fileID: 558816430925976735}
   - component: {fileID: 4251934788235352506}
   - component: {fileID: -3233106383952135490}
+  - component: {fileID: 5085325459719585586}
   m_Layer: 7
   m_Name: Jelly_Blue_Patrol
   m_TagString: Edible
@@ -166,7 +167,7 @@ NavMeshAgent:
   m_Acceleration: 8
   avoidancePriority: 3
   m_AngularSpeed: 120
-  m_StoppingDistance: 0
+  m_StoppingDistance: 0.2
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 0
   m_AutoRepath: 1
@@ -233,6 +234,29 @@ MonoBehaviour:
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!136 &5085325459719585586
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1410694585128318572}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 1.36
+  m_Height: 4.2
+  m_Direction: 1
+  m_Center: {x: 0, y: -0.32, z: 0}
 --- !u!1 &1645295983972096131
 GameObject:
   m_ObjectHideFlags: 0

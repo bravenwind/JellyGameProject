@@ -1,16 +1,17 @@
-﻿using UnityEngine;
+﻿using Photon.Pun;
+using UnityEngine;
 using UnityEngine.AI;
 
 public class JellyColliderAbsorb : MonoBehaviour
 {
     public Transform target;          // Player
-    public float destroyDistance = 0.3f;
+    public float destroyDistance = 0.5f;
 
     public float absorbTimer = 0.0f;
     public float absorbSpeed = 30f;   // [변경] 빨려 들어가는 최고 속도
-    private float completelyAbsorbedTime = 0.6f;
+    private float _completelyAbsorbedTime = 0.6f;
 
-    private Rigidbody rb;
+    private Rigidbody _rb;
     public bool absorbing = false;
 
     public Collider edibleCollider;
@@ -22,10 +23,12 @@ public class JellyColliderAbsorb : MonoBehaviour
     public GameObject spritePrefab;
     public Renderer jellyRenderer;
 
+    public int jellyScore = 100;
+
     void Awake()
     {
-        rb = GetComponent<Rigidbody>();
-        rb.useGravity = true;
+        _rb = GetComponent<Rigidbody>();
+        _rb.useGravity = true;
         edibleCollider = GetComponentInChildren<Collider>();
         jellyRenderer = GetComponentInChildren<Renderer>();
         agent = GetComponentInChildren<NavMeshAgent>();
@@ -35,34 +38,21 @@ public class JellyColliderAbsorb : MonoBehaviour
         jellyRenderer.gameObject.tag = "Edible";
     }
 
-    private void OnTriggerStay(Collider other)
-    {
-        if (other.gameObject.CompareTag("PlayerMesh") && absorbing)
-        {
-            absorbTimer += Time.deltaTime;
-            if (absorbTimer >= completelyAbsorbedTime)
-            {
-                OnAbsorbed();
-                absorbing = false;
-            }
-        }
-    }
-
     // 충돌 감지에서 호출할 함수
     public void StartAbsorb(Transform player)
     {
         if (absorbing) return;
 
-        rb.useGravity = false;
+        _rb.useGravity = false;
         if (patrolAI != null) patrolAI.enabled = false;
         if (agentAI != null) agentAI.enabled = false;
         if (agent != null) agent.enabled = false;
 
-        rb.isKinematic = false;
+        _rb.isKinematic = false;
         edibleCollider.isTrigger = true;
 
-        rb.linearVelocity = Vector3.zero;
-        rb.angularVelocity = Vector3.zero;
+        _rb.linearVelocity = Vector3.zero;
+        _rb.angularVelocity = Vector3.zero;
 
         target = player;
         absorbing = true;
@@ -74,20 +64,40 @@ public class JellyColliderAbsorb : MonoBehaviour
         if (!absorbing || target == null) return;
 
         Vector3 toTarget = target.position - transform.position;
+        float distanceToTarget = toTarget.magnitude;
+
+        // 💡 1. 개선된 판정: 거리가 충분히 가까워지면 즉시 흡수 (비빌 필요 없음!)
+        if (distanceToTarget <= destroyDistance)
+        {
+            CompleteAbsorption();
+            return;
+        }
 
         absorbTimer += Time.fixedDeltaTime;
 
-        Vector3 dir = toTarget.normalized;
+        // 💡 2. 보험용 판정: 시간이 0.6초를 초과해도 무조건 흡수
+        if (absorbTimer >= _completelyAbsorbedTime)
+        {
+            CompleteAbsorption();
+            return;
+        }
 
-        float t = Mathf.Clamp01(absorbTimer / completelyAbsorbedTime);
+        // ── 빨려 들어가는 연산 ──
+        Vector3 dir = toTarget.normalized;
+        float t = Mathf.Clamp01(absorbTimer / _completelyAbsorbedTime);
         t = Mathf.Pow(t, 2.0f);
 
         float currentSpeed = Mathf.Lerp(2f, absorbSpeed, t);
-
-        rb.linearVelocity = dir * currentSpeed;
+        _rb.linearVelocity = dir * currentSpeed;
     }
 
-    // ... (OnAbsorbed 및 OnDrawGizmos 기존 유지) ...
+    // 흡수 완료 시 처리할 내용을 별도 함수로 분리
+    private void CompleteAbsorption()
+    {
+        absorbing = false;
+        OnAbsorbed();
+    }
+
     void OnAbsorbed()
     {
         PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
@@ -95,8 +105,13 @@ public class JellyColliderAbsorb : MonoBehaviour
         {
             player.AbsorbColor(GetComponent<JellyObject>().jellyType);
         }
+
+        AIPlayerSync aiPlayerSync = target.GetComponentInParent<AIPlayerSync>();
+        if (aiPlayerSync != null)
+        {
+            aiPlayerSync.AddScore(jellyScore);
+        }
+
         Destroy(gameObject);
     }
-
-    // ... (나머지 코드 유지) ...
 }

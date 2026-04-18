@@ -34,10 +34,20 @@ public class WanderingAI : MonoBehaviour
         agent.avoidancePriority = Random.Range(0, 100);
         initialPosition = transform.position;
         MoveToRandomPosition();
+        // 이제 여기서 굳이 애니메이션을 안 켜줘도 Update에서 자동으로 켜줍니다!
     }
 
     void Update()
     {
+        // 💡 [핵심 해결책] NavMeshAgent의 실제 물리적 이동 속도를 기반으로 애니메이션 동기화
+        if (jellyAnimController != null && agent.isOnNavMesh)
+        {
+            // agent.velocity.magnitude는 실제 이동하는 속도입니다.
+            // 속도가 0.1보다 크면(이동 중이면) 걷기, 아니면 대기 애니메이션 재생
+            bool isActuallyMoving = agent.velocity.magnitude > 0.1f;
+            jellyAnimController.SetBool("IsMoving", isActuallyMoving);
+        }
+
         if (isWaiting) return;
         if (!agent.isOnNavMesh) return;
 
@@ -53,14 +63,14 @@ public class WanderingAI : MonoBehaviour
     IEnumerator WaitAndMove()
     {
         isWaiting = true;
-        SetMovingAnim(false);
+        // SetMovingAnim(false); <-- 삭제! (Update에서 알아서 꺼줌)
 
         float waitTime = Random.Range(minWaitTime, maxWaitTime);
         yield return new WaitForSeconds(waitTime);
 
         MoveToRandomPosition();
         isWaiting = false;
-        SetMovingAnim(true);
+        // SetMovingAnim(true); <-- 삭제! (Update에서 알아서 켜줌)
     }
 
     void MoveToRandomPosition()
@@ -73,19 +83,15 @@ public class WanderingAI : MonoBehaviour
         {
             agent.SetDestination(newPos);
         }
-        // 찾기 실패 시 SetDestination 호출 안 함 → 다음 WaitAndMove에서 재시도
     }
 
-    // 반환값으로 성공/실패 명확히 구분
     public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, out Vector3 result)
     {
         for (int i = 0; i < 30; i++)
         {
-            // insideUnitCircle: XZ 평면 2D 원 안에서 뽑아 y 튀는 문제 방지
             Vector2 circle = Random.insideUnitCircle * range;
             Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
 
-            // SamplePosition 탐색 반경을 range 비례로 설정 (고정 1.0f → 동적)
             float sampleRadius = Mathf.Max(2f, range * 0.3f);
             NavMeshHit hit;
             if (NavMesh.SamplePosition(candidate, out hit, sampleRadius, NavMesh.AllAreas))
@@ -99,18 +105,13 @@ public class WanderingAI : MonoBehaviour
         return false;
     }
 
-    // 하위 호환용 static 메서드 (기존 코드에서 호출하는 곳 있으면 그대로 동작)
     public static Vector3 GetRandomPointOnNavMesh(Vector3 center, float range)
     {
         TryGetRandomPointOnNavMesh(center, range, out Vector3 result);
         return result;
     }
 
-    private void SetMovingAnim(bool moving)
-    {
-        if (jellyAnimController != null)
-            jellyAnimController.SetBool("IsMoving", moving);
-    }
+    // SetMovingAnim() 함수는 이제 필요 없으므로 완전히 삭제했습니다.
 
     void OnDrawGizmosSelected()
     {

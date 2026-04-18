@@ -109,13 +109,13 @@ GameObject:
   - component: {fileID: 5309223496067073866}
   - component: {fileID: 8452815471202114268}
   - component: {fileID: 6975552852123859224}
-  - component: {fileID: 4114611337571506407}
   - component: {fileID: 4724251955215320959}
   - component: {fileID: 7905855228646713728}
-  - component: {fileID: 4271440125799119361}
+  - component: {fileID: 3085157858184889901}
   - component: {fileID: 365858056229833277}
   - component: {fileID: 2786491381095114607}
   - component: {fileID: 9149948584432912989}
+  - component: {fileID: 6794927489248742995}
   m_Layer: 6
   m_Name: AIPlayer
   m_TagString: Player
@@ -229,19 +229,6 @@ MonoBehaviour:
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
   isBot: 1
---- !u!114 &4114611337571506407
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ee7244b32e7e93b46951bcb1f322485f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  pushPower: 1
 --- !u!114 &4724251955215320959
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -262,7 +249,6 @@ MonoBehaviour:
   observableSearch: 2
   ObservedComponents:
   - {fileID: 7905855228646713728}
-  - {fileID: 4271440125799119361}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -282,7 +268,7 @@ MonoBehaviour:
   m_SynchronizeRotation: 1
   m_SynchronizeScale: 1
   m_UseLocal: 1
---- !u!114 &4271440125799119361
+--- !u!114 &3085157858184889901
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -291,17 +277,9 @@ MonoBehaviour:
   m_GameObject: {fileID: 1177273754728550086}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0449aa21551e0db44ace523558fefa15, type: 3}
+  m_Script: {fileID: 11500000, guid: 9043382110e6d0b45af3b45c68f42f4c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerController: {fileID: 0}
-  playerAbsorber: {fileID: 5309223496067073866}
-  colorVisual: {fileID: 8452815471202114268}
-  scaleController: {fileID: 6975552852123859224}
-  jellyRenderer: {fileID: 4241201823037191511}
-  nameTagText: {fileID: 0}
-  isBot: 1
-  respawnDelay: 3
 --- !u!95 &365858056229833277
 Animator:
   serializedVersion: 7
@@ -373,6 +351,29 @@ NavMeshAgent:
   m_BaseOffset: 0.67
   m_WalkableMask: 4294967295
   m_ObstacleAvoidanceType: 4
+--- !u!136 &6794927489248742995
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 0.8
+  m_Height: 2.01
+  m_Direction: 1
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!1 &1243590521275635783
 GameObject:
   m_ObjectHideFlags: 0

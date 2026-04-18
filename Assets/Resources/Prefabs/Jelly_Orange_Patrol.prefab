@@ -622,6 +622,7 @@ GameObject:
   - component: {fileID: 8552046980448044175}
   - component: {fileID: 1996270828528642296}
   - component: {fileID: -500671768747641294}
+  - component: {fileID: 8580453417768552757}
   m_Layer: 7
   m_Name: Jelly_Orange_Patrol
   m_TagString: Edible
@@ -710,7 +711,7 @@ NavMeshAgent:
   m_Acceleration: 8
   avoidancePriority: 4
   m_AngularSpeed: 120
-  m_StoppingDistance: 0
+  m_StoppingDistance: 0.2
   m_AutoTraverseOffMeshLink: 1
   m_AutoBraking: 0
   m_AutoRepath: 1
@@ -777,6 +778,29 @@ MonoBehaviour:
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
+--- !u!136 &8580453417768552757
+CapsuleCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5148768285995863348}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 2
+  m_Radius: 1.36
+  m_Height: 4.2
+  m_Direction: 1
+  m_Center: {x: 0, y: -0.32, z: 0}
 --- !u!1 &5227958193059430150
 GameObject:
   m_ObjectHideFlags: 0

@@ -16,8 +16,11 @@ public class LevelUI : MonoBehaviour
 
     public void ChangeLevelUI()
     {
-        needJellyText.text = "Until Next Level : " + (DataManager.Instance.scaleLevelUpExp - DataManager.Instance.absorbedJellyCount).ToString();
-        currentLevelText.text = "Level : " + (DataManager.Instance.playerCurrentScaleLevel).ToString();
-        expImage.fillAmount = (float)DataManager.Instance.absorbedJellyCount / DataManager.Instance.scaleLevelUpExp;
+        float current = DataManager.Instance.playerCurrentScale;
+        float min = DataManager.Instance.minScale;
+        float max = DataManager.Instance.maxScale;
+        needJellyText.text = "Scale : " + current.ToString("F2");
+        currentLevelText.text = "Max : " + max.ToString("F1");
+        expImage.fillAmount = (current - min) / (max - min);
     }
 }

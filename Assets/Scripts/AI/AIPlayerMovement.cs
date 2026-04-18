@@ -70,14 +70,15 @@ public class AIPlayerMovement : MonoBehaviourPun
 
     // Scale 상태 복귀용
     private AIBaseState _stateBeforeScale;
-    private int _prevScaleLevel = 1;
+    private float _prevScaleValue = 1f;
+    public bool IsBeingAbsorbed { get; set; } = false;
 
     // ─────────────────────────────────────────────────────────
     // 외부 프로퍼티
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>이 봇의 현재 스케일 레벨 (NetworkPlayerSync와 호환)</summary>
-    public int CurrentScaleLevel => GetMyScaleLevel();
+    /// <summary>이 봇의 현재 스케일 값</summary>
+    public float CurrentScale => transform.localScale.x;
 
     // ─────────────────────────────────────────────────────────
     // 초기화
@@ -112,7 +113,7 @@ public class AIPlayerMovement : MonoBehaviourPun
             return;
         }
 
-        _prevScaleLevel = GetMyScaleLevel();
+        _prevScaleValue = transform.localScale.x;
         StartCoroutine(InitAndRun());
     }
 
@@ -206,9 +207,9 @@ public class AIPlayerMovement : MonoBehaviourPun
             if (_currentState != ScaleState)
             {
                 _stateBeforeScale = _currentState;
-                int nowLevel = GetMyScaleLevel();
-                ScaleState.IsIncreasing = (nowLevel >= _prevScaleLevel);
-                _prevScaleLevel = nowLevel;
+                float nowScale = transform.localScale.x;
+                ScaleState.IsIncreasing = (nowScale >= _prevScaleValue);
+                _prevScaleValue = nowScale;
                 ChangeState(ScaleState);
             }
             return;
@@ -216,14 +217,14 @@ public class AIPlayerMovement : MonoBehaviourPun
 
         // 우선순위: Flee > Chase > Wander
         if (FindThreat() != null) { ChangeState(FleeState); return; }
-        if (FindNearestJelly() != null) { ChangeState(ChaseState); return; }
+        if (FindTargetToChase() != null) { ChangeState(ChaseState); return; }
         ChangeState(WanderState);
     }
 
     /// <summary>ScaleState 완료 후 이전 상태로 복귀 (AIScaleState에서 호출)</summary>
     public void RestoreStateBeforeScale()
     {
-        _prevScaleLevel = GetMyScaleLevel();
+        _prevScaleValue = transform.localScale.x;
         ChangeState(_stateBeforeScale ?? WanderState);
     }
 
@@ -257,28 +258,41 @@ public class AIPlayerMovement : MonoBehaviourPun
     // 탐지 함수 (상태 클래스들이 호출)
     // ─────────────────────────────────────────────────────────
 
-    public int GetMyScaleLevel()
-        => ScaleCtrl != null ? ScaleCtrl.BotScaleLevel : 1;
+    public float GetMyScale()
+        => transform.localScale.x;
 
     /// <summary>
-    /// 나보다 큰 위협을 탐지. 1레벨이라도 높으면 위협으로 판정.
-    /// OverlapSphere 대신 직접 거리 계산 — Collider 크기에 영향받지 않음.
+    /// 나보다 큰 위협을 탐지.
+    /// 스케일(덩치)을 고려하여 중심점이 아닌 '표면 간의 거리(Edge Distance)'를 기준으로 탐지합니다.
     /// </summary>
     public Transform FindThreat()
     {
-        int myLevel = GetMyScaleLevel();
+        float myScale = transform.localScale.x;
         Transform closest = null;
-        float closestDist = detectRadius;
+
+        // 탐지 거리 안쪽인지 확인할 때는 closestDist 대신 최소 표면 거리를 기록
+        float minEdgeDist = float.MaxValue;
 
         // 플레이어 위협
         foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
         {
-            if (p == null || p.gameObject == this.gameObject) continue;
-            if (p.ScaleLevel <= myLevel) continue;
-            float dist = Vector3.Distance(transform.position, p.transform.position);
-            if (dist < closestDist)
+            if (p == null) continue;
+            if (p.GetComponentInParent<AIPlayerMovement>() == this) continue;
+
+            float threatScale = p.transform.localScale.x;
+            if (threatScale <= myScale) continue; // 나보다 작거나 같으면 위협 아님
+
+            // 중심점 간의 거리
+            float distToCenter = Vector3.Distance(transform.position, p.transform.position);
+
+            // 표면 간의 거리 = 중심거리 - 내 반지름 - 상대 반지름
+            // (baseAgentRadius가 0.5라면, scale * 0.5가 실제 콜라이더의 반지름이 됩니다)
+            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (threatScale * baseAgentRadius);
+
+            // 실제 표면 거리가 탐지 반경(detectRadius) 이내에 들어왔는가?
+            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
             {
-                closestDist = dist;
+                minEdgeDist = edgeDist;
                 closest = p.transform;
             }
         }
@@ -287,21 +301,85 @@ public class AIPlayerMovement : MonoBehaviourPun
         foreach (var b in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
         {
             if (b == null || b == this) continue;
-            if (b.GetMyScaleLevel() <= myLevel) continue;
-            float dist = Vector3.Distance(transform.position, b.transform.position);
-            if (dist < closestDist)
+
+            float threatScale = b.transform.localScale.x;
+            if (threatScale <= myScale) continue;
+
+            float distToCenter = Vector3.Distance(transform.position, b.transform.position);
+            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (threatScale * baseAgentRadius);
+
+            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
             {
-                closestDist = dist;
+                minEdgeDist = edgeDist;
+                closest = b.transform;
+            }
+        }
+
+        return closest;
+    }
+
+    /// <summary>
+    /// 나보다 작은 먹잇감(플레이어 또는 다른 봇)을 탐지합니다.
+    /// </summary>
+    public Transform FindPrey()
+    {
+        float myScale = transform.localScale.x;
+        Transform closest = null;
+        float minEdgeDist = float.MaxValue;
+
+        // 1. 작은 플레이어 탐색
+        foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
+        {
+            if (p == null || p.GetComponentInParent<AIPlayerMovement>() == this) continue;
+
+            float preyScale = p.transform.localScale.x;
+            if (preyScale >= myScale) continue; // 나보다 크거나 같으면 사냥감이 아님!
+
+            float distToCenter = Vector3.Distance(transform.position, p.transform.position);
+            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (preyScale * baseAgentRadius);
+
+            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
+            {
+                minEdgeDist = edgeDist;
+                closest = p.transform;
+            }
+        }
+
+        // 2. 작은 다른 AI 봇 탐색
+        foreach (var b in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
+        {
+            if (b == null || b == this) continue;
+
+            float preyScale = b.transform.localScale.x;
+            if (preyScale >= myScale) continue;
+
+            float distToCenter = Vector3.Distance(transform.position, b.transform.position);
+            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (preyScale * baseAgentRadius);
+
+            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
+            {
+                minEdgeDist = edgeDist;
                 closest = b.transform;
             }
         }
 
         if (closest != null) 
         {
-            Debug.Log(closest.name);
+            Debug.Log("AIPlayerMovement/FindPrey : " + closest.name);
         }
 
         return closest;
+    }
+
+    /// <summary>
+    /// 추적할 대상을 결정합니다. (작은 플레이어를 1순위, 젤리를 2순위로 탐색)
+    /// </summary>
+    public Transform FindTargetToChase()
+    {
+        Transform prey = FindPrey();
+        if (prey != null) return prey; // 근처에 맛있는 플레이어가 있으면 플레이어를 먼저 쫓아감!
+
+        return FindNearestJelly(); // 없으면 그냥 바닥에 있는 젤리 찾음
     }
 
     /// <summary>탐지 반경 내 가장 가까운 젤리</summary>
@@ -384,8 +462,11 @@ public class AIPlayerMovement : MonoBehaviourPun
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 5f * s, NavFilter))
             Agent.Warp(hit.position);
 
-        // Scale 상태에서 이전 상태로 복귀
-        RestoreStateBeforeScale();
+        // ScaleState 복귀는 AIScaleState.Update()가 IsScaling=false를 감지해 처리함.
+        // 여기서 RestoreStateBeforeScale()을 중복 호출하면 EvaluateAndTransition()이
+        // 이미 FleeState로 전환한 것을 WanderState로 되돌리는 경쟁 조건이 발생함.
+        if (_currentState == ScaleState)
+            RestoreStateBeforeScale();
     }
 
     /// <summary>봇 스케일 감소 시작 시 외부 호출</summary>
@@ -409,18 +490,23 @@ public class AIPlayerMovement : MonoBehaviourPun
 
         // ── 더 작은 플레이어 흡수 ──
         NetworkPlayerSync player = other.GetComponentInParent<NetworkPlayerSync>();
-        if (player != null && player.ScaleLevel < GetMyScaleLevel())
+        if (player != null && player.transform.localScale.x < transform.localScale.x)
         {
+            float preyScale = player.transform.localScale.x;
             player.photonView.RPC("RPC_GetAbsorbed", RpcTarget.All, photonView.ViewID);
+            ScaleCtrl?.GrowByAbsorbing(preyScale);
             return;
         }
 
         // ── 더 작은 AI 봇 흡수 ──
         AIPlayerMovement otherBot = other.GetComponentInParent<AIPlayerMovement>();
         if (otherBot != null && otherBot != this
-            && otherBot.GetMyScaleLevel() < GetMyScaleLevel())
+            && !otherBot.IsBeingAbsorbed
+            && otherBot.transform.localScale.x < transform.localScale.x)
         {
+            float preyScale = otherBot.transform.localScale.x;
             otherBot.photonView.RPC(nameof(RPC_BotAbsorbed), RpcTarget.All, photonView.ViewID);
+            ScaleCtrl?.GrowByAbsorbing(preyScale);
             return;
         }
     }
@@ -429,11 +515,39 @@ public class AIPlayerMovement : MonoBehaviourPun
     [PunRPC]
     private void RPC_BotAbsorbed(int absorberViewID)
     {
-        // MasterClient에서만 실제 삭제 처리
-        if (PhotonNetwork.IsMasterClient)
+        if (IsBeingAbsorbed) return;
+        IsBeingAbsorbed = true;
+        StartCoroutine(BotAbsorbedSequence(absorberViewID));
+    }
+
+    private IEnumerator BotAbsorbedSequence(int absorberViewID)
+    {
+        if (Agent != null) Agent.enabled = false;
+        _currentState = null;
+
+        PhotonView absorberView = PhotonView.Find(absorberViewID);
+        Transform absorberTf = absorberView?.transform;
+
+        Vector3 startScale = transform.localScale;
+        float elapsed = 0f;
+        const float duration = 0.8f;
+        const float moveSpeed = 12f;
+        const float snapDist = 0.4f;
+
+        while (elapsed < duration)
         {
-            PhotonNetwork.Destroy(gameObject);
+            if (absorberTf != null)
+            {
+                if (Vector3.Distance(transform.position, absorberTf.position) <= snapDist) break;
+                transform.position = Vector3.MoveTowards(transform.position, absorberTf.position, moveSpeed * Time.deltaTime);
+            }
+            transform.localScale = Vector3.Lerp(startScale, Vector3.zero, elapsed / duration);
+            elapsed += Time.deltaTime;
+            yield return null;
         }
+
+        if (PhotonNetwork.IsMasterClient)
+            PhotonNetwork.Destroy(gameObject);
     }
 
     // ─────────────────────────────────────────────────────────

@@ -15,7 +15,6 @@ public class LeaderboardEntry : MonoBehaviour
     public TextMeshProUGUI rankText;       // "1"
     public TextMeshProUGUI nameText;       // "Player123"
     public TextMeshProUGUI scoreText;      // "1500"
-    public TextMeshProUGUI levelText;      // "Lv.3"
     public Image backgroundImage;          // 내 항목은 하이라이트
 
     [Header("색상 설정")]
@@ -25,12 +24,11 @@ public class LeaderboardEntry : MonoBehaviour
     /// <summary>
     /// GameModeManager에서 호출해서 항목 초기화
     /// </summary>
-    public void Setup(int rank, string playerName, int score, int level, bool isMe)
+    public void Setup(int rank, string playerName, int score, bool isMe)
     {
         if (rankText != null) rankText.text = rank.ToString();
         if (nameText != null) nameText.text = playerName;
         if (scoreText != null) scoreText.text = score.ToString("N0"); // 1,500 형식
-        if (levelText != null) levelText.text = $"Lv.{level}";
 
         // 내 항목이면 하이라이트
         if (backgroundImage != null)

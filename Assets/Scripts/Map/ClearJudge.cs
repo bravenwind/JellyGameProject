@@ -83,12 +83,6 @@ public class ClearJudge : MonoBehaviour
         // ★ 클리어 이후에는 저울도 멈추고(고정) 더 이상 로직을 실행하지 않음
         if (isCleared) return;
 
-        if (Input.GetKeyDown(KeyCode.O))
-        {
-            // 디버그: 스케일 레벨 강제 달성
-            DataManager.Instance.playerCurrentScaleLevel = DataManager.Instance.targetScaleLevel;
-        }
-
         // 1. 저울 서서히 이동
         scaleTransform.position = Vector3.MoveTowards(scaleTransform.position, _targetPos, moveSpeed * Time.deltaTime);
 
@@ -97,28 +91,28 @@ public class ClearJudge : MonoBehaviour
         if (Vector3.Distance(scaleTransform.position, _pressedPos) < 0.01f && _objectsOnScale > 0)
         {
             Debug.Log("저울 눌림");
-            JudgeClear();
+            //JudgeClear();
         }
     }
 
-    private void JudgeClear()
-    {
-        // 조건 체크: 스케일 레벨 달성 + 현재 목표 색상 달성 여부
-        bool isConditionMet = DataManager.Instance.playerCurrentScaleLevel >= DataManager.Instance.targetScaleLevel
-                              && GameModeManager.Instance != null && GameModeManager.Instance.IsTargetAchieved;
+    //private void JudgeClear()
+    //{
+    //    // 조건 체크: 스케일 레벨 달성 + 현재 목표 색상 달성 여부
+    //    bool isConditionMet = DataManager.Instance.playerCurrentScaleLevel >= DataManager.Instance.targetScaleLevel
+    //                          && GameModeManager.Instance != null && GameModeManager.Instance.IsTargetAchieved;
 
-        if (isConditionMet)
-        {
-            isCleared = true; // 중복 실행 방지
+    //    if (isConditionMet)
+    //    {
+    //        isCleared = true; // 중복 실행 방지
 
-            // 걷는 소리 즉시 중지 및 컨트롤 비활성화
-            PlaySFXAudio.Instance.StopWalking();
-            playerController.enabled = false;
+    //        // 걷는 소리 즉시 중지 및 컨트롤 비활성화
+    //        PlaySFXAudio.Instance.StopWalking();
+    //        playerController.enabled = false;
 
-            // ★ 연출 코루틴 시작
-            StartCoroutine(ClearSequence());
-        }
-    }
+    //        // ★ 연출 코루틴 시작
+    //        StartCoroutine(ClearSequence());
+    //    }
+    //}
 
     // ★ 클리어 연출 시퀀스 (페이드 -> 에필로그 -> 페이드 -> 결과창)
     private IEnumerator ClearSequence()

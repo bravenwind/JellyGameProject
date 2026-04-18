@@ -61,12 +61,14 @@ public class DataManager : MonoBehaviour
     public float spawnCoolTime = 10.0f;
 
     [Header("Scale Settings")]
-    public int scaleLevelUpExp = 5;
-    public float[] scalePerLevel;
-    public int playerCurrentScaleLevel = 1;
-    public int absorbedJellyCount = 0;
-    public int maxScaleLevel = 5;
-    public int targetScaleLevel = 3;
+    public float jellyScaleIncrease = 0.05f;
+    [Range(0f, 1f)]
+    public float absorbScalePercent = 0.3f;
+    public float minScale = 1f;
+    public float maxScale = 5f;
+    public float scaleDecreaseAmount = 0.3f;
+    public float jumpScaleThreshold = 2f;
+    public float playerCurrentScale = 1f;
     public float scaleIncreaseTime = 1.0f;
     public float scaleDecreaseTime = 1.0f;
 
@@ -76,6 +78,8 @@ public class DataManager : MonoBehaviour
     public float scaleIncreaseDuration = 1.0f;
     public float scaleDecreaseDuration = 1.0f;
     public float scaleChangedPlusSize = 3.0f;
+    public float cameraZoomFirstThreshold = 6f;
+    public float cameraZoomThresholdStep = 4f;
 
     public float[] gameFailMinusSizePerLevel;
 
@@ -150,17 +154,13 @@ public class DataManager : MonoBehaviour
             return;
         }
 
-        int randint = UnityEngine.Random.Range(0, 2);
-        targetScaleLevel = randint == 0 ? 4 : 5;
-
         InitializeGameData();
         //LoadAndApplyData(); // 데이터 로드 및 적용
     }
 
     private void InitializeGameData()
     {
-        playerCurrentScaleLevel = 1;
-        absorbedJellyCount = 0;
+        playerCurrentScale = 1f;
         //scaleMultiplyPerLevel = new float[maxLevel];
         currentScore = 0;
 

@@ -15,9 +15,11 @@ public class AIScaleState : AIBaseState
 
     public override void Enter()
     {
-        // 스케일 변화 중 이동 정지
         if (ai.Agent.isOnNavMesh)
+        {
             ai.Agent.isStopped = true;
+            ai.Agent.ResetPath(); // 멈추면서 기존의 무효화될 수 있는 경로 완전히 삭제
+        }
     }
 
     public override void Update()

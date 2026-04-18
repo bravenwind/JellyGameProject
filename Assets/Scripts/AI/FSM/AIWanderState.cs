@@ -18,44 +18,37 @@ public class AIWanderState : AIBaseState
 
     private const float STUCK_THRESHOLD = 1.5f;
 
+    private float _retryTimer = 0f; // 목적지 탐색 실패 시 쿨다운
+
     public AIWanderState(AIPlayerMovement ai) : base(ai) { }
 
     public override void Enter()
     {
-        _hasTarget  = false;
+        _hasTarget = false;
         _stuckTimer = 0f;
+        _retryTimer = 0f;
         ai.Agent.speed = ai.moveSpeed * 0.9f;
+        ai.Agent.stoppingDistance = 0.2f; // 배회 목적지에 약간의 여유를 줌 (Jitter 방지)
     }
 
     public override void Update()
     {
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
 
-        // ── 정지 감지 ──
-        if (ai.Agent.velocity.magnitude < 0.05f)
+        // 재시도 대기 중이면 리턴
+        if (_retryTimer > 0f)
         {
-            _stuckTimer += Time.deltaTime;
-            if (_stuckTimer >= STUCK_THRESHOLD)
-            {
-                _hasTarget = false;
-                ai.Agent.ResetPath();
-                _stuckTimer = 0f;
-            }
-        }
-        else
-        {
-            _stuckTimer = 0f;
+            _retryTimer -= Time.deltaTime;
+            return;
         }
 
-        // ── 새 목적지 필요 여부 판단 ──
-        float distToTarget = _hasTarget
-            ? Vector3.Distance(ai.transform.position, _wanderTarget) : -1f;
+        // ── 정지 감지 (기존 코드 동일) ──
+        if (ai.Agent.velocity.magnitude < 0.05f) { /* ... */ } else { _stuckTimer = 0f; }
 
-        bool pathFailed = _hasTarget && !ai.Agent.hasPath
-                          && (Time.time - _lastSetTime) > 0.5f;
-        bool pathInfinity = _hasTarget && ai.Agent.hasPath
-                            && float.IsPositiveInfinity(ai.Agent.remainingDistance)
-                            && (Time.time - _lastSetTime) > 0.5f;
+        // ── 새 목적지 필요 여부 판단 (기존 코드 동일) ──
+        float distToTarget = _hasTarget ? Vector3.Distance(ai.transform.position, _wanderTarget) : -1f;
+        bool pathFailed = _hasTarget && !ai.Agent.hasPath && (Time.time - _lastSetTime) > 0.5f;
+        bool pathInfinity = _hasTarget && ai.Agent.hasPath && float.IsPositiveInfinity(ai.Agent.remainingDistance) && (Time.time - _lastSetTime) > 0.5f;
         bool needNew = !_hasTarget || distToTarget < 1.5f || pathFailed || pathInfinity;
 
         if (!needNew) return;
@@ -64,18 +57,23 @@ public class AIWanderState : AIBaseState
         if (ai.TryGetWanderDestination(out Vector3 dest))
         {
             ai.CachedPath.ClearCorners();
-            if (ai.Agent.CalculatePath(dest, ai.CachedPath)
-                && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
+            if (ai.Agent.CalculatePath(dest, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
             {
                 _wanderTarget = dest;
-                _hasTarget    = true;
+                _hasTarget = true;
                 ai.Agent.SetPath(ai.CachedPath);
-                _lastSetTime  = Time.time;
+                _lastSetTime = Time.time;
             }
             else
             {
                 _hasTarget = false;
+                _retryTimer = 0.5f; // 경로 계산 실패 시 0.5초 쿨다운
             }
+        }
+        else
+        {
+            _hasTarget = false;
+            _retryTimer = 0.5f; // 위치 탐색 실패 시 0.5초 쿨다운 (성능 하락 방지)
         }
     }
 

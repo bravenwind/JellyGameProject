@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // ==========================================
-// 2. Move ╩Себ е╛╥║╫╨
+// 2. Move О©╫О©╫О©╫О©╫ е╛О©╫О©╫О©╫О©╫
 // ==========================================
 public class PlayerMoveState : PlayerBaseState
 {
@@ -15,6 +15,9 @@ public class PlayerMoveState : PlayerBaseState
 
     public override void Update()
     {
+        player.CalculateMoveDirection();
+        player.ApplyGravity();
+
         if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded)
         {
             player.ChangeState(player.jumpState);
@@ -26,9 +29,6 @@ public class PlayerMoveState : PlayerBaseState
             player.ChangeState(player.idleState);
             return;
         }
-
-        player.CalculateMoveDirection();
-        player.ApplyGravity();
 
         Vector3 finalMove = player.inputDir * player.moveSpeed;
         finalMove.y = player.verticalVelocity;

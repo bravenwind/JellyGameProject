@@ -26,25 +26,11 @@ public class PlayerAbsorbingManager : MonoBehaviour
     }
 
     public bool isBot = false;
-    private int _botAbsorbCount = 0;
 
     private void HandleJellyEaten(JellyColorType type)
     {
         colorVisual.HandleJellyAbsorbed(type);
-
-        if (isBot)
-        {
-            _botAbsorbCount++;
-            if (_botAbsorbCount >= DataManager.Instance.scaleLevelUpExp)
-            {
-                _botAbsorbCount = 0;
-                scaleController.BotLevelUp();
-            }
-        }
-        else
-        {
-            scaleController.CheckScaleUp();
-        }
+        scaleController.GrowByJelly();
     }
 
     private void HandleReset()

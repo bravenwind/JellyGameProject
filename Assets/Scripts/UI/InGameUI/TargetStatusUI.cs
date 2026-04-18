@@ -31,28 +31,28 @@ public class TargetStatusUI : MonoBehaviour
         if (GameModeManager.Instance == null) return;
 
         var gm = GameModeManager.Instance;
-        string targetColorText = GameModeManager.GetColorName(gm.TargetColor);
-        Color targetRGB = RYBColor.GetTargetRGB(gm.TargetColor);
+        //string targetColorText = GameModeManager.GetColorName(gm.TargetColor);
+        //Color targetRGB = RYBColor.GetTargetRGB(gm.TargetColor);
 
-        // 목표 색상 아이콘
-        if (targetImage != null)
-            targetImage.color = targetRGB;
+        //// 목표 색상 아이콘
+        //if (targetImage != null)
+        //    targetImage.color = targetRGB;
 
-        // 스케일 레벨
-        string targetScaleLevelText = "Lv." + DataManager.Instance.targetScaleLevel;
-        if (targetScaleText != null)
-            targetScaleText.text = targetScaleLevelText;
+        //// 스케일 레벨
+        //string targetScaleLevelText = "Lv." + DataManager.Instance.targetScaleLevel;
+        //if (targetScaleText != null)
+        //    targetScaleText.text = targetScaleLevelText;
 
-        // 목표 상태 텍스트
-        if (targetStatusText != null)
-            targetStatusText.text = $"{targetColorText} 색의 {targetScaleLevelText} 가 되어야해!";
+        //// 목표 상태 텍스트
+        //if (targetStatusText != null)
+        //    targetStatusText.text = $"{targetColorText} 색의 {targetScaleLevelText} 가 되어야해!";
 
-        // 미션 텍스트
-        if (missionText1 != null)
-            missionText1.text = $"{targetColorText}색 젤리 만들기";
-        if (missionText2 != null)
-            missionText2.text = $"순도 {gm.CurrentPurityThreshold * 100f:F0}% 이상 달성";
-        if (missionText3 != null)
-            missionText3.text = $"목표 {gm.CycleCount}번째 생존 중";
+        //// 미션 텍스트
+        //if (missionText1 != null)
+        //    missionText1.text = $"{targetColorText}색 젤리 만들기";
+        //if (missionText2 != null)
+        //    missionText2.text = $"순도 {gm.CurrentPurityThreshold * 100f:F0}% 이상 달성";
+        //if (missionText3 != null)
+        //    missionText3.text = $"목표 {gm.CycleCount}번째 생존 중";
     }
 }

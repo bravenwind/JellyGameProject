@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // ==========================================
-// 3. Jump ╩Себ е╛╥║╫╨
+// 3. Jump О©╫О©╫О©╫О©╫ е╛О©╫О©╫О©╫О©╫
 // ==========================================
 public class PlayerJumpState : PlayerBaseState
 {
@@ -36,5 +36,8 @@ public class PlayerJumpState : PlayerBaseState
         }
     }
 
-    public override void Exit() { }
+    public override void Exit()
+    {
+        if (player.jellyAnimator != null) player.jellyAnimator.ResetTrigger("Jump");
+    }
 }

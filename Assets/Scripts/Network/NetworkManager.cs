@@ -12,7 +12,6 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Photon.Pun;           // PhotonNetwork, PhotonView 등 핵심 클래스
 using Photon.Realtime;      // IConnectionCallbacks, IMatchmakingCallbacks 등 콜백 인터페이스
 
