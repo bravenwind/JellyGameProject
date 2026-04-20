@@ -15,6 +15,7 @@ using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 public class GameModeManager : MonoBehaviourPunCallbacks
 {
@@ -223,6 +224,20 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 // Setup 함수에도 level 매개변수가 들어가지 않도록 주의!
                 entryComp.Setup(i + 1, name, score, isMe);
             }
+        }
+    }
+
+    public void OnClickRestartButton()
+    {
+        // 1. 만약 현재 방에 있다면 방에서 나가는 요청을 보냄
+        if (PhotonNetwork.InRoom)
+        {
+            NetworkManager.Instance.LeaveRoom();
+        }
+        else
+        {
+            // 방에 없는 상태라면 바로 씬 이동
+            SceneManager.LoadScene("Main"); 
         }
     }
 

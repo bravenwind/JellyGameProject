@@ -35,7 +35,14 @@ public class AIFleeState : AIBaseState
 
         // ── 위협 탐지 ──
         Transform threat = ai.FindThreat();
-        if (threat == null) return;
+
+        // 💡 위협이 널이 되었다는 건 쫓아오던 애가 죽었거나, 나보다 작아졌다는 뜻!
+        if (threat == null)
+        {
+            // 즉시 상태를 재평가해서 역으로 쫓아가거나 배회(Wander) 상태로 전환합니다.
+            ai.EvaluateAndTransition();
+            return;
+        }
 
         // ── 1. Y축 단차 무시 (순수 XZ 평면 방향) ──
         Vector3 fleeDir = (ai.transform.position - threat.position);

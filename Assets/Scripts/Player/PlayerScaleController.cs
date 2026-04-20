@@ -13,7 +13,7 @@ public class PlayerScaleController : MonoBehaviour
     public Vector3 originalScale;
     private Vector3 currentScale;
 
-    public float currentScaleValue { get; private set; } = 1f;
+    public float currentScaleValue { get; private set; } = 2f;
 
     private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
     private bool isScaling = false;
@@ -47,26 +47,37 @@ public class PlayerScaleController : MonoBehaviour
         QueueScaleChange(ScaleTo(target, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
     }
 
-    private bool CrossedThresholdUp(float prevScale, float newScale)
+    // 1. 현재 스케일이 카메라 줌의 몇 번째 단계(Tier)에 있는지 계산하는 함수를 추가합니다.
+    private int GetScaleTier(float scale)
     {
-        float first = DataManager.Instance.cameraZoomFirstThreshold;
-        float step  = DataManager.Instance.cameraZoomThresholdStep;
-        if (step <= 0f || newScale <= prevScale) return false;
-        int n = Mathf.CeilToInt((prevScale - first) / step);
-        float nextThreshold = first + n * step;
-        if (nextThreshold <= prevScale) nextThreshold += step;
-        return nextThreshold < newScale;
+        float first = DataManager.Instance.cameraZoomFirstThreshold; // 6f
+        float step = DataManager.Instance.cameraZoomThresholdStep;   // 4f
+
+        if (step <= 0f) return 0;
+
+        // 첫 번째 임계값(6.0) 도달 전이면 -1 단계를 반환합니다.
+        if (scale < first) return -1;
+
+        // 6.0~9.99 = 0단계 / 10.0~13.99 = 1단계 / 14.0~17.99 = 2단계...
+        return Mathf.FloorToInt((scale - first) / step);
     }
 
+    // 2. 기존 CrossedThresholdUp 함수를 아래와 같이 교체합니다.
+    private bool CrossedThresholdUp(float prevScale, float newScale)
+    {
+        if (newScale <= prevScale) return false;
+
+        // 이전 스케일의 단계보다 새 스케일의 단계가 더 높아졌다면 임계값을 돌파한 것입니다.
+        return GetScaleTier(newScale) > GetScaleTier(prevScale);
+    }
+
+    // 3. 기존 CrossedThresholdDown 함수를 아래와 같이 교체합니다.
     private bool CrossedThresholdDown(float prevScale, float newScale)
     {
-        float first = DataManager.Instance.cameraZoomFirstThreshold;
-        float step  = DataManager.Instance.cameraZoomThresholdStep;
-        if (step <= 0f || newScale >= prevScale) return false;
-        int n = Mathf.FloorToInt((prevScale - first) / step);
-        float prevThreshold = first + n * step;
-        if (prevThreshold >= prevScale) prevThreshold -= step;
-        return prevThreshold > newScale;
+        if (newScale >= prevScale) return false;
+
+        // 이전 스케일의 단계보다 새 스케일의 단계가 더 낮아졌다면 임계값을 아래로 내려간 것입니다.
+        return GetScaleTier(newScale) < GetScaleTier(prevScale);
     }
 
     private IEnumerator ScaleTo(float targetValue, float duration, bool growing, bool playEffect = false)
@@ -167,7 +178,7 @@ public class PlayerScaleController : MonoBehaviour
 
         if (!isBot)
         {
-            DataManager.Instance.playerCurrentScale = 1f;
+            DataManager.Instance.playerCurrentScale = 2f;
             PlayerEvents.OnScaleUIUpdate?.Invoke();
         }
     }

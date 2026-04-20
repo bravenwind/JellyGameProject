@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Photon.Pun;           // PhotonNetwork, PhotonView 등 핵심 클래스
 using Photon.Realtime;      // IConnectionCallbacks, IMatchmakingCallbacks 등 콜백 인터페이스
+using UnityEngine.SceneManagement;
 
 public class NetworkManager : MonoBehaviourPunCallbacks
 // MonoBehaviourPunCallbacks = MonoBehaviour + Photon 콜백을 자동으로 받을 수 있는 베이스 클래스
@@ -90,11 +91,18 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // 닉네임 설정 (다른 플레이어 화면에서도 보임)
         PhotonNetwork.NickName = string.IsNullOrEmpty(playerName) ? "Jelly" : playerName;
 
-        // PhotonServerSettings(Assets/Photon/PhotonUnityNetworking/Resources)에서
-        // App ID와 서버 정보를 읽어서 자동으로 접속
-        PhotonNetwork.ConnectUsingSettings();
-
-        Debug.Log("[Network] Photon 서버에 연결 중...");
+        // 💡 핵심: 이미 서버에 연결되어 있다면 다시 연결하지 않고 바로 방으로 들어갑니다.
+        if (PhotonNetwork.IsConnected)
+        {
+            Debug.Log("[Network] 이미 마스터 서버에 연결되어 있습니다. 바로 방 탐색을 시작합니다.");
+            JoinOrCreateRoom();
+        }
+        else
+        {
+            // 연결되어 있지 않다면 처음부터 접속 시작
+            PhotonNetwork.ConnectUsingSettings();
+            Debug.Log("[Network] Photon 서버에 연결 중...");
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -172,6 +180,15 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public override void OnDisconnected(DisconnectCause cause)
     {
         Debug.LogWarning($"[Network] 접속 끊김: {cause}");
+    }
+
+    public override void OnLeftRoom()
+    {
+        Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 로비 씬으로 돌아갑니다.");
+
+        // 이때 타이틀 씬(혹은 로비 씬)으로 이동!
+        // (Build Settings에 등록된 씬 이름과 정확히 일치해야 함)
+        SceneManager.LoadScene("Main");
     }
 
     // ─────────────────────────────────────────────────────────

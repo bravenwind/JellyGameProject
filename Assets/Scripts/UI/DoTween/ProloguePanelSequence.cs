@@ -24,6 +24,9 @@ public class ProloguePanelSequence : MonoBehaviour
     [Header("Finish")]
     [SerializeField] private bool closePanelOnFinish;
 
+    [Header("Player NickName")]
+    [SerializeField] private string nickname;
+
     public SceneLoader sceneLoader;
 
     private int _index = -1;
@@ -51,9 +54,11 @@ public class ProloguePanelSequence : MonoBehaviour
         Next();
     }
 
-    public void StartPrologue()
+    public void StartPrologue(string nick)
     {
         if (prologuePanel == null) return;
+
+        nickname = nick;
 
         PlaySFXAudio.Instance.PlayButton1Sound();
         prologuePanel.SetActive(true);
@@ -101,6 +106,6 @@ public class ProloguePanelSequence : MonoBehaviour
         //if (closePanelOnFinish && prologuePanel != null)
         //    prologuePanel.SetActive(false);
 
-        sceneLoader.LoadGame();
+        NetworkManager.Instance.StartConnect(nickname);
     }
 }

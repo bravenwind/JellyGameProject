@@ -68,7 +68,7 @@ public class DataManager : MonoBehaviour
     public float maxScale = 5f;
     public float scaleDecreaseAmount = 0.3f;
     public float jumpScaleThreshold = 2f;
-    public float playerCurrentScale = 1f;
+    public float playerCurrentScale = 2f;
     public float scaleIncreaseTime = 1.0f;
     public float scaleDecreaseTime = 1.0f;
 
@@ -160,7 +160,6 @@ public class DataManager : MonoBehaviour
 
     private void InitializeGameData()
     {
-        playerCurrentScale = 1f;
         //scaleMultiplyPerLevel = new float[maxLevel];
         currentScore = 0;
 

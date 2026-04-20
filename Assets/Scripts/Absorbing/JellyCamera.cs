@@ -5,7 +5,7 @@ using UnityEngine.Rendering.Universal;
 
 public class JellyCamera : MonoBehaviour
 {
-    [Header("✨ 젤리 카메라 연출 설정 (여기서 값을 조절하세요) ✨")]
+    [Header("젤리 카메라 연출 설정 (여기서 값을 조절하세요)")]
 
     [Tooltip("효과가 완전히 멈출 때까지 걸리는 시간(초 단위)입니다.\n" +
              "예: 1.5로 설정하면 1.5초 동안 출렁거립니다.")]
@@ -28,7 +28,7 @@ public class JellyCamera : MonoBehaviour
 
 
     [Space(20)] // 인스펙터에서 줄 간격 띄우기
-    [Header("🔧 필수 연결 항목 (건드리지 마세요)")]
+    [Header("필수 연결 항목 (건드리지 마세요)")]
     [Tooltip("씬에 있는 Global Volume 오브젝트를 여기에 끌어다 넣으세요.\n" +
              "주의: Volume 안에 Lens Distortion 효과가 꼭 추가되어 있어야 합니다!")]
     public Volume globalVolume;

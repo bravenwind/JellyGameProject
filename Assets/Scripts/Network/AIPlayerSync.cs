@@ -12,13 +12,25 @@ public class AIPlayerSync : MonoBehaviourPun
 
     private void Start()
     {
+        // 봇 이름은 ViewID로 결정적(deterministic)이므로 모든 클라이언트에서 동일하게 계산 가능
+        string botName = $"AI 봇 {photonView.ViewID}";
+
+        // ── 이름표 설정 (모든 클라이언트에서 실행) ──
+        NameTagBillboard nameTag = GetComponentInChildren<NameTagBillboard>(true);
+        if (nameTag != null)
+        {
+            nameTag.SetName(botName);
+            nameTag.ApplyRoleColor(NameTagRole.Bot);
+        }
+
+        // ── 이하 MasterClient 전용 처리 ──
         if (!PhotonNetwork.IsMasterClient) return;
 
         _botPrefix = $"Bot{photonView.ViewID}";
-        _currentScore = 0; // 시작할 때 0점으로 초기화
+        _currentScore = 0;
 
-        UpdateBotData($"AI 봇 {photonView.ViewID}", _currentScore);
-        gameObject.name = name + "_" + $"AI 봇 {photonView.ViewID}";
+        UpdateBotData(botName, _currentScore);
+        gameObject.name = gameObject.name + "_" + botName;
     }
 
     // 💡 외부(JellyColliderAbsorb 등)에서 점수를 올릴 때 호출할 함수 새로 추가

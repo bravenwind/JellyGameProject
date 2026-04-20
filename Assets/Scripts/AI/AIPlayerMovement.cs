@@ -43,6 +43,9 @@ public class AIPlayerMovement : MonoBehaviourPun
     public float baseAgentRadius = 0.5f;
     public float baseAgentHeight = 2.0f;
 
+    [Header("이름표")]
+    public NameTagBillboard nameTagBillboard;
+
     // ─────────────────────────────────────────────────────────
     // 컴포넌트 (상태 클래스들이 접근)
     // ─────────────────────────────────────────────────────────
@@ -72,6 +75,9 @@ public class AIPlayerMovement : MonoBehaviourPun
     private AIBaseState _stateBeforeScale;
     private float _prevScaleValue = 1f;
     public bool IsBeingAbsorbed { get; set; } = false;
+
+    /// <summary>이 봇이 현재까지 획득한 점수 (다른 엔티티를 흡수할 때 상대방에게 넘어감)</summary>
+    public int currentScore = 0;
 
     // ─────────────────────────────────────────────────────────
     // 외부 프로퍼티
@@ -279,17 +285,14 @@ public class AIPlayerMovement : MonoBehaviourPun
             if (p == null) continue;
             if (p.GetComponentInParent<AIPlayerMovement>() == this) continue;
 
-            float threatScale = p.transform.localScale.x;
+            // 💡 수정: transform.localScale 대신 동기화된 ScaleValue 사용
+            float threatScale = p.ScaleValue;
+
             if (threatScale <= myScale) continue; // 나보다 작거나 같으면 위협 아님
 
-            // 중심점 간의 거리
             float distToCenter = Vector3.Distance(transform.position, p.transform.position);
-
-            // 표면 간의 거리 = 중심거리 - 내 반지름 - 상대 반지름
-            // (baseAgentRadius가 0.5라면, scale * 0.5가 실제 콜라이더의 반지름이 됩니다)
             float edgeDist = distToCenter - (myScale * baseAgentRadius) - (threatScale * baseAgentRadius);
 
-            // 실제 표면 거리가 탐지 반경(detectRadius) 이내에 들어왔는가?
             if (edgeDist < detectRadius && edgeDist < minEdgeDist)
             {
                 minEdgeDist = edgeDist;
@@ -327,12 +330,14 @@ public class AIPlayerMovement : MonoBehaviourPun
         Transform closest = null;
         float minEdgeDist = float.MaxValue;
 
-        // 1. 작은 플레이어 탐색
+        // 1. 작은 플레이어 탐색 부분
         foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
         {
             if (p == null || p.GetComponentInParent<AIPlayerMovement>() == this) continue;
 
-            float preyScale = p.transform.localScale.x;
+            // 💡 수정: transform.localScale 대신 동기화된 ScaleValue 사용
+            float preyScale = p.ScaleValue;
+
             if (preyScale >= myScale) continue; // 나보다 크거나 같으면 사냥감이 아님!
 
             float distToCenter = Vector3.Distance(transform.position, p.transform.position);
@@ -493,6 +498,14 @@ public class AIPlayerMovement : MonoBehaviourPun
         if (player != null && player.transform.localScale.x < transform.localScale.x)
         {
             float preyScale = player.transform.localScale.x;
+
+            // 흡수된 플레이어의 점수를 봇에게 추가
+            int playerScore = 0;
+            if (player.photonView?.Owner?.CustomProperties != null &&
+                player.photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreVal))
+                playerScore = (int)scoreVal;
+            currentScore += playerScore;
+
             player.photonView.RPC("RPC_GetAbsorbed", RpcTarget.All, photonView.ViewID);
             ScaleCtrl?.GrowByAbsorbing(preyScale);
             return;
@@ -505,6 +518,11 @@ public class AIPlayerMovement : MonoBehaviourPun
             && otherBot.transform.localScale.x < transform.localScale.x)
         {
             float preyScale = otherBot.transform.localScale.x;
+            Debug.Log(this.name + "/OnTriggerEnter : 다른 AI 플레이어 흡수");
+
+            // 흡수된 봇의 점수를 이 봇에게 추가
+            currentScore += otherBot.currentScore;
+
             otherBot.photonView.RPC(nameof(RPC_BotAbsorbed), RpcTarget.All, photonView.ViewID);
             ScaleCtrl?.GrowByAbsorbing(preyScale);
             return;
@@ -517,6 +535,7 @@ public class AIPlayerMovement : MonoBehaviourPun
     {
         if (IsBeingAbsorbed) return;
         IsBeingAbsorbed = true;
+        Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어 흡수됨.");
         StartCoroutine(BotAbsorbedSequence(absorberViewID));
     }
 
@@ -541,10 +560,13 @@ public class AIPlayerMovement : MonoBehaviourPun
                 if (Vector3.Distance(transform.position, absorberTf.position) <= snapDist) break;
                 transform.position = Vector3.MoveTowards(transform.position, absorberTf.position, moveSpeed * Time.deltaTime);
             }
-            transform.localScale = Vector3.Lerp(startScale, Vector3.zero, elapsed / duration);
+            transform.localScale = Vector3.Lerp(startScale, Vector3.one * 0.05f, elapsed / duration);
             elapsed += Time.deltaTime;
             yield return null;
         }
+
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            r.enabled = false;
 
         if (PhotonNetwork.IsMasterClient)
             PhotonNetwork.Destroy(gameObject);

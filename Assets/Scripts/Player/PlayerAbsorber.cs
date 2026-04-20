@@ -32,12 +32,18 @@ public class PlayerAbsorber : MonoBehaviour
     {
         if (!isBot)
         {
-            DataManager.Instance.currentScore += 100;
+            DataManager.Instance.currentScore += DataManager.Instance.scorePerJelly;
             GetComponent<NetworkPlayerSync>().SyncScore(DataManager.Instance.currentScore);
             UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
             if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
             if (DataManager.Instance.currentScore >= DataManager.Instance.targetScore)
                 DataManager.Instance.missions[1].missionCleared = true;
+        }
+        else
+        {
+            // 봇도 젤리를 먹으면 점수 누적 → 나중에 플레이어/봇이 이 봇을 흡수할 때 가져감
+            AIPlayerMovement ai = GetComponentInParent<AIPlayerMovement>();
+            if (ai != null) ai.currentScore += DataManager.Instance.scorePerJelly;
         }
 
         OnJellyEaten?.Invoke(type);

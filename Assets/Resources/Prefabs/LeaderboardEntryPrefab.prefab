@@ -56,7 +56,6 @@ MonoBehaviour:
   rankText: {fileID: 2937230625357413462}
   nameText: {fileID: 8658859782158352810}
   scoreText: {fileID: 2516197336744459393}
-  levelText: {fileID: 0}
   backgroundImage: {fileID: 662453615372126297}
   myEntryColor: {r: 1, g: 1, b: 0, a: 0.3}
   botEntryColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.2}
@@ -239,7 +238,7 @@ MonoBehaviour:
   m_IgnoreLayout: 0
   m_MinWidth: -1
   m_MinHeight: -1
-  m_PreferredWidth: 80
+  m_PreferredWidth: 100
   m_PreferredHeight: -1
   m_FlexibleWidth: -1
   m_FlexibleHeight: -1

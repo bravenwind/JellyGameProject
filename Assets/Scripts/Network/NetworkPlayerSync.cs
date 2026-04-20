@@ -37,8 +37,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     public PlayerScaleController scaleController;
     public Renderer jellyRenderer;
 
-    [Header("이름표 UI (선택사항)")]
-    public TMPro.TextMeshProUGUI nameTagText;
+    [Header("이름표")]
+    public NameTagBillboard nameTagBillboard;
 
     [Header("봇 설정")]
     public bool isBot = false;
@@ -62,6 +62,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     public float respawnDelay = 3f;
 
     private bool _isAbsorbed = false;   // 현재 흡수된 상태인지
+    private System.Collections.Generic.HashSet<int> _absorbedBotIds = new System.Collections.Generic.HashSet<int>();
 
     // ─────────────────────────────────────────────────────────
     // 초기화
@@ -84,8 +85,14 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         }
 
         // 이름표 설정
-        if (nameTagText != null)
-            nameTagText.text = photonView.Owner?.NickName ?? "???";
+        if (nameTagBillboard != null)
+        {
+            string displayName = photonView.Owner?.NickName ?? "???";
+            nameTagBillboard.SetName(displayName);
+
+            NameTagRole role = (photonView.IsMine && !isBot) ? NameTagRole.LocalPlayer : NameTagRole.RemotePlayer;
+            nameTagBillboard.ApplyRoleColor(role);
+        }
     }
 
     private void SetupLocalPlayer()
@@ -219,6 +226,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             }
         }
 
+        Debug.Log(other.name);
+
         // AI 봇(AIPlayerMovement)이 나보다 큰지 확인
         AIPlayerMovement aiBot = other.GetComponentInParent<AIPlayerMovement>();
         if (aiBot != null)
@@ -230,10 +239,14 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             {
                 photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1);
             }
-            else if (myScale > botScale && !aiBot.IsBeingAbsorbed)
+            else if (myScale > botScale)
             {
-                aiBot.IsBeingAbsorbed = true;
-                int bonus = (int)(botScale * 500f);
+                int botId = aiBot.photonView.ViewID;
+                if (_absorbedBotIds.Contains(botId)) return;
+                _absorbedBotIds.Add(botId);
+
+                // 봇의 현재 점수만큼 획득
+                int bonus = aiBot.currentScore;
                 DataManager.Instance.currentScore += bonus;
                 SyncScore(DataManager.Instance.currentScore);
                 aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
@@ -257,9 +270,27 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             PhotonView absorberView = PhotonView.Find(absorberViewID);
             if (absorberView != null && absorberView.IsMine)
             {
-                int bonus = (int)(transform.localScale.x * 500f);
-                DataManager.Instance.currentScore += bonus;
-                SyncScore(DataManager.Instance.currentScore);
+                // 흡수된 플레이어의 점수 읽기 (CustomProperties에 동기화된 값)
+                int absorbedScore = 0;
+                if (photonView.Owner?.CustomProperties != null &&
+                    photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreVal))
+                    absorbedScore = (int)scoreVal;
+
+                // 흡수한 쪽이 봇인지 플레이어인지 구분
+                AIPlayerMovement botAbsorber = absorberView.GetComponent<AIPlayerMovement>();
+                if (botAbsorber != null)
+                {
+                    // 봇이 플레이어를 흡수 → 봇 점수 증가
+                    // (AIPlayerMovement.OnTriggerEnter에서 MasterClient가 이미 처리했으므로 중복 방지)
+                    // 여기서는 스케일만 처리
+                }
+                else
+                {
+                    // 플레이어가 플레이어를 흡수 → 흡수된 플레이어의 점수 획득
+                    DataManager.Instance.currentScore += absorbedScore;
+                    SyncScore(DataManager.Instance.currentScore);
+                }
+
                 absorberView.GetComponent<PlayerScaleController>()?.GrowByAbsorbing(transform.localScale.x);
             }
         }
@@ -290,12 +321,13 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
                 if (Vector3.Distance(transform.position, absorberTf.position) <= snapDist) break;
                 transform.position = Vector3.MoveTowards(transform.position, absorberTf.position, moveSpeed * Time.deltaTime);
             }
-            transform.localScale = Vector3.Lerp(startScale, Vector3.zero, elapsed / duration);
+            transform.localScale = Vector3.Lerp(startScale, Vector3.one * 0.05f, elapsed / duration);
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        transform.localScale = Vector3.zero;
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            r.enabled = false;
         gameObject.SetActive(false);
     }
 

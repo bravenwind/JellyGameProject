@@ -2,37 +2,61 @@ using UnityEngine;
 
 public class MinimapArrow : MonoBehaviour
 {
-    [Header("ÃßÀûÇÒ ´ë»ó (ÇÃ·¹ÀÌ¾î)")]
+    [Header("ì¶”ì  ëŒ€ìƒ (í”Œë ˆì´ì–´)")]
     public Transform target;
 
-    [Header("À§Ä¡ ¿ÀÇÁ¼Â (³ôÀÌ Á¶Àı)")]
-    [Tooltip("ÇÃ·¹ÀÌ¾î ¸Ó¸® À§³ª, ¹Ì´Ï¸Ê Ä«¸Ş¶ó ³ôÀÌ¿¡ ¸Â°Ô Y°ªÀ» Á¶ÀıÇÏ¼¼¿ä.")]
+    [Header("ìœ„ì¹˜ ì˜¤í”„ì…‹ (ë†’ì´ ì¡°ì ˆ)")]
+    [Tooltip("í”Œë ˆì´ì–´ ë¨¸ë¦¬ ìœ„ìª½, ë¯¸ë‹ˆë§µ ì¹´ë©”ë¼ ë†’ì´ì— ë§ê²Œ Yê°’ì„ ì¡°ì •í•˜ì„¸ìš”.")]
     public Vector3 offset = new Vector3(0f, 2f, 0f);
 
-    [Header("È¸Àü µ¿±âÈ­ ¼³Á¤")]
-    [Tooltip("Ã¼Å©ÇÏ¸é ÇÃ·¹ÀÌ¾î°¡ ³Ñ¾îÁ®µµ È­»ìÇ¥´Â YÃà(ÁÂ¿ì ¹æÇâ)¸¸ È¸ÀüÇÕ´Ï´Ù.")]
+    [Header("íšŒì „ ë™ê¸°í™” ì„¤ì •")]
+    [Tooltip("ì²´í¬í•˜ë©´ í”Œë ˆì´ì–´ ì „ë°©ë°©í–¥ í™”ì‚´í‘œì˜ Yì¶•(ì¢Œìš° ë°©í–¥)ë§Œ íšŒì „í•©ë‹ˆë‹¤.")]
     public bool syncOnlyYRotation = true;
+
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ìƒ‰ìƒ ì„¤ì • (ë¯¸ë‹ˆë§µ ë§¤ë‹ˆì €ì—ì„œ ì´ˆê¸°í™” ì‹œ í˜¸ì¶œ)
+    // â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    /// <summary>
+    /// í™”ì‚´í‘œì˜ ìƒ‰ìƒì„ ì„¤ì •í•©ë‹ˆë‹¤.
+    /// SpriteRenderer â†’ .color ì§ì ‘ ì„¤ì • (ìŠ¤í”„ë¼ì´íŠ¸ tint)
+    /// MeshRenderer  â†’ ì¸ìŠ¤í„´ìŠ¤ ë¨¸í‹°ë¦¬ì–¼ì˜ color ì„¤ì •
+    /// â€» ìŠ¤í”„ë¼ì´íŠ¸ëŠ” ë°˜ë“œì‹œ í°ìƒ‰ ì´ë¯¸ì§€ì—¬ì•¼ ì›í•˜ëŠ” ìƒ‰ìƒì´ ì •í™•íˆ ë‚˜ì˜µë‹ˆë‹¤.
+    ///   ë¹¨ê°„ ìŠ¤í”„ë¼ì´íŠ¸ì— ì´ˆë¡ì„ ê³±í•˜ë©´ ê²€ì •ì´ ë˜ê¸° ë•Œë¬¸ì…ë‹ˆë‹¤.
+    /// </summary>
+    public void SetColor(Color color)
+    {
+        // SpriteRendererëŠ” .color í”„ë¡œí¼í‹°ë¡œ ì§ì ‘ tint
+        SpriteRenderer[] spriteRenderers = GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (var sr in spriteRenderers)
+        {
+            sr.color = color;
+        }
+
+        // MeshRenderer ë“± ì¼ë°˜ RendererëŠ” ì¸ìŠ¤í„´ìŠ¤ ë¨¸í‹°ë¦¬ì–¼ ìƒ‰ìƒ ë³€ê²½
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (var r in renderers)
+        {
+            if (r is SpriteRenderer) continue; // ìœ„ì—ì„œ ì´ë¯¸ ì²˜ë¦¬
+            r.material.color = color;          // ì¸ìŠ¤í„´ìŠ¤ ë¨¸í‹°ë¦¬ì–¼ ìë™ ìƒì„±
+        }
+    }
 
     private void LateUpdate()
     {
         if (target == null) return;
 
-        // 1. À§Ä¡ µ¿±âÈ­ (¸ñÇ¥ À§Ä¡ + ¿ÀÇÁ¼Â)
-        // transform.positionÀ» Á÷Á¢ ¼³Á¤ÇÏ¸é Å¸°ÙÀÇ ½ºÄÉÀÏ(Scale) ¿µÇâÀ» ÀüÇô ¹ŞÁö ¾Ê½À´Ï´Ù.
+        // 1. ìœ„ì¹˜ ë™ê¸°í™” (ëª©í‘œ ìœ„ì¹˜ + ì˜¤í”„ì…‹)
         transform.position = target.position + offset;
 
-        // 2. È¸Àü µ¿±âÈ­
+        // 2. íšŒì „ ë™ê¸°í™”
         if (syncOnlyYRotation)
         {
-            // ÇÃ·¹ÀÌ¾îÀÇ YÃà(¹Ù¶óº¸´Â ¹æÇâ) È¸Àü°ª¸¸ °¡Á®¿Í¼­ Àû¿ë
             Vector3 targetEuler = target.eulerAngles;
-
-            // ±âÁ¸ È­»ìÇ¥ÀÇ X, Z È¸ÀüÀº À¯ÁöÇÑ Ã¤ YÃà¸¸ ÇÃ·¹ÀÌ¾î¿Í ¸ÂÃä´Ï´Ù.
             transform.rotation = Quaternion.Euler(transform.eulerAngles.x, targetEuler.y, transform.eulerAngles.z);
         }
         else
         {
-            // ÇÃ·¹ÀÌ¾îÀÇ ¸ğµç È¸Àü(±â¿ï¾îÁü Æ÷ÇÔ)À» ±×´ë·Î µû¶ó°¨
             transform.rotation = target.rotation;
         }
     }
