@@ -3,20 +3,10 @@
 // ============================================================
 // 역할: NavMeshAgent 기반 AI 이동 컨트롤러 (FSM 패턴)
 //
-// PlayerController와 동일한 FSM 구조:
-//   - AIBaseState 추상 클래스 상속
-//   - 상태별 스크립트 분리 (Assets/Scripts/AI/FSM/)
-//   - ChangeState()로 상태 전환, Enter/Update/Exit 생명주기
-//
-// FSM 상태:
-//   Wander  — 랜덤 배회
-//   Chase   — 젤리 추적
-//   Flee    — 위협(나보다 큰 상대) 도망
-//   Scale   — 크기 변화 중 (이동 일시정지)
-//
-// 흡수 처리:
-//   - OnTriggerEnter → 나보다 작은 플레이어를 만나면 흡수
-//   - RPC_BotAbsorbed → 나보다 큰 플레이어에게 먹힘
+// 구조:
+//   - FSM: AIBaseState 추상 클래스 상속, 상태별 스크립트 분리 (AI/FSM/)
+//   - 탐지: AIDetector 컴포넌트에 위임 (SRP 분리)
+//   - 흡수: OnTriggerEnter / RPC_BotAbsorbed
 // ============================================================
 
 using System.Collections;
@@ -26,6 +16,7 @@ using Photon.Pun;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(PhotonView))]
+[RequireComponent(typeof(AIDetector))]
 public class AIPlayerMovement : MonoBehaviourPun
 {
     // ─────────────────────────────────────────────────────────
@@ -53,6 +44,7 @@ public class AIPlayerMovement : MonoBehaviourPun
     public PlayerScaleController ScaleCtrl { get; private set; }
     public NavMeshQueryFilter NavFilter { get; private set; }
     public NavMeshPath CachedPath { get; private set; }
+    public AIDetector Detector { get; private set; }
 
     private Animator _anim;
 
@@ -93,8 +85,13 @@ public class AIPlayerMovement : MonoBehaviourPun
     {
         Agent     = GetComponent<NavMeshAgent>();
         ScaleCtrl = GetComponent<PlayerScaleController>();
+        Detector  = GetComponent<AIDetector>();
         CachedPath = new NavMeshPath();
         _anim     = GetComponentInChildren<Animator>();
+
+        // AIDetector에 설정값 동기화
+        Detector.detectRadius = detectRadius;
+        Detector.baseAgentRadius = baseAgentRadius;
 
         Agent.speed           = moveSpeed;
         Agent.angularSpeed    = 0f;    // 회전 직접 처리
@@ -261,151 +258,16 @@ public class AIPlayerMovement : MonoBehaviourPun
     }
 
     // ─────────────────────────────────────────────────────────
-    // 탐지 함수 (상태 클래스들이 호출)
+    // 탐지 함수 (AIDetector에 위임, 상태 클래스 호환용 래퍼)
     // ─────────────────────────────────────────────────────────
 
     public float GetMyScale()
         => transform.localScale.x;
 
-    /// <summary>
-    /// 나보다 큰 위협을 탐지.
-    /// 스케일(덩치)을 고려하여 중심점이 아닌 '표면 간의 거리(Edge Distance)'를 기준으로 탐지합니다.
-    /// </summary>
-    public Transform FindThreat()
-    {
-        float myScale = transform.localScale.x;
-        Transform closest = null;
-
-        // 탐지 거리 안쪽인지 확인할 때는 closestDist 대신 최소 표면 거리를 기록
-        float minEdgeDist = float.MaxValue;
-
-        // 플레이어 위협
-        foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
-        {
-            if (p == null) continue;
-            if (p.GetComponentInParent<AIPlayerMovement>() == this) continue;
-
-            // 💡 수정: transform.localScale 대신 동기화된 ScaleValue 사용
-            float threatScale = p.ScaleValue;
-
-            if (threatScale <= myScale) continue; // 나보다 작거나 같으면 위협 아님
-
-            float distToCenter = Vector3.Distance(transform.position, p.transform.position);
-            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (threatScale * baseAgentRadius);
-
-            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
-            {
-                minEdgeDist = edgeDist;
-                closest = p.transform;
-            }
-        }
-
-        // 다른 AIPlayerMovement 봇 위협
-        foreach (var b in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
-        {
-            if (b == null || b == this) continue;
-
-            float threatScale = b.transform.localScale.x;
-            if (threatScale <= myScale) continue;
-
-            float distToCenter = Vector3.Distance(transform.position, b.transform.position);
-            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (threatScale * baseAgentRadius);
-
-            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
-            {
-                minEdgeDist = edgeDist;
-                closest = b.transform;
-            }
-        }
-
-        return closest;
-    }
-
-    /// <summary>
-    /// 나보다 작은 먹잇감(플레이어 또는 다른 봇)을 탐지합니다.
-    /// </summary>
-    public Transform FindPrey()
-    {
-        float myScale = transform.localScale.x;
-        Transform closest = null;
-        float minEdgeDist = float.MaxValue;
-
-        // 1. 작은 플레이어 탐색 부분
-        foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
-        {
-            if (p == null || p.GetComponentInParent<AIPlayerMovement>() == this) continue;
-
-            // 💡 수정: transform.localScale 대신 동기화된 ScaleValue 사용
-            float preyScale = p.ScaleValue;
-
-            if (preyScale >= myScale) continue; // 나보다 크거나 같으면 사냥감이 아님!
-
-            float distToCenter = Vector3.Distance(transform.position, p.transform.position);
-            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (preyScale * baseAgentRadius);
-
-            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
-            {
-                minEdgeDist = edgeDist;
-                closest = p.transform;
-            }
-        }
-
-        // 2. 작은 다른 AI 봇 탐색
-        foreach (var b in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
-        {
-            if (b == null || b == this) continue;
-
-            float preyScale = b.transform.localScale.x;
-            if (preyScale >= myScale) continue;
-
-            float distToCenter = Vector3.Distance(transform.position, b.transform.position);
-            float edgeDist = distToCenter - (myScale * baseAgentRadius) - (preyScale * baseAgentRadius);
-
-            if (edgeDist < detectRadius && edgeDist < minEdgeDist)
-            {
-                minEdgeDist = edgeDist;
-                closest = b.transform;
-            }
-        }
-
-        if (closest != null) 
-        {
-            Debug.Log("AIPlayerMovement/FindPrey : " + closest.name);
-        }
-
-        return closest;
-    }
-
-    /// <summary>
-    /// 추적할 대상을 결정합니다. (작은 플레이어를 1순위, 젤리를 2순위로 탐색)
-    /// </summary>
-    public Transform FindTargetToChase()
-    {
-        Transform prey = FindPrey();
-        if (prey != null) return prey; // 근처에 맛있는 플레이어가 있으면 플레이어를 먼저 쫓아감!
-
-        return FindNearestJelly(); // 없으면 그냥 바닥에 있는 젤리 찾음
-    }
-
-    /// <summary>탐지 반경 내 가장 가까운 젤리</summary>
-    public Transform FindNearestJelly()
-    {
-        JellyObject[] all = FindObjectsByType<JellyObject>(FindObjectsSortMode.None);
-        Transform nearest = null;
-        float minDist = detectRadius;
-
-        foreach (var j in all)
-        {
-            if (j == null) continue;
-            float d = Vector3.Distance(transform.position, j.transform.position);
-            if (d < minDist)
-            {
-                minDist = d;
-                nearest = j.transform;
-            }
-        }
-        return nearest;
-    }
+    public Transform FindThreat() => Detector.FindThreat();
+    public Transform FindPrey() => Detector.FindPrey();
+    public Transform FindTargetToChase() => Detector.FindTargetToChase();
+    public Transform FindNearestJelly() => Detector.FindNearestJelly();
 
     /// <summary>배회용 랜덤 NavMesh 위치 탐색</summary>
     public bool TryGetWanderDestination(out Vector3 destination)

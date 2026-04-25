@@ -1,13 +1,10 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
 public class MainCamera_Action : MonoBehaviour
 {
     public Transform target;
-    public CameraPosAndRot debug;
 
     public float followSpeed = 10f;
 
