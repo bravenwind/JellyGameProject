@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// AI 봇의 주변 엔티티 탐지를 담당합니다.
-/// AIPlayerMovement에서 탐지 로직을 분리하여 단일 책임 원칙(SRP)을 적용합니다.
+/// AI 봇의 주변 엔티티 탐지를 담당.
+/// AIPlayerMovement에서 탐지 로직을 분리.
 /// </summary>
 public class AIDetector : MonoBehaviour
 {
@@ -11,8 +11,8 @@ public class AIDetector : MonoBehaviour
     public float baseAgentRadius = 0.5f;
 
     /// <summary>
-    /// 나보다 큰 위협을 탐지합니다.
-    /// 표면 간의 거리(Edge Distance)를 기준으로 탐지합니다.
+    /// 나보다 큰 위협을 탐지.
+    /// 표면 간의 거리(Edge Distance)를 기준으로 탐지.
     /// </summary>
     public Transform FindThreat()
     {
@@ -21,7 +21,7 @@ public class AIDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// 나보다 작은 먹잇감(플레이어 또는 다른 봇)을 탐지합니다.
+    /// 나보다 작은 먹잇감(플레이어 또는 다른 봇)을 탐지.
     /// </summary>
     public Transform FindPrey()
     {
@@ -30,7 +30,7 @@ public class AIDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// 추적할 대상을 결정합니다. (작은 플레이어 1순위, 젤리 2순위)
+    /// 추적할 대상을 결정. (작은 플레이어 1순위, 젤리 2순위)
     /// </summary>
     public Transform FindTargetToChase()
     {
@@ -59,8 +59,8 @@ public class AIDetector : MonoBehaviour
     }
 
     /// <summary>
-    /// 스케일 비교를 통해 플레이어/봇 엔티티를 탐색합니다.
-    /// FindThreat과 FindPrey의 중복 로직을 통합합니다.
+    /// 스케일 비교를 통해 플레이어/봇 엔티티를 탐색.
+    /// FindThreat과 FindPrey의 중복 로직을 통합.
     /// </summary>
     private Transform FindEntityByScaleComparison(float myScale, bool biggerThanMe)
     {

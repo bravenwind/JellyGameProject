@@ -105,6 +105,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7988438608829161243}
   - component: {fileID: 6478388778694794406}
+  - component: {fileID: 8579281685212818753}
   - component: {fileID: 3536485665450355811}
   - component: {fileID: 5309223496067073866}
   - component: {fileID: 8452815471202114268}
@@ -116,6 +117,7 @@ GameObject:
   - component: {fileID: 2786491381095114607}
   - component: {fileID: 9149948584432912989}
   - component: {fileID: 6794927489248742995}
+  - component: {fileID: 6309495928977491420}
   m_Layer: 6
   m_Name: AIPlayer
   m_TagString: Player
@@ -163,6 +165,20 @@ MonoBehaviour:
   nameTagBillboard: {fileID: 8149866080057182332}
   _dbg_currentState: '-'
   currentScore: 0
+--- !u!114 &8579281685212818753
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 997f8668bfccd2240ad5ac3133c7caac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  detectRadius: 15
+  baseAgentRadius: 0.5
 --- !u!114 &3536485665450355811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -377,6 +393,20 @@ CapsuleCollider:
   m_Height: 2.01
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &6309495928977491420
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 997f8668bfccd2240ad5ac3133c7caac, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  detectRadius: 15
+  baseAgentRadius: 0.5
 --- !u!1 &1243590521275635783
 GameObject:
   m_ObjectHideFlags: 0

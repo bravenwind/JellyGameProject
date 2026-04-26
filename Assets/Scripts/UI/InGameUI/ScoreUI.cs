@@ -12,6 +12,6 @@ public class ScoreUI : MonoBehaviour
 
     public void ChangeScoreUI()
     {
-        scoreText.text = DataManager.Instance.currentScore.ToString() + "Á¡";
+        scoreText.text = GameState.CurrentScore.ToString() + "Á¡";
     }
 }
