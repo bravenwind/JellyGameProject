@@ -6,4 +6,7 @@ public class JellyObject : MonoBehaviour
     public string jellyName;
     public JellyColorType jellyType;
     public Vector3Int jellyRGB;
+
+    private void OnEnable() => EntityRegistry.Register(this);
+    private void OnDisable() => EntityRegistry.Unregister(this);
 }

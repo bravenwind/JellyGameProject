@@ -79,6 +79,12 @@ public class AIPlayerMovement : MonoBehaviourPun
     public float CurrentScale => transform.localScale.x;
 
     // ─────────────────────────────────────────────────────────
+    // 레지스트리 등록
+    // ─────────────────────────────────────────────────────────
+    private void OnEnable() => EntityRegistry.Register(this);
+    private void OnDisable() => EntityRegistry.Unregister(this);
+
+    // ─────────────────────────────────────────────────────────
     // 초기화
     // ─────────────────────────────────────────────────────────
     private void Awake()

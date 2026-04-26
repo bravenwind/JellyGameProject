@@ -125,13 +125,22 @@ public class ChocolateFluid : MonoBehaviour
     private void OnTriggerExit(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
-        if (rb != null && other.CompareTag("Edible"))
+        if (rb == null) return;
+
+        if (other.CompareTag("Edible"))
         {
-            // 물에서 나가면 원래대로 (공기 저항 복구)
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
-
             rb.useGravity = true;
         }
+
+        // OnTriggerEnter에서 꺼놓은 AI 컴포넌트 복구
+        NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
+        WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
+        AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
+
+        if (navMeshAgent != null) navMeshAgent.enabled = true;
+        if (wanderingAI != null) wanderingAI.enabled = true;
+        if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = true;
     }
 }

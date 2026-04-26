@@ -42,11 +42,10 @@ public class AIDetector : MonoBehaviour
     /// <summary>탐지 반경 내 가장 가까운 젤리</summary>
     public Transform FindNearestJelly()
     {
-        JellyObject[] all = FindObjectsByType<JellyObject>(FindObjectsSortMode.None);
         Transform nearest = null;
         float minDist = detectRadius;
 
-        foreach (var j in all)
+        foreach (var j in EntityRegistry.Jellies)
         {
             if (j == null) continue;
             float d = Vector3.Distance(transform.position, j.transform.position);
@@ -68,7 +67,7 @@ public class AIDetector : MonoBehaviour
         Transform closest = null;
         float minEdgeDist = float.MaxValue;
 
-        foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
+        foreach (var p in EntityRegistry.Players)
         {
             if (p == null) continue;
             var selfBot = p.GetComponentInParent<AIPlayerMovement>();
@@ -85,7 +84,7 @@ public class AIDetector : MonoBehaviour
             }
         }
 
-        foreach (var b in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
+        foreach (var b in EntityRegistry.Bots)
         {
             if (b == null || b.gameObject == gameObject) continue;
 

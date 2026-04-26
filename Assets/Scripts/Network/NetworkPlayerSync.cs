@@ -65,6 +65,12 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private System.Collections.Generic.HashSet<int> _absorbedBotIds = new System.Collections.Generic.HashSet<int>();
 
     // ─────────────────────────────────────────────────────────
+    // 레지스트리 등록
+    // ─────────────────────────────────────────────────────────
+    private void OnEnable() => EntityRegistry.Register(this);
+    private void OnDisable() => EntityRegistry.Unregister(this);
+
+    // ─────────────────────────────────────────────────────────
     // 초기화
     // ─────────────────────────────────────────────────────────
     private void Start()

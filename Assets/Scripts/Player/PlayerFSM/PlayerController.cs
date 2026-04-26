@@ -25,6 +25,10 @@ public class PlayerController : MonoBehaviour
     [HideInInspector] public Quaternion targetRotation;
     [HideInInspector] public bool isGrounded;
 
+    // 입력 캐싱 (프레임당 1회만 읽기)
+    [HideInInspector] public float inputH;
+    [HideInInspector] public float inputV;
+
     // 카메라 벡터
     private Vector3 camForward;
     private Vector3 camRight;
@@ -56,8 +60,9 @@ public class PlayerController : MonoBehaviour
     void Update()
     {
         UpdateCameraVectors();
+        inputH = Input.GetAxis("Horizontal");
+        inputV = Input.GetAxis("Vertical");
 
-        // 현재 상태의 Update
         currentState?.Update();
     }
 
@@ -91,16 +96,25 @@ public class PlayerController : MonoBehaviour
 
     public void CalculateMoveDirection()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
-        inputDir = (camForward * v + camRight * h).normalized;
+        inputDir = (camForward * inputV + camRight * inputH).normalized;
     }
 
     public bool IsMoveInputActive()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
-        return (h * h + v * v) > 0.001f;
+        return (inputH * inputH + inputV * inputV) > 0.001f;
+    }
+
+    public void MoveAndRotate()
+    {
+        Vector3 finalMove = inputDir * moveSpeed;
+        finalMove.y = verticalVelocity;
+        controller.Move(finalMove * Time.deltaTime);
+
+        if (inputDir != Vector3.zero)
+        {
+            targetRotation = Quaternion.LookRotation(inputDir);
+            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+        }
     }
 
     private void UpdateCameraVectors()

@@ -30,15 +30,7 @@ public class PlayerMoveState : PlayerBaseState
             return;
         }
 
-        Vector3 finalMove = player.inputDir * player.moveSpeed;
-        finalMove.y = player.verticalVelocity;
-        player.controller.Move(finalMove * Time.deltaTime);
-
-        if (player.inputDir != Vector3.zero)
-        {
-            player.targetRotation = Quaternion.LookRotation(player.inputDir);
-            player.transform.rotation = Quaternion.Slerp(player.transform.rotation, player.targetRotation, player.rotateSpeed * Time.deltaTime);
-        }
+        player.MoveAndRotate();
     }
 
     public override void Exit()
