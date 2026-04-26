@@ -50,7 +50,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     // 이 클라이언트의 로컬 플레이어 참조 (흡수당했는지 체크하기 위함)
     private NetworkPlayerSync _localPlayer;
-    private List<GameObject> _leaderboardEntries = new List<GameObject>();
+    private List<LeaderboardEntry> _leaderboardEntries = new List<LeaderboardEntry>();
+    private ObjectPool<LeaderboardEntry> _leaderboardPool;
 
     // ─────────────────────────────────────────────────────────
     // 초기화
@@ -59,6 +60,13 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+
+        if (leaderboardEntryPrefab != null && leaderboardContainer != null)
+        {
+            var entryComp = leaderboardEntryPrefab.GetComponent<LeaderboardEntry>();
+            if (entryComp != null)
+                _leaderboardPool = new ObjectPool<LeaderboardEntry>(entryComp, leaderboardContainer, 5);
+        }
     }
 
     private void Start()
@@ -91,8 +99,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         _gameRunning = true;
         _gameTimer = gameDuration;
+        GameState.Phase = GamePhase.Playing;
 
-        // 결과창 초기화
         if (gameResultPanel != null)
             gameResultPanel.SetActive(false);
 
@@ -128,6 +136,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private void GameWin()
     {
         _gameRunning = false;
+        GameState.Phase = GamePhase.Result;
         Debug.Log("[GameMode] 타임 오버! 생존 성공!");
 
         if (gameResultPanel != null)
@@ -141,6 +150,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         if (!_gameRunning) return;
         _gameRunning = false;
+        GameState.Phase = GamePhase.GameOver;
 
         float survived = gameDuration - _gameTimer;
         int min = Mathf.FloorToInt(survived / 60f);
@@ -205,25 +215,19 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         // 3. 점수 기준 내림차순 정렬
         entries = entries.OrderByDescending(e => e.score).ToList();
 
-        if (leaderboardContainer == null || leaderboardEntryPrefab == null) return;
+        if (leaderboardContainer == null || _leaderboardPool == null) return;
 
-        foreach (var entry in _leaderboardEntries) Destroy(entry);
-        _leaderboardEntries.Clear();
+        _leaderboardPool.ReturnAll(_leaderboardEntries);
 
         int displayCount = Mathf.Min(entries.Count, 5);
         for (int i = 0; i < displayCount; i++)
         {
             var (name, score, isBot) = entries[i];
-            GameObject entryGo = Instantiate(leaderboardEntryPrefab, leaderboardContainer);
-            _leaderboardEntries.Add(entryGo);
+            LeaderboardEntry entryComp = _leaderboardPool.Get();
+            _leaderboardEntries.Add(entryComp);
 
-            LeaderboardEntry entryComp = entryGo.GetComponent<LeaderboardEntry>();
-            if (entryComp != null)
-            {
-                bool isMe = !isBot && name == PhotonNetwork.NickName;
-                // Setup 함수에도 level 매개변수가 들어가지 않도록 주의!
-                entryComp.Setup(i + 1, name, score, isMe);
-            }
+            bool isMe = !isBot && name == PhotonNetwork.NickName;
+            entryComp.Setup(i + 1, name, score, isMe);
         }
     }
 

@@ -201,7 +201,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
         {
             { "Score", newScore },
-            { "Scale", DataManager.Instance.playerCurrentScale }
+            { "Scale", GameState.PlayerCurrentScale }
         };
 
         // SetCustomProperties: 변경된 내용만 네트워크로 전송 (효율적)
@@ -253,8 +253,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
                 // 봇의 현재 점수만큼 획득
                 int bonus = aiBot.currentScore;
-                DataManager.Instance.currentScore += bonus;
-                SyncScore(DataManager.Instance.currentScore);
+                GameState.CurrentScore += bonus;
+                SyncScore(GameState.CurrentScore);
                 aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
                 scaleController?.GrowByAbsorbing(botScale);
             }
@@ -293,8 +293,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
                 else
                 {
                     // 플레이어가 플레이어를 흡수 → 흡수된 플레이어의 점수 획득
-                    DataManager.Instance.currentScore += absorbedScore;
-                    SyncScore(DataManager.Instance.currentScore);
+                    GameState.CurrentScore += absorbedScore;
+                    SyncScore(GameState.CurrentScore);
                 }
 
                 absorberView.GetComponent<PlayerScaleController>()?.GrowByAbsorbing(transform.localScale.x);
@@ -354,7 +354,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         // 색상/스케일 리셋
         scaleController?.ResetScale();
         colorVisual?.ResetColor();
-        DataManager.Instance.currentScore = 0;
+        GameState.CurrentScore = 0;
 
         gameObject.SetActive(true);
 

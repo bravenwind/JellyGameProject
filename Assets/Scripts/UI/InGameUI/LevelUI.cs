@@ -16,7 +16,7 @@ public class LevelUI : MonoBehaviour
 
     public void ChangeLevelUI()
     {
-        float current = DataManager.Instance.playerCurrentScale;
+        float current = GameState.PlayerCurrentScale;
         float min = DataManager.Instance.minScale;
         float max = DataManager.Instance.maxScale;
         needJellyText.text = "Scale : " + current.ToString("F2");

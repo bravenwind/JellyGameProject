@@ -46,8 +46,8 @@ public class PlayerColorVisual : MonoBehaviour
 
         if (!isBot)
         {
-            DataManager.Instance.currentRYBColor = RYBColor.white;
-            DataManager.Instance.currentDisplayColor = Color.white;
+            GameState.CurrentRYBColor = RYBColor.white;
+            GameState.CurrentDisplayColor = Color.white;
             PlayerEvents.OnColorUIUpdate?.Invoke();
         }
     }
@@ -82,13 +82,13 @@ public class PlayerColorVisual : MonoBehaviour
     {
         // 1. RYB 누산
         RYBColor effect = DataManager.Instance.GetJellyRYBEffect(type);
-        RYBColor baseRYB = isBot ? _botRYBColor : DataManager.Instance.currentRYBColor;
+        RYBColor baseRYB = isBot ? _botRYBColor : GameState.CurrentRYBColor;
         RYBColor nextRYB = baseRYB.Add(effect);
 
         if (isBot)
             _botRYBColor = nextRYB;
         else
-            DataManager.Instance.currentRYBColor = nextRYB;
+            GameState.CurrentRYBColor = nextRYB;
 
         // 2. RYB → RGB 변환 (시각화용)
         Color visualTarget = nextRYB.ToRGB();
@@ -96,7 +96,7 @@ public class PlayerColorVisual : MonoBehaviour
         // 3. 목표 색상 판정 (플레이어만)
         if (!isBot)
         {
-            DataManager.Instance.currentDisplayColor = visualTarget;
+            GameState.CurrentDisplayColor = visualTarget;
             JellyColorType dominantType = nextRYB.GetDominantType();
 
             // GameModeManager가 목표 판정을 처리하도록 이벤트 발행

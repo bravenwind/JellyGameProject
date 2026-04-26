@@ -15,6 +15,6 @@ public class CurrentStatusUI : MonoBehaviour
 
     public void UpdateScaleUI()
     {
-        currentScaleText.text = DataManager.Instance.playerCurrentScale.ToString("F2");
+        currentScaleText.text = GameState.PlayerCurrentScale.ToString("F2");
     }
 }

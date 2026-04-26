@@ -53,9 +53,9 @@ public class DataManager : MonoBehaviour
         [HideInInspector] public Vector3Int rgbChange; // (Legacy, 사용 안 함)
     }
 
-    [Header("RYB Color Settings")]
-    [Tooltip("현재 플레이어의 RYB 누산 색상")]
-    public RYBColor currentRYBColor = RYBColor.white;
+    // 런타임 상태는 GameState 정적 클래스로 이동됨:
+    // GameState.CurrentScore, GameState.PlayerCurrentScale,
+    // GameState.CurrentRYBColor, GameState.CurrentDisplayColor
 
     [Header("JellySpawnSettings")]
     public float spawnCoolTime = 10.0f;
@@ -68,7 +68,7 @@ public class DataManager : MonoBehaviour
     public float maxScale = 5f;
     public float scaleDecreaseAmount = 0.3f;
     public float jumpScaleThreshold = 2f;
-    public float playerCurrentScale = 2f;
+    // playerCurrentScale → GameState.PlayerCurrentScale로 이동
     public float scaleIncreaseTime = 1.0f;
     public float scaleDecreaseTime = 1.0f;
 
@@ -84,7 +84,7 @@ public class DataManager : MonoBehaviour
     public float[] gameFailMinusSizePerLevel;
 
     [Header("Score Settings")]
-    public int currentScore = 0;
+    // currentScore → GameState.CurrentScore로 이동
     public int targetScore = 1000;
     public int scorePerJelly = 100;
 
@@ -110,8 +110,7 @@ public class DataManager : MonoBehaviour
     //public List<JellyDataDTO> loadedEnemyData;  // 확인용
     //public List<JellyDataDTO> loadedPlayerData; // 확인용 [추가]
 
-    [Header("Color Display")]
-    public Color currentDisplayColor = Color.white;  // RYB→RGB 변환된 표시용 색상
+    // currentDisplayColor → GameState.CurrentDisplayColor로 이동
 
     [Header("Jelly Effects (RYB)")]
     public List<JellyEffectData> jellyEffects;
@@ -125,21 +124,21 @@ public class DataManager : MonoBehaviour
 
     /// <summary>현재 RYB 상태의 지배 색상 타입</summary>
     public JellyColorType GetCurrentColorType()
-        => currentRYBColor.GetDominantType();
+        => GameState.CurrentRYBColor.GetDominantType();
 
     /// <summary>현재 RYB를 RGB로 변환</summary>
     public Color GetCurrentDisplayColor()
-        => currentRYBColor.ToRGB();
+        => GameState.CurrentRYBColor.ToRGB();
 
     /// <summary>특정 목표에 대한 현재 순도</summary>
     public float GetCurrentPurity(JellyColorType targetType)
-        => currentRYBColor.GetPurity(targetType);
+        => GameState.CurrentRYBColor.GetPurity(targetType);
 
     /// <summary>RYB 색상 초기화 (하얀 젤리)</summary>
     public void ResetRYBColor()
     {
-        currentRYBColor = RYBColor.white;
-        currentDisplayColor = currentRYBColor.ToRGB();
+        GameState.CurrentRYBColor = RYBColor.white;
+        GameState.CurrentDisplayColor = Color.white;
     }
 
     private void Awake()
@@ -160,13 +159,7 @@ public class DataManager : MonoBehaviour
 
     private void InitializeGameData()
     {
-        //scaleMultiplyPerLevel = new float[maxLevel];
-        currentScore = 0;
-
-        //for (int i = 0; i < scaleMultiplyPerLevel.Length; i++)
-        //{
-        //    scalePerLevel[i] = 1.5f;
-        //}
+        GameState.Reset();
     }
 
 }

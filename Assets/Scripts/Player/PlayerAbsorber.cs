@@ -32,11 +32,11 @@ public class PlayerAbsorber : MonoBehaviour
     {
         if (!isBot)
         {
-            DataManager.Instance.currentScore += DataManager.Instance.scorePerJelly;
-            GetComponent<NetworkPlayerSync>().SyncScore(DataManager.Instance.currentScore);
+            GameState.CurrentScore += DataManager.Instance.scorePerJelly;
+            GetComponent<NetworkPlayerSync>().SyncScore(GameState.CurrentScore);
             UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
             if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
-            if (DataManager.Instance.currentScore >= DataManager.Instance.targetScore)
+            if (GameState.CurrentScore >= DataManager.Instance.targetScore)
                 DataManager.Instance.missions[1].missionCleared = true;
         }
         else

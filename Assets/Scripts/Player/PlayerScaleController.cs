@@ -29,7 +29,7 @@ public class PlayerScaleController : MonoBehaviour
         if (!isBot)
         {
             DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
-            DataManager.Instance.playerCurrentScale = currentScaleValue;
+            GameState.PlayerCurrentScale = currentScaleValue;
             PlayerEvents.OnScaleUIUpdate?.Invoke();
         }
     }
@@ -127,7 +127,7 @@ public class PlayerScaleController : MonoBehaviour
                 : playerController.originalJumpForce;
             DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius
                 + (currentScaleValue - 1f) * DataManager.Instance.detectPlusRadiusPerLevel;
-            DataManager.Instance.playerCurrentScale = currentScaleValue;
+            GameState.PlayerCurrentScale = currentScaleValue;
         }
 
         if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
@@ -178,7 +178,7 @@ public class PlayerScaleController : MonoBehaviour
 
         if (!isBot)
         {
-            DataManager.Instance.playerCurrentScale = 2f;
+            GameState.PlayerCurrentScale = 2f;
             PlayerEvents.OnScaleUIUpdate?.Invoke();
         }
     }

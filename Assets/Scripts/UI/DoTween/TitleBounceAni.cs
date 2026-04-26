@@ -3,7 +3,7 @@ using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class TilteBounceAni : MonoBehaviour
+public class TitleBounceAni : MonoBehaviour
 {
     [Header("Target UI (RectTransform)")]
     [SerializeField] private RectTransform target;
