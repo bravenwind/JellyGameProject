@@ -158,17 +158,13 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             stream.SendNext(transform.position);
             stream.SendNext(transform.rotation);
             stream.SendNext(scaleController != null ? scaleController.currentScaleValue : 1f);
-<<<<<<< Updated upstream
-            stream.SendNext((Vector4)GameState.CurrentDisplayColor);
-=======
 
             // 🚨 수정된 부분: Vector4 통째로 보내지 않고 Color 값을 float 4개로 쪼개서 전송
-            Color myColor = DataManager.Instance.GetCurrentDisplayColor();
+            Color myColor = GameState.CurrentDisplayColor;
             stream.SendNext(myColor.r);
             stream.SendNext(myColor.g);
             stream.SendNext(myColor.b);
             stream.SendNext(myColor.a);
->>>>>>> Stashed changes
         }
         else
         {
