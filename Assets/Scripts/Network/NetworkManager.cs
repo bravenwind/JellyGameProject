@@ -88,20 +88,21 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     public void StartConnect(string playerName)
     {
-        // 닉네임 설정 (다른 플레이어 화면에서도 보임)
-        PhotonNetwork.NickName = string.IsNullOrEmpty(playerName) ? "Jelly" : playerName;
+        PhotonNetwork.LocalPlayer.NickName = playerName;
 
-        // 💡 핵심: 이미 서버에 연결되어 있다면 다시 연결하지 않고 바로 방으로 들어갑니다.
-        if (PhotonNetwork.IsConnected)
+        // IsConnected 대신 'IsConnectedAndReady'를 체크해야 안전합니다.
+        // (서버와 완전히 통신 가능한 상태인지 확인)
+        if (PhotonNetwork.IsConnectedAndReady)
         {
-            Debug.Log("[Network] 이미 마스터 서버에 연결되어 있습니다. 바로 방 탐색을 시작합니다.");
+            Debug.Log("이미 마스터 서버에 연결되어 있습니다. 바로 방에 입장합니다.");
             JoinOrCreateRoom();
         }
         else
         {
-            // 연결되어 있지 않다면 처음부터 접속 시작
+            Debug.Log("서버에 연결 중...");
+            // 🚨 여기서는 서버 접속 요청만 하고 함수를 끝내야 합니다!
+            // 여기서 JoinOrCreateRoom()을 연달아 호출하면 에러가 납니다.
             PhotonNetwork.ConnectUsingSettings();
-            Debug.Log("[Network] Photon 서버에 연결 중...");
         }
     }
 
@@ -115,10 +116,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     public override void OnConnectedToMaster()
     {
-        Debug.Log("[Network] 마스터 서버 접속 성공! 로비 입장 중...");
+        Debug.Log("마스터 서버 연결 완료! 이제 방 접속을 시도합니다.");
 
-        // 로비 입장 (방 목록을 받기 위해 필요)
-        PhotonNetwork.JoinLobby();
+        // 로비에 먼저 입장해야 하는 로직이 없다면, 여기서 바로 방 접속을 시도하면 됩니다.
+        JoinOrCreateRoom();
     }
 
     /// <summary>

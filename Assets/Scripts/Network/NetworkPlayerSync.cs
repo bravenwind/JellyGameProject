@@ -40,9 +40,6 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     [Header("이름표")]
     public NameTagBillboard nameTagBillboard;
 
-    [Header("봇 설정")]
-    public bool isBot = false;
-
     // ─────────────────────────────────────────────────────────
     // 원격 플레이어 보간용 변수 (내 화면에서 다른 플레이어를 부드럽게 움직이기 위해)
     // ─────────────────────────────────────────────────────────
@@ -79,12 +76,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         // true  = 로컬 플레이어 (내가 조작하는 캐릭터)
         // false = 원격 플레이어 (다른 클라이언트의 캐릭터, 내 화면에 표시만 됨)
 
-        if (photonView.IsMine && !isBot)
-        {
-            // ── 로컬 플레이어 초기화 ──
-            SetupLocalPlayer();
-        }
-        else if (!photonView.IsMine)
+        if (!photonView.IsMine)
         {
             // ── 원격 플레이어/봇 초기화 ──
             SetupRemotePlayer();
@@ -96,7 +88,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             string displayName = photonView.Owner?.NickName ?? "???";
             nameTagBillboard.SetName(displayName);
 
-            NameTagRole role = (photonView.IsMine && !isBot) ? NameTagRole.LocalPlayer : NameTagRole.RemotePlayer;
+            NameTagRole role = (photonView.IsMine) ? NameTagRole.LocalPlayer : NameTagRole.RemotePlayer;
             nameTagBillboard.ApplyRoleColor(role);
         }
     }
@@ -163,13 +155,20 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (stream.IsWriting)
         {
             // ── 내 플레이어의 데이터를 보냄 ──
-            // stream.SendNext()로 보내는 순서와
-            // stream.ReceiveNext()로 받는 순서가 반드시 일치해야 함!
-
             stream.SendNext(transform.position);
             stream.SendNext(transform.rotation);
             stream.SendNext(scaleController != null ? scaleController.currentScaleValue : 1f);
+<<<<<<< Updated upstream
             stream.SendNext((Vector4)GameState.CurrentDisplayColor);
+=======
+
+            // 🚨 수정된 부분: Vector4 통째로 보내지 않고 Color 값을 float 4개로 쪼개서 전송
+            Color myColor = DataManager.Instance.GetCurrentDisplayColor();
+            stream.SendNext(myColor.r);
+            stream.SendNext(myColor.g);
+            stream.SendNext(myColor.b);
+            stream.SendNext(myColor.a);
+>>>>>>> Stashed changes
         }
         else
         {
@@ -177,8 +176,14 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             _networkPosition = (Vector3)stream.ReceiveNext();
             _networkRotation = (Quaternion)stream.ReceiveNext();
             _networkScaleValue = (float)stream.ReceiveNext();
-            Vector4 colorVec = (Vector4)stream.ReceiveNext();
-            _networkColor = new Color(colorVec.x, colorVec.y, colorVec.z, colorVec.w);
+
+            // 🚨 수정된 부분: 보낸 순서대로 float 4개를 받아서 Color로 다시 조립
+            float r = (float)stream.ReceiveNext();
+            float g = (float)stream.ReceiveNext();
+            float b = (float)stream.ReceiveNext();
+            float a = (float)stream.ReceiveNext();
+
+            _networkColor = new Color(r, g, b, a);
 
             transform.localScale = Vector3.one * _networkScaleValue;
         }

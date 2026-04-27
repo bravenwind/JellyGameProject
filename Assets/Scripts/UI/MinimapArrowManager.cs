@@ -87,7 +87,7 @@ public class MinimapArrowManager : MonoBehaviour
             if (!_arrows.ContainsKey(tf))
             {
                 // 로컬 플레이어 판별: PhotonView.IsMine
-                bool isLocal = player.photonView != null && player.photonView.IsMine && !player.isBot;
+                bool isLocal = player.photonView != null && player.photonView.IsMine;
                 Color color  = isLocal ? localPlayerColor : remotePlayerColor;
                 if (isLocal)
                 {

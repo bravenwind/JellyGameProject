@@ -93565,10 +93565,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1bab5c33063988438b72d73249288f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentRYBColor:
-    r: 0
-    y: 0
-    b: 0
   spawnCoolTime: 10
   jellyScaleIncrease: 0.5
   absorbScalePercent: 0.5
@@ -93576,7 +93572,6 @@ MonoBehaviour:
   maxScale: 100
   scaleDecreaseAmount: 2
   jumpScaleThreshold: 2
-  playerCurrentScale: 1
   scaleIncreaseTime: 1.5
   scaleDecreaseTime: 2
   IncreaseJumpForceValue: 5
@@ -93586,7 +93581,6 @@ MonoBehaviour:
   cameraZoomFirstThreshold: 6
   cameraZoomThresholdStep: 4
   gameFailMinusSizePerLevel: []
-  currentScore: 0
   targetScore: 1000
   scorePerJelly: 100
   originalDetectRadius: 4
@@ -93603,7 +93597,6 @@ MonoBehaviour:
   - missionName: "\uC2A4\uD14C\uC774\uC9C0 \uD074\uB9AC\uC5B4\uD558\uAE30"
     missionCleared: 0
   targetTime: 120
-  currentDisplayColor: {r: 1, g: 1, b: 1, a: 1}
   jellyEffects:
   - colorName: Red
     type: 0
@@ -129701,7 +129694,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
-  debug: {fileID: 1707815813}
   followSpeed: 10
   offset: {x: 0, y: 60, z: -68.9}
   pitch: 0
@@ -171737,7 +171729,15 @@ PrefabInstance:
     - target: {fileID: 4666908712769631347, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 559282405}
+      objectReference: {fileID: 708981559}
+    - target: {fileID: 4666908712769631347, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: OnClickRestartButton
+      objectReference: {fileID: 0}
+    - target: {fileID: 4666908712769631347, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: GameModeManager, Assembly-CSharp
+      objectReference: {fileID: 0}
     - target: {fileID: 4764609225048818800, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -101.25
