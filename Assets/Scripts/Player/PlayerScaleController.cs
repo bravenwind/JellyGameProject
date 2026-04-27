@@ -19,19 +19,19 @@ public class PlayerScaleController : MonoBehaviour
     private bool isScaling = false;
     public bool IsScaling => isScaling;
 
-    public bool isBot = false;
+    private IEntityBridge _bridge;
+
+    private void Awake()
+    {
+        _bridge = GetComponentInParent<IEntityBridge>();
+    }
 
     private void Start()
     {
         originalScale = Vector3.one;
         currentScale = transform.localScale;
         currentScaleValue = transform.localScale.x;
-        if (!isBot)
-        {
-            DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
-            GameState.PlayerCurrentScale = currentScaleValue;
-            PlayerEvents.OnScaleUIUpdate?.Invoke();
-        }
+        _bridge?.OnScaleInit(currentScaleValue);
     }
 
     public void GrowByJelly()
@@ -47,36 +47,26 @@ public class PlayerScaleController : MonoBehaviour
         QueueScaleChange(ScaleTo(target, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
     }
 
-    // 1. 현재 스케일이 카메라 줌의 몇 번째 단계(Tier)에 있는지 계산하는 함수를 추가합니다.
     private int GetScaleTier(float scale)
     {
-        float first = DataManager.Instance.cameraZoomFirstThreshold; // 6f
-        float step = DataManager.Instance.cameraZoomThresholdStep;   // 4f
+        float first = DataManager.Instance.cameraZoomFirstThreshold;
+        float step = DataManager.Instance.cameraZoomThresholdStep;
 
         if (step <= 0f) return 0;
-
-        // 첫 번째 임계값(6.0) 도달 전이면 -1 단계를 반환합니다.
         if (scale < first) return -1;
 
-        // 6.0~9.99 = 0단계 / 10.0~13.99 = 1단계 / 14.0~17.99 = 2단계...
         return Mathf.FloorToInt((scale - first) / step);
     }
 
-    // 2. 기존 CrossedThresholdUp 함수를 아래와 같이 교체합니다.
     private bool CrossedThresholdUp(float prevScale, float newScale)
     {
         if (newScale <= prevScale) return false;
-
-        // 이전 스케일의 단계보다 새 스케일의 단계가 더 높아졌다면 임계값을 돌파한 것입니다.
         return GetScaleTier(newScale) > GetScaleTier(prevScale);
     }
 
-    // 3. 기존 CrossedThresholdDown 함수를 아래와 같이 교체합니다.
     private bool CrossedThresholdDown(float prevScale, float newScale)
     {
         if (newScale >= prevScale) return false;
-
-        // 이전 스케일의 단계보다 새 스케일의 단계가 더 낮아졌다면 임계값을 아래로 내려간 것입니다.
         return GetScaleTier(newScale) < GetScaleTier(prevScale);
     }
 
@@ -91,20 +81,10 @@ public class PlayerScaleController : MonoBehaviour
 
         if (softBody3D != null) softBody3D.DisableCloth();
 
-        if (!isBot)
-        {
-            if (growing && playEffect)
-            {
-                if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
-                UIPoolManager.Instance?.SpawnUI(UIType.ScaleIncrease);
-            }
-            if (hitsThresholdUp)
-                PlayerEvents.OnCameraScaleIncreased?.Invoke();
-            if (!growing)
-                UIPoolManager.Instance?.SpawnUI(UIType.MilkScaleDecrease);
-            if (hitsThresholdDown)
-                PlayerEvents.OnCameraScaleDecreased?.Invoke();
-        }
+        if (growing) _bridge?.OnGrowEffect(playEffect);
+        if (hitsThresholdUp) _bridge?.OnScaleThresholdUp();
+        if (!growing) _bridge?.OnShrinkEffect();
+        if (hitsThresholdDown) _bridge?.OnScaleThresholdDown();
 
         Vector3 startScale = currentScale;
         Vector3 targetScale = originalScale * targetValue;
@@ -120,23 +100,12 @@ public class PlayerScaleController : MonoBehaviour
         }
         transform.localScale = currentScale = targetScale;
 
-        if (!isBot && playerController != null)
-        {
-            playerController.jumpForce = currentScaleValue >= DataManager.Instance.jumpScaleThreshold
-                ? playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue
-                : playerController.originalJumpForce;
-            DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius
-                + (currentScaleValue - 1f) * DataManager.Instance.detectPlusRadiusPerLevel;
-            GameState.PlayerCurrentScale = currentScaleValue;
-        }
+        _bridge?.OnScaleCompleted(currentScaleValue, playerController);
 
         if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
 
-        if (!isBot) PlayerEvents.OnScaleUIUpdate?.Invoke();
-
-        // NavMeshAgent 재정렬 (봇)
-        AIPlayerMovement aiMovement = GetComponent<AIPlayerMovement>();
-        if (aiMovement != null) aiMovement.RecenterCC();
+        _bridge?.OnScaleUIUpdate();
+        _bridge?.OnPostScalePhysics();
     }
 
     public IEnumerator DecreaseScale(float decreaseTime)
@@ -163,11 +132,7 @@ public class PlayerScaleController : MonoBehaviour
 
     public void ResetScale()
     {
-        if (!isBot)
-        {
-            PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
-            DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
-        }
+        _bridge?.OnScaleReset();
 
         StopAllCoroutines();
         scaleQueue.Clear();
@@ -175,11 +140,5 @@ public class PlayerScaleController : MonoBehaviour
         currentScaleValue = 1f;
         currentScale = originalScale;
         transform.localScale = originalScale;
-
-        if (!isBot)
-        {
-            GameState.PlayerCurrentScale = 2f;
-            PlayerEvents.OnScaleUIUpdate?.Invoke();
-        }
     }
 }

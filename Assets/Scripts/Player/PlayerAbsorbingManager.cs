@@ -25,8 +25,6 @@ public class PlayerAbsorbingManager : MonoBehaviour
         }
     }
 
-    public bool isBot = false;
-
     private void HandleJellyEaten(JellyColorType type)
     {
         colorVisual.HandleJellyAbsorbed(type);

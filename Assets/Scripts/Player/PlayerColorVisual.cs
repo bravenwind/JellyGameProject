@@ -23,10 +23,13 @@ public class PlayerColorVisual : MonoBehaviour
     public string BaseColor_02Property = "_BaseColor_02";
     public string FresnelProperty = "_FresnelColor";
 
-    public bool isBot = false;
-    private RYBColor _botRYBColor = RYBColor.white; // 봇 전용 RYB 색상
-
+    private IEntityBridge _bridge;
     private Coroutine currentCoroutine;
+
+    private void Awake()
+    {
+        _bridge = GetComponentInParent<IEntityBridge>();
+    }
 
     private void Start()
     {
@@ -44,15 +47,13 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty,       currentFresnelColor);
 
-        if (!isBot)
+        if (_bridge != null)
         {
-            GameState.CurrentRYBColor = RYBColor.white;
-            GameState.CurrentDisplayColor = Color.white;
-            PlayerEvents.OnColorUIUpdate?.Invoke();
+            _bridge.RYBColor = RYBColor.white;
+            _bridge.OnColorUIUpdate();
         }
     }
 
-    /// <summary>젤리 흡수 시 호출 — RYB 누산 + 시각화</summary>
     public void HandleJellyAbsorbed(JellyColorType type)
     {
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
@@ -68,11 +69,7 @@ public class PlayerColorVisual : MonoBehaviour
 
     private void HandleWhiteJelly()
     {
-        // RYB 초기화
-        if (isBot)
-            _botRYBColor = RYBColor.white;
-        else
-            DataManager.Instance.ResetRYBColor();
+        _bridge?.ResetRYBColor();
 
         Color white = Color.white;
         currentCoroutine = StartCoroutine(BlendColor(white, GetLighterColor(white, baseColor02Lightness), white, blendTime));
@@ -80,30 +77,17 @@ public class PlayerColorVisual : MonoBehaviour
 
     private void ApplyJellyColor(JellyColorType type)
     {
-        // 1. RYB 누산
         RYBColor effect = DataManager.Instance.GetJellyRYBEffect(type);
-        RYBColor baseRYB = isBot ? _botRYBColor : GameState.CurrentRYBColor;
+        RYBColor baseRYB = _bridge?.RYBColor ?? RYBColor.white;
         RYBColor nextRYB = baseRYB.Add(effect);
 
-        if (isBot)
-            _botRYBColor = nextRYB;
-        else
-            GameState.CurrentRYBColor = nextRYB;
+        if (_bridge != null) _bridge.RYBColor = nextRYB;
 
-        // 2. RYB → RGB 변환 (시각화용)
         Color visualTarget = nextRYB.ToRGB();
 
-        // 3. 목표 색상 판정 (플레이어만)
-        if (!isBot)
-        {
-            GameState.CurrentDisplayColor = visualTarget;
-            JellyColorType dominantType = nextRYB.GetDominantType();
+        JellyColorType dominantType = nextRYB.GetDominantType();
+        _bridge?.OnColorApplied(dominantType, nextRYB, visualTarget);
 
-            // GameModeManager가 목표 판정을 처리하도록 이벤트 발행
-            PlayerEvents.OnColorChanged?.Invoke(dominantType, nextRYB);
-        }
-
-        // 4. 시각화 — 약간 어둡게 + BaseColor_02는 밝게
         Color targetBase = DarkenColor(visualTarget, 0.85f);
         Color targetFresnel = visualTarget;
         Color targetBase02 = GetLighterColor(targetBase, baseColor02Lightness);
@@ -142,7 +126,7 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
-        if (!isBot) PlayerEvents.OnColorUIUpdate?.Invoke();
+        _bridge?.OnColorUIUpdate();
     }
 
     private Color GetLighterColor(Color baseColor, float lightAmount)
@@ -155,15 +139,11 @@ public class PlayerColorVisual : MonoBehaviour
     {
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
 
-        if (isBot)
-            _botRYBColor = RYBColor.white;
-        else
-            DataManager.Instance.ResetRYBColor();
+        _bridge?.ResetRYBColor();
 
         currentCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
-        if (!isBot) PlayerEvents.OnColorUIUpdate?.Invoke();
+        _bridge?.OnColorUIUpdate();
     }
 
-    /// <summary>봇의 현재 RYB 색상 (외부 참조용)</summary>
-    public RYBColor BotRYBColor => _botRYBColor;
+    public RYBColor BotRYBColor => _bridge?.RYBColor ?? RYBColor.white;
 }
