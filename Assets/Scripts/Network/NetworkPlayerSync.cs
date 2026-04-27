@@ -169,7 +169,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             stream.SendNext(transform.position);
             stream.SendNext(transform.rotation);
             stream.SendNext(scaleController != null ? scaleController.currentScaleValue : 1f);
-            stream.SendNext((Vector4)DataManager.Instance.GetCurrentDisplayColor());
+            stream.SendNext((Vector4)GameState.CurrentDisplayColor);
         }
         else
         {

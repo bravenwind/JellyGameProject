@@ -8,7 +8,7 @@ public class PlayerAbsorbField : MonoBehaviour
 
     private void Start()
     {
-        detectRadius = DataManager.Instance.detectRadius;
+        detectRadius = GameState.DetectRadius;
     }
 
     public void Update()
@@ -26,19 +26,19 @@ public class PlayerAbsorbField : MonoBehaviour
             {
                 //Transform target = transform;
                 //target.position = transform.position + ;
-                Debug.Log("Å¸°Ù ¼³Á¤µÊ");
+                Debug.Log("Å¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
                 jelly.StartAbsorb(transform);
             }
         }
     }
 
-    // ¹üÀ§ ½Ã°¢È­ (µð¹ö±×¿ë)
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½Ã°ï¿½È­ (ï¿½ï¿½ï¿½ï¿½×¿ï¿½)
     void OnDrawGizmos()
     {
         Gizmos.color = Color.cyan;
         if (DataManager.Instance != null)
         {
-            Gizmos.DrawWireSphere(detectTransform.position, DataManager.Instance.detectRadius);
+            Gizmos.DrawWireSphere(detectTransform.position, GameState.DetectRadius);
         }
         else
         {

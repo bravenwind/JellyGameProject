@@ -5,7 +5,7 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
     // ── Scale ──
     public void OnScaleInit(float scaleValue)
     {
-        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
+        GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = scaleValue;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
@@ -35,7 +35,7 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
                 ? pc.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue
                 : pc.originalJumpForce;
         }
-        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius
+        GameState.DetectRadius = DataManager.Instance.originalDetectRadius
             + (scaleValue - 1f) * DataManager.Instance.detectPlusRadiusPerLevel;
         GameState.PlayerCurrentScale = scaleValue;
     }
@@ -45,7 +45,7 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
     public void OnScaleReset()
     {
         PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
-        DataManager.Instance.detectRadius = DataManager.Instance.originalDetectRadius;
+        GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = 2f;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
@@ -59,7 +59,7 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
         set => GameState.CurrentRYBColor = value;
     }
 
-    public void ResetRYBColor() => DataManager.Instance.ResetRYBColor();
+    public void ResetRYBColor() => GameState.ResetRYBColor();
 
     public void OnColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor)
     {

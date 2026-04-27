@@ -64,6 +64,14 @@ public static class GameState
         }
     }
 
+    public static float DetectRadius { get; set; }
+
+    public static void ResetRYBColor()
+    {
+        CurrentRYBColor = RYBColor.white;
+        CurrentDisplayColor = Color.white;
+    }
+
     public static void Reset()
     {
         _phase = GamePhase.None;
@@ -71,5 +79,6 @@ public static class GameState
         _playerCurrentScale = 2f;
         CurrentRYBColor = RYBColor.white;
         _currentDisplayColor = Color.white;
+        DetectRadius = 0f;
     }
 }
