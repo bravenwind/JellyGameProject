@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.UI;
 using System.Collections;
 
 public class UIFollowTarget : MonoBehaviour
@@ -12,15 +13,13 @@ public class UIFollowTarget : MonoBehaviour
     [Tooltip("전체 애니메이션 지속 시간")]
     public float duration = 1.0f;
 
-    // ✨ 1. 원하는 최대 크기를 정할 변수 추가
     [Tooltip("애니메이션 도달 시 최대 크기 배율")]
     public float maxScale = 0.75f;
 
     [Tooltip("크기 변화 곡선 (0~1 사이 값)")]
-    // ✨ 2. 최고점이 1이 되도록 커브 수정 (1 = maxScale을 의미하게 됨)
     public AnimationCurve scaleCurve = new AnimationCurve(
         new Keyframe(0f, 0f),
-        new Keyframe(0.2f, 1.0f), // 최고점을 1로 설정
+        new Keyframe(0.2f, 1.0f),
         new Keyframe(1f, 0f)
     );
 
@@ -32,25 +31,38 @@ public class UIFollowTarget : MonoBehaviour
         new Keyframe(1f, 0f)
     );
 
+    [Header("Sprite Sequence (optional)")]
+    [Tooltip("설정 시 스프라이트를 순차 재생합니다")]
+    public Sprite[] spriteSequence;
+    [Tooltip("각 스프라이트의 재생 시간")]
+    public float durationPerImage = 0.5f;
+
     private Camera mainCamera;
     private RectTransform rectTransform;
     private CanvasGroup canvasGroup;
+    private Image targetImage;
     private Vector3 lastTargetPos;
+    private bool useSpriteSequence;
 
     void Awake()
     {
         mainCamera = Camera.main;
         rectTransform = GetComponent<RectTransform>();
         canvasGroup = GetComponent<CanvasGroup>();
+        targetImage = GetComponent<Image>();
 
         if (canvasGroup == null)
             canvasGroup = gameObject.AddComponent<CanvasGroup>();
+
+        useSpriteSequence = spriteSequence != null && spriteSequence.Length > 0;
     }
 
     private void OnEnable()
     {
+        if (useSpriteSequence) return;
+
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
-        if (playerObj == null) return; // 플레이어가 아직 스폰 안 됐으면 스킵
+        if (playerObj == null) return;
 
         SetTarget(playerObj.transform);
     }
@@ -70,7 +82,10 @@ public class UIFollowTarget : MonoBehaviour
             UpdatePosition();
         }
 
-        StartCoroutine(PlayEffectProcess());
+        if (useSpriteSequence)
+            StartCoroutine(PlaySpriteSequence());
+        else
+            StartCoroutine(PlayEffectProcess());
     }
 
     public void ClearTarget()
@@ -90,7 +105,6 @@ public class UIFollowTarget : MonoBehaviour
             timer += Time.deltaTime;
             float progress = timer / duration;
 
-            // ✨ 3. 커브 값(0~1)에 내가 정한 maxScale을 곱함
             float scaleValue = scaleCurve.Evaluate(progress) * maxScale;
             transform.localScale = new Vector3(scaleValue, scaleValue, 1f);
 
@@ -100,7 +114,32 @@ public class UIFollowTarget : MonoBehaviour
             yield return null;
         }
 
-        UIPoolManager.Instance.ReturnUI(gameObject);
+        UIPoolManager.Instance?.ReturnUI(gameObject);
+    }
+
+    IEnumerator PlaySpriteSequence()
+    {
+        for (int i = 0; i < spriteSequence.Length; i++)
+        {
+            if (targetImage != null) targetImage.sprite = spriteSequence[i];
+
+            float timer = 0f;
+            while (timer < durationPerImage)
+            {
+                timer += Time.deltaTime;
+                float progress = timer / durationPerImage;
+
+                float scaleValue = scaleCurve.Evaluate(progress);
+                transform.localScale = new Vector3(scaleValue, scaleValue, 1f);
+
+                float alphaValue = alphaCurve.Evaluate(progress);
+                canvasGroup.alpha = alphaValue;
+
+                yield return null;
+            }
+        }
+
+        UIPoolManager.Instance?.ReturnUI(gameObject);
     }
 
     void LateUpdate()
