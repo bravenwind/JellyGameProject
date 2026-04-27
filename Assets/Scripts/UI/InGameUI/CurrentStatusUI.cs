@@ -1,5 +1,3 @@
-using JetBrains.Annotations;
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,13 +6,25 @@ public class CurrentStatusUI : MonoBehaviour
     public Image currentColorImage;
     public Text currentScaleText;
 
-    public void UpdateColorUI()
+    private void OnEnable()
     {
-        currentColorImage.color = DataManager.Instance.GetCurrentDisplayColor();
+        GameState.OnScaleChanged += OnScaleChanged;
+        GameState.OnDisplayColorChanged += OnDisplayColorChanged;
     }
 
-    public void UpdateScaleUI()
+    private void OnDisable()
     {
-        currentScaleText.text = GameState.PlayerCurrentScale.ToString("F2");
+        GameState.OnScaleChanged -= OnScaleChanged;
+        GameState.OnDisplayColorChanged -= OnDisplayColorChanged;
+    }
+
+    private void OnScaleChanged(float scale)
+    {
+        currentScaleText.text = scale.ToString("F2");
+    }
+
+    private void OnDisplayColorChanged(Color color)
+    {
+        currentColorImage.color = color;
     }
 }

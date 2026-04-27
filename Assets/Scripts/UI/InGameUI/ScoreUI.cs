@@ -5,13 +5,21 @@ public class ScoreUI : MonoBehaviour
 {
     public TMP_Text scoreText;
 
-    private void Start()
+    private void OnEnable()
     {
-        ChangeScoreUI();
+        GameState.OnScoreChanged += OnScoreChanged;
+        Refresh(GameState.CurrentScore);
     }
 
-    public void ChangeScoreUI()
+    private void OnDisable()
     {
-        scoreText.text = GameState.CurrentScore.ToString() + "Á¡";
+        GameState.OnScoreChanged -= OnScoreChanged;
+    }
+
+    private void OnScoreChanged(int score) => Refresh(score);
+
+    private void Refresh(int score)
+    {
+        scoreText.text = score.ToString();
     }
 }

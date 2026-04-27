@@ -1,4 +1,3 @@
-using JetBrains.Annotations;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,14 +8,21 @@ public class LevelUI : MonoBehaviour
     public TMP_Text needJellyText;
     public TMP_Text currentLevelText;
 
-    public void Start()
+    private void OnEnable()
     {
-        ChangeLevelUI();
+        GameState.OnScaleChanged += OnScaleChanged;
+        Refresh(GameState.PlayerCurrentScale);
     }
 
-    public void ChangeLevelUI()
+    private void OnDisable()
     {
-        float current = GameState.PlayerCurrentScale;
+        GameState.OnScaleChanged -= OnScaleChanged;
+    }
+
+    private void OnScaleChanged(float scale) => Refresh(scale);
+
+    private void Refresh(float current)
+    {
         float min = DataManager.Instance.minScale;
         float max = DataManager.Instance.maxScale;
         needJellyText.text = "Scale : " + current.ToString("F2");
