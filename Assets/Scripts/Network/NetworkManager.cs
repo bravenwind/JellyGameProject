@@ -68,15 +68,25 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // 씬 전환해도 유지
-
-            // MasterClient가 LoadLevel() 하면 다른 클라이언트도 자동으로 같은 씬으로 이동
+            DontDestroyOnLoad(gameObject);
             PhotonNetwork.AutomaticallySyncScene = true;
+            SceneManager.sceneLoaded += OnSceneLoaded;
         }
         else
         {
             Destroy(gameObject);
         }
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
+    {
+        _usedSpawnPositions.Clear();
+        spawnPoints = null;
     }
 
     // ─────────────────────────────────────────────────────────

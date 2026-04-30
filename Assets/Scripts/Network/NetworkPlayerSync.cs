@@ -72,13 +72,12 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     private void Start()
     {
-        // photonView.IsMine: "이 PhotonView의 주인이 나인가?"
-        // true  = 로컬 플레이어 (내가 조작하는 캐릭터)
-        // false = 원격 플레이어 (다른 클라이언트의 캐릭터, 내 화면에 표시만 됨)
-
-        if (!photonView.IsMine)
+        if (photonView.IsMine)
         {
-            // ── 원격 플레이어/봇 초기화 ──
+            SetupLocalPlayer();
+        }
+        else
+        {
             SetupRemotePlayer();
         }
 
@@ -214,52 +213,103 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 이 플레이어에 충돌했을 때 호출 (다른 플레이어/AI 충돌 감지)
+    /// 충돌 감지 → MasterClient에 검증 요청만 전송 (직접 판정하지 않음)
     /// </summary>
     private void OnTriggerEnter(Collider other)
     {
         if (!photonView.IsMine || _isAbsorbed) return;
 
-        // 상대방도 NetworkPlayerSync를 가지고 있는지 확인
-        NetworkPlayerSync other_player = other.GetComponentInParent<NetworkPlayerSync>();
-        if (other_player != null)
+        NetworkPlayerSync otherPlayer = other.GetComponentInParent<NetworkPlayerSync>();
+        if (otherPlayer != null && otherPlayer != this)
         {
             float myScale = transform.localScale.x;
-            float otherScale = other_player.transform.localScale.x;
-
+            float otherScale = otherPlayer.transform.localScale.x;
             if (otherScale > myScale)
             {
-                photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, other_player.photonView.ViewID);
+                photonView.RPC(nameof(RPC_RequestAbsorbValidation), RpcTarget.MasterClient,
+                    otherPlayer.photonView.ViewID);
             }
+            return;
         }
 
-        Debug.Log(other.name);
-
-        // AI 봇(AIPlayerMovement)이 나보다 큰지 확인
         AIPlayerMovement aiBot = other.GetComponentInParent<AIPlayerMovement>();
         if (aiBot != null)
         {
-            float myScale = transform.localScale.x;
-            float botScale = aiBot.transform.localScale.x;
+            int botId = aiBot.photonView.ViewID;
+            if (_absorbedBotIds.Contains(botId)) return;
+            _absorbedBotIds.Add(botId);
 
-            if (botScale > myScale)
-            {
-                photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1);
-            }
-            else if (myScale > botScale)
-            {
-                int botId = aiBot.photonView.ViewID;
-                if (_absorbedBotIds.Contains(botId)) return;
-                _absorbedBotIds.Add(botId);
-
-                // 봇의 현재 점수만큼 획득
-                int bonus = aiBot.currentScore;
-                GameState.CurrentScore += bonus;
-                SyncScore(GameState.CurrentScore);
-                aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
-                scaleController?.GrowByAbsorbing(botScale);
-            }
+            photonView.RPC(nameof(RPC_RequestBotAbsorbValidation), RpcTarget.MasterClient, botId);
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // MasterClient 검증 RPC
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// [MC 전용] 플레이어-플레이어 흡수 요청 검증.
+    /// MasterClient가 양쪽 스케일을 직접 비교하여 판정.
+    /// </summary>
+    [PunRPC]
+    private void RPC_RequestAbsorbValidation(int absorberViewID)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        PhotonView absorberPV = PhotonView.Find(absorberViewID);
+        if (absorberPV == null) return;
+
+        float victimScale = transform.localScale.x;
+        float absorberScale = absorberPV.transform.localScale.x;
+
+        if (absorberScale > victimScale)
+        {
+            photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, absorberViewID);
+        }
+    }
+
+    /// <summary>
+    /// [MC 전용] 플레이어-봇 충돌 요청 검증.
+    /// 봇이 더 크면 플레이어 흡수, 플레이어가 더 크면 봇 흡수.
+    /// </summary>
+    [PunRPC]
+    private void RPC_RequestBotAbsorbValidation(int botViewID)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        PhotonView botPV = PhotonView.Find(botViewID);
+        if (botPV == null) return;
+
+        AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
+        if (aiBot == null) return;
+
+        float playerScale = transform.localScale.x;
+        float botScale = botPV.transform.localScale.x;
+
+        if (botScale > playerScale)
+        {
+            photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1);
+        }
+        else if (playerScale > botScale && !aiBot.IsBeingAbsorbed)
+        {
+            int bonus = aiBot.currentScore;
+            photonView.RPC(nameof(RPC_BotAbsorbConfirmed), photonView.Owner,
+                bonus, botScale, botViewID);
+            aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
+        }
+    }
+
+    /// <summary>
+    /// [플레이어 전용] MC가 봇 흡수를 승인한 후 점수/스케일 보상 수신
+    /// </summary>
+    [PunRPC]
+    private void RPC_BotAbsorbConfirmed(int bonusScore, float botScale, int botViewID)
+    {
+        if (!photonView.IsMine) return;
+        _absorbedBotIds.Add(botViewID);
+        GameState.CurrentScore += bonusScore;
+        SyncScore(GameState.CurrentScore);
+        scaleController?.GrowByAbsorbing(botScale);
     }
 
     /// <summary>
