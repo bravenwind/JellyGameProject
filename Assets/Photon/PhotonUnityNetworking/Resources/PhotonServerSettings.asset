@@ -45,6 +45,9 @@ MonoBehaviour:
   - RPC_OnRespawn
   - RPC_StartGame
   - RPC_BotAbsorbed
+  - RPC_BotAbsorbConfirmed
+  - RPC_RequestAbsorbValidation
+  - RPC_RequestBotAbsorbValidation
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0
