@@ -5,7 +5,7 @@ public enum GamePhase { None, Loading, Playing, GameOver, Result }
 
 public static class GameState
 {
-    // ── Events ──
+    // ── Events   ──
     public static event Action<GamePhase> OnPhaseChanged;
     public static event Action<int> OnScoreChanged;
     public static event Action<float> OnScaleChanged;
@@ -18,7 +18,7 @@ public static class GameState
     private static RYBColor _currentRYBColor = RYBColor.white;
     private static Color _currentDisplayColor = Color.white;
 
-    // ── Properties with event firing ──
+    // ── Properties & Event invoking ──
     public static GamePhase Phase
     {
         get => _phase;
