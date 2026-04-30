@@ -72,6 +72,7 @@ public static class GameState
         CurrentDisplayColor = Color.white;
     }
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     public static void Reset()
     {
         _phase = GamePhase.None;
@@ -80,5 +81,10 @@ public static class GameState
         CurrentRYBColor = RYBColor.white;
         _currentDisplayColor = Color.white;
         DetectRadius = 0f;
+
+        OnPhaseChanged = null;
+        OnScoreChanged = null;
+        OnScaleChanged = null;
+        OnDisplayColorChanged = null;
     }
 }

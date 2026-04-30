@@ -3,14 +3,14 @@ using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Collections;
 
-// 1. »óÅÂ¸¦ Á¤ÀÇÇÏ´Â Enum (ÇÊ¿ä¿¡ µû¶ó Ãß°¡/¼öÁ¤ÇÏ¼¼¿ä)
+// 1. ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ Enum (ï¿½Ê¿ä¿¡ ï¿½ï¿½ï¿½ï¿½ ï¿½ß°ï¿½/ï¿½ï¿½ï¿½ï¿½ï¿½Ï¼ï¿½ï¿½ï¿½)
 public enum UIState
 {
-    None,       // ¾Æ¹«°Íµµ ¾ø´Â »óÅÂ
+    None,       // ï¿½Æ¹ï¿½ï¿½Íµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     Pause,
-    //MainMenu,   // ¸ÞÀÎ ¸Þ´º
-    Settings,   // ¼³Á¤ Ã¢
-    InGame,     // °ÔÀÓ ÇÃ·¹ÀÌ Áß HUD
+    //MainMenu,   // ï¿½ï¿½ï¿½ï¿½ ï¿½Þ´ï¿½
+    Settings,   // ï¿½ï¿½ï¿½ï¿½ Ã¢
+    InGame,     // ï¿½ï¿½ï¿½ï¿½ ï¿½Ã·ï¿½ï¿½ï¿½ ï¿½ï¿½ HUD
     GameOver,
     Menu, 
     Help
@@ -20,74 +20,75 @@ public class UIManager : MonoBehaviour
 {
     public static UIManager Instance { get; private set; }
 
-    // 2. ÀÎ½ºÆåÅÍ¿¡¼­ Enum°ú ¿ÀºêÁ§Æ®¸¦ Â¦ÁöÀ» ¼ö ÀÖ°Ô ¸¸µç Å¬·¡½º
+    // 2. ï¿½Î½ï¿½ï¿½ï¿½ï¿½Í¿ï¿½ï¿½ï¿½ Enumï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ Â¦ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö°ï¿½ ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½
     [System.Serializable]
     public class UIStateMapping
     {
-        public UIState state;       // ¾î¶² »óÅÂÀÏ ¶§?
-        public GameObject uiObject; // ¾î¶² UI¸¦ ÄÓ °ÍÀÎ°¡?
+        public UIState state;       // ï¿½î¶² ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½?
+        public GameObject uiObject; // ï¿½î¶² UIï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Î°ï¿½?
     }
 
-    [Header("UI µî·Ï ¼³Á¤")]
-    // ÀÌ ¸®½ºÆ®¿¡ UI ¿ÀºêÁ§Æ®µéÀ» µî·ÏÇÏ°í EnumÀ» ÁöÁ¤ÇÏ¼¼¿ä.
+    [Header("UI ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
+    // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ UI ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ Enumï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï¼ï¿½ï¿½ï¿½.
     public List<UIStateMapping> uiList = new List<UIStateMapping>();
 
-    [Header("ÃÊ±â »óÅÂ")]
+    [Header("ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½ï¿½")]
     public UIState startState = UIState.InGame;
 
-    [Header("UI ¼³Á¤")]
-    [Tooltip("È­¸éÀ» °¡¸± °ËÀº»ö ÀÌ¹ÌÁöÀÇ CanvasGroup ÄÄÆ÷³ÍÆ®")]
+    [Header("UI ï¿½ï¿½ï¿½ï¿½")]
+    [Tooltip("È­ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ì¹ï¿½ï¿½ï¿½ï¿½ï¿½ CanvasGroup ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®")]
     public CanvasGroup fadeCanvasGroup;
 
-    [Tooltip("ÆäÀÌµå ÀÎ µÇ´Â ½Ã°£ (ÃÊ)")]
+    [Tooltip("ï¿½ï¿½ï¿½Ìµï¿½ ï¿½ï¿½ ï¿½Ç´ï¿½ ï¿½Ã°ï¿½ (ï¿½ï¿½)")]
     public float fadeDuration = 1.0f;
 
-    // ÇöÀç »óÅÂ¸¦ ÀúÀåÇÏ´Â º¯¼ö
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½ï¿½ï¿½ï¿½
     private UIState currentState;
 
     private void Awake()
     {
-        Instance = this;
+        if (Instance == null) Instance = this;
+        else { Destroy(gameObject); return; }
     }
 
     private void Start()
     {
         StartCoroutine(SceneFade("FadeIn"));
-        // °ÔÀÓ ½ÃÀÛ ½Ã ÃÊ±â »óÅÂ·Î ÁøÀÔ
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ê±ï¿½ ï¿½ï¿½ï¿½Â·ï¿½ ï¿½ï¿½ï¿½ï¿½
         SetState(startState);
     }
 
     private void Update()
     {
-        // ¸Å ÇÁ·¹ÀÓ ÇöÀç »óÅÂ¿¡ µû¸¥ ·ÎÁ÷ ½ÇÇà
+        // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         UpdateState();
     }
 
     // ==========================================
-    // ÇÙ½É ±â´É 1: »óÅÂ º¯°æ (SetState)
+    // ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ 1: ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (SetState)
     // ==========================================
     public void SetState(UIState newState)
     {
         currentState = newState;
-        Debug.Log($"»óÅÂ º¯°æ: {currentState}");
+        Debug.Log($"ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½: {currentState}");
 
-        // µî·ÏµÈ ¸ðµç UI¸¦ ¼øÈ¸ÇÏ¸ç »óÅÂ¿¡ ¸Â´Â °Í¸¸ ÄÑ°í, ³ª¸ÓÁö´Â ²ü´Ï´Ù.
+        // ï¿½ï¿½Ïµï¿½ ï¿½ï¿½ï¿½ UIï¿½ï¿½ ï¿½ï¿½È¸ï¿½Ï¸ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ ï¿½Â´ï¿½ ï¿½Í¸ï¿½ ï¿½Ñ°ï¿½, ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ï´ï¿½.
         foreach (var mapping in uiList)
         {
             if (mapping.uiObject != null)
             {
-                // ÇöÀç »óÅÂ¿Í ¸ÅÇÎµÈ »óÅÂ°¡ °°À¸¸é true(ÄÑÁü), ¾Æ´Ï¸é false(²¨Áü)
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Â¿ï¿½ ï¿½ï¿½ï¿½Îµï¿½ ï¿½ï¿½ï¿½Â°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ true(ï¿½ï¿½ï¿½ï¿½), ï¿½Æ´Ï¸ï¿½ false(ï¿½ï¿½ï¿½ï¿½)
                 bool isActive = (mapping.state == newState);
                 mapping.uiObject.SetActive(isActive);
             }
         }
 
-        // »óÅÂ ÁøÀÔ ½Ã 1È¸¼º ·ÎÁ÷ÀÌ ÇÊ¿äÇÏ´Ù¸é ¿©±â¿¡ ÀÛ¼º (¿¹: Á¡¼ö ÃÊ±âÈ­ µî)
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ 1È¸ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ê¿ï¿½ï¿½Ï´Ù¸ï¿½ ï¿½ï¿½ï¿½â¿¡ ï¿½Û¼ï¿½ (ï¿½ï¿½: ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­ ï¿½ï¿½)
         OnEnterState(newState);
     }
 
     // ==========================================
-    // ÇÙ½É ±â´É 2: »óÅÂº° ÇÁ·¹ÀÓ ·ÎÁ÷ (UpdateState)
+    // ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ 2: ï¿½ï¿½ï¿½Âºï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (UpdateState)
     // ==========================================
     private void UpdateState()
     {
@@ -95,7 +96,7 @@ public class UIManager : MonoBehaviour
         {
 
             case UIState.InGame:
-                // °ÔÀÓ Áß ·ÎÁ÷
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     SetState(UIState.Settings);
@@ -103,7 +104,7 @@ public class UIManager : MonoBehaviour
                 break;
 
             case UIState.Settings:
-                // ¼³Á¤ Ã¢ ·ÎÁ÷
+                // ï¿½ï¿½ï¿½ï¿½ Ã¢ ï¿½ï¿½ï¿½ï¿½
                 if (Input.GetKeyDown(KeyCode.Escape))
                 {
                     SetState(UIState.InGame);
@@ -111,7 +112,7 @@ public class UIManager : MonoBehaviour
                 break;
 
             case UIState.GameOver:
-                // °ÔÀÓ ¿À¹ö ·ÎÁ÷
+                // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 //if (Input.GetKeyDown(KeyCode.R))
                 //{
                 //    SceneManager.LoadScene("LevelDesign");
@@ -127,17 +128,17 @@ public class UIManager : MonoBehaviour
         }
     }
 
-    // (¼±ÅÃ »çÇ×) »óÅÂ ÁøÀÔ ½Ã Ãß°¡ Ã³¸®¸¦ À§ÇÑ ÇÔ¼ö
+    // (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½) ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ß°ï¿½ Ã³ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ô¼ï¿½
     private void OnEnterState(UIState state)
     {
         switch (state)
         {
             case UIState.InGame:
-                Time.timeScale = 1f; // °ÔÀÓ ¼Óµµ Á¤»óÈ­
+                Time.timeScale = 1f; // ï¿½ï¿½ï¿½ï¿½ ï¿½Óµï¿½ ï¿½ï¿½ï¿½ï¿½È­
                 GUI.enabled = true;
                 break;
             case UIState.Settings:
-                Time.timeScale = 0f; // °ÔÀÓ ÀÏ½Ã Á¤Áö
+                Time.timeScale = 0f; // ï¿½ï¿½ï¿½ï¿½ ï¿½Ï½ï¿½ ï¿½ï¿½ï¿½ï¿½
                 GUI.enabled = false;
                 break;
             case UIState.Pause:
@@ -152,7 +153,7 @@ public class UIManager : MonoBehaviour
     public IEnumerator SceneFade(string fadeInOut)
     {
         if (fadeCanvasGroup == null) yield break;
-        fadeCanvasGroup.blocksRaycasts = true; // ÀÔ·Â Â÷´Ü ½ÃÀÛ
+        fadeCanvasGroup.blocksRaycasts = true; // ï¿½Ô·ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
         bool fadeIn = fadeInOut == "FadeIn";
         bool fadeOut = fadeInOut == "FadeOut";
@@ -161,8 +162,8 @@ public class UIManager : MonoBehaviour
 
         if (fadeIn)
         {
-            fadeCanvasGroup.alpha = 0f; // È®½ÇÇÏ°Ô Åõ¸íÇÏ°Ô
-            fadeCanvasGroup.blocksRaycasts = false; // [Áß¿ä!] ÆäÀÌµåÀÎÀÌ ³¡³ª¸é ¹Ýµå½Ã ÀÔ·ÂÀ» ´Ù½Ã Çã¿ëÇØ¾ß ÇÕ´Ï´Ù.
+            fadeCanvasGroup.alpha = 0f; // È®ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½
+            fadeCanvasGroup.blocksRaycasts = false; // [ï¿½ß¿ï¿½!] ï¿½ï¿½ï¿½Ìµï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ýµï¿½ï¿½ ï¿½Ô·ï¿½ï¿½ï¿½ ï¿½Ù½ï¿½ ï¿½ï¿½ï¿½ï¿½Ø¾ï¿½ ï¿½Õ´Ï´ï¿½.
         }
         if (fadeOut)
         {
@@ -175,7 +176,7 @@ public class UIManager : MonoBehaviour
         float timer = 0f;
         while (timer < fadeDuration)
         {
-            // Time.deltaTime ´ë½Å unscaledDeltaTime »ç¿ë (¾Æ·¡ 2¹ø ÀÌÀ¯ ÂüÁ¶)
+            // Time.deltaTime ï¿½ï¿½ï¿½ unscaledDeltaTime ï¿½ï¿½ï¿½ (ï¿½Æ·ï¿½ 2ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
             timer += Time.unscaledDeltaTime;
 
             if (fadeInOut == "FadeIn")

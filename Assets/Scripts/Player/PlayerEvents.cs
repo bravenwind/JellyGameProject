@@ -36,4 +36,20 @@ public static class PlayerEvents
     // 목표 색상 이벤트
     public static Action<bool> OnTargetColorChecked;
     public static Action OnPlayerResetRequested;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    public static void Reset()
+    {
+        OnJellyAbsorbed = null;
+        OnColorChanged = null;
+        OnColorUIUpdate = null;
+        OnScaleUIUpdate = null;
+        OnPlayDingEffect = null;
+        OnCameraScaleIncreased = null;
+        OnCameraScaleDecreased = null;
+        OnCameraLevelChanged = null;
+        OnCameraOrthoSizeChanged = null;
+        OnTargetColorChecked = null;
+        OnPlayerResetRequested = null;
+    }
 }

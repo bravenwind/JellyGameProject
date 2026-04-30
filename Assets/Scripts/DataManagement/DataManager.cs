@@ -77,10 +77,13 @@ public class DataManager : MonoBehaviour
     [Header("Jelly Effects (RYB)")]
     public List<JellyEffectData> jellyEffects;
 
+    private Dictionary<JellyColorType, RYBColor> _jellyEffectCache;
+
     public RYBColor GetJellyRYBEffect(JellyColorType type)
     {
-        var data = jellyEffects.Find(x => x.type == type);
-        return data != null ? data.rybChange : new RYBColor(0, 0, 0);
+        if (_jellyEffectCache != null && _jellyEffectCache.TryGetValue(type, out var cached))
+            return cached;
+        return new RYBColor(0, 0, 0);
     }
 
     private void Awake()
@@ -93,7 +96,34 @@ public class DataManager : MonoBehaviour
             return;
         }
 
+        ValidateSettings();
+        BuildJellyEffectCache();
+
         GameState.Reset();
         GameState.DetectRadius = originalDetectRadius;
+    }
+
+    private void BuildJellyEffectCache()
+    {
+        _jellyEffectCache = new Dictionary<JellyColorType, RYBColor>();
+        if (jellyEffects == null) return;
+        foreach (var data in jellyEffects)
+        {
+            if (data != null)
+                _jellyEffectCache[data.type] = data.rybChange;
+        }
+    }
+
+    private void ValidateSettings()
+    {
+        if (minScale > maxScale)
+        {
+            Debug.LogWarning($"[DataManager] minScale({minScale}) > maxScale({maxScale}), 값을 교정합니다.");
+            (minScale, maxScale) = (maxScale, minScale);
+        }
+
+        if (scaleIncreaseTime <= 0f) scaleIncreaseTime = 0.1f;
+        if (scaleDecreaseTime <= 0f) scaleDecreaseTime = 0.1f;
+        if (scorePerJelly <= 0) scorePerJelly = 1;
     }
 }

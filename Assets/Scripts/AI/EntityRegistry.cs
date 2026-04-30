@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using UnityEngine;
 
 public static class EntityRegistry
 {
@@ -18,4 +19,12 @@ public static class EntityRegistry
 
     public static void Register(JellyObject j) => _jellies.Add(j);
     public static void Unregister(JellyObject j) => _jellies.Remove(j);
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    public static void Clear()
+    {
+        _players.Clear();
+        _bots.Clear();
+        _jellies.Clear();
+    }
 }
