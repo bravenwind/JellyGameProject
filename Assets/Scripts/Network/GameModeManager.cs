@@ -248,6 +248,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             var (name, score, isBot) = entries[i];
             LeaderboardEntry entryComp = _leaderboardPool.Get();
+            entryComp.transform.SetAsLastSibling();
             _leaderboardEntries.Add(entryComp);
 
             bool isMe = !isBot && name == PhotonNetwork.NickName;
