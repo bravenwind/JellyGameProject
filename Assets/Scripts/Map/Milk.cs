@@ -26,7 +26,7 @@ public class Milk : MonoBehaviour
 
         if (currentScale > DataManager.Instance.minScale)
         {
-            sc.QueueScaleChange(sc.DecreaseScale(DataManager.Instance.scaleDecreaseTime));
+            sc.DecreaseScale(DataManager.Instance.scaleDecreaseTime);
 
             StartCoroutine(RespawnRoutine());
         }

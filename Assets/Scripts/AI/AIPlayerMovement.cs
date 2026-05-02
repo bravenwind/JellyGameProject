@@ -68,8 +68,10 @@ public class AIPlayerMovement : MonoBehaviourPun
     private float _prevScaleValue = 1f;
     public bool IsBeingAbsorbed { get; set; } = false;
 
-    /// <summary>이 봇이 현재까지 획득한 점수 (다른 엔티티를 흡수할 때 상대방에게 넘어감)</summary>
-    public int currentScore = 0;
+    private AIPlayerSync _aiSync;
+
+    /// <summary>이 봇이 현재까지 획득한 점수 (AIPlayerSync를 통해 관리)</summary>
+    public int CurrentScore => _aiSync != null ? _aiSync.CurrentScore : 0;
 
     // ─────────────────────────────────────────────────────────
     // 외부 프로퍼티
@@ -92,6 +94,7 @@ public class AIPlayerMovement : MonoBehaviourPun
         Agent     = GetComponent<NavMeshAgent>();
         ScaleCtrl = GetComponent<PlayerScaleController>();
         Detector  = GetComponent<AIDetector>();
+        _aiSync   = GetComponent<AIPlayerSync>();
         CachedPath = new NavMeshPath();
         _anim     = GetComponentInChildren<Animator>();
 
@@ -372,7 +375,7 @@ public class AIPlayerMovement : MonoBehaviourPun
             if (player.photonView?.Owner?.CustomProperties != null &&
                 player.photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreVal))
                 playerScore = (int)scoreVal;
-            currentScore += playerScore;
+            _aiSync?.AddScore(playerScore);
 
             player.photonView.RPC("RPC_GetAbsorbed", RpcTarget.All, photonView.ViewID);
             ScaleCtrl?.GrowByAbsorbing(preyScale);
@@ -389,7 +392,7 @@ public class AIPlayerMovement : MonoBehaviourPun
             Debug.Log(this.name + "/OnTriggerEnter : 다른 AI 플레이어 흡수");
 
             // 흡수된 봇의 점수를 이 봇에게 추가
-            currentScore += otherBot.currentScore;
+            _aiSync?.AddScore(otherBot.CurrentScore);
 
             otherBot.photonView.RPC(nameof(RPC_BotAbsorbed), RpcTarget.All, photonView.ViewID);
             ScaleCtrl?.GrowByAbsorbing(preyScale);
@@ -410,6 +413,7 @@ public class AIPlayerMovement : MonoBehaviourPun
     private IEnumerator BotAbsorbedSequence(int absorberViewID)
     {
         if (Agent != null) Agent.enabled = false;
+        _currentState?.Exit();
         _currentState = null;
 
         PhotonView absorberView = PhotonView.Find(absorberViewID);

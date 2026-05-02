@@ -46,7 +46,7 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
     {
         PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
-        GameState.PlayerCurrentScale = 2f;
+        GameState.PlayerCurrentScale = 1f;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 

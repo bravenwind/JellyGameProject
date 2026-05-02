@@ -108,10 +108,10 @@ public class PlayerScaleController : MonoBehaviour
         _bridge?.OnPostScalePhysics();
     }
 
-    public IEnumerator DecreaseScale(float decreaseTime)
+    public void DecreaseScale(float decreaseTime)
     {
         float target = Mathf.Max(currentScaleValue - DataManager.Instance.scaleDecreaseAmount, DataManager.Instance.minScale);
-        yield return ScaleTo(target, decreaseTime, growing: false);
+        QueueScaleChange(ScaleTo(target, decreaseTime, growing: false));
     }
 
     public void QueueScaleChange(IEnumerator scaleRoutine)

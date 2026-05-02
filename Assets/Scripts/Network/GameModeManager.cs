@@ -14,6 +14,7 @@ using System.Linq;
 using UnityEngine;
 using Photon.Pun;
 using Photon.Realtime;
+using ExitGames.Client.Photon;
 using TMPro;
 using UnityEngine.SceneManagement;
 
@@ -89,9 +90,40 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         NetworkManager.Instance?.SpawnLocalPlayer();
         NetworkManager.Instance?.SpawnBots();
 
-        // 방장만 게임 시작 신호를 뿌림
         if (PhotonNetwork.IsMasterClient)
+        {
             photonView.RPC(nameof(RPC_StartGame), RpcTarget.All);
+        }
+        else
+        {
+            TryJoinRunningGame();
+        }
+    }
+
+    private void TryJoinRunningGame()
+    {
+        var props = PhotonNetwork.CurrentRoom.CustomProperties;
+        if (props.ContainsKey("GameStartTime"))
+        {
+            int startTime = (int)props["GameStartTime"];
+            float elapsed = (PhotonNetwork.ServerTimestamp - startTime) / 1000f;
+            float remaining = gameDuration - elapsed;
+
+            if (remaining > 0f)
+            {
+                _gameRunning = true;
+                _gameTimer = remaining;
+                GameState.Phase = GamePhase.Playing;
+
+                if (gameResultPanel != null)
+                    gameResultPanel.SetActive(false);
+            }
+            else
+            {
+                _gameTimer = 0f;
+                GameWin();
+            }
+        }
     }
 
     [PunRPC]
@@ -103,6 +135,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         if (gameResultPanel != null)
             gameResultPanel.SetActive(false);
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Hashtable props = new Hashtable { { "GameStartTime", PhotonNetwork.ServerTimestamp } };
+            PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+        }
 
         Debug.Log($"[GameMode] 게임 시작! 전체시간={gameDuration}s");
     }

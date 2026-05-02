@@ -7,8 +7,8 @@ public class AIPlayerSync : MonoBehaviourPun
 {
     private string _botPrefix;
 
-    // 💡 봇의 현재 점수를 기억할 변수 추가
     private int _currentScore = 0;
+    public int CurrentScore => _currentScore;
 
     private void Start()
     {

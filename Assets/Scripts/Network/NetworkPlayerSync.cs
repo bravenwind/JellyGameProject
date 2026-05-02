@@ -292,7 +292,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         }
         else if (playerScale > botScale && !aiBot.IsBeingAbsorbed)
         {
-            int bonus = aiBot.currentScore;
+            int bonus = aiBot.CurrentScore;
             photonView.RPC(nameof(RPC_BotAbsorbConfirmed), photonView.Owner,
                 bonus, botScale, botViewID);
             aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);

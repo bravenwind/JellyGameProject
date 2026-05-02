@@ -33,7 +33,7 @@ public class BotBridge : MonoBehaviour, IEntityBridge
     // ── Absorb ──
     public void OnJellyScored()
     {
-        AIPlayerMovement ai = GetComponentInParent<AIPlayerMovement>();
-        if (ai != null) ai.currentScore += DataManager.Instance.scorePerJelly;
+        AIPlayerSync aiSync = GetComponentInParent<AIPlayerSync>();
+        if (aiSync != null) aiSync.AddScore(DataManager.Instance.scorePerJelly);
     }
 }
