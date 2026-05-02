@@ -6,7 +6,6 @@ public class LoadingSceneController : MonoBehaviour
 {
     [Header("애니메이션")]
     [SerializeField] private LoadingBGSlideAni bgSlide;
-    [SerializeField] private LoadingCenterMultiAni centerAni;
 
     [Header("설정")]
     [Tooltip("로딩 화면이 최소한 보여지는 시간 (너무 빨리 사라지는 것 방지)")]
