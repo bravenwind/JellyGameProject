@@ -51,6 +51,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [Tooltip("게임 씬 이름")]
     public string gameSceneName = "Game_io";
 
+    [Tooltip("로딩 씬 이름")]
+    public string loadingSceneName = "Loading";
+
     [Header("스폰 겹침 방지")]
     [Tooltip("이미 사용된 스폰포인트와의 최소 거리")]
     public float minSpawnDistance = 3f;
@@ -125,6 +128,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         {
             Debug.LogWarning($"[NetworkManager] 현재 서버 통신 중입니다. 중복 요청을 무시합니다. (상태: {PhotonNetwork.NetworkClientState})");
         }
+
+        SceneManager.LoadScene(loadingSceneName);
     }
 
     // ─────────────────────────────────────────────────────────
