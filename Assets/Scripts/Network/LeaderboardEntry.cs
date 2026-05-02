@@ -36,10 +36,10 @@ public class LeaderboardEntry : MonoBehaviour
             backgroundImage.color = isMe ? myEntryColor : Color.clear;
         }
 
-        // 1위는 금색
-        if (rank == 1 && rankText != null)
+        // 1위는 금색, 그 외는 흰색으로 복원
+        if (rankText != null)
         {
-            rankText.color = new Color(1f, 0.84f, 0f); // 금색
+            rankText.color = rank == 1 ? new Color(1f, 0.84f, 0f) : Color.white;
         }
     }
 }
