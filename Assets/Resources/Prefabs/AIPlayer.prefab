@@ -163,7 +163,6 @@ MonoBehaviour:
   baseAgentHeight: 1.51
   nameTagBillboard: {fileID: 8149866080057182332}
   _dbg_currentState: '-'
-  currentScore: 0
 --- !u!114 &8579281685212818753
 MonoBehaviour:
   m_ObjectHideFlags: 0

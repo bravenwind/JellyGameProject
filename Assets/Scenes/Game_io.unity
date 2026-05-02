@@ -54929,7 +54929,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9b182e97ad1a954b9a0ce7e2f5cad26, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameDuration: 180
+  gameDuration: 120
   gameTimerText: {fileID: 883871039}
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}
@@ -55418,7 +55418,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 99.4}
-  m_SizeDelta: {x: 500, y: 50}
+  m_SizeDelta: {x: 1000, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &722883340
 CanvasRenderer:
@@ -55448,7 +55448,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\uAC8C\uC784 \uC624\uBC84"
+  m_text: "\uD0C8\uB77D!\\n{min}\uBD84 {sec}\uCD08 \uC0DD\uC874"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: bfa63329007b42645b22abee600252ca, type: 2}
   m_sharedMaterial: {fileID: 602655044699596407, guid: bfa63329007b42645b22abee600252ca, type: 2}
@@ -55475,8 +55475,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 98.63
-  m_fontSizeBase: 98.63
+  m_fontSize: 75.84
+  m_fontSizeBase: 75.84
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -62875,7 +62875,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &839208345
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -93584,7 +93584,6 @@ MonoBehaviour:
   targetScore: 1000
   scorePerJelly: 100
   originalDetectRadius: 4
-  detectRadius: 0
   detectPlusRadiusPerLevel: 2
   detectLayerMask:
     serializedVersion: 2
@@ -93604,42 +93603,36 @@ MonoBehaviour:
       r: 0.3
       y: 0
       b: 0
-    rgbChange: {x: 60, y: -30, z: -30}
   - colorName: Yellow
     type: 1
     rybChange:
       r: 0
       y: 0.3
       b: 0
-    rgbChange: {x: -30, y: 60, z: -30}
   - colorName: Blue
     type: 2
     rybChange:
       r: 0
       y: 0
       b: 0.3
-    rgbChange: {x: -30, y: -30, z: 60}
   - colorName: Orange
     type: 3
     rybChange:
       r: 0.2
       y: 0.2
       b: 0
-    rgbChange: {x: -40, y: 40, z: 40}
   - colorName: Green
     type: 4
     rybChange:
       r: 0
       y: 0.2
       b: 0.2
-    rgbChange: {x: 40, y: -40, z: 40}
   - colorName: Purple
     type: 5
     rybChange:
       r: 0.2
       y: 0
       b: 0.2
-    rgbChange: {x: 40, y: 40, z: -40}
 --- !u!4 &1185959243
 Transform:
   m_ObjectHideFlags: 0

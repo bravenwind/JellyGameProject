@@ -167,21 +167,14 @@ public class SoftBody3D : MonoBehaviour
             PlayerController playerController = GetComponentInParent<PlayerController>();
             if (playerController != null && playerController.enabled)
             {
-                // 1. 공중에 떠 있다면 점프 모션 즉시 재생
-                if (!playerController.isGrounded)
-                {
-                    animator.SetTrigger("Jump");
-                }
-                else
-                {
-                    // 2. 바닥에 있고 이동 키를 누르고 있다면 걷기 모션 즉시 재생
-                    float h = Input.GetAxis("Horizontal");
-                    float v = Input.GetAxis("Vertical");
-                    bool isMoving = (h * h + v * v) > 0.001f;
 
-                    // 애니메이터 파라미터에 현재 이동 여부를 바로 덮어씁니다.
-                    animator.SetBool("IsMoving", isMoving);
-                }
+                // 2. 바닥에 있고 이동 키를 누르고 있다면 걷기 모션 즉시 재생
+                float h = Input.GetAxis("Horizontal");
+                float v = Input.GetAxis("Vertical");
+                bool isMoving = (h * h + v * v) > 0.001f;
+
+                // 애니메이터 파라미터에 현재 이동 여부를 바로 덮어씁니다.
+                animator.SetBool("IsMoving", isMoving);
             }
         }
     }

@@ -235,7 +235,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b8529383b0922848a43d74ffec44ca1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentStatusUI: {fileID: 0}
   jellyCamera: {fileID: 0}
   mainCamera_Action: {fileID: 0}
   uIPoolManager: {fileID: 0}
@@ -338,7 +337,6 @@ MonoBehaviour:
   scaleController: {fileID: 6975552852123859224}
   jellyRenderer: {fileID: 4241201823037191511}
   nameTagBillboard: {fileID: 1991741170197539670}
-  isBot: 0
   respawnDelay: 3
 --- !u!95 &365858056229833277
 Animator:

@@ -11,6 +11,7 @@ using UnityEngine.AI;
 public class AIFleeState : AIBaseState
 {
     private float _pathTimer = 0f;
+    private float _stuckTimer = 0f;
 
     private const float FLEE_PATH_RATE = 0.2f;
     private const float FLEE_SPEED_MULT = 1.5f;
@@ -23,14 +24,33 @@ public class AIFleeState : AIBaseState
         ai.Agent.speed = ai.moveSpeed * FLEE_SPEED_MULT;
         ai.Agent.stoppingDistance = 0f;
         _pathTimer = FLEE_PATH_RATE; // 진입 즉시 경로 계산
+        _stuckTimer = 0f;
     }
 
     public override void Update()
     {
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
 
+        // ── 💡 [추가됨] 정지(Stuck) 감지 방어 코드 ──
+        // 주의: _pathTimer의 early return보다 위에 있어야 매 프레임 정상 작동합니다!
+        if (ai.Agent.hasPath && ai.Agent.velocity.magnitude < 0.1f)
+        {
+            _stuckTimer += Time.deltaTime;
+            if (_stuckTimer >= 1.0f) // 1초 이상 버벅거리면
+            {
+                _stuckTimer = 0f;
+                ai.Agent.ResetPath(); // 현재 경로 포기 (벽에 비비는 현상 탈출)
+                return;
+            }
+        }
+        else
+        {
+            _stuckTimer = 0f;
+        }
+
+        // ── 경로 갱신 타이머 ──
         _pathTimer += Time.deltaTime;
-        if (_pathTimer < FLEE_PATH_RATE) return;
+        if (_pathTimer < FLEE_PATH_RATE) return; // 여기서 return 되기 전에 위에서 Stuck 체크를 마쳐야 함
         _pathTimer = 0f;
 
         // ── 위협 탐지 ──
@@ -53,19 +73,36 @@ public class AIFleeState : AIBaseState
         Vector3 candidate = ai.transform.position + fleeDir * FLEE_DISTANCE;
 
         // ── 3. NavMesh 위 유효한 위치인지 확인 후 이동 ──
-        // 탐색 반경(10f) 내에 갈 수 있는 땅이 있다면 그곳으로 뜁니다.
         if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10f, ai.NavFilter))
         {
-            ai.Agent.SetDestination(hit.position);
+            // 💡 도망갈 곳도 경로가 온전한지 검증 후 이동
+            ai.CachedPath.ClearCorners();
+            if (ai.Agent.CalculatePath(hit.position, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
+            {
+                ai.Agent.SetPath(ai.CachedPath);
+            }
+            else
+            {
+                // 경로를 찾지 못했다면 강제로 조금 덜 멀리 이동 시도 (Fallback)
+                TryFallbackFlee(fleeDir);
+            }
         }
         else
         {
-            // 만약 맵의 완전 끝자락이라 15유닛 바깥에 땅이 아예 없다면, 
-            // 조금 덜 멀리(5유닛) 떨어진 곳이라도 찾아서 비비도록 처리
-            Vector3 fallback = ai.transform.position + fleeDir * 5f;
-            if (NavMesh.SamplePosition(fallback, out NavMeshHit fbHit, 5f, ai.NavFilter))
+            TryFallbackFlee(fleeDir);
+        }
+    }
+
+    // 💡 [추가됨] 가독성을 위해 Fallback 로직 분리
+    private void TryFallbackFlee(Vector3 fleeDir)
+    {
+        Vector3 fallback = ai.transform.position + fleeDir * 5f;
+        if (NavMesh.SamplePosition(fallback, out NavMeshHit fbHit, 5f, ai.NavFilter))
+        {
+            ai.CachedPath.ClearCorners();
+            if (ai.Agent.CalculatePath(fbHit.position, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
             {
-                ai.Agent.SetDestination(fbHit.position);
+                ai.Agent.SetPath(ai.CachedPath);
             }
         }
     }

@@ -92,27 +92,38 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     // ─────────────────────────────────────────────────────────
     // 연결 시작
     // ─────────────────────────────────────────────────────────
-
     /// <summary>
     /// 타이틀/로비 UI에서 "게임 시작" 버튼을 누르면 호출
     /// </summary>
     public void StartConnect(string playerName)
     {
-        PhotonNetwork.LocalPlayer.NickName = playerName;
+        PhotonNetwork.NickName = playerName;
 
-        // IsConnected 대신 'IsConnectedAndReady'를 체크해야 안전합니다.
-        // (서버와 완전히 통신 가능한 상태인지 확인)
-        if (PhotonNetwork.IsConnectedAndReady)
+        // 1. 아예 서버와 연결되지 않은 상태 (최초 실행 시 PeerCreated, 끊겼을 때 Disconnected 포함)
+        if (!PhotonNetwork.IsConnected)
         {
-            Debug.Log("이미 마스터 서버에 연결되어 있습니다. 바로 방에 입장합니다.");
+            Debug.Log($"[NetworkManager] '{playerName}' 닉네임으로 서버 연결 시도...");
+            PhotonNetwork.ConnectUsingSettings();
+        }
+        // 2. 서버에는 연결되어 있지만, 아직 방에 들어가지 않은 준비 완료 상태 (로비 대기 등)
+        else if (PhotonNetwork.IsConnectedAndReady && !PhotonNetwork.InRoom)
+        {
+            Debug.Log("[NetworkManager] 이미 서버에 연결되어 있습니다. 바로 방 접속을 시도합니다.");
             JoinOrCreateRoom();
         }
+        // 3. (예외처리) 이미 방에 들어가 있는 경우 씬만 전환
+        else if (PhotonNetwork.InRoom)
+        {
+            Debug.Log("[NetworkManager] 이미 방에 입장해 있습니다. 씬 전환을 시도합니다.");
+            if (PhotonNetwork.IsMasterClient)
+            {
+                PhotonNetwork.LoadLevel(gameSceneName);
+            }
+        }
+        // 4. 통신 중인 상태 (Connecting, Joining 등)
         else
         {
-            Debug.Log("서버에 연결 중...");
-            // 🚨 여기서는 서버 접속 요청만 하고 함수를 끝내야 합니다!
-            // 여기서 JoinOrCreateRoom()을 연달아 호출하면 에러가 납니다.
-            PhotonNetwork.ConnectUsingSettings();
+            Debug.LogWarning($"[NetworkManager] 현재 서버 통신 중입니다. 중복 요청을 무시합니다. (상태: {PhotonNetwork.NetworkClientState})");
         }
     }
 
@@ -354,7 +365,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// SpawnPoint가 없을 때 랜덤 좌표 중 겹치지 않는 위치 반환.
+    /// SpawnPoint가 없을 때 랜덤 좌표 중 가급적 겹치지 않는 위치 반환.
     /// </summary>
     private Vector3 PickNonOverlappingRandom()
     {
