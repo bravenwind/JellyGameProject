@@ -99,13 +99,9 @@ public class SoftBody3D : MonoBehaviour
             if (useHybridSoftness)
             {
                 if (_initialCoefficients[i].maxDistance < softness)
-                {
                     currentCoefficients[i].maxDistance = _initialCoefficients[i].maxDistance;
-                }
                 else
-                {
                     currentCoefficients[i].maxDistance = softness;
-                }
             }
             else
             {
@@ -124,47 +120,37 @@ public class SoftBody3D : MonoBehaviour
             _cloth.enabled = false;
     }
 
-
     public IEnumerator EnableAndRebuildCloth()
     {
         if (_skinnedMeshRenderer == null) yield break;
 
         Animator animator = GetComponentInParent<Animator>();
 
-        // 1. 현재 상태 저장
-        int stateHash = 0;
-        float normalizedTime = 0f;
-        if (animator != null && animator.isInitialized)
-        {
-            AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
-            stateHash = info.fullPathHash;
-            normalizedTime = info.normalizedTime;
-        }
+        // Rebind() 없이 현재 포즈에서 그냥 멈춤
+        // Rebind()를 쓰면 IsMoving 등 모든 파라미터가 초기화되어
+        // 이동 중 크기 변화 시 강제로 Idle이 되는 문제가 생김
+        if (animator != null) animator.enabled = false;
 
-        // 2. Cloth 재생성 (Rebind은 그대로 유지)
-        if (animator != null)
-        {
-            animator.Rebind();
-            animator.Update(0f);
-            animator.enabled = false;
-        }
-
+        // 1. 기존 Cloth 컴포넌트 삭제
         if (_cloth != null) DestroyImmediate(_cloth);
+
+        // 2. 2프레임 대기
         yield return null;
         yield return null;
 
+        // 3. 현재 포즈 위에서 Cloth 새로 생성
         _cloth = gameObject.AddComponent<Cloth>();
+
+        // 4. 새 Cloth의 기본 계수를 저장 후 소프트니스 적용
+        _initialCoefficients = _cloth.coefficients;
         ApplyClothSettings();
         UpdateSoftness();
+
+        // 5. 물리 엔진 관성 무시
         _cloth.ClearTransformMotion();
         _cloth.enabled = true;
 
-        // 3. 저장했던 상태로 즉시 복원 (Idle로 튀지 않음)
-        if (animator != null)
-        {
-            animator.enabled = true;
-            animator.Play(stateHash, 0, normalizedTime % 1f);
-            animator.Update(0f); // 복원된 포즈를 즉시 메쉬에 반영
-        }
+        // 6. 애니메이터 재개 (파라미터는 건드리지 않았으므로 그대로 유지됨)
+        if (animator != null) animator.enabled = true;
     }
 }
