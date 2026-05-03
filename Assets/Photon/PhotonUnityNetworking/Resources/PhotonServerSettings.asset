@@ -48,6 +48,7 @@ MonoBehaviour:
   - RPC_BotAbsorbConfirmed
   - RPC_RequestAbsorbValidation
   - RPC_RequestBotAbsorbValidation
+  - RPC_PlayJump
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0

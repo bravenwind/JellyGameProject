@@ -114,6 +114,7 @@ GameObject:
   - component: {fileID: 4114611337571506407}
   - component: {fileID: 4724251955215320959}
   - component: {fileID: 7905855228646713728}
+  - component: {fileID: 3649942027770643876}
   - component: {fileID: 4271440125799119361}
   - component: {fileID: 365858056229833277}
   - component: {fileID: 3832500137166153991}
@@ -300,6 +301,7 @@ MonoBehaviour:
   ObservedComponents:
   - {fileID: 7905855228646713728}
   - {fileID: 4271440125799119361}
+  - {fileID: 3649942027770643876}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -319,6 +321,33 @@ MonoBehaviour:
   m_SynchronizeRotation: 1
   m_SynchronizeScale: 1
   m_UseLocal: 1
+--- !u!114 &3649942027770643876
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b8c4a61274f60b4ea5fb4299cfdbf14, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowLayerWeightsInspector: 1
+  ShowParameterInspector: 1
+  m_SynchronizeParameters:
+  - Type: 4
+    SynchronizeType: 0
+    Name: IsMoving
+  - Type: 9
+    SynchronizeType: 0
+    Name: Jump
+  - Type: 9
+    SynchronizeType: 0
+    Name: GameFail
+  m_SynchronizeLayers:
+  - SynchronizeType: 0
+    LayerIndex: 0
 --- !u!114 &4271440125799119361
 MonoBehaviour:
   m_ObjectHideFlags: 0

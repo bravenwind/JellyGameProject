@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // NetworkManager.cs
 // ============================================================
 // 역할: Photon 서버 연결 + 로비 + 방 생성/입장 관리
@@ -86,7 +86,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         SceneManager.sceneLoaded -= OnSceneLoaded;
     }
 
-    private void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, LoadSceneMode mode)
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         _usedSpawnPositions.Clear();
         spawnPoints = null;
@@ -138,22 +138,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     /// <summary>
     /// [자동 콜백] 서버 접속 성공 시 호출
-    /// 여기서 바로 로비로 들어감
     /// </summary>
     public override void OnConnectedToMaster()
     {
         Debug.Log("마스터 서버 연결 완료! 이제 방 접속을 시도합니다.");
 
         // 로비에 먼저 입장해야 하는 로직이 없다면, 여기서 바로 방 접속을 시도하면 됩니다.
-        JoinOrCreateRoom();
-    }
-
-    /// <summary>
-    /// [자동 콜백] 로비 입장 성공 시 호출
-    /// </summary>
-    public override void OnJoinedLobby()
-    {
-        Debug.Log("[Network] 로비 입장 완료! 방 탐색 중...");
         JoinOrCreateRoom();
     }
 

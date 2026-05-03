@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // NetworkPlayerSync.cs
 // ============================================================
 // 역할: 로컬 플레이어의 상태를 다른 클라이언트에 동기화
@@ -240,6 +240,24 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             _absorbedBotIds.Add(botId);
 
             photonView.RPC(nameof(RPC_RequestBotAbsorbValidation), RpcTarget.MasterClient, botId);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 점프 애니메이션 동기화 RPC
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// 다른 클라이언트에서 이 플레이어의 점프 애니메이션을 재생
+    /// PlayerJumpState.Enter()에서 RpcTarget.Others로 호출됨
+    /// </summary>
+    [PunRPC]
+    public void RPC_PlayJump()
+    {
+        // IsMine이 아닌 쪽(원격 플레이어)에서 수신하므로 바로 재생
+        if (playerController != null && playerController.jellyAnimator != null)
+        {
+            playerController.jellyAnimator.SetTrigger("Jump");
         }
     }
 

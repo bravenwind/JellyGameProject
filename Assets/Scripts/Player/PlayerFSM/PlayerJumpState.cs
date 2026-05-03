@@ -1,4 +1,5 @@
-using UnityEngine;
+﻿using UnityEngine;
+using Photon.Pun;
 
 // ==========================================
 // 3. Jump ���� Ŭ����
@@ -13,6 +14,12 @@ public class PlayerJumpState : PlayerBaseState
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayJumpSound();
 
         player.verticalVelocity = player.jumpForce;
+
+        NetworkPlayerSync networkPlayerSync = player.GetComponent<NetworkPlayerSync>();
+        if (networkPlayerSync != null && networkPlayerSync.photonView.IsMine)
+        {
+            networkPlayerSync.photonView.RPC(nameof(networkPlayerSync.RPC_PlayJump), RpcTarget.Others);
+        }
     }
 
     public override void Update()

@@ -47812,11 +47812,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b2606b25a3ee31f49b5016f46d2a1005, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  globalVolume: {fileID: 619703254}
-  hitIntensity: -0.7
-  hitDuration: 0.4
-  recoveryDuration: 1.5
-  recoveryEase: 24
 --- !u!4 &619703256
 Transform:
   m_ObjectHideFlags: 0
@@ -129638,7 +129633,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1707815819}
-  - component: {fileID: 1707815813}
   - component: {fileID: 1707815814}
   - component: {fileID: 1707815815}
   - component: {fileID: 1707815816}
@@ -129650,30 +129644,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1707815813
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1707815812}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ead33c547a4cd854cb6a90ec47d5021c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  posSliders:
-  - {fileID: 1595653561}
-  - {fileID: 1272583127}
-  - {fileID: 1298296259}
-  rotSliders:
-  - {fileID: 1659528842}
-  - {fileID: 319338569}
-  - {fileID: 876081172}
-  persp_ortho_btn: {fileID: 1905517804}
-  cam: {fileID: 1707815816}
-  action: {fileID: 1707815814}
-  originalOffset: {x: 0, y: 61.1, z: -66.1}
 --- !u!114 &1707815814
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -164329,7 +164299,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1707815813}
+      - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: CameraPosAndRot, Assembly-CSharp
         m_MethodName: ChangeProjection
         m_Mode: 1
@@ -172600,6 +172570,7 @@ MonoBehaviour:
   prefabFolder: Prefabs/
   maxPlayersPerRoom: 4
   gameSceneName: Game_io
+  loadingSceneName: Loading
   minSpawnDistance: 3
 --- !u!4 &6740253497566026384
 Transform:

@@ -167,7 +167,6 @@ public class SoftBody3D : MonoBehaviour
             PlayerController playerController = GetComponentInParent<PlayerController>();
             if (playerController != null && playerController.enabled)
             {
-
                 // 2. 바닥에 있고 이동 키를 누르고 있다면 걷기 모션 즉시 재생
                 float h = Input.GetAxis("Horizontal");
                 float v = Input.GetAxis("Vertical");
