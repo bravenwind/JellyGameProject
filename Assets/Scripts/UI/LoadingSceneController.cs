@@ -1,8 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Photon.Pun;
 
-public class LoadingSceneController : MonoBehaviour
+public class LoadingSceneController : MonoBehaviourPunCallbacks
 {
     [Header("애니메이션")]
     [SerializeField] private LoadingBGSlideAni bgSlide;
@@ -15,6 +16,7 @@ public class LoadingSceneController : MonoBehaviour
     private bool _targetSceneLoaded;
     private float _elapsed;
     private bool _exiting;
+    private bool _nextSceneTriggered; // 추가: LoadLevel 중복 호출 방지
 
     private void Awake()
     {
@@ -38,6 +40,15 @@ public class LoadingSceneController : MonoBehaviour
     {
         if (_exiting) return;
         _elapsed += Time.unscaledDeltaTime;
+
+        // minDisplayTime이 지나면 MasterClient가 게임씬 로드 트리거
+        // 비 MasterClient는 AutomaticallySyncScene으로 자동 이동
+        if (!_nextSceneTriggered && _elapsed >= minDisplayTime)
+        {
+            _nextSceneTriggered = true;
+            if (PhotonNetwork.IsMasterClient)
+                PhotonNetwork.LoadLevel(NetworkManager.Instance.gameSceneName);
+        }
 
         if (_targetSceneLoaded && _elapsed >= minDisplayTime)
         {

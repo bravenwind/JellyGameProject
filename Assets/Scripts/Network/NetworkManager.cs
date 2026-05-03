@@ -10,10 +10,12 @@
 //   4. OnJoinedRoom() 콜백 → 플레이어 프리팹 생성 후 게임 시작
 // ============================================================
 
-using System.Collections.Generic;
-using UnityEngine;
 using Photon.Pun;           // PhotonNetwork, PhotonView 등 핵심 클래스
 using Photon.Realtime;      // IConnectionCallbacks, IMatchmakingCallbacks 등 콜백 인터페이스
+using System.Collections;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class NetworkManager : MonoBehaviourPunCallbacks
@@ -45,8 +47,15 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public string prefabFolder = "Prefabs/";
 
     [Header("방 설정")]
+    [Tooltip("방 최소 인원")]
+    public int minPlayersPerRoom = 2;
+
     [Tooltip("방 최대 인원 (AI 포함)")]
-    public byte maxPlayersPerRoom = 4;
+    public int maxPlayersPerRoom = 10;
+
+    [Tooltip("매칭 타이머")]
+    public float noPlayerConnectTimeSeconds = 10.0f;
+    private float _noPlayerConnectTimer = 0.0f;
 
     [Tooltip("게임 씬 이름")]
     public string gameSceneName = "Game_io";
@@ -60,6 +69,15 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     // 이번 게임에서 이미 사용된 스폰 위치들 (플레이어 + 봇 공용)
     private readonly List<Vector3> _usedSpawnPositions = new List<Vector3>();
+
+    private bool _gameStarted = false;
+
+    // 이벤트 코드 (다른 RaiseEvent와 안 겹치게)
+    public const byte EVENT_COUNTDOWN = 11;
+    public const byte EVENT_GAME_START = 12;
+    public const byte EVENT_PLAYER_COUNT = 13;
+
+    private bool _isCountingDown = false;
 
     // ─────────────────────────────────────────────────────────
     // 싱글톤
@@ -128,8 +146,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         {
             Debug.LogWarning($"[NetworkManager] 현재 서버 통신 중입니다. 중복 요청을 무시합니다. (상태: {PhotonNetwork.NetworkClientState})");
         }
-
-        SceneManager.LoadScene(loadingSceneName);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -155,7 +171,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // RoomOptions: 방의 속성 설정
         RoomOptions options = new RoomOptions
         {
-            MaxPlayers = maxPlayersPerRoom,
+            MaxPlayers = (byte)maxPlayersPerRoom,
             IsVisible = true,   // 로비에서 보이게
             IsOpen = true       // 입장 가능하게
         };
@@ -173,13 +189,69 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         Debug.Log($"[Network] 방 입장 완료! 현재 인원: {PhotonNetwork.CurrentRoom.PlayerCount}");
+        BroadcastPlayerCount();
+        CheckAndStartCountdown();
+    }
 
-        // PhotonNetwork.AutomaticallySyncScene = true 설정 시,
-        // MasterClient가 씬을 바꾸면 다른 클라이언트도 자동으로 같은 씬으로 이동
-        if (PhotonNetwork.IsMasterClient)
+    public override void OnPlayerEnteredRoom(Player newPlayer)
+    {
+        Debug.Log($"[Network] {newPlayer.NickName} 입장, 현재 {PhotonNetwork.CurrentRoom.PlayerCount}명");
+        BroadcastPlayerCount();
+        CheckAndStartCountdown();
+    }
+
+    public override void OnPlayerLeftRoom(Player otherPlayer)
+    {
+        BroadcastPlayerCount();
+    }
+
+    private void BroadcastPlayerCount()
+    {
+        int count = PhotonNetwork.CurrentRoom?.PlayerCount ?? 0;
+        PhotonNetwork.RaiseEvent(
+            EVENT_PLAYER_COUNT, count,
+            new RaiseEventOptions { Receivers = ReceiverGroup.All },
+            ExitGames.Client.Photon.SendOptions.SendReliable
+        );
+    }
+
+    private void CheckAndStartCountdown()
+    {
+        if (!PhotonNetwork.IsMasterClient || _isCountingDown) return;
+        if (PhotonNetwork.CurrentRoom.PlayerCount >= minPlayersPerRoom)
         {
-            PhotonNetwork.LoadLevel(gameSceneName);
+            _isCountingDown = true;
+            StartCoroutine(CountdownCoroutine());
         }
+    }
+
+    private IEnumerator CountdownCoroutine()
+    {
+        // 카운트다운 시작하면 새 입장 막기
+        PhotonNetwork.CurrentRoom.IsOpen = false;
+
+        for (int i = 3; i >= 1; i--)
+        {
+            PhotonNetwork.RaiseEvent(
+                EVENT_COUNTDOWN, i,
+                new RaiseEventOptions { Receivers = ReceiverGroup.All },
+                ExitGames.Client.Photon.SendOptions.SendReliable
+            );
+            yield return new WaitForSeconds(1f);
+        }
+
+        // "게임 시작!" 신호
+        PhotonNetwork.RaiseEvent(
+            EVENT_GAME_START, null,
+            new RaiseEventOptions { Receivers = ReceiverGroup.All },
+            ExitGames.Client.Photon.SendOptions.SendReliable
+        );
+
+        yield return new WaitForSeconds(1.5f); // 텍스트 보여주는 시간
+
+        // 변경
+        botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;
+        PhotonNetwork.LoadLevel(loadingSceneName); // 로딩씬 먼저
     }
 
     /// <summary>
