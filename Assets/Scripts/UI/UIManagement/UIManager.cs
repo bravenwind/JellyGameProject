@@ -8,7 +8,6 @@ public enum UIState
 {
     None,       // �ƹ��͵� ���� ����
     Pause,
-    //MainMenu,   // ���� �޴�
     Settings,   // ���� â
     InGame,     // ���� �÷��� �� HUD
     GameOver,
