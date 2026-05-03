@@ -131,50 +131,40 @@ public class SoftBody3D : MonoBehaviour
 
         Animator animator = GetComponentInParent<Animator>();
 
-        // ✅ [핵심 수정] 클로스 생성 전, 캐릭터를 강제로 "기본 자세"로 초기화합니다.
-        if (animator != null)
+        // 1. 현재 상태 저장
+        int stateHash = 0;
+        float normalizedTime = 0f;
+        if (animator != null && animator.isInitialized)
         {
-            animator.Rebind();   // 애니메이터를 초기 상태(T-포즈 또는 Idle)로 리셋
-            animator.Update(0f); // 리셋된 자세를 1프레임도 기다리지 않고 메쉬에 즉시 적용
-            animator.enabled = false; // 기본 자세 그대로 정지
+            AnimatorStateInfo info = animator.GetCurrentAnimatorStateInfo(0);
+            stateHash = info.fullPathHash;
+            normalizedTime = info.normalizedTime;
         }
 
-        // 1. 기존 Cloth 컴포넌트 삭제
+        // 2. Cloth 재생성 (Rebind은 그대로 유지)
+        if (animator != null)
+        {
+            animator.Rebind();
+            animator.Update(0f);
+            animator.enabled = false;
+        }
+
         if (_cloth != null) DestroyImmediate(_cloth);
-
-        // 2. 메쉬가 기본 자세로 완전히 펴질 때까지 2프레임 대기
         yield return null;
         yield return null;
 
-        // 3. 반듯한 기본 자세 위에서 Cloth 새로 생성
         _cloth = gameObject.AddComponent<Cloth>();
-
-        // 4. 물리 설정 및 소프트니스 적용
         ApplyClothSettings();
         UpdateSoftness();
-
-        // 5. 물리 엔진 관성 무시
         _cloth.ClearTransformMotion();
-
         _cloth.enabled = true;
 
-        // ✅ [추가 및 수정] 안정화가 끝난 후 애니메이션 상태 즉시 복구
+        // 3. 저장했던 상태로 즉시 복원 (Idle로 튀지 않음)
         if (animator != null)
         {
             animator.enabled = true;
-
-            // 부모 오브젝트의 플레이어 컨트롤러를 가져옵니다.
-            PlayerController playerController = GetComponentInParent<PlayerController>();
-            if (playerController != null && playerController.enabled)
-            {
-                // 2. 바닥에 있고 이동 키를 누르고 있다면 걷기 모션 즉시 재생
-                float h = Input.GetAxis("Horizontal");
-                float v = Input.GetAxis("Vertical");
-                bool isMoving = (h * h + v * v) > 0.001f;
-
-                // 애니메이터 파라미터에 현재 이동 여부를 바로 덮어씁니다.
-                animator.SetBool("IsMoving", isMoving);
-            }
+            animator.Play(stateHash, 0, normalizedTime % 1f);
+            animator.Update(0f); // 복원된 포즈를 즉시 메쉬에 반영
         }
     }
 }
