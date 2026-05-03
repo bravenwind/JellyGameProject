@@ -32,6 +32,12 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     [SerializeField] private Ease matchingPopEase = Ease.OutBack;
     [SerializeField] private float matchingCompleteSlideY = 60f; // 매칭 완료 후 올라가는 거리
 
+    [Header("가짜 매칭 연출")]
+    [SerializeField] private float fakeJoinIntervalMin = 0.8f; // 가짜 플레이어 합류 최소 간격
+    [SerializeField] private float fakeJoinIntervalMax = 2.5f; // 가짜 플레이어 합류 최대 간격
+    private int _displayedCount = 0;          // 화면에 표시되는 인원 (실제와 무관)
+    private Coroutine _fakeCounterCoroutine;
+
     private Vector2 _inputPanelOriginPos;
     private Vector2 _matchingStatusOriginPos; // matchingStatusText 원래 위치
     private Coroutine _matchingTextCoroutine;
@@ -97,18 +103,24 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
     // ── UI 업데이트 ───────────────────────────────────────────
 
-    public void UpdatePlayerCount(int count)
-    {
-        if (currentPlayerCountText != null)
-            currentPlayerCountText.text = $"({count} / {NetworkManager.Instance.maxPlayersPerRoom})";
-    }
-
     private void ShowCountdown(int number)
     {
         // 첫 카운트다운 수신 시에만 매칭 완료 연출 실행
         if (!_countdownStarted)
         {
             _countdownStarted = true;
+
+            // 가짜 카운터 중지
+            if (_fakeCounterCoroutine != null)
+            {
+                StopCoroutine(_fakeCounterCoroutine);
+                _fakeCounterCoroutine = null;
+            }
+
+            // 인원을 max로 채워서 "꽉 찬 것처럼" 보임
+            _displayedCount = NetworkManager.Instance.maxPlayersPerRoom;
+            UpdatePlayerCountUI();
+
             PlayMatchingCompleteAnimation();
         }
 
@@ -233,7 +245,34 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
             seq.Append(matchingPanel.DOScale(Vector3.one, matchingPopDuration).SetEase(matchingPopEase));
         }
 
-        seq.OnComplete(() => NetworkManager.Instance?.StartConnect(playerName));
+        seq.OnComplete(() =>
+        {
+            NetworkManager.Instance?.StartConnect(playerName);
+
+            // 매칭 화면이 열리면 가짜 카운터 시작
+            if (_fakeCounterCoroutine != null) StopCoroutine(_fakeCounterCoroutine);
+            _fakeCounterCoroutine = StartCoroutine(FakeMatchingCounter());
+        });
+    }
+
+    private IEnumerator FakeMatchingCounter()
+    {
+        int max = NetworkManager.Instance.maxPlayersPerRoom;
+
+        // 자기 자신은 이미 1명
+        _displayedCount = Mathf.Max(_displayedCount, 1);
+        UpdatePlayerCountUI();
+
+        // max - 1 까지만 채움 (카운트다운 시작 시 max로 점프)
+        while (_displayedCount < max - 1)
+        {
+            float wait = Random.Range(fakeJoinIntervalMin, fakeJoinIntervalMax);
+            yield return new WaitForSecondsRealtime(wait);
+
+            _displayedCount++;
+            UpdatePlayerCountUI();
+            PlayJoinPop(); // 숫자 바뀔 때 팡 연출
+        }
     }
 
     private IEnumerator AnimateMatchingText()
@@ -248,4 +287,34 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
             yield return new WaitForSecondsRealtime(0.4f);
         }
     }
+
+    // ── 실제 인원 변경 이벤트 ─────────────────────────────────
+
+    public void UpdatePlayerCount(int realCount)
+    {
+        // 실제 인원이 가짜 표시보다 많으면 즉시 반영
+        // (실제가 가짜보다 적어도 가짜 숫자 유지 → 자연스럽게 보임)
+        if (realCount > _displayedCount)
+        {
+            _displayedCount = realCount;
+            UpdatePlayerCountUI();
+        }
+    }
+
+    private void UpdatePlayerCountUI()
+    {
+        if (currentPlayerCountText != null)
+            currentPlayerCountText.text = $"{_displayedCount} / {NetworkManager.Instance.maxPlayersPerRoom}명";
+    }
+
+    private void PlayJoinPop()
+    {
+        if (currentPlayerCountText == null) return;
+        currentPlayerCountText.transform.DOKill();
+        currentPlayerCountText.transform.localScale = Vector3.one;
+        currentPlayerCountText.transform
+            .DOPunchScale(Vector3.one * 0.25f, 0.3f, 5)
+            .SetUpdate(true);
+    }
+
 }

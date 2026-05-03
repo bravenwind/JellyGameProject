@@ -50,6 +50,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [Tooltip("방 최소 인원")]
     public int minPlayersPerRoom = 2;
 
+    [Tooltip("최소 인원 달성 후 카운트다운 전 대기 시간 (가짜 매칭 연출용)")]
+    public float matchBufferSeconds = 6f;
+
     [Tooltip("방 최대 인원 (AI 포함)")]
     public int maxPlayersPerRoom = 10;
 
@@ -227,6 +230,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     private IEnumerator CountdownCoroutine()
     {
+        // 최소 인원은 채워졌지만, 바로 시작하면 어색하므로 잠깐 더 대기
+        yield return new WaitForSeconds(matchBufferSeconds);
+
         // 카운트다운 시작하면 새 입장 막기
         PhotonNetwork.CurrentRoom.IsOpen = false;
 
