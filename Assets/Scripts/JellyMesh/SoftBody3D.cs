@@ -126,13 +126,12 @@ public class SoftBody3D : MonoBehaviour
 
         Animator animator = GetComponentInParent<Animator>();
 
-        // Rebind() 없이 현재 포즈에서 그냥 멈춤
-        // Rebind()를 쓰면 IsMoving 등 모든 파라미터가 초기화되어
-        // 이동 중 크기 변화 시 강제로 Idle이 되는 문제가 생김
+        // Rebind() 없이 현재 포즈에서 멈춤
         if (animator != null) animator.enabled = false;
 
-        // 1. 기존 Cloth 컴포넌트 삭제
-        if (_cloth != null) DestroyImmediate(_cloth);
+        // Cloth destroy/recreate 사이 1~2프레임 동안 SMR이 중간 상태로
+        // 렌더링되어 깜빡이거나 투명해지는 현상을 방지
+        _skinnedMeshRenderer.enabled = false;
 
         // 2. 2프레임 대기
         yield return null;
@@ -150,7 +149,8 @@ public class SoftBody3D : MonoBehaviour
         _cloth.ClearTransformMotion();
         _cloth.enabled = true;
 
-        // 6. 애니메이터 재개 (파라미터는 건드리지 않았으므로 그대로 유지됨)
+        // 6. 렌더러 복구 후 애니메이터 재개
+        _skinnedMeshRenderer.enabled = true;
         if (animator != null) animator.enabled = true;
     }
 }

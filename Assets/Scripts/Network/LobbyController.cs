@@ -304,7 +304,7 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     private void UpdatePlayerCountUI()
     {
         if (currentPlayerCountText != null)
-            currentPlayerCountText.text = $"{_displayedCount} / {NetworkManager.Instance.maxPlayersPerRoom}명";
+            currentPlayerCountText.text = $"({_displayedCount} / {NetworkManager.Instance.maxPlayersPerRoom})";
     }
 
     private void PlayJoinPop()
