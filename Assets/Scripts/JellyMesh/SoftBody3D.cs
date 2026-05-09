@@ -133,23 +133,27 @@ public class SoftBody3D : MonoBehaviour
         // 렌더링되어 깜빡이거나 투명해지는 현상을 방지
         _skinnedMeshRenderer.enabled = false;
 
-        // 2. 2프레임 대기
+        // 2. 기존 Cloth 제거
+        if (_cloth != null)
+            Destroy(_cloth);
+
+        // 3. Destroy 반영 대기 (2프레임)
         yield return null;
         yield return null;
 
-        // 3. 현재 포즈 위에서 Cloth 새로 생성
+        // 4. 현재 포즈 위에서 Cloth 새로 생성
         _cloth = gameObject.AddComponent<Cloth>();
 
-        // 4. 새 Cloth의 기본 계수를 저장 후 소프트니스 적용
+        // 5. 새 Cloth의 기본 계수를 저장 후 소프트니스 적용
         _initialCoefficients = _cloth.coefficients;
         ApplyClothSettings();
         UpdateSoftness();
 
-        // 5. 물리 엔진 관성 무시
+        // 6. 물리 엔진 관성 무시
         _cloth.ClearTransformMotion();
         _cloth.enabled = true;
 
-        // 6. 렌더러 복구 후 애니메이터 재개
+        // 7. 렌더러 복구 후 애니메이터 재개
         _skinnedMeshRenderer.enabled = true;
         if (animator != null) animator.enabled = true;
     }
