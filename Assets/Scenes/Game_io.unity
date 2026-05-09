@@ -62870,7 +62870,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &839208345
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -172568,7 +172568,10 @@ MonoBehaviour:
   botPrefabName: AIPlayer
   botCount: 10
   prefabFolder: Prefabs/
+  minPlayersPerRoom: 2
+  matchBufferSeconds: 6
   maxPlayersPerRoom: 4
+  noPlayerConnectTimeSeconds: 10
   gameSceneName: Game_io
   loadingSceneName: Loading
   minSpawnDistance: 3
