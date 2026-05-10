@@ -158,12 +158,16 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             stream.SendNext(transform.rotation);
             stream.SendNext(scaleController != null ? scaleController.currentScaleValue : 1f);
 
-            // 🚨 수정된 부분: Vector4 통째로 보내지 않고 Color 값을 float 4개로 쪼개서 전송
             Color myColor = GameState.CurrentDisplayColor;
             stream.SendNext(myColor.r);
             stream.SendNext(myColor.g);
             stream.SendNext(myColor.b);
             stream.SendNext(myColor.a);
+
+            // 애니메이션 상태 동기화
+            bool isMoving = playerController?.jellyAnimator != null
+                && playerController.jellyAnimator.GetBool("IsMoving");
+            stream.SendNext(isMoving);
         }
         else
         {
@@ -172,7 +176,6 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             _networkRotation = (Quaternion)stream.ReceiveNext();
             _networkScaleValue = (float)stream.ReceiveNext();
 
-            // 🚨 수정된 부분: 보낸 순서대로 float 4개를 받아서 Color로 다시 조립
             float r = (float)stream.ReceiveNext();
             float g = (float)stream.ReceiveNext();
             float b = (float)stream.ReceiveNext();
@@ -181,6 +184,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             _networkColor = new Color(r, g, b, a);
 
             transform.localScale = Vector3.one * _networkScaleValue;
+
+            // 애니메이션 상태 적용
+            bool isMoving = (bool)stream.ReceiveNext();
+            if (playerController?.jellyAnimator != null)
+                playerController.jellyAnimator.SetBool("IsMoving", isMoving);
         }
     }
 

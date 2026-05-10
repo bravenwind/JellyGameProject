@@ -47,6 +47,7 @@ public class AIPlayerMovement : MonoBehaviourPun
     public AIDetector Detector { get; private set; }
 
     private Animator _anim;
+    private bool _wasMoving = false;
 
     // ─────────────────────────────────────────────────────────
     // FSM
@@ -261,9 +262,15 @@ public class AIPlayerMovement : MonoBehaviourPun
                 rotateSpeed * Time.deltaTime);
         }
 
-        // 애니메이터
+        // 애니메이터 (상태 변화 시에만 RPC 전송)
+        bool isMoving = vel.magnitude > 0.1f;
         if (_anim != null)
-            _anim.SetBool("IsMoving", vel.magnitude > 0.1f);
+            _anim.SetBool("IsMoving", isMoving);
+        if (isMoving != _wasMoving)
+        {
+            _wasMoving = isMoving;
+            photonView.RPC(nameof(RPC_SetIsMoving), RpcTarget.Others, isMoving);
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -442,6 +449,17 @@ public class AIPlayerMovement : MonoBehaviourPun
 
         if (PhotonNetwork.IsMasterClient)
             PhotonNetwork.Destroy(gameObject);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 애니메이션 동기화 RPC (비마스터 클라이언트용)
+    // ─────────────────────────────────────────────────────────
+
+    [PunRPC]
+    private void RPC_SetIsMoving(bool isMoving)
+    {
+        if (_anim != null)
+            _anim.SetBool("IsMoving", isMoving);
     }
 
     // ─────────────────────────────────────────────────────────
