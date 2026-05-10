@@ -114,6 +114,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     // 💡 중복 제거: 게임 시작 시 공통 초기화 로직 분리
     private void StartGameInternal(float startTime)
     {
+        GameState.Reset(); // 이전 게임의 점수/색상/스케일/이벤트 구독 초기화
         _gameRunning = true;
         _gameTimer = startTime;
         GameState.Phase = GamePhase.Playing;

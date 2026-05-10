@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Collections;
+using Photon.Pun;
 
 // 1. ���¸� �����ϴ� Enum (�ʿ信 ���� �߰�/�����ϼ���)
 public enum UIState
@@ -166,7 +167,12 @@ public class UIManager : MonoBehaviour
         }
         if (fadeOut)
         {
-            SceneManager.LoadScene("Main");
+            // 네트워크 게임 중이라면 방에서 먼저 나가야 함
+            // LeaveRoom → NetworkManager.OnLeftRoom → SceneManager.LoadScene("Main")
+            if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
+                NetworkManager.Instance.GoToMainMenu();
+            else
+                SceneManager.LoadScene("Main");
         }
     }
 

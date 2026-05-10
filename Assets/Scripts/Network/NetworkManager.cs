@@ -111,6 +111,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         _usedSpawnPositions.Clear();
         spawnPoints = null;
+        // 게임 오버/일시정지 상태에서 씬을 넘어가도 시간이 멈추지 않도록 복구
+        Time.timeScale = 1f;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -279,10 +281,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 로비 씬으로 돌아갑니다.");
-
-        // 이때 타이틀 씬(혹은 로비 씬)으로 이동!
-        // (Build Settings에 등록된 씬 이름과 정확히 일치해야 함)
+        Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 메인 씬으로 돌아갑니다.");
+        _isCountingDown = false;
+        _gameStarted = false;
         SceneManager.LoadScene("Main");
     }
 
@@ -473,5 +474,19 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         _usedSpawnPositions.Clear();
         PhotonNetwork.LeaveRoom();
+    }
+
+    /// <summary>
+    /// 메인 메뉴로 복귀. 방 안이면 LeaveRoom → OnLeftRoom → LoadScene("Main"),
+    /// 방 밖이면 바로 LoadScene("Main").
+    /// </summary>
+    public void GoToMainMenu()
+    {
+        _isCountingDown = false;
+        _gameStarted = false;
+        if (PhotonNetwork.InRoom)
+            LeaveRoom(); // OnLeftRoom 콜백에서 씬 전환
+        else
+            SceneManager.LoadScene("Main");
     }
 }
