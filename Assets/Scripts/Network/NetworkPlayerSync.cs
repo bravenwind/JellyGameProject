@@ -119,6 +119,13 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         // 원격 플레이어는 PlayerController(입력) 비활성화
         if (playerController != null) playerController.enabled = false;
 
+        // 원격 플레이어는 로컬 흡수 처리 비활성화
+        // (PlayerAbsorber가 켜져 있으면 이 클라이언트에서도 GrowByJelly()가 발동해 스케일 충돌 발생)
+        PlayerAbsorber absorber = GetComponentInChildren<PlayerAbsorber>();
+        if (absorber != null) absorber.enabled = false;
+        PlayerAbsorbingManager absorbMgr = GetComponentInChildren<PlayerAbsorbingManager>();
+        if (absorbMgr != null) absorbMgr.enabled = false;
+
         // 원격 플레이어는 직접 물리 연산 필요 없음
         CharacterController cc = GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
@@ -133,10 +140,10 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     {
         if (photonView.IsMine) return; // 내 플레이어는 건드리지 않음
 
-        // Lerp: 현재 위치에서 받은 위치로 부드럽게 이동
-        // 네트워크 지연으로 인한 튀는 현상을 완화
+        // Lerp: 현재 위치/회전/스케일에서 받은 값으로 부드럽게 보간
         transform.position = Vector3.Lerp(transform.position, _networkPosition, Time.deltaTime * LerpSpeed);
         transform.rotation = Quaternion.Lerp(transform.rotation, _networkRotation, Time.deltaTime * LerpSpeed);
+        transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * _networkScaleValue, Time.deltaTime * LerpSpeed);
 
         // 색상 적용
         if (jellyRenderer != null)
@@ -183,7 +190,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
             _networkColor = new Color(r, g, b, a);
 
-            transform.localScale = Vector3.one * _networkScaleValue;
+            // 스케일은 Update()에서 Lerp로 적용 (직접 대입 시 로컬 ScaleTo와 충돌)
 
             // 애니메이션 상태 적용
             bool isMoving = (bool)stream.ReceiveNext();
@@ -234,8 +241,15 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             float otherScale = otherPlayer.transform.localScale.x;
             if (otherScale > myScale)
             {
+                // 상대가 더 큼 → 내가 흡수될 수 있음을 마스터에 알림
                 photonView.RPC(nameof(RPC_RequestAbsorbValidation), RpcTarget.MasterClient,
                     otherPlayer.photonView.ViewID);
+            }
+            else if (myScale > otherScale)
+            {
+                // 내가 더 큼 → 상대 흡수 검증을 마스터에 요청
+                otherPlayer.photonView.RPC(nameof(RPC_RequestAbsorbValidation), RpcTarget.MasterClient,
+                    photonView.ViewID);
             }
             return;
         }

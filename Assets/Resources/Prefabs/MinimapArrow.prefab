@@ -46,7 +46,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
-  offset: {x: 0, y: 34.16, z: 0}
+  offset: {x: 0, y: 68.32, z: 0}
   syncOnlyYRotation: 1
 --- !u!1 &3373886354482030780
 GameObject:

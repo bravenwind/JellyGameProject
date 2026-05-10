@@ -17,7 +17,7 @@ using Photon.Pun;
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(PhotonView))]
 [RequireComponent(typeof(AIDetector))]
-public class AIPlayerMovement : MonoBehaviourPun
+public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
 {
     // ─────────────────────────────────────────────────────────
     // Inspector 설정
@@ -48,6 +48,8 @@ public class AIPlayerMovement : MonoBehaviourPun
 
     private Animator _anim;
     private bool _wasMoving = false;
+    private float _networkScale = 1f;
+    private const float ScaleLerpSpeed = 10f;
 
     // ─────────────────────────────────────────────────────────
     // FSM
@@ -110,6 +112,10 @@ public class AIPlayerMovement : MonoBehaviourPun
         Agent.autoBraking     = false;
         Agent.radius          = baseAgentRadius;
         Agent.height          = baseAgentHeight;
+
+        // IPunObservable 스케일 동기화를 위해 런타임에 observer 등록
+        if (!photonView.ObservedComponents.Contains(this))
+            photonView.ObservedComponents.Add(this);
     }
 
     private void Start()
@@ -122,6 +128,13 @@ public class AIPlayerMovement : MonoBehaviourPun
 
         if (!PhotonNetwork.IsMasterClient)
         {
+            // 비마스터에서 봇의 로컬 흡수 처리 비활성화
+            // (PlayerAbsorber가 켜져 있으면 GrowByJelly()가 로컬에서 발동해 스케일 충돌 발생)
+            PlayerAbsorber absorber = GetComponent<PlayerAbsorber>();
+            if (absorber != null) absorber.enabled = false;
+            PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
+            if (absorbMgr != null) absorbMgr.enabled = false;
+
             Agent.enabled = false;
             return;
         }
@@ -246,7 +259,12 @@ public class AIPlayerMovement : MonoBehaviourPun
     // ─────────────────────────────────────────────────────────
     private void Update()
     {
-        if (!PhotonNetwork.IsMasterClient) return;
+        if (!PhotonNetwork.IsMasterClient)
+        {
+            // 비마스터: 받은 스케일로 부드럽게 보간
+            transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * _networkScale, Time.deltaTime * ScaleLerpSpeed);
+            return;
+        }
         if (!Agent.enabled || !Agent.isOnNavMesh) return;
 
         // 현재 상태 Update
@@ -449,6 +467,22 @@ public class AIPlayerMovement : MonoBehaviourPun
 
         if (PhotonNetwork.IsMasterClient)
             PhotonNetwork.Destroy(gameObject);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 스케일 동기화 (IPunObservable)
+    // ─────────────────────────────────────────────────────────
+
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+        if (stream.IsWriting)
+        {
+            stream.SendNext(transform.localScale.x);
+        }
+        else
+        {
+            _networkScale = (float)stream.ReceiveNext();
+        }
     }
 
     // ─────────────────────────────────────────────────────────

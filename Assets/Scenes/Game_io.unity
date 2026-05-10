@@ -42346,7 +42346,7 @@ MonoBehaviour:
   localPlayerColor: {r: 0, g: 1, b: 0, a: 1}
   remotePlayerColor: {r: 1, g: 0, b: 0, a: 1}
   botColor: {r: 1, g: 0, b: 0, a: 1}
-  arrowOffset: {x: 0, y: 30, z: 0}
+  arrowOffset: {x: 0, y: 60, z: 0}
   minimapLayerName: Minimap
 --- !u!4 &563542956
 Transform:
@@ -102497,7 +102497,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 0}
-  offset: {x: 0, y: 100, z: 0}
+  offset: {x: 0, y: 200, z: 0}
   smoothSpeed: 10
 --- !u!1 &1316022617
 GameObject:
