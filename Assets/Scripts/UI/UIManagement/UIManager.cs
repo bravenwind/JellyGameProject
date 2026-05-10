@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Collections;
@@ -194,5 +194,11 @@ public class UIManager : MonoBehaviour
             }
             yield return null;
         }
+    }
+
+    public void OnClick_MainMenuButton()
+    {
+        if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
+            NetworkManager.Instance.GoToMainMenu();
     }
 }

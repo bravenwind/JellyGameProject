@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // GameModeManager.cs (최적화 버전)
 // ============================================================
 using System.Collections.Generic;
@@ -233,6 +233,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         int min = Mathf.FloorToInt(_gameTimer / 60f);
         int sec = Mathf.FloorToInt(_gameTimer % 60f);
         gameTimerText.text = $"{min:00}:{sec:00}";
+        if (min <= 0.0f && sec <= 0.0f)
+        {
+            gameTimerText.text = "00:00";
+        }
         gameTimerText.color = _gameTimer < 30f ? Color.red : Color.white;
     }
 

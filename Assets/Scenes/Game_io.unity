@@ -21198,7 +21198,7 @@ GameObject:
   - component: {fileID: 313929332}
   - component: {fileID: 313929331}
   m_Layer: 5
-  m_Name: RestartButton
+  m_Name: MainMenuButton
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -21282,9 +21282,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 708981559}
-        m_TargetAssemblyTypeName: GameModeManager, Assembly-CSharp
-        m_MethodName: OnClickRestartButton
+      - m_Target: {fileID: 559282403}
+        m_TargetAssemblyTypeName: UIManager, Assembly-CSharp
+        m_MethodName: OnClick_MainMenuButton
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -171692,14 +171692,14 @@ PrefabInstance:
     - target: {fileID: 4666908712769631347, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_Target
       value: 
-      objectReference: {fileID: 708981559}
+      objectReference: {fileID: 559282403}
     - target: {fileID: 4666908712769631347, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
-      value: OnClickRestartButton
+      value: OnClick_MainMenuButton
       objectReference: {fileID: 0}
     - target: {fileID: 4666908712769631347, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
-      value: GameModeManager, Assembly-CSharp
+      value: UIManager, Assembly-CSharp
       objectReference: {fileID: 0}
     - target: {fileID: 4764609225048818800, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_AnchoredPosition.y
@@ -171759,7 +171759,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7423745408676753569, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7548145295275768229, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_IsActive
@@ -171767,7 +171767,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7866232151586754483, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_Name
-      value: RestartButton
+      value: MainMenuButton
       objectReference: {fileID: 0}
     - target: {fileID: 7947260133177284465, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_SizeDelta.x

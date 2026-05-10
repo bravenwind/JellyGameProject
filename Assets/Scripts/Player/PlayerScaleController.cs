@@ -102,7 +102,7 @@ public class PlayerScaleController : MonoBehaviour
 
         _bridge?.OnScaleCompleted(currentScaleValue, playerController);
 
-        if (softBody3D != null) StartCoroutine(softBody3D.EnableAndRebuildCloth());
+        if (softBody3D != null) softBody3D.RequestRebuildCloth();
 
         _bridge?.OnScaleUIUpdate();
         _bridge?.OnPostScalePhysics();

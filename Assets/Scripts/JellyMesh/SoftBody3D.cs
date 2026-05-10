@@ -31,6 +31,7 @@ public class SoftBody3D : MonoBehaviour
     private Cloth _cloth;
     private SkinnedMeshRenderer _skinnedMeshRenderer;
     private float _lastSoftness;
+    private bool _isRebuilding = false;
 
     // 🔥 에디터에서 칠한 초기값을 저장할 배열
     private ClothSkinningCoefficient[] _initialCoefficients;
@@ -120,13 +121,19 @@ public class SoftBody3D : MonoBehaviour
             _cloth.enabled = false;
     }
 
+    public void RequestRebuildCloth()
+    {
+        if (!gameObject.activeInHierarchy) return;
+        if (_isRebuilding) return;
+        StartCoroutine(EnableAndRebuildCloth());
+    }
+
     public IEnumerator EnableAndRebuildCloth()
     {
         if (_skinnedMeshRenderer == null) yield break;
+        if (_isRebuilding) yield break;
 
-        Animator animator = GetComponentInParent<Animator>();
-
-        if (animator != null) animator.enabled = false;
+        _isRebuilding = true;
 
         // 기존 Cloth 제거 (렌더러는 끄지 않아 깜빡임 방지)
         if (_cloth != null)
@@ -135,6 +142,13 @@ public class SoftBody3D : MonoBehaviour
         // Destroy 반영 대기 (2프레임)
         yield return null;
         yield return null;
+
+        // SetActive(false)로 인해 오브젝트가 비활성화되었으면 중단
+        if (!gameObject.activeInHierarchy)
+        {
+            _isRebuilding = false;
+            yield break;
+        }
 
         // 현재 포즈 위에서 Cloth 새로 생성
         _cloth = gameObject.AddComponent<Cloth>();
@@ -146,6 +160,6 @@ public class SoftBody3D : MonoBehaviour
         _cloth.ClearTransformMotion();
         _cloth.enabled = true;
 
-        if (animator != null) animator.enabled = true;
+        _isRebuilding = false;
     }
 }
