@@ -38,9 +38,26 @@ public class AIWaypointPatrol : MonoBehaviour
     {
         if (waypoints.Length == 0 || isWaiting) return;
 
+        if (!agent.isOnNavMesh)
+        {
+            RecoverToNavMesh();
+            return;
+        }
+
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
         {
             StartCoroutine(WaitAndMove());
+        }
+    }
+
+    private void RecoverToNavMesh()
+    {
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(transform.position, out hit, 20f, NavMesh.AllAreas))
+        {
+            agent.enabled = false;
+            transform.position = hit.position;
+            agent.enabled = true;
         }
     }
 
