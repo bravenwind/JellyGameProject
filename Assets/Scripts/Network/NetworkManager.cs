@@ -81,6 +81,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public const byte EVENT_PLAYER_COUNT = 13;
 
     private bool _isCountingDown = false;
+    private bool _wantsToJoin = false;
 
     // ─────────────────────────────────────────────────────────
     // 싱글톤
@@ -124,6 +125,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public void StartConnect(string playerName)
     {
         PhotonNetwork.NickName = playerName;
+        _wantsToJoin = true;
 
         // 1. 아예 서버와 연결되지 않은 상태 (최초 실행 시 PeerCreated, 끊겼을 때 Disconnected 포함)
         if (!PhotonNetwork.IsConnected)
@@ -162,10 +164,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     public override void OnConnectedToMaster()
     {
-        Debug.Log("마스터 서버 연결 완료! 이제 방 접속을 시도합니다.");
+        Debug.Log("마스터 서버 연결 완료!");
 
-        // 로비에 먼저 입장해야 하는 로직이 없다면, 여기서 바로 방 접속을 시도하면 됩니다.
-        JoinOrCreateRoom();
+        if (_wantsToJoin)
+        {
+            JoinOrCreateRoom();
+        }
     }
 
     /// <summary>
@@ -193,6 +197,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     public override void OnJoinedRoom()
     {
+        _wantsToJoin = false;
         Debug.Log($"[Network] 방 입장 완료! 현재 인원: {PhotonNetwork.CurrentRoom.PlayerCount}");
         BroadcastPlayerCount();
         CheckAndStartCountdown();
@@ -472,6 +477,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     public void LeaveRoom()
     {
+        _wantsToJoin = false;
         _usedSpawnPositions.Clear();
         PhotonNetwork.LeaveRoom();
     }

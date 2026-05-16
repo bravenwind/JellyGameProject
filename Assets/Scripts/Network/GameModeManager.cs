@@ -91,11 +91,6 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             {
                 StartGameInternal(remaining);
             }
-            else
-            {
-                _gameTimer = 0f;
-                GameWin();
-            }
         }
     }
 
