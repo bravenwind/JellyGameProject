@@ -87,4 +87,14 @@ public static class GameState
         OnScaleChanged = null;
         OnDisplayColorChanged = null;
     }
+
+    public static void ResetValues()
+    {
+        _phase = GamePhase.None;
+        _currentScore = 0;
+        _playerCurrentScale = 2f;
+        CurrentRYBColor = RYBColor.white;
+        _currentDisplayColor = Color.white;
+        DetectRadius = 0f;
+    }
 }

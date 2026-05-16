@@ -33,6 +33,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private float _gameTimer = 0f;
     private static bool _spawned = false;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetStatics()
+    {
+        _spawned = false;
+    }
+
     private NetworkPlayerSync _localPlayer;
     private List<LeaderboardEntry> _leaderboardEntries = new List<LeaderboardEntry>();
     private ObjectPool<LeaderboardEntry> _leaderboardPool;
@@ -48,6 +54,11 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             if (entryComp != null)
                 _leaderboardPool = new ObjectPool<LeaderboardEntry>(entryComp, leaderboardContainer, 5);
         }
+    }
+
+    private void OnDestroy()
+    {
+        _spawned = false;
     }
 
     private void Start()
@@ -93,6 +104,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 StartGameInternal(remaining);
             }
         }
+        else
+        {
+            StartGameInternal(gameDuration);
+        }
     }
 
     [PunRPC]
@@ -111,7 +126,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     // 💡 중복 제거: 게임 시작 시 공통 초기화 로직 분리
     private void StartGameInternal(float startTime)
     {
-        GameState.Reset(); // 이전 게임의 점수/색상/스케일/이벤트 구독 초기화
+        GameState.ResetValues();
         _gameRunning = true;
         _gameTimer = startTime;
         GameState.Phase = GamePhase.Playing;
@@ -265,6 +280,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     public void OnClickRestartButton()
     {
         _spawned = false;
+        GameState.ResetValues();
         if (PhotonNetwork.InRoom) NetworkManager.Instance.LeaveRoom();
         else SceneManager.LoadScene("Main");
     }
