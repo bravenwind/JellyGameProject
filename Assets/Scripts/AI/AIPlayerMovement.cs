@@ -135,6 +135,10 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
             PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
             if (absorbMgr != null) absorbMgr.enabled = false;
 
+            // Cloth 제거 (스케일 동기화와 충돌하여 모델 찌그러짐 방지)
+            SoftBody3D softBody = GetComponentInChildren<SoftBody3D>();
+            if (softBody != null) softBody.RemoveCloth();
+
             Agent.enabled = false;
             return;
         }
