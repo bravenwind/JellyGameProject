@@ -24,8 +24,8 @@ public class WanderingAI : MonoBehaviour
 
     public Animator jellyAnimController;
 
-    private float _fallCheckTimer = 0f;
-    private const float FallCheckInterval = 1f;
+    private float _recoverCooldown = 0f;
+    private const float RecoverInterval = 3f;
     private const float FallThresholdY = -20f;
 
     void Awake()
@@ -42,27 +42,22 @@ public class WanderingAI : MonoBehaviour
 
     void Update()
     {
+        if (_recoverCooldown > 0f)
+        {
+            _recoverCooldown -= Time.deltaTime;
+            return;
+        }
+
         if (jellyAnimController != null && agent.isOnNavMesh)
         {
             bool isActuallyMoving = agent.velocity.magnitude > 0.1f;
             jellyAnimController.SetBool("IsMoving", isActuallyMoving);
         }
 
-        if (!agent.isOnNavMesh)
+        if (!agent.isOnNavMesh || transform.position.y < FallThresholdY)
         {
             RecoverToNavMesh();
             return;
-        }
-
-        _fallCheckTimer += Time.deltaTime;
-        if (_fallCheckTimer >= FallCheckInterval)
-        {
-            _fallCheckTimer = 0f;
-            if (transform.position.y < FallThresholdY)
-            {
-                RecoverToNavMesh();
-                return;
-            }
         }
 
         if (isWaiting) return;
@@ -78,23 +73,14 @@ public class WanderingAI : MonoBehaviour
 
     private void RecoverToNavMesh()
     {
-        Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
+        _recoverCooldown = RecoverInterval;
+
         NavMeshHit hit;
-        if (NavMesh.SamplePosition(origin, out hit, wanderRadius + 10f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(initialPosition, out hit, wanderRadius + 10f, NavMesh.AllAreas))
         {
             agent.enabled = false;
             transform.position = hit.position;
             agent.enabled = true;
-            if (agent.isOnNavMesh)
-                MoveToRandomPosition();
-        }
-        else if (NavMesh.SamplePosition(initialPosition, out hit, 50f, NavMesh.AllAreas))
-        {
-            agent.enabled = false;
-            transform.position = hit.position;
-            agent.enabled = true;
-            if (agent.isOnNavMesh)
-                MoveToRandomPosition();
         }
     }
 

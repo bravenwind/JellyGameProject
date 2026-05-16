@@ -15,6 +15,7 @@ public class AIWaypointPatrol : MonoBehaviour
     private Animator animator;
     private int currentWaypointIndex = 0;
     private bool isWaiting = false;
+    private float _recoverCooldown = 0f;
 
     // [�߰�] ������(1->4)���� ������(4->1)���� üũ�ϴ� ����
     private bool movingForward = true;
@@ -38,6 +39,12 @@ public class AIWaypointPatrol : MonoBehaviour
     {
         if (waypoints.Length == 0 || isWaiting) return;
 
+        if (_recoverCooldown > 0f)
+        {
+            _recoverCooldown -= Time.deltaTime;
+            return;
+        }
+
         if (!agent.isOnNavMesh)
         {
             RecoverToNavMesh();
@@ -52,12 +59,16 @@ public class AIWaypointPatrol : MonoBehaviour
 
     private void RecoverToNavMesh()
     {
+        _recoverCooldown = 3f;
         NavMeshHit hit;
-        if (NavMesh.SamplePosition(transform.position, out hit, 20f, NavMesh.AllAreas))
+        if (waypoints.Length > 0 && waypoints[0] != null)
         {
-            agent.enabled = false;
-            transform.position = hit.position;
-            agent.enabled = true;
+            if (NavMesh.SamplePosition(waypoints[0].position, out hit, 20f, NavMesh.AllAreas))
+            {
+                agent.enabled = false;
+                transform.position = hit.position;
+                agent.enabled = true;
+            }
         }
     }
 
