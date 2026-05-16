@@ -89,6 +89,11 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     private void Awake()
     {
+        QualitySettings.vSyncCount = 1;
+
+        // 모바일 환경이나 일반적인 PC 환경이라면 60, 부드러운 액션이 필요하다면 120이나 144로 설정합니다.
+        Application.targetFrameRate = 60;
+
         if (Instance == null)
         {
             Instance = this;

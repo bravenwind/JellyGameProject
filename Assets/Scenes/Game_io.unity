@@ -54924,7 +54924,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e9b182e97ad1a954b9a0ce7e2f5cad26, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gameDuration: 120
+  gameDuration: 90
   gameTimerText: {fileID: 883871039}
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}

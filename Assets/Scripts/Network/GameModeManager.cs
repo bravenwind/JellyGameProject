@@ -16,6 +16,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     [Header("전체 게임 시간")]
     public float gameDuration = 180f;
+    public float endImpendingTime = 10.0f;
 
     [Header("UI 연결 — 전체 게임")]
     public TextMeshProUGUI gameTimerText;
@@ -237,7 +238,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             gameTimerText.text = "00:00";
         }
-        gameTimerText.color = _gameTimer < 30f ? Color.red : Color.white;
+        gameTimerText.color = _gameTimer <= endImpendingTime ? Color.red : Color.white;
     }
 
     private void UpdateLeaderboard()
