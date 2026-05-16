@@ -111,6 +111,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             uiFollow.SetTarget(transform);
         }
 
+        // 이전 게임의 점수가 남아있을 수 있으므로 초기화
+        SyncScore(0);
+
         Debug.Log($"[Network] 로컬 플레이어 초기화: {PhotonNetwork.NickName}");
     }
 
