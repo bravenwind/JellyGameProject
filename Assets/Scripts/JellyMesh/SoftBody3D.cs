@@ -127,6 +127,12 @@ public class SoftBody3D : MonoBehaviour
         _cloth.worldVelocityScale = 0f;
         _cloth.worldAccelerationScale = 0f;
         _cloth.useGravity = false;
+
+        var coeffs = _cloth.coefficients;
+        for (int i = 0; i < coeffs.Length; i++)
+            coeffs[i].maxDistance = 0f;
+        _cloth.coefficients = coeffs;
+
         enabled = false;
     }
 
