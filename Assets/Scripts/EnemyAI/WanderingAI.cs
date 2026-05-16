@@ -24,10 +24,6 @@ public class WanderingAI : MonoBehaviour
 
     public Animator jellyAnimController;
 
-    private float _recoverCooldown = 0f;
-    private const float RecoverInterval = 3f;
-    private const float FallThresholdY = -20f;
-
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -42,24 +38,13 @@ public class WanderingAI : MonoBehaviour
 
     void Update()
     {
-        if (_recoverCooldown > 0f)
-        {
-            _recoverCooldown -= Time.deltaTime;
-            return;
-        }
-
         if (jellyAnimController != null && agent.isOnNavMesh)
         {
             bool isActuallyMoving = agent.velocity.magnitude > 0.1f;
             jellyAnimController.SetBool("IsMoving", isActuallyMoving);
         }
 
-        if (!agent.isOnNavMesh || transform.position.y < FallThresholdY)
-        {
-            RecoverToNavMesh();
-            return;
-        }
-
+        if (!agent.isOnNavMesh) return;
         if (isWaiting) return;
 
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
@@ -68,19 +53,6 @@ public class WanderingAI : MonoBehaviour
             {
                 StartCoroutine(WaitAndMove());
             }
-        }
-    }
-
-    private void RecoverToNavMesh()
-    {
-        _recoverCooldown = RecoverInterval;
-
-        NavMeshHit hit;
-        if (NavMesh.SamplePosition(initialPosition, out hit, wanderRadius + 10f, NavMesh.AllAreas))
-        {
-            agent.enabled = false;
-            transform.position = hit.position;
-            agent.enabled = true;
         }
     }
 
