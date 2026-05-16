@@ -121,6 +121,15 @@ public class SoftBody3D : MonoBehaviour
             _cloth.enabled = false;
     }
 
+    public void FreezeCloth()
+    {
+        if (_cloth == null) return;
+        _cloth.worldVelocityScale = 0f;
+        _cloth.worldAccelerationScale = 0f;
+        _cloth.useGravity = false;
+        enabled = false;
+    }
+
     public void RequestRebuildCloth()
     {
         if (!gameObject.activeInHierarchy) return;
