@@ -121,18 +121,13 @@ public class SoftBody3D : MonoBehaviour
             _cloth.enabled = false;
     }
 
-    public void FreezeCloth()
+    public void RemoveCloth()
     {
-        if (_cloth == null) return;
-        _cloth.worldVelocityScale = 0f;
-        _cloth.worldAccelerationScale = 0f;
-        _cloth.useGravity = false;
-
-        var coeffs = _cloth.coefficients;
-        for (int i = 0; i < coeffs.Length; i++)
-            coeffs[i].maxDistance = 0f;
-        _cloth.coefficients = coeffs;
-
+        if (_cloth != null)
+            Destroy(_cloth);
+        _cloth = null;
+        if (_skinnedMeshRenderer != null)
+            _skinnedMeshRenderer.updateWhenOffscreen = true;
         enabled = false;
     }
 
