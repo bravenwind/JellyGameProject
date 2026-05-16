@@ -130,6 +130,10 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         CharacterController cc = GetComponent<CharacterController>();
         if (cc != null) cc.enabled = false;
 
+        // 원격 플레이어는 Cloth 시뮬레이션 비활성화 (스케일 동기화와 충돌하여 모델 찌그러짐 방지)
+        SoftBody3D softBody = GetComponentInChildren<SoftBody3D>();
+        if (softBody != null) softBody.DisableCloth();
+
         Debug.Log($"[Network] 원격 플레이어 초기화: {photonView.Owner?.NickName}");
     }
 
