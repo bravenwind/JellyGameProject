@@ -35,15 +35,18 @@ public class JellyColliderAbsorb : MonoBehaviour
         patrolAI = GetComponentInChildren<AIWaypointPatrol>();
 
         if (agent != null)
-        {
             _rb.useGravity = false;
-        }
         else
-        {
             _rb.useGravity = true;
-        }
 
         jellyRenderer.gameObject.tag = "Edible";
+
+        // 원격 클라이언트에서는 NavMeshAgent 비활성화 (위치는 IPunObservable로 동기화)
+        PhotonView pv = GetComponent<PhotonView>();
+        if (pv != null && !pv.IsMine && agent != null)
+        {
+            agent.enabled = false;
+        }
     }
 
     // 충돌 감지에서 호출할 함수

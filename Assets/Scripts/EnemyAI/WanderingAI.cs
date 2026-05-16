@@ -1,9 +1,10 @@
 using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
+using Photon.Pun;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class WanderingAI : MonoBehaviour
+public class WanderingAI : MonoBehaviourPun, IPunObservable
 {
     [Header("Wandering Settings")]
     [Tooltip("이동할 반경 (현재 위치 기준 혹은 초기 위치 기준)")]
@@ -24,6 +25,12 @@ public class WanderingAI : MonoBehaviour
 
     public Animator jellyAnimController;
 
+    // 원격 클라이언트용 보간 변수
+    private Vector3 _networkPosition;
+    private Quaternion _networkRotation;
+    private bool _networkIsMoving;
+    private bool _isMine;
+
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -31,18 +38,44 @@ public class WanderingAI : MonoBehaviour
 
     void Start()
     {
-        agent.avoidancePriority = Random.Range(0, 100);
-        initialPosition = transform.position;
-        MoveToRandomPosition();
+        _isMine = photonView != null && photonView.IsMine;
+
+        if (_isMine)
+        {
+            agent.avoidancePriority = Random.Range(0, 100);
+            initialPosition = transform.position;
+            MoveToRandomPosition();
+
+            // PhotonView에 이 컴포넌트를 observer로 등록
+            if (photonView != null && !photonView.ObservedComponents.Contains(this))
+                photonView.ObservedComponents.Add(this);
+        }
+        else
+        {
+            // 원격 클라이언트: AI와 NavMeshAgent 비활성화, 위치는 네트워크로 받음
+            agent.enabled = false;
+            _networkPosition = transform.position;
+            _networkRotation = transform.rotation;
+        }
     }
 
     void Update()
     {
-        if (jellyAnimController != null && agent.isOnNavMesh)
+        if (!_isMine)
         {
-            bool isActuallyMoving = agent.velocity.magnitude > 0.1f;
-            jellyAnimController.SetBool("IsMoving", isActuallyMoving);
+            // 원격: 보간으로 부드럽게 이동
+            transform.position = Vector3.Lerp(transform.position, _networkPosition, Time.deltaTime * 8f);
+            transform.rotation = Quaternion.Lerp(transform.rotation, _networkRotation, Time.deltaTime * 8f);
+
+            if (jellyAnimController != null)
+                jellyAnimController.SetBool("IsMoving", _networkIsMoving);
+            return;
         }
+
+        // 로컬(소유자): AI 로직 실행
+        bool isActuallyMoving = agent.isOnNavMesh && agent.velocity.magnitude > 0.1f;
+        if (jellyAnimController != null)
+            jellyAnimController.SetBool("IsMoving", isActuallyMoving);
 
         if (!agent.isOnNavMesh) return;
         if (isWaiting) return;
@@ -53,6 +86,22 @@ public class WanderingAI : MonoBehaviour
             {
                 StartCoroutine(WaitAndMove());
             }
+        }
+    }
+
+    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    {
+        if (stream.IsWriting)
+        {
+            stream.SendNext(transform.position);
+            stream.SendNext(transform.rotation);
+            stream.SendNext(agent.isOnNavMesh && agent.velocity.magnitude > 0.1f);
+        }
+        else
+        {
+            _networkPosition = (Vector3)stream.ReceiveNext();
+            _networkRotation = (Quaternion)stream.ReceiveNext();
+            _networkIsMoving = (bool)stream.ReceiveNext();
         }
     }
 
