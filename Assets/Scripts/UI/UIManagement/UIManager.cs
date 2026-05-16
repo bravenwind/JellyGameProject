@@ -167,6 +167,7 @@ public class UIManager : MonoBehaviour
         }
         if (fadeOut)
         {
+            Time.timeScale = 1f;
             // 네트워크 게임 중이라면 방에서 먼저 나가야 함
             // LeaveRoom → NetworkManager.OnLeftRoom → SceneManager.LoadScene("Main")
             if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
@@ -198,7 +199,10 @@ public class UIManager : MonoBehaviour
 
     public void OnClick_MainMenuButton()
     {
+        Time.timeScale = 1f;
         if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
             NetworkManager.Instance.GoToMainMenu();
+        else
+            SceneManager.LoadScene("Main");
     }
 }
