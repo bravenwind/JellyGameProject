@@ -72,8 +72,11 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
     // ── Absorb ──
     public void OnJellyScored()
     {
+        var netSync = GetComponent<NetworkPlayerSync>();
+        if (netSync == null || !netSync.photonView.IsMine) return;
+
         GameState.CurrentScore += DataManager.Instance.scorePerJelly;
-        GetComponent<NetworkPlayerSync>().SyncScore(GameState.CurrentScore);
+        netSync.SyncScore(GameState.CurrentScore);
         UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
         if (GameState.CurrentScore >= DataManager.Instance.targetScore)

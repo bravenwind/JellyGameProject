@@ -30,7 +30,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     private bool _gameRunning = false;
     private float _gameTimer = 0f;
-    private bool _spawned = false;
+    private static bool _spawned = false;
 
     private NetworkPlayerSync _localPlayer;
     private List<LeaderboardEntry> _leaderboardEntries = new List<LeaderboardEntry>();
@@ -62,6 +62,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private void SpawnAndStartGame()
     {
         if (_spawned) return;
+        if (GameState.Phase == GamePhase.Playing) return;
         _spawned = true;
 
         NetworkManager.Instance?.SpawnLocalPlayer();
@@ -267,6 +268,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     public void OnClickRestartButton()
     {
+        _spawned = false;
         if (PhotonNetwork.InRoom) NetworkManager.Instance.LeaveRoom();
         else SceneManager.LoadScene("Main");
     }
