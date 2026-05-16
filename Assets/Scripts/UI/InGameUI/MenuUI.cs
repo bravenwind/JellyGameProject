@@ -15,14 +15,14 @@ public class MenuUI : MonoBehaviour
     public void OnGameQuitBtnClicked()
     {
         PlaySFXAudio.Instance.PlayButtonClickSound();
-        Debug.Log("°ÔÀÓ Á¾·á");
+        Debug.Log("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½");
         Application.Quit();
     }
 
     public void OnToTitleBtnClicked()
     {
         PlaySFXAudio.Instance.PlayButtonClickSound();
-        StartCoroutine(uiManager.SceneFade("FadeOut"));
+        uiManager.StartCoroutine(uiManager.SceneFade("FadeOut"));
     }
 
     public void OnMenuBtnClicked()
