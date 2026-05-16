@@ -112,6 +112,15 @@ public class JellyColliderAbsorb : MonoBehaviour
             aiPlayerSync.AddScore(jellyScore);
         }
 
-        Destroy(gameObject);
+        if (NetworkJellyManager.Instance != null)
+        {
+            foreach (var r in GetComponentsInChildren<Renderer>())
+                r.enabled = false;
+            NetworkJellyManager.Instance.RequestDestroyJelly(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
     }
 }
