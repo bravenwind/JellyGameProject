@@ -4366,11 +4366,11 @@ RectTransform:
   - {fileID: 217354872}
   m_Father: {fileID: 523338915}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -34.53003, y: 44.30005}
-  m_SizeDelta: {x: 424.87, y: 434.4}
-  m_Pivot: {x: 1, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 51.909973, y: -42.41}
+  m_SizeDelta: {x: 424.87, y: 434.40002}
+  m_Pivot: {x: 0, y: 1}
 --- !u!114 &83833909
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13201,6 +13201,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 186
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (4)
@@ -31764,6 +31772,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1681745886}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 184
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation
@@ -36580,6 +36596,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 175
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation
@@ -43177,6 +43201,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 476561242}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 180
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation
@@ -54925,6 +54957,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   gameDuration: 90
+  endImpendingTime: 10
   gameTimerText: {fileID: 883871039}
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}
@@ -62788,6 +62821,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1945901611}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 179
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation
@@ -63591,6 +63632,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 182
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (2)
@@ -64219,6 +64268,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1681745886}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 188
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (2)
@@ -69709,6 +69766,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 190
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (1)
@@ -76580,6 +76645,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1945901611}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 189
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (1)
@@ -92093,6 +92166,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1945901611}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 178
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (2)
@@ -93465,6 +93546,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1681745886}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 183
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (1)
@@ -94955,6 +95044,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 176
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (3)
@@ -98592,6 +98689,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 476561242}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 193
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (3)
@@ -106623,6 +106728,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1945901611}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 194
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (4)
@@ -118745,6 +118858,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1945901611}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 191
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (3)
@@ -125608,6 +125729,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1681745886}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 187
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (3)
@@ -126483,6 +126612,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 476561242}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 181
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (2)
@@ -141780,6 +141917,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 476561242}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 192
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (1)
@@ -160612,6 +160757,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1681745886}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 185
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (4)
@@ -164915,6 +165068,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 476561242}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 177
+      objectReference: {fileID: 0}
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: ObservedComponents.Array.size
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (4)
@@ -171713,6 +171874,10 @@ PrefabInstance:
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4837956946539549159, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
+      propertyPath: m_FillAmount
+      value: 0.5
+      objectReference: {fileID: 0}
     - target: {fileID: 5814156718071451459, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: -11.4
@@ -171763,7 +171928,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7548145295275768229, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7866232151586754483, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_Name
@@ -171820,6 +171985,10 @@ PrefabInstance:
     - target: {fileID: 8498334015773397107, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
       propertyPath: m_ConstrainProportionsScale
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 9087170288286575532, guid: 35aef2c3ec5700f4d9c421e7b0e37870, type: 3}
+      propertyPath: m_FillAmount
+      value: 0.5
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
