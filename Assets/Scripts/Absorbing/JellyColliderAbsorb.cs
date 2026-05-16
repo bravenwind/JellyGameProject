@@ -28,12 +28,23 @@ public class JellyColliderAbsorb : MonoBehaviour
     void Awake()
     {
         _rb = GetComponent<Rigidbody>();
-        _rb.useGravity = true;
         edibleCollider = GetComponentInChildren<Collider>();
         jellyRenderer = GetComponentInChildren<Renderer>();
         agent = GetComponentInChildren<NavMeshAgent>();
         agentAI = GetComponentInChildren<WanderingAI>();
         patrolAI = GetComponentInChildren<AIWaypointPatrol>();
+
+        // NavMeshAgent가 위치를 제어하는 동안 Rigidbody가 간섭하지 않도록 kinematic으로 설정
+        // (흡수 시작 시 StartAbsorb()에서 kinematic = false로 전환)
+        if (agent != null)
+        {
+            _rb.isKinematic = true;
+            _rb.useGravity = false;
+        }
+        else
+        {
+            _rb.useGravity = true;
+        }
 
         jellyRenderer.gameObject.tag = "Edible";
     }

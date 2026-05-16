@@ -24,6 +24,10 @@ public class WanderingAI : MonoBehaviour
 
     public Animator jellyAnimController;
 
+    private float _fallCheckTimer = 0f;
+    private const float FallCheckInterval = 1f;
+    private const float FallThresholdY = -20f;
+
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -34,22 +38,34 @@ public class WanderingAI : MonoBehaviour
         agent.avoidancePriority = Random.Range(0, 100);
         initialPosition = transform.position;
         MoveToRandomPosition();
-        // 이제 여기서 굳이 애니메이션을 안 켜줘도 Update에서 자동으로 켜줍니다!
     }
 
     void Update()
     {
-        // 💡 [핵심 해결책] NavMeshAgent의 실제 물리적 이동 속도를 기반으로 애니메이션 동기화
         if (jellyAnimController != null && agent.isOnNavMesh)
         {
-            // agent.velocity.magnitude는 실제 이동하는 속도입니다.
-            // 속도가 0.1보다 크면(이동 중이면) 걷기, 아니면 대기 애니메이션 재생
             bool isActuallyMoving = agent.velocity.magnitude > 0.1f;
             jellyAnimController.SetBool("IsMoving", isActuallyMoving);
         }
 
+        if (!agent.isOnNavMesh)
+        {
+            RecoverToNavMesh();
+            return;
+        }
+
+        _fallCheckTimer += Time.deltaTime;
+        if (_fallCheckTimer >= FallCheckInterval)
+        {
+            _fallCheckTimer = 0f;
+            if (transform.position.y < FallThresholdY)
+            {
+                RecoverToNavMesh();
+                return;
+            }
+        }
+
         if (isWaiting) return;
-        if (!agent.isOnNavMesh) return;
 
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
         {
@@ -60,17 +76,37 @@ public class WanderingAI : MonoBehaviour
         }
     }
 
+    private void RecoverToNavMesh()
+    {
+        Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
+        NavMeshHit hit;
+        if (NavMesh.SamplePosition(origin, out hit, wanderRadius + 10f, NavMesh.AllAreas))
+        {
+            agent.enabled = false;
+            transform.position = hit.position;
+            agent.enabled = true;
+            if (agent.isOnNavMesh)
+                MoveToRandomPosition();
+        }
+        else if (NavMesh.SamplePosition(initialPosition, out hit, 50f, NavMesh.AllAreas))
+        {
+            agent.enabled = false;
+            transform.position = hit.position;
+            agent.enabled = true;
+            if (agent.isOnNavMesh)
+                MoveToRandomPosition();
+        }
+    }
+
     IEnumerator WaitAndMove()
     {
         isWaiting = true;
-        // SetMovingAnim(false); <-- 삭제! (Update에서 알아서 꺼줌)
 
         float waitTime = Random.Range(minWaitTime, maxWaitTime);
         yield return new WaitForSeconds(waitTime);
 
         MoveToRandomPosition();
         isWaiting = false;
-        // SetMovingAnim(true); <-- 삭제! (Update에서 알아서 켜줌)
     }
 
     void MoveToRandomPosition()
@@ -110,8 +146,6 @@ public class WanderingAI : MonoBehaviour
         TryGetRandomPointOnNavMesh(center, range, out Vector3 result);
         return result;
     }
-
-    // SetMovingAnim() 함수는 이제 필요 없으므로 완전히 삭제했습니다.
 
     void OnDrawGizmosSelected()
     {

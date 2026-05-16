@@ -131,7 +131,6 @@ public class ChocolateFluid : MonoBehaviour
         {
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
-            rb.useGravity = true;
         }
 
         // OnTriggerEnter에서 꺼놓은 AI 컴포넌트 복구
@@ -139,7 +138,18 @@ public class ChocolateFluid : MonoBehaviour
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
         AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
 
-        if (navMeshAgent != null) navMeshAgent.enabled = true;
+        if (navMeshAgent != null)
+        {
+            // NavMesh 위 위치로 워프한 후 에이전트 활성화 (NavMesh 밖에서 켜면 이탈)
+            UnityEngine.AI.NavMeshHit hit;
+            if (UnityEngine.AI.NavMesh.SamplePosition(rb.transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                rb.transform.position = hit.position;
+            }
+            rb.isKinematic = true;
+            rb.useGravity = false;
+            navMeshAgent.enabled = true;
+        }
         if (wanderingAI != null) wanderingAI.enabled = true;
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = true;
     }
