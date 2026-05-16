@@ -1,81 +1,88 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Photon.Pun;
 
 public class RandomJellySpawner : MonoBehaviour
 {
-    [Header("ÇÊ¼ö ¿¬°á")]
-    public AutoGridMapGenerator mapGenerator; // ¸Ê »ý¼º±â
-    public GameObject[] objectPrefab;           // ¼ÒÈ¯ÇÒ ¿ÀºêÁ§Æ®
-    public Camera gameCamera;                 // °ÔÀÓ ¸ÞÀÎ Ä«¸Þ¶ó (¾øÀ¸¸é ÀÚµ¿ ÇÒ´ç)
+    [Header("ï¿½Ê¼ï¿½ ï¿½ï¿½ï¿½ï¿½")]
+    public AutoGridMapGenerator mapGenerator; // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    public GameObject[] objectPrefab;           // ï¿½ï¿½È¯ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®
+    public Camera gameCamera;                 // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½Þ¶ï¿½ (ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Úµï¿½ ï¿½Ò´ï¿½)
 
-    [Header("»ý¼º ¼³Á¤")]
-    public int maxObjectCount = 200;          // ÃÖ´ë ¿ÀºêÁ§Æ® °³¼ö
-    public float spawnInterval = 2.0f;        // »ý¼º °£°Ý (ÃÊ)
-    public float yOffset = 1.0f;              // ³ôÀÌ Á¶Àý
+    [Header("ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½")]
+    public int maxObjectCount = 200;          // ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
+    public float spawnInterval = 2.0f;        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½)
+    public float yOffset = 1.0f;              // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    [Header("µð¹ö±×")]
-    public bool isSpawning = true;            // ½ºÆù È°¼ºÈ­ ¿©ºÎ
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½")]
+    public bool isSpawning = true;            // ï¿½ï¿½ï¿½ï¿½ È°ï¿½ï¿½È­ ï¿½ï¿½ï¿½ï¿½
 
-    [Header("¹èÄ¡ ¼³Á¤")]
-    public int batchSpawnCount = 100; // ÇÑ ¹ø¿¡ ¹èÄ¡ÇÒ °³¼ö
+    [Header("ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½ï¿½")]
+    public int batchSpawnCount = 100; // ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 
-    // °ü¸® ¸®½ºÆ®
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ®
     private List<GameObject> spawnedObjects = new List<GameObject>();
 
     private void Start()
     {
-        // Ä«¸Þ¶ó°¡ ¿¬°á ¾È µÇ¾î ÀÖÀ¸¸é ¸ÞÀÎ Ä«¸Þ¶ó Ã£±â
+        if (PhotonNetwork.InRoom)
+        {
+            enabled = false;
+            return;
+        }
+
+        // Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ç¾ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Ä«ï¿½Þ¶ï¿½ Ã£ï¿½ï¿½
         if (gameCamera == null) gameCamera = Camera.main;
 
-        // ÀÚµ¿ »ý¼º ÄÚ·çÆ¾ ½ÃÀÛ
+        // ï¿½Úµï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ú·ï¿½Æ¾ ï¿½ï¿½ï¿½ï¿½
         StartCoroutine(AutoSpawnRoutine());
     }
 
-    // ÀÏÁ¤ °£°ÝÀ¸·Î »ý¼ºÇÏ´Â ÄÚ·çÆ¾
+    // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ú·ï¿½Æ¾
     IEnumerator AutoSpawnRoutine()
     {
         while (true)
         {
-            // 1. °£°Ý ´ë±â
+            // 1. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
             yield return new WaitForSeconds(spawnInterval);
 
             if (!isSpawning) continue;
 
-            // 2. ¸®½ºÆ® Ã»¼Ò (ÆÄ±«µÈ ¿ÀºêÁ§Æ® Á¦°Å)
-            // ¸®½ºÆ® ¿ä¼Ò Áß nullÀÎ °Í(ÀÌ¹Ì °ÔÀÓ¿¡¼­ »èÁ¦µÈ °Í)À» ¸ðµÎ Áö¿ò
+            // 2. ï¿½ï¿½ï¿½ï¿½Æ® Ã»ï¿½ï¿½ (ï¿½Ä±ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½)
+            // ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ ï¿½ï¿½ nullï¿½ï¿½ ï¿½ï¿½(ï¿½Ì¹ï¿½ ï¿½ï¿½ï¿½Ó¿ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½)ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             spawnedObjects.RemoveAll(item => item == null);
 
-            // 3. ÃÖ´ë °³¼ö Ã¼Å©
+            // 3. ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½ Ã¼Å©
             if (spawnedObjects.Count >= maxObjectCount)
             {
-                // ²Ë Ã¡À¸¸é »ý¼º ½ºÅµ
+                // ï¿½ï¿½ Ã¡ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Åµ
                 continue;
             }
 
-            // 4. Ä«¸Þ¶ó ¹Û À§Ä¡ Ã£±â ¹× »ý¼º ½Ãµµ
+            // 4. Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¡ Ã£ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ãµï¿½
             TrySpawnOffScreen();
         }
     }
 
-    [ContextMenu("·£´ý 100°³ Áï½Ã ¹èÄ¡")]
+    [ContextMenu("ï¿½ï¿½ï¿½ï¿½ 100ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡")]
     public void SpawnRandomBatchDefault()
     {
         SpawnRandomBatch(batchSpawnCount);
     }
 
     /// <summary>
-    /// ÁÖ¾îÁø °³¼ö¸¸Å­ ¸Ê ¿µ¿ª ³»¿¡ ·£´ýÇÏ°Ô ¿ÀºêÁ§Æ®¸¦ ¹èÄ¡ÇÕ´Ï´Ù. (Ä«¸Þ¶ó °¡¸² ¿©ºÎ »ó°ü¾øÀ½)
+    /// ï¿½Ö¾ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å­ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½Õ´Ï´ï¿½. (Ä«ï¿½Þ¶ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½)
     /// </summary>
     public void SpawnRandomBatch(int count)
     {
         if (mapGenerator == null || objectPrefab == null || objectPrefab.Length == 0)
         {
-            Debug.LogWarning("RandomJellySpawner: ÇÊ¼ö ¿¬°á ¿ä¼Ò°¡ ´©¶ôµÇ¾ú½À´Ï´Ù.");
+            Debug.LogWarning("RandomJellySpawner: ï¿½Ê¼ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ò°ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ç¾ï¿½ï¿½ï¿½ï¿½Ï´ï¿½.");
             return;
         }
 
-        // 1. ¸Ê Å©±â ¹× ¹üÀ§ °è»ê (±âÁ¸ TrySpawnOffScreen ·ÎÁ÷ È°¿ë)
+        // 1. ï¿½ï¿½ Å©ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ TrySpawnOffScreen ï¿½ï¿½ï¿½ï¿½ È°ï¿½ï¿½)
         Renderer tileRenderer = mapGenerator.tilePrefab.GetComponent<Renderer>();
         if (tileRenderer == null) tileRenderer = mapGenerator.tilePrefab.GetComponentInChildren<Renderer>();
 
@@ -85,7 +92,7 @@ public class RandomJellySpawner : MonoBehaviour
         float mapSizeX = (mapGenerator.width - 1) * stepX;
         float mapSizeZ = (mapGenerator.height - 1) * stepZ;
 
-        // 2. ÁöÁ¤µÈ °³¼ö¸¸Å­ ¹Ýº¹ »ý¼º
+        // 2. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Å­ ï¿½Ýºï¿½ ï¿½ï¿½ï¿½ï¿½
         for (int i = 0; i < count; i++)
         {
             float rX = Random.Range(0f, mapSizeX);
@@ -99,26 +106,26 @@ public class RandomJellySpawner : MonoBehaviour
 
             Vector3 spawnPos = mapGenerator.transform.position + new Vector3(rX, yOffset, rZ);
 
-            // 3. ÇÁ¸®ÆÕ ·£´ý ¼±ÅÃ ¹× »ý¼º
+            // 3. ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             int jellyIndex = Random.Range(0, objectPrefab.Length);
             GameObject obj = Instantiate(objectPrefab[jellyIndex], spawnPos, Quaternion.identity);
 
-            // 4. °ü¸® ¼³Á¤
+            // 4. ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
             obj.transform.SetParent(this.transform);
             obj.name = $"{objectPrefab[jellyIndex].name}_Batch_{System.DateTime.Now.Ticks}_{i}";
 
             spawnedObjects.Add(obj);
         }
 
-        Debug.Log($"RandomJellySpawner: {count}°³ÀÇ ¿ÀºêÁ§Æ®¸¦ ¹èÄ¡Çß½À´Ï´Ù.");
+        Debug.Log($"RandomJellySpawner: {count}ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ®ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ß½ï¿½ï¿½Ï´ï¿½.");
     }
 
     void TrySpawnOffScreen()
     {
         if (mapGenerator == null || objectPrefab == null) return;
 
-        // ¸Ê Å©±â °è»ê (¸Å¹ø °è»êÇÏ°Å³ª, Start¿¡¼­ Ä³½ÌÇØµµ µÊ)
-        // ¿©±â¼­´Â ¾ÈÀüÇÏ°Ô ¸Å¹ø °è»ê
+        // ï¿½ï¿½ Å©ï¿½ï¿½ ï¿½ï¿½ï¿½ (ï¿½Å¹ï¿½ ï¿½ï¿½ï¿½ï¿½Ï°Å³ï¿½, Startï¿½ï¿½ï¿½ï¿½ Ä³ï¿½ï¿½ï¿½Øµï¿½ ï¿½ï¿½)
+        // ï¿½ï¿½ï¿½â¼­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ï°ï¿½ ï¿½Å¹ï¿½ ï¿½ï¿½ï¿½
         Renderer tileRenderer = mapGenerator.tilePrefab.GetComponent<Renderer>();
         if (tileRenderer == null) tileRenderer = mapGenerator.tilePrefab.GetComponentInChildren<Renderer>();
 
@@ -128,14 +135,14 @@ public class RandomJellySpawner : MonoBehaviour
         float mapSizeX = (mapGenerator.width - 1) * stepX;
         float mapSizeZ = (mapGenerator.height - 1) * stepZ;
 
-        // À¯È¿ÇÑ À§Ä¡¸¦ Ã£À» ¶§±îÁö ¸î ¹ø ½ÃµµÇÒÁö (¹«ÇÑ ·çÇÁ ¹æÁö)
+        // ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ Ã£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½ (ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½)
         int maxAttempts = 10;
         Vector3 finalPos = Vector3.zero;
         bool foundValidPos = false;
 
         for (int i = 0; i < maxAttempts; i++)
         {
-            // ·£´ý À§Ä¡ °è»ê
+            // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ä¡ ï¿½ï¿½ï¿½
             float rX = Random.Range(0f, mapSizeX);
             float rZ = Random.Range(0f, mapSizeZ);
 
@@ -147,16 +154,16 @@ public class RandomJellySpawner : MonoBehaviour
 
             Vector3 candidatePos = mapGenerator.transform.position + new Vector3(rX, yOffset, rZ);
 
-            // ** ÇÙ½É: Ä«¸Þ¶ó È­¸é ¾È¿¡ ÀÖ´ÂÁö °Ë»ç **
+            // ** ï¿½Ù½ï¿½: Ä«ï¿½Þ¶ï¿½ È­ï¿½ï¿½ ï¿½È¿ï¿½ ï¿½Ö´ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½ **
             if (!IsVisibleFromCamera(candidatePos))
             {
                 finalPos = candidatePos;
                 foundValidPos = true;
-                break; // È­¸é ¹Û À§Ä¡¸¦ Ã£¾ÒÀ¸´Ï ·çÇÁ Å»Ãâ
+                break; // È­ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ Å»ï¿½ï¿½
             }
         }
 
-        // À¯È¿ÇÑ À§Ä¡¸¦ Ã£¾Ò´Ù¸é ¿ÀºêÁ§Æ® »ý¼º
+        // ï¿½ï¿½È¿ï¿½ï¿½ ï¿½ï¿½Ä¡ï¿½ï¿½ Ã£ï¿½Ò´Ù¸ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½
         if (foundValidPos)
         {
             int jellyIndex = Random.Range(0, objectPrefab.Length);
@@ -169,27 +176,27 @@ public class RandomJellySpawner : MonoBehaviour
         }
     }
 
-    // À§Ä¡°¡ Ä«¸Þ¶ó È­¸é ¾È¿¡ µé¾î¿À´ÂÁö È®ÀÎÇÏ´Â ÇÔ¼ö
+    // ï¿½ï¿½Ä¡ï¿½ï¿½ Ä«ï¿½Þ¶ï¿½ È­ï¿½ï¿½ ï¿½È¿ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ È®ï¿½ï¿½ï¿½Ï´ï¿½ ï¿½Ô¼ï¿½
     bool IsVisibleFromCamera(Vector3 position)
     {
         if (gameCamera == null) return false;
 
-        // ¿ùµå ÁÂÇ¥¸¦ ºäÆ÷Æ® ÁÂÇ¥(0~1)·Î º¯È¯
+        // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½Ç¥ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½Æ® ï¿½ï¿½Ç¥(0~1)ï¿½ï¿½ ï¿½ï¿½È¯
         Vector3 viewportPos = gameCamera.WorldToViewportPoint(position);
 
-        // x, y°¡ 0~1 »çÀÌÀÌ°í, z(±íÀÌ)°¡ ¾ç¼ö¸é È­¸é¿¡ º¸ÀÌ´Â °ÍÀÓ
-        // ¾à°£ÀÇ ¿©À¯(Margin)¸¦ µÎ·Á¸é -0.1f ~ 1.1f Á¤µµ·Î °Ë»çÇØµµ µÊ
+        // x, yï¿½ï¿½ 0~1 ï¿½ï¿½ï¿½ï¿½ï¿½Ì°ï¿½, z(ï¿½ï¿½ï¿½ï¿½)ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ È­ï¿½é¿¡ ï¿½ï¿½ï¿½Ì´ï¿½ ï¿½ï¿½ï¿½ï¿½
+        // ï¿½à°£ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½(Margin)ï¿½ï¿½ ï¿½Î·ï¿½ï¿½ï¿½ -0.1f ~ 1.1f ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½Ë»ï¿½ï¿½Øµï¿½ ï¿½ï¿½
         if (viewportPos.x > 0 && viewportPos.x < 1 &&
             viewportPos.y > 0 && viewportPos.y < 1 &&
             viewportPos.z > 0)
         {
-            return true; // È­¸é ¾ÈÀÓ
+            return true; // È­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
         }
 
-        return false; // È­¸é ¹ÛÀÓ
+        return false; // È­ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
     }
 
-    [ContextMenu("¸ðµÎ Áö¿ì±â")]
+    [ContextMenu("ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½")]
     public void ClearSpawnedObjects()
     {
         foreach (var obj in spawnedObjects)
