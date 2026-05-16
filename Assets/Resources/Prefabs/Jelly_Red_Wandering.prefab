@@ -948,7 +948,6 @@ GameObject:
   - component: {fileID: 11058891727662480}
   - component: {fileID: -3414111195384197142}
   - component: {fileID: 6656001391602050364}
-  - component: {fileID: -1359513428599807059}
   m_Layer: 7
   m_Name: Jelly_Red_Wandering
   m_TagString: Edible
@@ -1119,7 +1118,8 @@ MonoBehaviour:
   OwnershipTransfer: 0
   observableSearch: 2
   ObservedComponents:
-  - {fileID: -1359513428599807059}
+  - {fileID: 2055028898353649900}
+  - {fileID: 0}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -1146,22 +1146,6 @@ CapsuleCollider:
   m_Height: 4.2
   m_Direction: 1
   m_Center: {x: 0, y: -0.32, z: 0}
---- !u!114 &-1359513428599807059
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8144378974185360781}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 627855c7f81362d41938ffe0b1475957, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_SynchronizePosition: 1
-  m_SynchronizeRotation: 1
-  m_SynchronizeScale: 0
-  m_UseLocal: 1
 --- !u!1 &8408106524163646059
 GameObject:
   m_ObjectHideFlags: 0
