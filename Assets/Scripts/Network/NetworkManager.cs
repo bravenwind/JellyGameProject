@@ -303,7 +303,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         {
             _reconnectAttempts = 0;
             _isCountingDown = false;
-            _gameStarted = false;
             SceneManager.LoadScene("Main");
         }
     }
