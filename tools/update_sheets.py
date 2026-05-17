@@ -7,6 +7,8 @@ Google Sheets 업데이트 스크립트 — 일일 코드 리뷰 루틴용
     python3 tools/update_sheets.py status          # 현재 시트 상태 출력
 """
 import sys
+import os
+import json
 import gspread
 from google.oauth2.service_account import Credentials
 
@@ -18,7 +20,12 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
 def get_client():
-    creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=SCOPES)
+    env_creds = os.environ.get("GSHEET_CREDENTIALS_JSON")
+    if env_creds:
+        info = json.loads(env_creds)
+        creds = Credentials.from_service_account_info(info, scopes=SCOPES)
+    else:
+        creds = Credentials.from_service_account_file(CREDENTIALS_PATH, scopes=SCOPES)
     return gspread.authorize(creds)
 
 
