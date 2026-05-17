@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using UnityEngine;
 
@@ -15,7 +16,6 @@ public class PlayerColorVisual : MonoBehaviour
 
     [Header("Color Settings")]
     [Range(0f, 1f)] public float baseColor02Lightness = 0.6f;
-    [Tooltip("색상 전환 애니메이션 시간")]
     public float blendTime = 0.5f;
 
     [Header("Material_Property")]
@@ -23,13 +23,14 @@ public class PlayerColorVisual : MonoBehaviour
     public string BaseColor_02Property = "_BaseColor_02";
     public string FresnelProperty = "_FresnelColor";
 
-    private IEntityBridge _bridge;
     private Coroutine currentCoroutine;
 
-    private void Awake()
-    {
-        _bridge = GetComponentInParent<IEntityBridge>();
-    }
+    // ── RYB Color State (이전의 IEntityBridge.RYBColor 역할) ──
+    public RYBColor CurrentRYB { get; private set; } = RYBColor.white;
+
+    // ── Events ──
+    public event Action<JellyColorType, RYBColor, Color> OnColorApplied;
+    public event Action OnColorUIUpdate;
 
     private void Start()
     {
@@ -47,11 +48,8 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty,       currentFresnelColor);
 
-        if (_bridge != null)
-        {
-            _bridge.RYBColor = RYBColor.white;
-            _bridge.OnColorUIUpdate();
-        }
+        CurrentRYB = RYBColor.white;
+        OnColorUIUpdate?.Invoke();
     }
 
     public void HandleJellyAbsorbed(JellyColorType type)
@@ -69,7 +67,8 @@ public class PlayerColorVisual : MonoBehaviour
 
     private void HandleWhiteJelly()
     {
-        _bridge?.ResetRYBColor();
+        CurrentRYB = RYBColor.white;
+        OnColorApplied?.Invoke(JellyColorType.White, RYBColor.white, Color.white);
 
         Color white = Color.white;
         currentCoroutine = StartCoroutine(BlendColor(white, GetLighterColor(white, baseColor02Lightness), white, blendTime));
@@ -78,15 +77,12 @@ public class PlayerColorVisual : MonoBehaviour
     private void ApplyJellyColor(JellyColorType type)
     {
         RYBColor effect = DataManager.Instance.GetJellyRYBEffect(type);
-        RYBColor baseRYB = _bridge?.RYBColor ?? RYBColor.white;
-        RYBColor nextRYB = baseRYB.Add(effect);
-
-        if (_bridge != null) _bridge.RYBColor = nextRYB;
+        RYBColor nextRYB = CurrentRYB.Add(effect);
+        CurrentRYB = nextRYB;
 
         Color visualTarget = nextRYB.ToRGB();
-
         JellyColorType dominantType = nextRYB.GetDominantType();
-        _bridge?.OnColorApplied(dominantType, nextRYB, visualTarget);
+        OnColorApplied?.Invoke(dominantType, nextRYB, visualTarget);
 
         Color targetBase = DarkenColor(visualTarget, 0.85f);
         Color targetFresnel = visualTarget;
@@ -126,7 +122,7 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
 
-        _bridge?.OnColorUIUpdate();
+        OnColorUIUpdate?.Invoke();
     }
 
     private Color GetLighterColor(Color baseColor, float lightAmount)
@@ -139,11 +135,10 @@ public class PlayerColorVisual : MonoBehaviour
     {
         if (currentCoroutine != null) StopCoroutine(currentCoroutine);
 
-        _bridge?.ResetRYBColor();
+        CurrentRYB = RYBColor.white;
+        OnColorApplied?.Invoke(JellyColorType.White, RYBColor.white, Color.white);
 
         currentCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
-        _bridge?.OnColorUIUpdate();
+        OnColorUIUpdate?.Invoke();
     }
-
-    public RYBColor BotRYBColor => _bridge?.RYBColor ?? RYBColor.white;
 }

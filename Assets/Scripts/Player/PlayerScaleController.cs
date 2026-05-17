@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -19,21 +20,23 @@ public class PlayerScaleController : MonoBehaviour
     private bool isScaling = false;
     public bool IsScaling => isScaling;
 
-    public System.Action<float> OnScaleValueChanged;
-
-    private IEntityBridge _bridge;
-
-    private void Awake()
-    {
-        _bridge = GetComponentInParent<IEntityBridge>();
-    }
+    // ── Scale Lifecycle Events ──
+    public event Action<float> OnScaleInit;
+    public event Action<float> OnScaleValueChanged;
+    public event Action<float> OnScaleCompleted;
+    public event Action OnScaleReset;
+    public event Action<bool> OnGrowStarted;
+    public event Action OnShrinkStarted;
+    public event Action OnScaleThresholdUp;
+    public event Action OnScaleThresholdDown;
+    public event Action OnPostScalePhysics;
 
     private void Start()
     {
         originalScale = Vector3.one;
         currentScale = transform.localScale;
         currentScaleValue = transform.localScale.x;
-        _bridge?.OnScaleInit(currentScaleValue);
+        OnScaleInit?.Invoke(currentScaleValue);
     }
 
     public void GrowByJelly()
@@ -83,10 +86,10 @@ public class PlayerScaleController : MonoBehaviour
 
         if (softBody3D != null) softBody3D.DisableCloth();
 
-        if (growing) _bridge?.OnGrowEffect(playEffect);
-        if (hitsThresholdUp) _bridge?.OnScaleThresholdUp();
-        if (!growing) _bridge?.OnShrinkEffect();
-        if (hitsThresholdDown) _bridge?.OnScaleThresholdDown();
+        if (growing) OnGrowStarted?.Invoke(playEffect);
+        if (hitsThresholdUp) OnScaleThresholdUp?.Invoke();
+        if (!growing) OnShrinkStarted?.Invoke();
+        if (hitsThresholdDown) OnScaleThresholdDown?.Invoke();
 
         Vector3 startScale = currentScale;
         Vector3 targetScale = originalScale * targetValue;
@@ -103,12 +106,11 @@ public class PlayerScaleController : MonoBehaviour
         transform.localScale = currentScale = targetScale;
 
         OnScaleValueChanged?.Invoke(currentScaleValue);
-        _bridge?.OnScaleCompleted(currentScaleValue, playerController);
+        OnScaleCompleted?.Invoke(currentScaleValue);
 
         if (softBody3D != null) softBody3D.RequestRebuildCloth();
 
-        _bridge?.OnScaleUIUpdate();
-        _bridge?.OnPostScalePhysics();
+        OnPostScalePhysics?.Invoke();
     }
 
     public void DecreaseScale(float decreaseTime)
@@ -135,7 +137,7 @@ public class PlayerScaleController : MonoBehaviour
 
     public void ResetScale()
     {
-        _bridge?.OnScaleReset();
+        OnScaleReset?.Invoke();
 
         StopAllCoroutines();
         scaleQueue.Clear();

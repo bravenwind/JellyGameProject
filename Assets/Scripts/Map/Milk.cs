@@ -18,8 +18,8 @@ public class Milk : MonoBehaviour
         PlayerScaleController sc = other.GetComponentInParent<PlayerScaleController>();
         if (sc == null) return;
 
-        bool isPlayer = other.GetComponentInParent<PlayerBridge>() != null;
-        if (isPlayer && PlaySFXAudio.Instance != null)
+        bool isLocalPlayer = nps != null && nps.photonView.IsMine;
+        if (isLocalPlayer && PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.isSteppingMilk = true;
 
         float currentScale = sc.currentScaleValue;
@@ -36,8 +36,9 @@ public class Milk : MonoBehaviour
     {
         if (!other.CompareTag("PlayerMesh")) return;
 
-        bool isPlayer = other.GetComponentInParent<PlayerBridge>() != null;
-        if (isPlayer && PlaySFXAudio.Instance != null)
+        NetworkPlayerSync nps = other.GetComponentInParent<NetworkPlayerSync>();
+        bool isLocalPlayer = nps != null && nps.photonView.IsMine;
+        if (isLocalPlayer && PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.isSteppingMilk = false;
     }
 

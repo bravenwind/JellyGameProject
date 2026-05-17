@@ -1,37 +1,38 @@
 using UnityEngine;
 
-public class BotBridge : MonoBehaviour, IEntityBridge
+public class BotBridge : MonoBehaviour
 {
-    private RYBColor _rybColor = RYBColor.white;
+    private PlayerScaleController _scaleCtrl;
+    private PlayerAbsorber _absorber;
 
-    // ── Scale (봇은 이벤트/UI 없음) ──
-    public void OnScaleInit(float scaleValue) { }
-    public void OnGrowEffect(bool playEffect) { }
-    public void OnShrinkEffect() { }
-    public void OnScaleThresholdUp() { }
-    public void OnScaleThresholdDown() { }
-    public void OnScaleCompleted(float scaleValue, PlayerController pc) { }
-    public void OnScaleUIUpdate() { }
-    public void OnScaleReset() { }
+    private void Awake()
+    {
+        _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
+        _absorber = GetComponentInChildren<PlayerAbsorber>();
+    }
 
-    public void OnPostScalePhysics()
+    private void OnEnable()
+    {
+        if (_scaleCtrl != null)
+            _scaleCtrl.OnPostScalePhysics += HandlePostScalePhysics;
+        if (_absorber != null)
+            _absorber.OnJellyScored += HandleJellyScored;
+    }
+
+    private void OnDisable()
+    {
+        if (_scaleCtrl != null)
+            _scaleCtrl.OnPostScalePhysics -= HandlePostScalePhysics;
+        if (_absorber != null)
+            _absorber.OnJellyScored -= HandleJellyScored;
+    }
+
+    private void HandlePostScalePhysics()
     {
         GetComponent<AIPlayerMovement>()?.RecenterCC();
     }
 
-    // ── Color (봇은 로컬 RYB 상태만 관리) ──
-    public RYBColor RYBColor
-    {
-        get => _rybColor;
-        set => _rybColor = value;
-    }
-
-    public void ResetRYBColor() => _rybColor = RYBColor.white;
-    public void OnColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor) { }
-    public void OnColorUIUpdate() { }
-
-    // ── Absorb ──
-    public void OnJellyScored()
+    private void HandleJellyScored()
     {
         AIPlayerSync aiSync = GetComponentInParent<AIPlayerSync>();
         if (aiSync != null) aiSync.AddScore(DataManager.Instance.scorePerJelly);
