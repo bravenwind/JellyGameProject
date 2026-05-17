@@ -1,37 +1,31 @@
 using UnityEngine;
+using Photon.Pun;
 
-/// <summary>
-/// AI 봇의 주변 엔티티 탐지를 담당.
-/// AIPlayerMovement에서 탐지 로직을 분리.
-/// </summary>
 public class AIDetector : MonoBehaviour
 {
     [Header("탐지")]
     public float detectRadius = 15f;
     public float baseAgentRadius = 0.5f;
 
-    /// <summary>
-    /// 나보다 큰 위협을 탐지.
-    /// 표면 간의 거리(Edge Distance)를 기준으로 탐지.
-    /// </summary>
+    private AIPlayerMovement _owner;
+
+    private void Awake()
+    {
+        _owner = GetComponent<AIPlayerMovement>();
+    }
+
     public Transform FindThreat()
     {
-        float myScale = transform.localScale.x;
+        float myScale = _owner != null ? _owner.GetMyAuthorityScale() : transform.localScale.x;
         return FindEntityByScaleComparison(myScale, biggerThanMe: true);
     }
 
-    /// <summary>
-    /// 나보다 작은 먹잇감(플레이어 또는 다른 봇)을 탐지.
-    /// </summary>
     public Transform FindPrey()
     {
-        float myScale = transform.localScale.x;
+        float myScale = _owner != null ? _owner.GetMyAuthorityScale() : transform.localScale.x;
         return FindEntityByScaleComparison(myScale, biggerThanMe: false);
     }
 
-    /// <summary>
-    /// 추적할 대상을 결정. (작은 플레이어 1순위, 젤리 2순위)
-    /// </summary>
     public Transform FindTargetToChase()
     {
         Transform prey = FindPrey();
@@ -39,7 +33,6 @@ public class AIDetector : MonoBehaviour
         return FindNearestJelly();
     }
 
-    /// <summary>탐지 반경 내 가장 가까운 젤리</summary>
     public Transform FindNearestJelly()
     {
         Transform nearest = null;
@@ -58,10 +51,6 @@ public class AIDetector : MonoBehaviour
         return nearest;
     }
 
-    /// <summary>
-    /// 스케일 비교를 통해 플레이어/봇 엔티티를 탐색.
-    /// FindThreat과 FindPrey의 중복 로직을 통합.
-    /// </summary>
     private Transform FindEntityByScaleComparison(float myScale, bool biggerThanMe)
     {
         Transform closest = null;
@@ -88,7 +77,7 @@ public class AIDetector : MonoBehaviour
         {
             if (b == null || b.gameObject == gameObject) continue;
 
-            float otherScale = b.transform.localScale.x;
+            float otherScale = b.GetMyAuthorityScale();
             if (!IsScaleMatch(myScale, otherScale, biggerThanMe)) continue;
 
             float edgeDist = CalcEdgeDistance(b.transform.position, myScale, otherScale);

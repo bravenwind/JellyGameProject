@@ -94,27 +94,36 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
     private void SetupLocalPlayer()
     {
-        // 카메라가 이 플레이어를 따라오도록 설정
         TopDownCameraFollow cam = Camera.main?.GetComponent<TopDownCameraFollow>();
         if (cam != null) cam.target = transform;
 
-        // MainCamera_Action 타겟 연결
         MainCamera_Action camAction = Camera.main?.GetComponent<MainCamera_Action>();
         if (camAction != null) camAction.SetTarget(transform);
 
-        // GameModeManager에 내 참조 등록
         GameModeManager.Instance?.RegisterLocalPlayer(this);
 
-        // UIFollowTarget들이 플레이어를 못 찾는 경우를 대비해 직접 연결
         foreach (var uiFollow in FindObjectsByType<UIFollowTarget>(FindObjectsSortMode.None))
         {
             uiFollow.SetTarget(transform);
         }
 
-        // 이전 게임의 점수가 남아있을 수 있으므로 초기화
         SyncScore(0);
 
+        if (scaleController != null)
+            scaleController.OnScaleValueChanged += OnLocalScaleChanged;
+
         Debug.Log($"[Network] 로컬 플레이어 초기화: {PhotonNetwork.NickName}");
+    }
+
+    private void OnLocalScaleChanged(float newScale)
+    {
+        SyncScale();
+    }
+
+    private void OnDestroy()
+    {
+        if (scaleController != null)
+            scaleController.OnScaleValueChanged -= OnLocalScaleChanged;
     }
 
     private void SetupRemotePlayer()
@@ -211,32 +220,43 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // CustomProperties = 모든 클라이언트가 읽을 수 있는 딕셔너리
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 내 점수를 네트워크에 업데이트 (점수가 바뀔 때마다 호출)
-    /// </summary>
     public void SyncScore(int newScore)
     {
         if (!photonView.IsMine) return;
 
-        // Hashtable: key-value 쌍으로 데이터를 저장하는 딕셔너리
-        // Photon에서는 이 방식으로 플레이어 속성을 공유
         ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
         {
             { "Score", newScore },
-            { "Scale", GameState.PlayerCurrentScale }
+            { "Scale", scaleController != null ? scaleController.currentScaleValue : GameState.PlayerCurrentScale }
         };
 
-        // SetCustomProperties: 변경된 내용만 네트워크로 전송 (효율적)
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+    }
+
+    public void SyncScale()
+    {
+        if (!photonView.IsMine) return;
+
+        float scaleValue = scaleController != null ? scaleController.currentScaleValue : GameState.PlayerCurrentScale;
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
+        {
+            { "Scale", scaleValue }
+        };
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+    }
+
+    public static float GetPlayerSyncedScale(Player player)
+    {
+        if (player?.CustomProperties != null &&
+            player.CustomProperties.TryGetValue("Scale", out object val))
+            return (float)val;
+        return 1f;
     }
 
     // ─────────────────────────────────────────────────────────
     // 생존 모드: 플레이어 흡수 (RPC)
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 충돌 감지 → MasterClient에 검증 요청만 전송 (직접 판정하지 않음)
-    /// </summary>
     private void OnTriggerEnter(Collider other)
     {
         if (!photonView.IsMine || _isAbsorbed) return;
@@ -244,20 +264,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         NetworkPlayerSync otherPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (otherPlayer != null && otherPlayer != this)
         {
-            float myScale = transform.localScale.x;
-            float otherScale = otherPlayer.transform.localScale.x;
-            if (otherScale > myScale)
-            {
-                // 상대가 더 큼 → 내가 흡수될 수 있음을 마스터에 알림
-                photonView.RPC(nameof(RPC_RequestAbsorbValidation), RpcTarget.MasterClient,
-                    otherPlayer.photonView.ViewID);
-            }
-            else if (myScale > otherScale)
-            {
-                // 내가 더 큼 → 상대 흡수 검증을 마스터에 요청
-                otherPlayer.photonView.RPC(nameof(RPC_RequestAbsorbValidation), RpcTarget.MasterClient,
-                    photonView.ViewID);
-            }
+            photonView.RPC(nameof(RPC_RequestAbsorbValidation), RpcTarget.MasterClient,
+                otherPlayer.photonView.ViewID);
             return;
         }
 
@@ -294,10 +302,6 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // MasterClient 검증 RPC
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// [MC 전용] 플레이어-플레이어 흡수 요청 검증.
-    /// MasterClient가 양쪽 스케일을 직접 비교하여 판정.
-    /// </summary>
     [PunRPC]
     private void RPC_RequestAbsorbValidation(int absorberViewID)
     {
@@ -306,8 +310,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         PhotonView absorberPV = PhotonView.Find(absorberViewID);
         if (absorberPV == null) return;
 
-        float victimScale = transform.localScale.x;
-        float absorberScale = absorberPV.transform.localScale.x;
+        float victimScale = GetAuthorityScale(photonView);
+        float absorberScale = GetAuthorityScale(absorberPV);
 
         if (absorberScale > victimScale)
         {
@@ -315,10 +319,6 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         }
     }
 
-    /// <summary>
-    /// [MC 전용] 플레이어-봇 충돌 요청 검증.
-    /// 봇이 더 크면 플레이어 흡수, 플레이어가 더 크면 봇 흡수.
-    /// </summary>
     [PunRPC]
     private void RPC_RequestBotAbsorbValidation(int botViewID)
     {
@@ -330,8 +330,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
         if (aiBot == null) return;
 
-        float playerScale = transform.localScale.x;
-        float botScale = botPV.transform.localScale.x;
+        float playerScale = GetAuthorityScale(photonView);
+        float botScale = GetBotAuthorityScale(aiBot);
 
         if (botScale > playerScale)
         {
@@ -467,18 +467,40 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     }
 
     // ─────────────────────────────────────────────────────────
+    // State Sync 기반 크기 판정 유틸리티
+    // ─────────────────────────────────────────────────────────
+
+    private static float GetAuthorityScale(PhotonView pv)
+    {
+        if (pv.Owner?.CustomProperties != null &&
+            pv.Owner.CustomProperties.TryGetValue("Scale", out object val))
+            return (float)val;
+        return pv.transform.localScale.x;
+    }
+
+    private static float GetBotAuthorityScale(AIPlayerMovement bot)
+    {
+        AIPlayerSync sync = bot.GetComponent<AIPlayerSync>();
+        if (sync != null) return sync.GetSyncedScale();
+        return bot.transform.localScale.x;
+    }
+
+    // ─────────────────────────────────────────────────────────
     // 외부에서 읽는 프로퍼티
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 이 플레이어의 현재 스케일 값 (로컬이면 PlayerScaleController, 원격이면 네트워크 값)
-    /// </summary>
-    public float ScaleValue => photonView.IsMine
-        ? (scaleController != null ? scaleController.currentScaleValue : 1f)
-        : _networkScaleValue;
+    public float ScaleValue
+    {
+        get
+        {
+            if (photonView.IsMine)
+                return scaleController != null ? scaleController.currentScaleValue : 1f;
+            if (photonView.Owner?.CustomProperties != null &&
+                photonView.Owner.CustomProperties.TryGetValue("Scale", out object val))
+                return (float)val;
+            return _networkScaleValue;
+        }
+    }
 
-    /// <summary>
-    /// 이 플레이어의 닉네임
-    /// </summary>
     public string PlayerName => photonView.Owner?.NickName ?? "Bot";
 }

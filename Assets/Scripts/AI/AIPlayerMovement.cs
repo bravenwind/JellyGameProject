@@ -80,8 +80,18 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
     // 외부 프로퍼티
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>이 봇의 현재 스케일 값</summary>
     public float CurrentScale => transform.localScale.x;
+
+    public float GetMyAuthorityScale()
+    {
+        if (_aiSync != null) return _aiSync.GetSyncedScale();
+        return transform.localScale.x;
+    }
+
+    private void OnBotScaleChanged(float newScale)
+    {
+        _aiSync?.SyncScale(newScale);
+    }
 
     // ─────────────────────────────────────────────────────────
     // 레지스트리 등록
@@ -144,6 +154,10 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
         }
 
         _prevScaleValue = transform.localScale.x;
+
+        if (ScaleCtrl != null)
+            ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
+
         StartCoroutine(InitAndRun());
     }
 
@@ -395,11 +409,12 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
 
         // ── 더 작은 플레이어 흡수 ──
         NetworkPlayerSync player = other.GetComponentInParent<NetworkPlayerSync>();
-        if (player != null && player.transform.localScale.x < transform.localScale.x)
+        if (player != null)
         {
-            float preyScale = player.transform.localScale.x;
+            float myScale = GetMyAuthorityScale();
+            float playerScale = NetworkPlayerSync.GetPlayerSyncedScale(player.photonView.Owner);
+            if (playerScale >= myScale) return;
 
-            // 흡수된 플레이어의 점수를 봇에게 추가
             int playerScore = 0;
             if (player.photonView?.Owner?.CustomProperties != null &&
                 player.photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreVal))
@@ -407,24 +422,22 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
             _aiSync?.AddScore(playerScore);
 
             player.photonView.RPC("RPC_GetAbsorbed", RpcTarget.All, photonView.ViewID);
-            ScaleCtrl?.GrowByAbsorbing(preyScale);
+            ScaleCtrl?.GrowByAbsorbing(playerScale);
             return;
         }
 
         // ── 더 작은 AI 봇 흡수 ──
         AIPlayerMovement otherBot = other.GetComponentInParent<AIPlayerMovement>();
-        if (otherBot != null && otherBot != this
-            && !otherBot.IsBeingAbsorbed
-            && otherBot.transform.localScale.x < transform.localScale.x)
+        if (otherBot != null && otherBot != this && !otherBot.IsBeingAbsorbed)
         {
-            float preyScale = otherBot.transform.localScale.x;
-            Debug.Log(this.name + "/OnTriggerEnter : 다른 AI 플레이어 흡수");
+            float myScale = GetMyAuthorityScale();
+            float otherScale = otherBot.GetMyAuthorityScale();
+            if (otherScale >= myScale) return;
 
-            // 흡수된 봇의 점수를 이 봇에게 추가
             _aiSync?.AddScore(otherBot.CurrentScore);
 
             otherBot.photonView.RPC(nameof(RPC_BotAbsorbed), RpcTarget.All, photonView.ViewID);
-            ScaleCtrl?.GrowByAbsorbing(preyScale);
+            ScaleCtrl?.GrowByAbsorbing(otherScale);
             return;
         }
     }

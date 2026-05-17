@@ -19,6 +19,8 @@ public class PlayerScaleController : MonoBehaviour
     private bool isScaling = false;
     public bool IsScaling => isScaling;
 
+    public System.Action<float> OnScaleValueChanged;
+
     private IEntityBridge _bridge;
 
     private void Awake()
@@ -100,6 +102,7 @@ public class PlayerScaleController : MonoBehaviour
         }
         transform.localScale = currentScale = targetScale;
 
+        OnScaleValueChanged?.Invoke(currentScaleValue);
         _bridge?.OnScaleCompleted(currentScaleValue, playerController);
 
         if (softBody3D != null) softBody3D.RequestRebuildCloth();
