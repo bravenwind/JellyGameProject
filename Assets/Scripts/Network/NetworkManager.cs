@@ -82,6 +82,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     private bool _isCountingDown = false;
     private bool _wantsToJoin = false;
+    private int _reconnectAttempts = 0;
+    private const int MaxReconnectAttempts = 3;
 
     // ─────────────────────────────────────────────────────────
     // 싱글톤
@@ -165,6 +167,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public override void OnConnectedToMaster()
     {
         Debug.Log("마스터 서버 연결 완료!");
+        _reconnectAttempts = 0;
 
         if (_wantsToJoin)
         {
@@ -277,11 +280,40 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// [자동 콜백] 접속 끊김
+    /// [자동 콜백] 접속 끊김 — 일시적 원인이면 재연결 시도
     /// </summary>
     public override void OnDisconnected(DisconnectCause cause)
     {
         Debug.LogWarning($"[Network] 접속 끊김: {cause}");
+
+        bool isTransient = cause == DisconnectCause.ClientTimeout
+                        || cause == DisconnectCause.ServerTimeout
+                        || cause == DisconnectCause.Exception
+                        || cause == DisconnectCause.ExceptionOnConnect;
+
+        if (isTransient && _reconnectAttempts < MaxReconnectAttempts)
+        {
+            _reconnectAttempts++;
+            Debug.Log($"[Network] 재연결 시도 {_reconnectAttempts}/{MaxReconnectAttempts}...");
+            StartCoroutine(ReconnectCoroutine());
+        }
+        else
+        {
+            _reconnectAttempts = 0;
+            _isCountingDown = false;
+            _gameStarted = false;
+            SceneManager.LoadScene("Main");
+        }
+    }
+
+    private IEnumerator ReconnectCoroutine()
+    {
+        yield return new WaitForSeconds(1f);
+
+        if (!PhotonNetwork.IsConnected)
+        {
+            PhotonNetwork.ConnectUsingSettings();
+        }
     }
 
     public override void OnLeftRoom()

@@ -165,6 +165,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
+        if (!PhotonNetwork.InRoom) return;
+
         if (stream.IsWriting)
         {
             Color myColor = GameState.CurrentDisplayColor;
