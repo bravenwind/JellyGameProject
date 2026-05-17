@@ -4,18 +4,12 @@ using UnityEngine;
 public class PlayerAbsorber : MonoBehaviour
 {
     public Action<JellyColorType> OnJellyEaten;
+    public Action OnJellyScored;
     public Action OnResetRequested;
 
     [Header("Detection Settings")]
     public Transform detectTransform;
     public float playerBaseHeight = 1.5f;
-
-    private IEntityBridge _bridge;
-
-    private void Awake()
-    {
-        _bridge = GetComponentInParent<IEntityBridge>();
-    }
 
     private void OnTriggerEnter(Collider other)
     {
@@ -32,7 +26,7 @@ public class PlayerAbsorber : MonoBehaviour
 
     public void AbsorbColor(JellyColorType type)
     {
-        _bridge?.OnJellyScored();
+        OnJellyScored?.Invoke();
         OnJellyEaten?.Invoke(type);
     }
 }

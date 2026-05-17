@@ -1,16 +1,80 @@
 using UnityEngine;
 
-public class PlayerBridge : MonoBehaviour, IEntityBridge
+public class PlayerBridge : MonoBehaviour
 {
+    private PlayerScaleController _scaleCtrl;
+    private PlayerColorVisual _colorVisual;
+    private PlayerAbsorber _absorber;
+    private PlayerController _playerController;
+
+    private void Awake()
+    {
+        _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
+        _colorVisual = GetComponentInChildren<PlayerColorVisual>();
+        _absorber = GetComponentInChildren<PlayerAbsorber>();
+        _playerController = GetComponentInChildren<PlayerController>();
+    }
+
+    private void OnEnable()
+    {
+        if (_scaleCtrl != null)
+        {
+            _scaleCtrl.OnScaleInit += HandleScaleInit;
+            _scaleCtrl.OnGrowStarted += HandleGrowStarted;
+            _scaleCtrl.OnShrinkStarted += HandleShrinkStarted;
+            _scaleCtrl.OnScaleThresholdUp += HandleScaleThresholdUp;
+            _scaleCtrl.OnScaleThresholdDown += HandleScaleThresholdDown;
+            _scaleCtrl.OnScaleCompleted += HandleScaleCompleted;
+            _scaleCtrl.OnScaleReset += HandleScaleReset;
+        }
+
+        if (_colorVisual != null)
+        {
+            _colorVisual.OnColorApplied += HandleColorApplied;
+            _colorVisual.OnColorUIUpdate += HandleColorUIUpdate;
+        }
+
+        if (_absorber != null)
+        {
+            _absorber.OnJellyScored += HandleJellyScored;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (_scaleCtrl != null)
+        {
+            _scaleCtrl.OnScaleInit -= HandleScaleInit;
+            _scaleCtrl.OnGrowStarted -= HandleGrowStarted;
+            _scaleCtrl.OnShrinkStarted -= HandleShrinkStarted;
+            _scaleCtrl.OnScaleThresholdUp -= HandleScaleThresholdUp;
+            _scaleCtrl.OnScaleThresholdDown -= HandleScaleThresholdDown;
+            _scaleCtrl.OnScaleCompleted -= HandleScaleCompleted;
+            _scaleCtrl.OnScaleReset -= HandleScaleReset;
+        }
+
+        if (_colorVisual != null)
+        {
+            _colorVisual.OnColorApplied -= HandleColorApplied;
+            _colorVisual.OnColorUIUpdate -= HandleColorUIUpdate;
+        }
+
+        if (_absorber != null)
+        {
+            _absorber.OnJellyScored -= HandleJellyScored;
+        }
+    }
+
     // ── Scale ──
-    public void OnScaleInit(float scaleValue)
+
+    private void HandleScaleInit(float scaleValue)
     {
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = scaleValue;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
-    public void OnGrowEffect(bool playEffect)
+    private void HandleGrowStarted(bool playEffect)
     {
         if (playEffect)
         {
@@ -19,30 +83,29 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
         }
     }
 
-    public void OnShrinkEffect()
+    private void HandleShrinkStarted()
     {
         UIPoolManager.Instance?.SpawnUI(UIType.MilkScaleDecrease);
     }
 
-    public void OnScaleThresholdUp() => PlayerEvents.OnCameraScaleIncreased?.Invoke();
-    public void OnScaleThresholdDown() => PlayerEvents.OnCameraScaleDecreased?.Invoke();
+    private void HandleScaleThresholdUp() => PlayerEvents.OnCameraScaleIncreased?.Invoke();
+    private void HandleScaleThresholdDown() => PlayerEvents.OnCameraScaleDecreased?.Invoke();
 
-    public void OnScaleCompleted(float scaleValue, PlayerController pc)
+    private void HandleScaleCompleted(float scaleValue)
     {
-        if (pc != null)
+        if (_playerController != null)
         {
-            pc.jumpForce = scaleValue >= DataManager.Instance.jumpScaleThreshold
-                ? pc.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue
-                : pc.originalJumpForce;
+            _playerController.jumpForce = scaleValue >= DataManager.Instance.jumpScaleThreshold
+                ? _playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue
+                : _playerController.originalJumpForce;
         }
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius
             + (scaleValue - 1f) * DataManager.Instance.detectPlusRadiusPerLevel;
         GameState.PlayerCurrentScale = scaleValue;
+        PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
-    public void OnScaleUIUpdate() => PlayerEvents.OnScaleUIUpdate?.Invoke();
-
-    public void OnScaleReset()
+    private void HandleScaleReset()
     {
         PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
@@ -50,27 +113,23 @@ public class PlayerBridge : MonoBehaviour, IEntityBridge
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
-    public void OnPostScalePhysics() { }
-
     // ── Color ──
-    public RYBColor RYBColor
-    {
-        get => GameState.CurrentRYBColor;
-        set => GameState.CurrentRYBColor = value;
-    }
 
-    public void ResetRYBColor() => GameState.ResetRYBColor();
-
-    public void OnColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor)
+    private void HandleColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor)
     {
+        GameState.CurrentRYBColor = ryb;
         GameState.CurrentDisplayColor = displayColor;
         PlayerEvents.OnColorChanged?.Invoke(dominantType, ryb);
     }
 
-    public void OnColorUIUpdate() => PlayerEvents.OnColorUIUpdate?.Invoke();
+    private void HandleColorUIUpdate()
+    {
+        PlayerEvents.OnColorUIUpdate?.Invoke();
+    }
 
     // ── Absorb ──
-    public void OnJellyScored()
+
+    private void HandleJellyScored()
     {
         var netSync = GetComponent<NetworkPlayerSync>();
         if (netSync == null || !netSync.photonView.IsMine) return;

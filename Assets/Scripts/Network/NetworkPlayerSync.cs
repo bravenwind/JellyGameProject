@@ -1,19 +1,14 @@
 ﻿// ============================================================
 // NetworkPlayerSync.cs
 // ============================================================
-// 역할: 로컬 플레이어의 상태를 다른 클라이언트에 동기화
-//       + 플레이어끼리 충돌 시 흡수 처리 (생존 모드 로직)
+// 역할: 플레이어 네트워크 동기화 + 흡수 판정
 //
-// [이 스크립트가 하는 일]
-//   1. IPunObservable → 위치/색상/스케일을 매 프레임 전송
-//   2. RPC → "나를 흡수해라" 명령을 네트워크로 전달
-//   3. 점수/스케일 레벨을 PhotonNetwork.LocalPlayer.CustomProperties에 저장
-//      → 모든 클라이언트가 다른 플레이어의 점수를 읽을 수 있게 됨
-//
-// [이 컴포넌트를 붙일 오브젝트]
-//   NetworkPlayer 프리팹 (PlayerController, PlayerAbsorber 등 기존 컴포넌트 포함)
-//   + PhotonView 컴포넌트 (필수!)
-//   + PhotonTransformView 컴포넌트 (위치 자동 동기화용)
+// 동기화 분담:
+//   - 위치/회전 → PhotonTransformView
+//   - 애니메이션 → PhotonAnimatorView
+//   - 스케일/점수 → CustomProperties (State Sync)
+//   - 색상 → IPunObservable 스트림
+//   - 흡수 판정 → RPC (MasterClient 검증)
 // ============================================================
 
 using System.Collections;
@@ -41,14 +36,10 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     public NameTagBillboard nameTagBillboard;
 
     // ─────────────────────────────────────────────────────────
-    // 원격 플레이어 보간용 변수 (내 화면에서 다른 플레이어를 부드럽게 움직이기 위해)
+    // 원격 플레이어 보간용 변수
     // ─────────────────────────────────────────────────────────
-    private Vector3 _networkPosition;       // 받은 위치 값
-    private Quaternion _networkRotation;    // 받은 회전 값
-    private Color _networkColor;            // 받은 색상 값
-    private float _networkScaleValue = 1f;  // 받은 스케일 값
+    private Color _networkColor;
 
-    // 보간 속도 (값이 클수록 다른 플레이어가 더 빠르게 목표 위치로 이동)
     private const float LerpSpeed = 10f;
 
     // ─────────────────────────────────────────────────────────
@@ -154,12 +145,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     private void Update()
     {
-        if (photonView.IsMine) return; // 내 플레이어는 건드리지 않음
+        if (photonView.IsMine) return;
 
-        // Lerp: 현재 위치/회전/스케일에서 받은 값으로 부드럽게 보간
-        transform.position = Vector3.Lerp(transform.position, _networkPosition, Time.deltaTime * LerpSpeed);
-        transform.rotation = Quaternion.Lerp(transform.rotation, _networkRotation, Time.deltaTime * LerpSpeed);
-        transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * _networkScaleValue, Time.deltaTime * LerpSpeed);
+        // 스케일: CustomProperties에서 읽어 Lerp (권위적 소스)
+        float targetScale = GetAuthorityScale(photonView);
+        transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * targetScale, Time.deltaTime * LerpSpeed);
 
         // 색상 적용
         if (jellyRenderer != null)
@@ -169,49 +159,27 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     }
 
     // ─────────────────────────────────────────────────────────
-    // IPunObservable 구현: 연속 데이터 동기화
-    // OnPhotonSerializeView는 PhotonView가 데이터를 보내고/받을 때 자동으로 호출됨
+    // IPunObservable: 색상만 스트림 전송
+    // (위치/회전 = PhotonTransformView, 스케일 = CustomProperties)
+    // (애니메이션 = PhotonAnimatorView)
     // ─────────────────────────────────────────────────────────
     public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
     {
         if (stream.IsWriting)
         {
-            // ── 내 플레이어의 데이터를 보냄 ──
-            stream.SendNext(transform.position);
-            stream.SendNext(transform.rotation);
-            stream.SendNext(scaleController != null ? scaleController.currentScaleValue : 1f);
-
             Color myColor = GameState.CurrentDisplayColor;
             stream.SendNext(myColor.r);
             stream.SendNext(myColor.g);
             stream.SendNext(myColor.b);
             stream.SendNext(myColor.a);
-
-            // 애니메이션 상태 동기화
-            bool isMoving = playerController?.jellyAnimator != null
-                && playerController.jellyAnimator.GetBool("IsMoving");
-            stream.SendNext(isMoving);
         }
         else
         {
-            // ── 다른 플레이어의 데이터를 받음 ──
-            _networkPosition = (Vector3)stream.ReceiveNext();
-            _networkRotation = (Quaternion)stream.ReceiveNext();
-            _networkScaleValue = (float)stream.ReceiveNext();
-
             float r = (float)stream.ReceiveNext();
             float g = (float)stream.ReceiveNext();
             float b = (float)stream.ReceiveNext();
             float a = (float)stream.ReceiveNext();
-
             _networkColor = new Color(r, g, b, a);
-
-            // 스케일은 Update()에서 Lerp로 적용 (직접 대입 시 로컬 ScaleTo와 충돌)
-
-            // 애니메이션 상태 적용
-            bool isMoving = (bool)stream.ReceiveNext();
-            if (playerController?.jellyAnimator != null)
-                playerController.jellyAnimator.SetBool("IsMoving", isMoving);
         }
     }
 
@@ -495,10 +463,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         {
             if (photonView.IsMine)
                 return scaleController != null ? scaleController.currentScaleValue : 1f;
-            if (photonView.Owner?.CustomProperties != null &&
-                photonView.Owner.CustomProperties.TryGetValue("Scale", out object val))
-                return (float)val;
-            return _networkScaleValue;
+            return GetAuthorityScale(photonView);
         }
     }
 
