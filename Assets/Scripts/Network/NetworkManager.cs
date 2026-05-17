@@ -58,7 +58,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     [Tooltip("매칭 타이머")]
     public float noPlayerConnectTimeSeconds = 10.0f;
-    private float _noPlayerConnectTimer = 0.0f;
 
     [Tooltip("게임 씬 이름")]
     public string gameSceneName = "Game_io";
@@ -72,8 +71,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     // 이번 게임에서 이미 사용된 스폰 위치들 (플레이어 + 봇 공용)
     private readonly List<Vector3> _usedSpawnPositions = new List<Vector3>();
-
-    private bool _gameStarted = false;
 
     // 이벤트 코드 (다른 RaiseEvent와 안 겹치게)
     public const byte EVENT_COUNTDOWN = 11;
@@ -293,7 +290,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 메인 씬으로 돌아갑니다.");
         _isCountingDown = false;
-        _gameStarted = false;
         SceneManager.LoadScene("Main");
     }
 
@@ -494,7 +490,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public void GoToMainMenu()
     {
         _isCountingDown = false;
-        _gameStarted = false;
         if (PhotonNetwork.InRoom)
             LeaveRoom(); // OnLeftRoom 콜백에서 씬 전환
         else

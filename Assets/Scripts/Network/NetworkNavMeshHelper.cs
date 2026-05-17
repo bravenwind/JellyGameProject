@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 using Photon.Pun;
 
@@ -13,8 +13,8 @@ public static class NetworkNavMeshHelper
 
         if (isMine)
         {
-            if (owner.photonView != null && !owner.photonView.ObservedComponents.Contains(owner as IPunObservable))
-                owner.photonView.ObservedComponents.Add(owner as IPunObservable);
+            if (owner.photonView != null && !owner.photonView.ObservedComponents.Contains(owner))
+                owner.photonView.ObservedComponents.Add(owner);
         }
         else
         {

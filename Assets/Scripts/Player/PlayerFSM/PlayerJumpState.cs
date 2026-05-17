@@ -6,7 +6,7 @@ using Photon.Pun;
 // ==========================================
 public class PlayerJumpState : PlayerBaseState
 {
-    public PlayerJumpState(PlayerController player) : base(player) { }
+    public PlayerJumpState(PlayerMovement player) : base(player) { }
 
     public override void Enter()
     {

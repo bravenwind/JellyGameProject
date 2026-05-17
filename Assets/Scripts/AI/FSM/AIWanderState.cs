@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // AIWanderState.cs
 // ============================================================
 // 랜덤 배회 상태.
@@ -14,7 +14,6 @@ public class AIWanderState : AIBaseState
     private Vector3 _wanderTarget;
     private bool    _hasTarget    = false;
     private float   _lastSetTime  = -10f;
-    private float   _stuckTimer   = 0f;
 
     private const float STUCK_THRESHOLD = 1.5f;
 
@@ -25,7 +24,6 @@ public class AIWanderState : AIBaseState
     public override void Enter()
     {
         _hasTarget = false;
-        _stuckTimer = 0f;
         _retryTimer = 0f;
         ai.Agent.speed = ai.moveSpeed * 0.9f;
         ai.Agent.stoppingDistance = 0.2f; // 배회 목적지에 약간의 여유를 줌 (Jitter 방지)
@@ -41,9 +39,6 @@ public class AIWanderState : AIBaseState
             _retryTimer -= Time.deltaTime;
             return;
         }
-
-        // ── 정지 감지 (기존 코드 동일) ──
-        if (ai.Agent.velocity.magnitude < 0.05f) { /* ... */ } else { _stuckTimer = 0f; }
 
         // ── 새 목적지 필요 여부 판단 (기존 코드 동일) ──
         float distToTarget = _hasTarget ? Vector3.Distance(ai.transform.position, _wanderTarget) : -1f;

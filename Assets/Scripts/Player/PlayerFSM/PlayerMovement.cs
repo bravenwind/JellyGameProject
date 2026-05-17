@@ -2,7 +2,7 @@
 using UnityEngine.Playables;
 
 [RequireComponent(typeof(CharacterController))]
-public class PlayerController : MonoBehaviour
+public class PlayerMovement : MonoBehaviour
 {   
     [Header("Player Settings")]
     public float moveSpeed = 6.0f;

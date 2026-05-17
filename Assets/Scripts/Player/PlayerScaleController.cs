@@ -6,7 +6,7 @@ using UnityEngine;
 public class PlayerScaleController : MonoBehaviour
 {
     [Header("References")]
-    public PlayerController playerController;
+    public PlayerMovement playerController;
     public SoftBody3D softBody3D;
     public Rigidbody[] rigidbodies;
 

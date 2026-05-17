@@ -9,7 +9,7 @@ public class ClearJudge : MonoBehaviour
     public GameTimer gameTimer;
     public UIManager uiManager;
     public UIPoolManager uIPoolManager;
-    public PlayerController playerController;
+    public PlayerMovement playerController;
 
     [Header("연출용 UI 연결")]
     [Tooltip("화면 전체를 덮는 검은색 패널의 CanvasGroup (페이드 효과용)")]

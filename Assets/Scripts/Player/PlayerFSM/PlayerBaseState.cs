@@ -11,9 +11,9 @@ public enum UnitState
 
 public abstract class PlayerBaseState
 {
-    protected PlayerController player;
+    protected PlayerMovement player;
 
-    public PlayerBaseState(PlayerController player)
+    public PlayerBaseState(PlayerMovement player)
     {
         this.player = player;
     }

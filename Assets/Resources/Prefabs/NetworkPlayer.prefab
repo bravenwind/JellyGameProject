@@ -105,12 +105,11 @@ GameObject:
   m_Component:
   - component: {fileID: 7988438608829161243}
   - component: {fileID: 8595505257964326733}
+  - component: {fileID: 5188048034053325992}
   - component: {fileID: 3536485665450355811}
   - component: {fileID: 5309223496067073866}
   - component: {fileID: 8452815471202114268}
   - component: {fileID: 6975552852123859224}
-  - component: {fileID: 6985490244350918629}
-  - component: {fileID: 5008862547132213923}
   - component: {fileID: 4114611337571506407}
   - component: {fileID: 4724251955215320959}
   - component: {fileID: 7905855228646713728}
@@ -159,6 +158,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e1abab40c5465cb4fa1a3a2bdd031369, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &5188048034053325992
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4ccd032dd77be854fb500de6e5155155, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moveSpeed: 18
+  rotateSpeed: 10
+  jumpForce: 7.5
+  originalJumpForce: 10
+  gravity: -20
+  terminalVelocity: -53
+  jellyAnimator: {fileID: 365858056229833277}
+  uiManager: {fileID: 0}
+  controller: {fileID: 0}
+  inputDir: {x: 0, y: 0, z: 0}
+  verticalVelocity: 0
+  targetRotation: {x: 0, y: 0, z: 0, w: 0}
+  isGrounded: 0
+  inputH: 0
+  inputV: 0
 --- !u!114 &3536485665450355811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220,53 +246,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba8419777fc8c774fafd207b345c792c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerController: {fileID: 5008862547132213923}
+  playerController: {fileID: 0}
   softBody3D: {fileID: 7308258846642602756}
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
---- !u!114 &6985490244350918629
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6b8529383b0922848a43d74ffec44ca1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  jellyCamera: {fileID: 0}
-  mainCamera_Action: {fileID: 0}
-  uIPoolManager: {fileID: 0}
-  checkImage: {fileID: 0}
---- !u!114 &5008862547132213923
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 430f0298cb436fe439bbd3f0d3e1b480, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 14
-  rotateSpeed: 12
-  jumpForce: 15
-  originalJumpForce: 10
-  gravity: -20
-  terminalVelocity: -53
-  jellyAnimator: {fileID: 365858056229833277}
-  uiManager: {fileID: 0}
-  controller: {fileID: 0}
-  inputDir: {x: 0, y: 0, z: 0}
-  verticalVelocity: 0
-  targetRotation: {x: 0, y: 0, z: 0, w: 0}
-  isGrounded: 0
-  inputH: 0
-  inputV: 0
 --- !u!114 &4114611337571506407
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -337,7 +320,7 @@ MonoBehaviour:
   ShowParameterInspector: 1
   m_SynchronizeParameters:
   - Type: 4
-    SynchronizeType: 0
+    SynchronizeType: 2
     Name: IsMoving
   - Type: 9
     SynchronizeType: 0
@@ -360,7 +343,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0449aa21551e0db44ace523558fefa15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerController: {fileID: 5008862547132213923}
+  playerController: {fileID: 5188048034053325992}
   playerAbsorber: {fileID: 5309223496067073866}
   colorVisual: {fileID: 8452815471202114268}
   scaleController: {fileID: 6975552852123859224}

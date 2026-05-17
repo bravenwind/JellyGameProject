@@ -5,14 +5,14 @@ public class PlayerBridge : MonoBehaviour
     private PlayerScaleController _scaleCtrl;
     private PlayerColorVisual _colorVisual;
     private PlayerAbsorber _absorber;
-    private PlayerController _playerController;
+    private PlayerMovement _playerController;
 
     private void Awake()
     {
         _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
         _colorVisual = GetComponentInChildren<PlayerColorVisual>();
         _absorber = GetComponentInChildren<PlayerAbsorber>();
-        _playerController = GetComponentInChildren<PlayerController>();
+        _playerController = GetComponentInChildren<PlayerMovement>();
     }
 
     private void OnEnable()

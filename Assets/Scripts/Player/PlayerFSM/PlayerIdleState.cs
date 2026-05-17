@@ -6,7 +6,7 @@ using UnityEngine.Playables;
 // ==========================================
 public class PlayerIdleState : PlayerBaseState
 {
-    public PlayerIdleState(PlayerController player) : base(player) { }
+    public PlayerIdleState(PlayerMovement player) : base(player) { }
 
     public override void Enter()
     {

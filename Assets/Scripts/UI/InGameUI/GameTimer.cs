@@ -10,7 +10,7 @@ public class GameTimer : MonoBehaviour
     public ResultStarsUI resultStarsUI;
     public UIManager uiManager;
     public SoftBody3D softBody3D;
-    public PlayerController playerController;
+    public PlayerMovement playerController;
 
     public Animator playerAnimController;
     public MainCamera_Action mainCamera_Action;

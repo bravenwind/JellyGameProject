@@ -26,7 +26,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // 참조 (기존 플레이어 컴포넌트들)
     // ─────────────────────────────────────────────────────────
     [Header("기존 플레이어 컴포넌트 연결")]
-    public PlayerController playerController;
+    public PlayerMovement playerController;
     public PlayerAbsorber playerAbsorber;
     public PlayerColorVisual colorVisual;
     public PlayerScaleController scaleController;
