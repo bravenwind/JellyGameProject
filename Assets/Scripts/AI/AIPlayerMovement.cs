@@ -302,7 +302,7 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
         bool isMoving = vel.magnitude > 0.1f;
         if (_anim != null)
             _anim.SetBool("IsMoving", isMoving);
-        if (isMoving != _wasMoving)
+        if (isMoving != _wasMoving && PhotonNetwork.InRoom)
         {
             _wasMoving = isMoving;
             photonView.RPC(nameof(RPC_SetIsMoving), RpcTarget.Others, isMoving);
