@@ -1,6 +1,8 @@
-using UnityEngine;
+﻿using UnityEngine;
 // AI Navigation 패키지가 설치되어 있다면 아래 네임스페이스를 사용합니다.
 using UnityEngine.AI;
+using Unity.AI.Navigation;
+
 // Unity.AI.Navigation 패키지가 없다면 using Unity.AI.Navigation; 은 필요하지 않을 수 있습니다.
 
 #if UNITY_EDITOR
@@ -24,6 +26,9 @@ public class AutoGridMapGenerator : MonoBehaviour
     public bool autoBakeNavMesh = true;
     [Tooltip("생성되는 타일을 Static으로 설정하기 위해 사용 (NavMesh 필수)")]
     public bool setStatic = true;
+
+    public NavMeshSurface navMeshSurface_PlayerJelly;
+    public NavMeshSurface navMeshSurface_BearJelly;
 
     // AI Navigation 패키지의 NavMeshSurface 컴포넌트 참조
     // (에디터에서 직접 드래그로 연결하거나, 패키지 설치 후 주석을 해제하여 바로 사용)
@@ -110,24 +115,14 @@ public class AutoGridMapGenerator : MonoBehaviour
 
     private void BakeNavMesh()
     {
-        // 방법 A: NavMeshSurface 컴포넌트를 사용하는 최신 방법 (권장)
-        // Unity.AI.Navigation 패키지가 필요합니다.
-        // 여기서는 리플렉션이나 GetComponent를 통해 유연하게 처리하거나,
-        // 사용자가 직접 public NavMeshSurface surface; 필드를 연결해서 사용해야 합니다.
-
-        // 리플렉션으로 NavMeshSurface라는 이름의 컴포넌트를 찾아 BuildNavMesh를 호출합니다.
-        Component surface = GetComponent("NavMeshSurface");
-        if (surface != null)
+        if (navMeshSurface_BearJelly != null)
         {
-            // surface.BuildNavMesh(); 는 직접 호출이 불가능하므로
-            // (패키지 미설치 시 컴파일 오류가 생겨 SendMessage 방식 사용)
-            surface.SendMessage("BuildNavMesh", SendMessageOptions.DontRequireReceiver);
-            Debug.Log("NavMeshSurface를 통한 베이크 완료.");
+            navMeshSurface_BearJelly.BuildNavMesh();
         }
-        else
+
+        if (navMeshSurface_PlayerJelly != null) 
         {
-            Debug.LogWarning("NavMeshSurface 컴포넌트가 없습니다. 자동으로 베이크하지 않았습니다.\n" +
-                             "GameObject에 'NavMeshSurface' 컴포넌트를 추가하세요.");
+            navMeshSurface_PlayerJelly.BuildNavMesh();
         }
     }
 
