@@ -116,7 +116,7 @@ public class FallingTile : MonoBehaviour
         permObs.carving = true;
         permObs.carvingTimeToStationary = 0f;
         permObs.shape = NavMeshObstacleShape.Box;
-        permObs.size = obstacle.size;
+        permObs.size = new Vector3(obstacle.size.x, obstacle.size.y + 2f, obstacle.size.z);
         permObs.center = obstacle.center;
 
         Destroy(obstacle);
