@@ -207,4 +207,29 @@ public class TileCollapseManager : MonoBehaviour
         int ring = GetRing(x, z);
         return ring <= _lastShakenRing;
     }
+
+    /// <summary>
+    /// 현재 안전 영역의 월드 좌표 바운드를 반환.
+    /// 젤리 스폰 범위 등에 사용.
+    /// </summary>
+    public bool GetSafeBounds(out Vector3 min, out Vector3 max)
+    {
+        min = max = Vector3.zero;
+        if (_width == 0 || _height == 0 || _stepX == 0f || _stepZ == 0f) return false;
+
+        int margin = _lastShakenRing + 1;
+        if (margin * 2 >= _width || margin * 2 >= _height) return false;
+
+        min = new Vector3(
+            _gridOrigin.x + margin * _stepX,
+            _gridOrigin.y,
+            _gridOrigin.z + margin * _stepZ
+        );
+        max = new Vector3(
+            _gridOrigin.x + (_width - 1 - margin) * _stepX,
+            _gridOrigin.y,
+            _gridOrigin.z + (_height - 1 - margin) * _stepZ
+        );
+        return true;
+    }
 }

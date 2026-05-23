@@ -160,17 +160,29 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     {
         float baseY = GetNavMeshBaseY();
 
-        // 최대 30번 시도
+        float minX = -spawnRangeX, maxX = spawnRangeX;
+        float minZ = -spawnRangeZ, maxZ = spawnRangeZ;
+
+        var collapse = TileCollapseManager.Instance;
+        if (collapse != null && collapse.GetSafeBounds(out Vector3 safeMin, out Vector3 safeMax))
+        {
+            minX = safeMin.x;
+            maxX = safeMax.x;
+            minZ = safeMin.z;
+            maxZ = safeMax.z;
+        }
+
         for (int i = 0; i < 30; i++)
         {
-            float x = Random.Range(-spawnRangeX, spawnRangeX);
-            float z = Random.Range(-spawnRangeZ, spawnRangeZ);
-            // 실제 NavMesh Y 기준으로 candidate 생성 (위로 5f 여유)
+            float x = Random.Range(minX, maxX);
+            float z = Random.Range(minZ, maxZ);
             Vector3 candidate = new Vector3(x, baseY + 5f, z);
 
             UnityEngine.AI.NavMeshHit hit;
             if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 20f, UnityEngine.AI.NavMesh.AllAreas))
             {
+                if (collapse != null && collapse.IsPositionDangerous(hit.position))
+                    continue;
                 result = hit.position;
                 return true;
             }
