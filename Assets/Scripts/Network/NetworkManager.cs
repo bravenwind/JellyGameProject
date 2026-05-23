@@ -433,7 +433,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             _usedSpawnPositions.Add(spawnPos);
 
             Debug.Log($"[Network] AI봇 스폰 위치: {spawnPos} (candidate: {candidate})");
-            PhotonNetwork.Instantiate(prefabFolder + botPrefabName, spawnPos, Quaternion.identity);
+            PhotonNetwork.InstantiateRoomObject(prefabFolder + botPrefabName, spawnPos, Quaternion.identity);
             Debug.Log($"[Network] AI 봇 {i + 1} 스폰 완료");
         }
     }
