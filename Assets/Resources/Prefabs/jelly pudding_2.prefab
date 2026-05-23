@@ -138,6 +138,7 @@ GameObject:
   - component: {fileID: 8743752629986071281}
   - component: {fileID: 4606999419417007204}
   - component: {fileID: 2003152961970936339}
+  - component: {fileID: 9049580804856758758}
   m_Layer: 0
   m_Name: Collider
   m_TagString: Untagged
@@ -221,6 +222,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   puddingAnimator: {fileID: 5022421532001509291}
+--- !u!114 &9049580804856758758
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6708822754330146613}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ObservedComponentsFoldoutOpen: 1
+  Group: 0
+  prefixField: -1
+  Synchronization: 3
+  OwnershipTransfer: 0
+  observableSearch: 2
+  ObservedComponents: []
+  sceneViewId: 0
+  InstantiationId: 0
+  isRuntimeInstantiated: 0
 --- !u!1 &7543179364754104084
 GameObject:
   m_ObjectHideFlags: 0
@@ -322,7 +345,6 @@ GameObject:
   - component: {fileID: 7493329707999781586}
   - component: {fileID: 5022421532001509291}
   - component: {fileID: 8463177500711575702}
-  - component: {fileID: 3702248446682989671}
   m_Layer: 0
   m_Name: jelly pudding_2
   m_TagString: Untagged
@@ -392,25 +414,3 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.4, y: 0.28, z: 0.35}
   m_Center: {x: 0, y: 0.17, z: 0}
---- !u!114 &3702248446682989671
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9004919209264033478}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0

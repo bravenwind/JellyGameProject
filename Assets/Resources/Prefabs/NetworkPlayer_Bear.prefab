@@ -246,7 +246,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba8419777fc8c774fafd207b345c792c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerController: {fileID: 0}
   softBody3D: {fileID: 7308258846642602756}
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}

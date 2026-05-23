@@ -134,6 +134,7 @@ GameObject:
   - component: {fileID: 231177093081595442}
   - component: {fileID: 8627260172282781654}
   - component: {fileID: 4095600627989837975}
+  - component: {fileID: 7939711154259652014}
   m_Layer: 0
   m_Name: Collider
   m_TagString: Untagged
@@ -217,6 +218,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   puddingAnimator: {fileID: 7720657862813740710}
+--- !u!114 &7939711154259652014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2316746610405747233}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ObservedComponentsFoldoutOpen: 1
+  Group: 0
+  prefixField: -1
+  Synchronization: 3
+  OwnershipTransfer: 0
+  observableSearch: 2
+  ObservedComponents: []
+  sceneViewId: 0
+  InstantiationId: 0
+  isRuntimeInstantiated: 0
 --- !u!1 &6231835806468822530
 GameObject:
   m_ObjectHideFlags: 0
@@ -291,7 +314,6 @@ GameObject:
   - component: {fileID: 4791291895634866447}
   - component: {fileID: 7720657862813740710}
   - component: {fileID: 1382216639582296982}
-  - component: {fileID: 6067339475931586762}
   m_Layer: 0
   m_Name: jelly pudding_1
   m_TagString: Untagged
@@ -361,28 +383,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.4, y: 0.28, z: 0.35}
   m_Center: {x: 0, y: 0.17, z: 0}
---- !u!114 &6067339475931586762
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6843635137190871994}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!1 &8220068926831776989
 GameObject:
   m_ObjectHideFlags: 0
