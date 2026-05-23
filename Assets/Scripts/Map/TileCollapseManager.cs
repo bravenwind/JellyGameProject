@@ -16,8 +16,8 @@ public class TileCollapseManager : MonoBehaviour
     [Tooltip("각 링 붕괴 간격 (초)")]
     public float ringInterval = 15f;
 
-    [Tooltip("같은 링 내 타일 간 연쇄 딜레이 (초)")]
-    public float tileDelay = 0.05f;
+    [Tooltip("같은 링 내 타일 간 연쇄 딜레이 (초) — 0이면 동시에 떨어짐")]
+    public float tileDelay = 0f;
 
     [Header("타일 애니메이션")]
     [Tooltip("경고 흔들림 시간 (초)")]
@@ -168,7 +168,7 @@ public class TileCollapseManager : MonoBehaviour
                     var ft = _tiles[x, z].AddComponent<FallingTile>();
                     ft.StartFall(warningDuration, fallDuration, fallDistance, delay);
                     _tiles[x, z] = null;
-                    delay += tileDelay;
+                    if (tileDelay > 0f) delay += tileDelay;
                 }
             }
         }
