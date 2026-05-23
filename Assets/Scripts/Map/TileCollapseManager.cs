@@ -48,12 +48,8 @@ public class TileCollapseManager : MonoBehaviour
         CollectTiles();
         if (_width == 0 || _height == 0) return;
         _maxRing = Mathf.Min(_width, _height) / 2;
-        CatchUpCollapse();
     }
 
-    /// <summary>
-    /// 서버 시간 기준 경과 시간을 우선 사용. 없으면 로컬 타이머로 폴백.
-    /// </summary>
     private float GetSyncedElapsed()
     {
         if (GameModeManager.Instance == null) return -1f;
@@ -111,28 +107,6 @@ public class TileCollapseManager : MonoBehaviour
         return Mathf.Min(x, z, _width - 1 - x, _height - 1 - z);
     }
 
-    private void CatchUpCollapse()
-    {
-        float elapsed = GetSyncedElapsed();
-        if (elapsed < collapseStartTime) return;
-
-        int ringsToCollapse = Mathf.FloorToInt((elapsed - collapseStartTime) / ringInterval) + 1;
-        ringsToCollapse = Mathf.Min(ringsToCollapse, _maxRing);
-
-        for (int ring = 0; ring < ringsToCollapse; ring++)
-            CollapseRingImmediate(ring);
-
-        _lastCollapsedRing = ringsToCollapse - 1;
-
-        // 캐치업 직후, 다음 차례인 링을 idle shake 상태로 진입시킴
-        int nextRing = _lastCollapsedRing + 1;
-        if (nextRing < _maxRing)
-        {
-            _lastShakenRing = nextRing;
-            StartIdleShakeOnRing(nextRing);
-        }
-    }
-
     private void Update()
     {
         if (GameModeManager.Instance == null || !GameModeManager.Instance.IsGameRunning) return;
@@ -175,21 +149,6 @@ public class TileCollapseManager : MonoBehaviour
                     var ft = _tiles[x, z].GetComponent<FallingTile>();
                     if (ft == null) ft = _tiles[x, z].AddComponent<FallingTile>();
                     ft.StartIdleShake();
-                }
-            }
-        }
-    }
-
-    private void CollapseRingImmediate(int ring)
-    {
-        for (int x = 0; x < _width; x++)
-        {
-            for (int z = 0; z < _height; z++)
-            {
-                if (GetRing(x, z) == ring && _tiles[x, z] != null)
-                {
-                    _tiles[x, z].SetActive(false);
-                    _tiles[x, z] = null;
                 }
             }
         }
