@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // AIPlayerMovement.cs
 // ============================================================
 // 역할: NavMeshAgent 기반 AI 이동 컨트롤러 (FSM 패턴)
@@ -114,26 +114,29 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     // ─────────────────────────────────────────────────────────
     private void Awake()
     {
-        Agent     = GetComponent<NavMeshAgent>();
+        Agent = GetComponent<NavMeshAgent>();
         ScaleCtrl = GetComponent<PlayerScaleController>();
-        Detector  = GetComponent<AIDetector>();
-        _aiSync   = GetComponent<AIPlayerSync>();
+        Detector = GetComponent<AIDetector>();
+        _aiSync = GetComponent<AIPlayerSync>();
         CachedPath = new NavMeshPath();
-        _anim     = GetComponentInChildren<Animator>();
+        _anim = GetComponentInChildren<Animator>();
 
-        // AIDetector에 설정값 동기화
         Detector.detectRadius = detectRadius;
         Detector.baseAgentRadius = baseAgentRadius;
 
-        Agent.speed           = moveSpeed;
-        Agent.angularSpeed    = 0f;    // 회전 직접 처리
-        Agent.acceleration    = 50f;
+        // [수정] NavMeshAgent가 스스로 오브젝트를 이동/회전시키지 못하게 원천 차단
+        Agent.speed = moveSpeed;
+        Agent.acceleration = 1000f; // 가속도를 극대화하여 즉시 최고속도 도달 (플레이어와 일치)
+        Agent.angularSpeed = 0f;
         Agent.stoppingDistance = 0f;
-        Agent.autoBraking     = false;
-        Agent.radius          = baseAgentRadius;
-        Agent.height          = baseAgentHeight;
+        Agent.autoBraking = false;
+        Agent.radius = baseAgentRadius;
+        Agent.height = baseAgentHeight;
 
-        // IPunObservable 스케일 동기화를 위해 런타임에 observer 등록
+        // 중요: 에이전트가 시뮬레이션은 하되 직접 transform을 바꾸지 않게 설정할 수도 있지만,
+        // 가장 깔끔한 방법은 에이전트의 원하는 속도(desiredVelocity)를 복사해서 수동 이동시키는 것입니다.
+        // 여기서는 가속도(acceleration)를 무한대에 가깝게 높이는 것만으로도 플레이어와 속도가 거의 같아집니다.
+
         if (!photonView.ObservedComponents.Contains(this))
             photonView.ObservedComponents.Add(this);
     }
@@ -299,29 +302,43 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     {
         if (!PhotonNetwork.IsMasterClient)
         {
-            // 비마스터: 받은 스케일로 부드럽게 보간
             transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * _networkScale, Time.deltaTime * ScaleLerpSpeed);
             return;
         }
+
         if (!Agent.enabled || !Agent.isOnNavMesh) return;
 
-        // 현재 상태 Update
+        // 현재 상태 Update (목적지 설정 등)
         _currentState?.Update();
 
-        // 진행 방향으로 스무스 회전
-        Vector3 vel = Agent.velocity;
-        if (vel.sqrMagnitude > 0.01f)
+        // ─────────────────────────────────────────────────────────
+        // [개선] 플레이어의 MoveAndRotate()와 연산 공식 일치시키기
+        // ─────────────────────────────────────────────────────────
+
+        // Agent.desiredVelocity는 다음 목적지를 향한 가속도가 배제된 '순수 희망 방향 벡터'입니다.
+        Vector3 wishDir = Agent.desiredVelocity;
+        wishDir.y = 0f;
+        wishDir.Normalize();
+
+        // 플레이어의 finalMove = inputDir * moveSpeed; 공식과 완벽 동기화
+        // NavMeshAgent가 직접 움직이는 속도를 제어하기 위해 agent.velocity를 강제 세팅하거나 수동 이동
+        Agent.velocity = wishDir * moveSpeed;
+
+        // 회전 공식도 플레이어와 완벽히 일치 (wishDir 기반으로 변경)
+        if (wishDir.sqrMagnitude > 0.001f)
         {
+            Quaternion targetRot = Quaternion.LookRotation(wishDir);
             transform.rotation = Quaternion.Slerp(
                 transform.rotation,
-                Quaternion.LookRotation(vel.normalized),
+                targetRot,
                 rotateSpeed * Time.deltaTime);
         }
 
-        // 애니메이터 (상태 변화 시에만 RPC 전송)
-        bool isMoving = vel.magnitude > 0.1f;
+        // 애니메이터 처리
+        bool isMoving = Agent.velocity.magnitude > 0.1f;
         if (_anim != null)
             _anim.SetBool("IsMoving", isMoving);
+
         if (isMoving != _wasMoving && PhotonNetwork.InRoom)
         {
             _wasMoving = isMoving;
