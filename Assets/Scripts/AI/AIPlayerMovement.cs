@@ -248,6 +248,16 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             // Scale 상태 중이면 ScaleState.Update()가 복귀를 처리
             if (_currentState == ScaleState) continue;
 
+            // 위험 타일 위면 다른 판단보다 우선적으로 안전한 곳으로 도망
+            var collapse = TileCollapseManager.Instance;
+            if (collapse != null && collapse.IsPositionDangerous(transform.position))
+            {
+                if (TryGetWanderDestination(out Vector3 safe))
+                    Agent.SetDestination(safe);
+                ChangeState(WanderState);
+                continue;
+            }
+
             EvaluateAndTransition();
         }
     }
@@ -331,9 +341,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public Transform FindTargetToChase() => Detector.FindTargetToChase();
     public Transform FindNearestJelly() => Detector.FindNearestJelly();
 
-    /// <summary>배회용 랜덤 NavMesh 위치 탐색</summary>
+    /// <summary>배회용 랜덤 NavMesh 위치 탐색 (붕괴 예정 타일은 회피)</summary>
     public bool TryGetWanderDestination(out Vector3 destination)
     {
+        var collapse = TileCollapseManager.Instance;
         for (int i = 0; i < 15; i++)
         {
             float angle = Random.Range(0f, 360f) * Mathf.Deg2Rad;
@@ -344,6 +355,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 20f, NavFilter)
                 || NavMesh.SamplePosition(candidate, out hit, 20f, NavMesh.AllAreas))
             {
+                if (collapse != null && collapse.IsPositionDangerous(hit.position)) continue;
                 destination = hit.position;
                 return true;
             }

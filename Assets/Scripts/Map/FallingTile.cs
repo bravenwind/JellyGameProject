@@ -1,6 +1,5 @@
 ﻿using System.Collections;
 using UnityEngine;
-using UnityEngine.AI;
 
 public class FallingTile : MonoBehaviour
 {
@@ -9,18 +8,31 @@ public class FallingTile : MonoBehaviour
     private float _phase;
     private bool _initialized;
 
+    // 흔들림 대상 (렌더러의 자식 transform). collider는 root에 두고 시각만 흔들어서
+    // 위에 올라간 AI가 튕기지 않게 함. 렌더러가 root에 직접 붙어있으면 root를 그대로 흔듦.
+    private Transform _shakeTransform;
+    private Vector3 _shakeOrigin;
+
     private void EnsureInit()
     {
         if (_initialized) return;
         _initialized = true;
         _originalPos = transform.localPosition;
         _phase = (_originalPos.x * 12.9898f + _originalPos.z * 78.233f) % (Mathf.PI * 2f);
+
+        Renderer rend = GetComponentInChildren<Renderer>();
+        if (rend != null && rend.transform != transform)
+        {
+            _shakeTransform = rend.transform;
+            _shakeOrigin = _shakeTransform.localPosition;
+        }
+        else
+        {
+            _shakeTransform = transform;
+            _shakeOrigin = _originalPos;
+        }
     }
 
-    /// <summary>
-    /// 떨어지는 차례가 되기 전까지 계속 미세하게 흔들리는 idle shake 시작.
-    /// 색깔 변화 없음. StartFall 호출 시 자동 중단됨.
-    /// </summary>
     public void StartIdleShake()
     {
         EnsureInit();
@@ -46,7 +58,7 @@ public class FallingTile : MonoBehaviour
                 Mathf.Abs(Mathf.Sin(elapsed * 35f + _phase)) * intensity * 0.2f,
                 Mathf.Sin(elapsed * 31f + _phase) * intensity
             );
-            transform.localPosition = _originalPos + shake;
+            _shakeTransform.localPosition = _shakeOrigin + shake;
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -70,17 +82,7 @@ public class FallingTile : MonoBehaviour
         if (rend != null)
             originalColor = rend.material.color;
 
-        NavMeshObstacle obstacle = gameObject.AddComponent<NavMeshObstacle>();
-        obstacle.carving = true;
-        obstacle.shape = NavMeshObstacleShape.Box;
-        BoxCollider box = GetComponentInChildren<BoxCollider>();
-        if (box != null)
-        {
-            obstacle.size = box.size;
-            obstacle.center = box.center;
-        }
-
-        // 경고 단계: 빨갛게 변하면서 더 격하게 흔들림
+        // 경고 단계: 빨갛게 변하면서 더 격하게 흔들림 (시각만)
         float elapsed = 0f;
         while (elapsed < warningDuration)
         {
@@ -91,7 +93,7 @@ public class FallingTile : MonoBehaviour
                 Mathf.Abs(Mathf.Sin(elapsed * 53f + _phase)) * intensity * 0.25f,
                 Mathf.Sin(elapsed * 43f + _phase) * intensity
             );
-            transform.localPosition = _originalPos + shake;
+            _shakeTransform.localPosition = _shakeOrigin + shake;
 
             if (rend != null)
                 rend.material.color = Color.Lerp(originalColor, new Color(1f, 0.25f, 0.15f), t);
@@ -100,28 +102,12 @@ public class FallingTile : MonoBehaviour
             yield return null;
         }
 
-        transform.localPosition = _originalPos;
+        _shakeTransform.localPosition = _shakeOrigin;
 
         foreach (var col in GetComponentsInChildren<Collider>())
             col.enabled = false;
 
-        // 원래 자리에 영구 NavMeshObstacle을 남겨서 AI가 빈 공간을 피하게 함
-        GameObject navBlock = new GameObject("NavBlock");
-        navBlock.transform.SetParent(transform.parent, false);
-        navBlock.transform.localPosition = _originalPos;
-        navBlock.transform.localRotation = transform.localRotation;
-        navBlock.transform.localScale = transform.localScale;
-
-        NavMeshObstacle permObs = navBlock.AddComponent<NavMeshObstacle>();
-        permObs.carving = true;
-        permObs.carvingTimeToStationary = 0f;
-        permObs.shape = NavMeshObstacleShape.Box;
-        permObs.size = new Vector3(obstacle.size.x, obstacle.size.y + 2f, obstacle.size.z);
-        permObs.center = obstacle.center;
-
-        Destroy(obstacle);
-
-        // 낙하 단계: Y축으로 가속 하강
+        // 낙하 단계: 전체 transform을 Y축으로 가속 하강
         elapsed = 0f;
         while (elapsed < fallDuration)
         {
