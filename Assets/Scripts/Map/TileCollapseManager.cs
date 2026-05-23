@@ -34,6 +34,8 @@ public class TileCollapseManager : MonoBehaviour
     private int _maxRing;
     private int _lastCollapsedRing = -1;
     private int _lastShakenRing = -1;
+    private Vector3 _gridOrigin;
+    private float _stepX, _stepZ;
 
     private void Awake()
     {
@@ -90,6 +92,14 @@ public class TileCollapseManager : MonoBehaviour
                 _tiles[x, z] = child.gameObject;
             }
         }
+
+        // 월드 → 타일 좌표 변환용 원점/간격 캐시
+        if (_width > 0 && _height > 0 && _tiles[0, 0] != null)
+            _gridOrigin = _tiles[0, 0].transform.position;
+        if (_width > 1 && _tiles[1, 0] != null && _tiles[0, 0] != null)
+            _stepX = _tiles[1, 0].transform.position.x - _tiles[0, 0].transform.position.x;
+        if (_height > 1 && _tiles[0, 1] != null && _tiles[0, 0] != null)
+            _stepZ = _tiles[0, 1].transform.position.z - _tiles[0, 0].transform.position.z;
     }
 
     private bool TryParseTileName(string name, out int x, out int z)
@@ -177,5 +187,23 @@ public class TileCollapseManager : MonoBehaviour
     {
         if (x < 0 || x >= _width || z < 0 || z >= _height) return false;
         return _tiles[x, z] != null && _tiles[x, z].activeSelf;
+    }
+
+    /// <summary>
+    /// 월드 좌표가 "위험한 타일" 위인지 판정.
+    /// 위험 = 이미 무너졌거나 / 흔들리는 중이거나 / 곧 무너질 예정인 링에 속함.
+    /// AI는 이 좌표를 목적지로 잡지 않아야 함.
+    /// </summary>
+    public bool IsPositionDangerous(Vector3 worldPos)
+    {
+        if (_stepX == 0f || _stepZ == 0f) return false;
+
+        int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
+        int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
+
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return true;
+
+        int ring = GetRing(x, z);
+        return ring <= _lastShakenRing;
     }
 }

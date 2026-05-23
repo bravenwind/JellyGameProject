@@ -15,6 +15,7 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
     private NavMeshAgent agent;
     private Vector3 initialPosition;
     private bool isWaiting = false;
+    private float _nextDangerCheck = 0f;
 
     public Animator jellyAnimController;
 
@@ -56,6 +57,25 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
             jellyAnimController.SetBool("IsMoving", isActuallyMoving);
 
         if (!agent.isOnNavMesh) return;
+
+        // 위험 타일 위거나 위험한 곳을 향하면 즉시 새 목적지로 도망
+        if (Time.time >= _nextDangerCheck)
+        {
+            _nextDangerCheck = Time.time + 0.5f;
+            var collapse = TileCollapseManager.Instance;
+            if (collapse != null)
+            {
+                bool curDanger = collapse.IsPositionDangerous(transform.position);
+                bool destDanger = agent.hasPath && collapse.IsPositionDangerous(agent.destination);
+                if (curDanger || destDanger)
+                {
+                    isWaiting = false;
+                    MoveToRandomPosition();
+                    return;
+                }
+            }
+        }
+
         if (isWaiting) return;
 
         if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
@@ -93,6 +113,7 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
 
     public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, out Vector3 result)
     {
+        var collapse = TileCollapseManager.Instance;
         for (int i = 0; i < 30; i++)
         {
             Vector2 circle = Random.insideUnitCircle * range;
@@ -101,6 +122,7 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
             float sampleRadius = Mathf.Max(2f, range * 0.3f);
             if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
             {
+                if (collapse != null && collapse.IsPositionDangerous(hit.position)) continue;
                 result = hit.position;
                 return true;
             }
