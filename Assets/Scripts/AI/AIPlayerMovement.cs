@@ -71,6 +71,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     private AIBaseState _stateBeforeScale;
     private float _prevScaleValue = 1f;
     public bool IsBeingAbsorbed { get; set; } = false;
+    public bool IsEliminated { get; private set; } = false;
 
     private AIPlayerSync _aiSync;
 
@@ -479,6 +480,28 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             ScaleCtrl?.GrowByAbsorbing(otherScale);
             return;
         }
+    }
+
+    /// <summary>
+    /// 초콜릿 등으로 탈락 처리. 리더보드/이름표 제거, AI/Agent 정지.
+    /// 오브젝트는 파괴하지 않고 둥둥 떠다니게 유지.
+    /// </summary>
+    public void OnEliminated()
+    {
+        if (IsEliminated) return;
+        IsEliminated = true;
+
+        // AI/Agent 정지 (이미 꺼져 있어도 멱등)
+        if (Agent != null) Agent.enabled = false;
+        _currentState?.Exit();
+        _currentState = null;
+        enabled = false;
+
+        // 이름표 숨김
+        if (nameTagBillboard != null) nameTagBillboard.gameObject.SetActive(false);
+
+        // 리더보드에서 제거 (마스터만 룸 프로퍼티 정리)
+        if (_aiSync != null) _aiSync.ClearBotProperties();
     }
 
     /// <summary>[RPC] 이 봇이 흡수당했을 때 (모든 클라이언트에서 실행)</summary>

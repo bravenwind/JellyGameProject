@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 
 public class FallingTile : MonoBehaviour
 {
@@ -140,7 +141,12 @@ public class FallingTile : MonoBehaviour
         // 💡 박스의 중심점을 타일 표면에서 약간 위쪽(Y축 +2.5m)으로 배치해서 딱 타일 위의 공간만 스캔
         Vector3 boxCenter = transform.position + new Vector3(0f, halfExtents.y, 0f);
 
-        Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, DataManager.Instance.objectLayerMask);
+        // 배경 오브젝트 + AI (Player/Edible 레이어) 모두 감지
+        int mask = DataManager.Instance.objectLayerMask
+            | (1 << LayerMask.NameToLayer("Player"))
+            | (1 << LayerMask.NameToLayer("Edible"));
+
+        Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, mask);
 
         foreach (var col in OverlappedCols)
         {
@@ -148,7 +154,15 @@ public class FallingTile : MonoBehaviour
             if (col == _collider) continue;
 
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
-            if (rb != null && rb.isKinematic)
+            if (rb == null) continue;
+
+            // 실제 플레이어는 자체 이동 시스템이 있으므로 건드리지 않음
+            if (rb.GetComponent<NetworkPlayerSync>() != null) continue;
+
+            // AI 위에 있다면 AI 컴포넌트들을 먼저 꺼서 NavMeshAgent가 물리와 싸우지 않게 함
+            DisableAIOnObject(rb.gameObject);
+
+            if (rb.isKinematic)
             {
                 rb.isKinematic = false;
                 rb.useGravity = true;
@@ -157,5 +171,17 @@ public class FallingTile : MonoBehaviour
                 rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);
             }
         }
+    }
+
+    private static void DisableAIOnObject(GameObject obj)
+    {
+        var navAgent = obj.GetComponent<NavMeshAgent>();
+        if (navAgent != null) navAgent.enabled = false;
+
+        var wandering = obj.GetComponent<WanderingAI>();
+        if (wandering != null) wandering.enabled = false;
+
+        var aiPlayer = obj.GetComponent<AIPlayerMovement>();
+        if (aiPlayer != null) aiPlayer.enabled = false;
     }
 }

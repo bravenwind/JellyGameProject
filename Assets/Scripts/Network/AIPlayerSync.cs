@@ -73,17 +73,26 @@ public class AIPlayerSync : MonoBehaviourPun
         PhotonNetwork.CurrentRoom.SetCustomProperties(props);
     }
 
+    /// <summary>
+    /// 봇의 리더보드 속성 제거. 게임오버 처리 시 호출 (오브젝트는 살아있음).
+    /// MasterClient만 실행.
+    /// </summary>
+    public void ClearBotProperties()
+    {
+        if (!PhotonNetwork.IsMasterClient || !PhotonNetwork.InRoom) return;
+        if (string.IsNullOrEmpty(_botPrefix)) return;
+
+        Hashtable props = new Hashtable
+        {
+            { $"{_botPrefix}_Name", null },
+            { $"{_botPrefix}_Score", null },
+            { $"{_botPrefix}_Scale", null }
+        };
+        PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+    }
+
     private void OnDestroy()
     {
-        if (PhotonNetwork.IsMasterClient && PhotonNetwork.InRoom && !string.IsNullOrEmpty(_botPrefix))
-        {
-            Hashtable props = new Hashtable
-            {
-                { $"{_botPrefix}_Name", null },
-                { $"{_botPrefix}_Score", null },
-                { $"{_botPrefix}_Scale", null }
-            };
-            PhotonNetwork.CurrentRoom.SetCustomProperties(props);
-        }
+        ClearBotProperties();
     }
 }

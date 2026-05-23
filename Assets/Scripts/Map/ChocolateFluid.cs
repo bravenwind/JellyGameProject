@@ -84,8 +84,17 @@ public class ChocolateFluid : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
+        if (rb == null) return;
 
-        if (rb != null && other.CompareTag("Edible"))
+        AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
+        WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
+        AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
+        NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
+
+        // Edible 젤리 또는 AI(WanderingAI / AIPlayer)는 끈적한 액체 상태로 전환
+        // 실제 플레이어(NetworkPlayerSync)는 자체 이동 시스템이므로 건드리지 않음
+        bool isAI = aiPlayer != null || wanderingAI != null;
+        if (other.CompareTag("Edible") || isAI)
         {
             rb.isKinematic = false;
             rb.useGravity = false;
@@ -93,33 +102,15 @@ public class ChocolateFluid : MonoBehaviour
             // 물에 들어오면 끈적하게 (저항 증가)
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
-
-            // 🔥 [추가] 물에 빠지자마자 위로 살짝 띄워주고 흐르는 방향으로 밀어주기
-            // (점성 때문에 바닥에 들러붙어 멈추는 것을 방지)
-            //rb.AddForce(Vector3.up * 5f, ForceMode.Impulse);
         }
 
-        if (rb != null)
-        {
-            NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
-            WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
-            AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
+        // AI 끄기
+        if (wanderingAI != null) wanderingAI.enabled = false;
+        if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
+        if (navMeshAgent != null) navMeshAgent.enabled = false;
 
-            // 🔥 [추가] 젤리 캐릭터의 애니메이터 가져오기
-            Animator animator = rb.GetComponentInChildren<Animator>();
-
-            if (animator != null)
-            {
-                // 젤리 애니메이션 멈추기 (본인 프로젝트의 파라미터 이름에 맞게 하나만 남기고 수정하세요!)
-                //animator.SetFloat("Speed", 0f);      // Float로 속도를 제어하는 경우
-                //animator.SetBool("IsWalking", false); // Bool로 걷기를 제어하는 경우
-            }
-
-            // AI 끄기
-            if (wanderingAI != null) wanderingAI.enabled = false;
-            if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
-            if (navMeshAgent != null) navMeshAgent.enabled = false;
-        }
+        // AIPlayer는 게임오버 처리 (리더보드/이름표 제거, 둥둥 떠다니기는 유지)
+        if (aiPlayer != null) aiPlayer.OnEliminated();
     }
 
     private void OnTriggerExit(Collider other)
@@ -132,6 +123,10 @@ public class ChocolateFluid : MonoBehaviour
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
         }
+
+        // 탈락한 AIPlayer는 복구 안 함 (이름표/리더보드 제거된 상태로 떠다녀야 함)
+        AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
+        if (aiPlayer != null && aiPlayer.IsEliminated) return;
 
         // OnTriggerEnter에서 꺼놓은 AI 컴포넌트 복구
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
