@@ -41,11 +41,13 @@ public class JellyColliderAbsorb : MonoBehaviour
 
         jellyRenderer.gameObject.tag = "Edible";
 
-        // 원격 클라이언트에서는 NavMeshAgent 비활성화 (위치는 IPunObservable로 동기화)
+        // 원격 클라이언트에서는 NavMeshAgent 비활성화 + Rigidbody kinematic 전환
+        // (위치는 IPunObservable로 동기화, 물리 간섭 방지)
         PhotonView pv = GetComponent<PhotonView>();
         if (pv != null && !pv.IsMine && agent != null)
         {
             agent.enabled = false;
+            _rb.isKinematic = true;
         }
     }
 
