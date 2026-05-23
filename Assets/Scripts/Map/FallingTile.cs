@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -31,12 +31,6 @@ public class FallingTile : MonoBehaviour
     public void StartFall(float warningDuration, float fallDuration, float fallDistance, float delay)
     {
         EnsureInit();
-        if (_idleCoroutine != null)
-        {
-            StopCoroutine(_idleCoroutine);
-            _idleCoroutine = null;
-            transform.localPosition = _originalPos;
-        }
         StartCoroutine(FallRoutine(warningDuration, fallDuration, fallDistance, delay));
     }
 
@@ -63,6 +57,13 @@ public class FallingTile : MonoBehaviour
     {
         if (delay > 0f)
             yield return new WaitForSeconds(delay);
+
+        if (_idleCoroutine != null)
+        {
+            StopCoroutine(_idleCoroutine);
+            _idleCoroutine = null;
+            transform.localPosition = _originalPos;
+        }
 
         Renderer rend = GetComponentInChildren<Renderer>();
         Color originalColor = Color.white;
