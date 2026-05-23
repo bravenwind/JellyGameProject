@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1330324735977100826}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44,7 +44,7 @@ GameObject:
   - component: {fileID: 7037259760276785825}
   - component: {fileID: 7472504721624768776}
   - component: {fileID: 2390880074885033348}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: sphere candy_1
   m_TagString: Sphere
   m_Icon: {fileID: 0}
@@ -165,7 +165,7 @@ GameObject:
   m_Component:
   - component: {fileID: 5634969494527427964}
   - component: {fileID: 3902297733971388419}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Sphere001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -254,7 +254,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6935532132456221940}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone001
   m_TagString: Untagged
   m_Icon: {fileID: 0}

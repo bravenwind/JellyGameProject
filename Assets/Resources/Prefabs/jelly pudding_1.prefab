@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4934715727843744671}
   - component: {fileID: 2300165107201551450}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cylinder001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -99,7 +99,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7802958372648052792}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -135,7 +135,7 @@ GameObject:
   - component: {fileID: 8627260172282781654}
   - component: {fileID: 4095600627989837975}
   - component: {fileID: 7939711154259652014}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Collider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -249,7 +249,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6242172048600210851}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -281,7 +281,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6924302183535625347}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -314,7 +314,8 @@ GameObject:
   - component: {fileID: 4791291895634866447}
   - component: {fileID: 7720657862813740710}
   - component: {fileID: 1382216639582296982}
-  m_Layer: 0
+  - component: {fileID: 8296275431348159300}
+  m_Layer: 12
   m_Name: jelly pudding_1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -383,6 +384,33 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.4, y: 0.28, z: 0.35}
   m_Center: {x: 0, y: 0.17, z: 0}
+--- !u!54 &8296275431348159300
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6843635137190871994}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 2304
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 1783
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0
 --- !u!1 &8220068926831776989
 GameObject:
   m_ObjectHideFlags: 0
@@ -392,7 +420,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6646645121627605668}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: IK Chain001
   m_TagString: Untagged
   m_Icon: {fileID: 0}

@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 6779676612750225706}
   - component: {fileID: 363339223063704922}
   - component: {fileID: -6128451571784631237}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: sphere candy rolling animation
   m_TagString: Sphere
   m_Icon: {fileID: 0}
@@ -74,10 +74,10 @@ Rigidbody:
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
   m_IncludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 2304
   m_ExcludeLayers:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 1783
   m_ImplicitCom: 1
   m_ImplicitTensor: 1
   m_UseGravity: 1
@@ -103,7 +103,8 @@ MonoBehaviour:
   Synchronization: 3
   OwnershipTransfer: 0
   observableSearch: 2
-  ObservedComponents: []
+  ObservedComponents:
+  - {fileID: -6128451571784631237}
   sceneViewId: 0
   InstantiationId: 0
   isRuntimeInstantiated: 0
@@ -132,7 +133,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2742116622286887408}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -165,7 +166,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7175404954222962719}
   - component: {fileID: 1853354562431581104}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Sphere001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -254,7 +255,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8427968598652480190}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone002
   m_TagString: Untagged
   m_Icon: {fileID: 0}

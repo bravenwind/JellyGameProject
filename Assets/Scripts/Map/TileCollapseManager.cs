@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class TileCollapseManager : MonoBehaviour
@@ -50,7 +50,6 @@ public class TileCollapseManager : MonoBehaviour
         CollectTiles();
         if (_width == 0 || _height == 0) return;
         _maxRing = Mathf.Min(_width, _height) / 2;
-        //CatchUpCollapse();
     }
 
     private float GetSyncedElapsed()

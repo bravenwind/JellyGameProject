@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 6094826947899049201}
   - component: {fileID: 3187781373099550690}
   - component: {fileID: 1205536647930844187}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cube (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -31340,9 +31340,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   buoyancyForce: 3.5
-  flowForce: 10
-  flowDirection: {x: -1, y: 0.5, z: 0}
   chocolateViscosity: 6
+  changeDirectionInterval: 3
+  flowForce: 10
+  waveSpeed: 2
+  waveForce: 3
 --- !u!33 &3187781373099550690
 MeshFilter:
   m_ObjectHideFlags: 0

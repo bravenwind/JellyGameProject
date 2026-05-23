@@ -7,9 +7,8 @@ public class FallingTile : MonoBehaviour
     private Vector3 _originalPos;
     private float _phase;
     private bool _initialized;
+    private Collider _collider;
 
-    // 흔들림 대상 (렌더러의 자식 transform). collider는 root에 두고 시각만 흔들어서
-    // 위에 올라간 AI가 튕기지 않게 함. 렌더러가 root에 직접 붙어있으면 root를 그대로 흔듦.
     private Transform _shakeTransform;
     private Vector3 _shakeOrigin;
 
@@ -19,6 +18,8 @@ public class FallingTile : MonoBehaviour
         _initialized = true;
         _originalPos = transform.localPosition;
         _phase = (_originalPos.x * 12.9898f + _originalPos.z * 78.233f) % (Mathf.PI * 2f);
+
+        _collider = GetComponent<Collider>(); // AwakePhysics에서 쓰기 위해 미리 캐싱
 
         Renderer rend = GetComponentInChildren<Renderer>();
         if (rend != null && rend.transform != transform)
@@ -102,10 +103,17 @@ public class FallingTile : MonoBehaviour
             yield return null;
         }
 
+        // ── 붕괴 직전 타이밍 (여기서 물리를 깨우고 바닥을 치웁니다) ──
         _shakeTransform.localPosition = _shakeOrigin;
 
-        foreach (var col in GetComponentsInChildren<Collider>())
-            col.enabled = false;
+        if (_collider != null)
+        {
+            // 1. 위에 있는 오브젝트들 물리 켜기 (HalfExtents 공식 적용)
+            AwakePhysicsOnTile(_collider.bounds.size);
+
+            // 2. [추가] 낙하하는 타일 콜라이더 비활성화 (플레이어 밀림/끼임 버그 방지)
+            _collider.enabled = false;
+        }
 
         // 낙하 단계: 전체 transform을 Y축으로 가속 하강
         elapsed = 0f;
@@ -121,5 +129,33 @@ public class FallingTile : MonoBehaviour
 
         transform.localPosition = _originalPos + Vector3.down * fallDistance;
         gameObject.SetActive(false);
+    }
+
+    private void AwakePhysicsOnTile(Vector3 colliderSize)
+    {
+        // 💡 핵심 수정: halfExtents는 전체 크기의 절반이어야 함!
+        // Y축 높이는 타일 위로 5m만 검사하도록 세팅 (반지름이므로 2.5f)
+        Vector3 halfExtents = new Vector3(colliderSize.x * 0.5f, 2.5f, colliderSize.z * 0.5f);
+
+        // 💡 박스의 중심점을 타일 표면에서 약간 위쪽(Y축 +2.5m)으로 배치해서 딱 타일 위의 공간만 스캔
+        Vector3 boxCenter = transform.position + new Vector3(0f, halfExtents.y, 0f);
+
+        Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, DataManager.Instance.objectLayerMask);
+
+        foreach (var col in OverlappedCols)
+        {
+            // 나 자신(타일 콜라이더)이 감지되는 것 방지
+            if (col == _collider) continue;
+
+            Rigidbody rb = col.GetComponentInParent<Rigidbody>();
+            if (rb != null && rb.isKinematic)
+            {
+                rb.isKinematic = false;
+                rb.useGravity = true;
+
+                // 탕후루 꼬치가 삐딱하게 떨어지는 역동적인 연출
+                rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);
+            }
+        }
     }
 }

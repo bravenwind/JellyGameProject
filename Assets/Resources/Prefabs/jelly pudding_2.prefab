@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6901879304578585751}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -41,7 +41,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 6855684440653864370}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -73,7 +73,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1854339757804051367}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Bone003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -104,7 +104,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4303609449032987153}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: IK Chain001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -139,7 +139,7 @@ GameObject:
   - component: {fileID: 4606999419417007204}
   - component: {fileID: 2003152961970936339}
   - component: {fileID: 9049580804856758758}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Collider
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -254,7 +254,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8594340974796558520}
   - component: {fileID: 8027803401395146607}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Cylinder001
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -345,7 +345,8 @@ GameObject:
   - component: {fileID: 7493329707999781586}
   - component: {fileID: 5022421532001509291}
   - component: {fileID: 8463177500711575702}
-  m_Layer: 0
+  - component: {fileID: 2859003994740181892}
+  m_Layer: 12
   m_Name: jelly pudding_2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -414,3 +415,30 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 0.4, y: 0.28, z: 0.35}
   m_Center: {x: 0, y: 0.17, z: 0}
+--- !u!54 &2859003994740181892
+Rigidbody:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9004919209264033478}
+  serializedVersion: 4
+  m_Mass: 1
+  m_Drag: 0
+  m_AngularDrag: 0.05
+  m_CenterOfMass: {x: 0, y: 0, z: 0}
+  m_InertiaTensor: {x: 1, y: 1, z: 1}
+  m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 2304
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 1783
+  m_ImplicitCom: 1
+  m_ImplicitTensor: 1
+  m_UseGravity: 0
+  m_IsKinematic: 1
+  m_Interpolate: 0
+  m_Constraints: 0
+  m_CollisionDetection: 0

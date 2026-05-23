@@ -9,6 +9,8 @@ using Photon.Realtime;
 using ExitGames.Client.Photon;
 using TMPro;
 using UnityEngine.SceneManagement;
+using System.Collections;
+using Hashtable = ExitGames.Client.Photon.Hashtable;
 
 public class GameModeManager : MonoBehaviourPunCallbacks
 {
@@ -18,12 +20,16 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     public float gameDuration = 180f;
     public float endImpendingTime = 10.0f;
 
+    [Header("UI 연결 — 중앙 카운트다운")]
+    public TextMeshProUGUI centerCountdownText;
+
     [Header("UI 연결 — 전체 게임")]
     public TextMeshProUGUI gameTimerText;
 
     [Header("UI 연결 — 결과")]
     public GameObject gameResultPanel;
     public TextMeshProUGUI resultTitleText;
+    public const string RESULT_SCENE_NAME = "GameResult_io";
 
     [Header("UI 연결 — 순위표")]
     public Transform leaderboardContainer;
@@ -32,6 +38,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private bool _gameRunning = false;
     private float _gameTimer = 0f;
     private static bool _spawned = false;
+
+    private bool _isEndingSequenceStarted = false;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
@@ -54,6 +62,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             if (entryComp != null)
                 _leaderboardPool = new ObjectPool<LeaderboardEntry>(entryComp, leaderboardContainer, 5);
         }
+
+        Time.timeScale = 1f;
     }
 
     private void OnDestroy()
@@ -126,6 +136,88 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             _gameTimer = 0f;
             GameWin();
         }
+
+        if (_gameTimer <= 3f && !_isEndingSequenceStarted)
+        {
+            _isEndingSequenceStarted = true;
+            StartCoroutine(GameEndingSequenceRoutine());
+        }
+    }
+
+    private IEnumerator GameEndingSequenceRoutine()
+    {
+        int count = 3;
+
+        // 3, 2, 1 카운트다운 처리
+        while (count > 0)
+        {
+            if (centerCountdownText != null)
+            {
+                centerCountdownText.text = count.ToString();
+                StartCoroutine(AnimateCenterText(centerCountdownText));
+            }
+
+            // 💡 1초씩 대기하되, 타임 슬로우의 영향을 받지 않고 현실 시간(1초)대로 흐르게 무시(Unscaled) 처리
+            yield return new WaitForSecondsRealtime(1f);
+            count--;
+        }
+
+        // 게임 시간 정지 및 슬로우 모션 돌입
+        _gameRunning = false;
+        _gameTimer = 0f;
+
+        if (centerCountdownText != null)
+        {
+            centerCountdownText.text = "게임 종료!";
+            StartCoroutine(AnimateCenterText(centerCountdownText));
+        }
+
+        // 💡 게임 속도가 점점 느려지는 연출 (100% -> 10% 속도로)
+        float slowDuration = 1.2f; // 슬로우 모션 지속 시간
+        float elapsed = 0f;
+        while (elapsed < slowDuration)
+        {
+            elapsed += Time.unscaledDeltaTime; // 슬로우 모션 중이므로 unscaled 필수
+            Time.timeScale = Mathf.Lerp(1f, 0.1f, elapsed / slowDuration);
+            yield return null;
+        }
+
+        Time.timeScale = 0f; // 완전히 정지
+
+        // 잠시 멈췄다가 최종 결과 도출 및 씬 전환 준비
+        yield return new WaitForSecondsRealtime(1.0f);
+
+        // 타임스케일 원상 복구 후 결과창 호출
+        Time.timeScale = 1f;
+        GameWin();
+    }
+
+    private IEnumerator AnimateCenterText(TextMeshProUGUI targetText)
+    {
+        float duration = 0.9f; // 1초가 지나기 전 투명화를 끝냄
+        float elapsed = 0f;
+
+        Vector3 startScale = Vector3.one * 0.5f;
+        Vector3 targetScale = Vector3.one * 2.5f; // 점점 커지는 형태
+
+        Color startColor = targetText.color;
+        startColor.a = 1f; // 시작은 불투명하게
+
+        while (elapsed < duration)
+        {
+            // 타임 슬로우에 영향받지 않게 unscaledDeltaTime 사용
+            elapsed += Time.unscaledDeltaTime;
+            float t = elapsed / duration;
+
+            // 크기 보간 (점점 커짐)
+            targetText.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
+
+            // 알파값 보간 (점점 투명해짐)
+            startColor.a = Mathf.Lerp(1f, 0f, t);
+            targetText.color = startColor;
+
+            yield return null;
+        }
     }
 
     // ─────────────────────────────────────────────────────────
@@ -188,17 +280,27 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         ShowResultUI($"시간 종료!\n최종 순위 : {finalRank}위");
         Debug.Log("[GameMode] 타임 오버! 생존 성공!");
+
+        PhotonNetwork.LoadLevel(RESULT_SCENE_NAME);
     }
 
     public void GameOver()
     {
-        if (!_gameRunning) return;
+        if (!_gameRunning && !_isEndingSequenceStarted) return; // 💡 조건 수정: 엔딩 시퀀스 중이어도 탈락 처리 허용
+
+        // 💡 플레이어가 탈락했으므로 돌고 있던 모든 엔딩 연출/코루틴을 강제로 멈춤
+        StopAllCoroutines();
+        Time.timeScale = 1f; // 💡 타임스케일 원상복구
+
         _gameRunning = false;
         GameState.Phase = GamePhase.GameOver;
 
         float survived = gameDuration - _gameTimer;
         int min = Mathf.FloorToInt(survived / 60f);
         int sec = Mathf.FloorToInt(survived % 60f);
+
+        // 💡 탈락했으니 중앙 카운트다운 텍스트는 지워줌
+        if (centerCountdownText != null) centerCountdownText.text = "";
 
         ShowResultUI($"탈락!\n{min}분 {sec}초 생존");
         Debug.Log($"[GameMode] 로컬 플레이어 탈락! 생존시간={min}분 {sec}초");

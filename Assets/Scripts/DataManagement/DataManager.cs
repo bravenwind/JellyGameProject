@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public enum JellyColorType
@@ -63,6 +63,8 @@ public class DataManager : MonoBehaviour
     public float detectPlusRadiusPerLevel = 1.5f;
     public LayerMask detectLayerMask;
 
+    public LayerMask objectLayerMask;
+
     [System.Serializable]
     public struct MissionSet
     {
@@ -101,6 +103,8 @@ public class DataManager : MonoBehaviour
 
         GameState.Reset();
         GameState.DetectRadius = originalDetectRadius;
+
+        objectLayerMask = LayerMask.GetMask("BackGroundObject");
     }
 
     private void BuildJellyEffectCache()
