@@ -12,7 +12,10 @@ import json
 import gspread
 from google.oauth2.service_account import Credentials
 
-CREDENTIALS_PATH = r"C:\Users\zkdld\Downloads\jellygameproject-96f883a5ba9b.json"
+CREDENTIALS_PATH = os.environ.get(
+    "GSHEET_CREDENTIALS_PATH",
+    os.path.expanduser("~/.config/gsheet/credentials.json")
+)
 PLAN_SHEET_ID = "1BsXKrszkx3CnlbnmvsjTaLyOj59_qGhzWE2VKU0xd_4"
 TROUBLE_SHEET_ID = "1kl8o2auomNHj-6xpmIPZ_sQTcBRj_1yoELQkvydpCSo"
 
