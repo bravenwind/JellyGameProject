@@ -103,6 +103,18 @@ public class FallingTile : MonoBehaviour
 
         foreach (var col in GetComponentsInChildren<Collider>())
             col.enabled = false;
+
+        // 원래 자리에 영구 NavMeshObstacle을 남겨서 AI가 빈 공간을 피하게 함
+        GameObject navBlock = new GameObject("NavBlock");
+        navBlock.transform.SetParent(transform.parent, false);
+        navBlock.transform.localPosition = _originalPos;
+
+        NavMeshObstacle permObs = navBlock.AddComponent<NavMeshObstacle>();
+        permObs.carving = true;
+        permObs.shape = NavMeshObstacleShape.Box;
+        permObs.size = obstacle.size;
+        permObs.center = obstacle.center;
+
         Destroy(obstacle);
 
         // 낙하 단계: Y축으로 가속 하강
