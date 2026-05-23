@@ -67,6 +67,17 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         Destroy(gameObject);
     }
 
+    public override void OnMasterClientSwitched(Photon.Realtime.Player newMasterClient)
+    {
+        if (!_nextSceneTriggered || _targetSceneLoaded || _exiting) return;
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            Debug.Log("[Loading] 새 MasterClient가 게임씬 로드 트리거");
+            PhotonNetwork.LoadLevel(NetworkManager.Instance.gameSceneName);
+        }
+    }
+
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;

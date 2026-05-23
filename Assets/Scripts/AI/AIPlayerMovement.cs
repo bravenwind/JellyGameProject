@@ -13,11 +13,12 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 using Photon.Pun;
+using Photon.Realtime;
 
 [RequireComponent(typeof(NavMeshAgent))]
 [RequireComponent(typeof(PhotonView))]
 [RequireComponent(typeof(AIDetector))]
-public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
+public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 {
     // ─────────────────────────────────────────────────────────
     // Inspector 설정
@@ -96,8 +97,17 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     // 레지스트리 등록
     // ─────────────────────────────────────────────────────────
-    private void OnEnable() => EntityRegistry.Register(this);
-    private void OnDisable() => EntityRegistry.Unregister(this);
+    private void OnEnable()
+    {
+        base.OnEnable();
+        EntityRegistry.Register(this);
+    }
+
+    private void OnDisable()
+    {
+        base.OnDisable();
+        EntityRegistry.Unregister(this);
+    }
 
     // ─────────────────────────────────────────────────────────
     // 초기화
@@ -484,6 +494,30 @@ public class AIPlayerMovement : MonoBehaviourPun, IPunObservable
 
         if (PhotonNetwork.IsMasterClient)
             PhotonNetwork.Destroy(gameObject);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 마스터 클라이언트 교체 시 AI 이어받기
+    // ─────────────────────────────────────────────────────────
+
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+        if (IsBeingAbsorbed) return;
+
+        Debug.Log($"[AIBot] {name} — 새 MasterClient가 AI 제어 이어받기");
+
+        PlayerAbsorber absorber = GetComponent<PlayerAbsorber>();
+        if (absorber != null) absorber.enabled = true;
+        PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
+        if (absorbMgr != null) absorbMgr.enabled = true;
+
+        _prevScaleValue = transform.localScale.x;
+
+        if (ScaleCtrl != null)
+            ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
+
+        StartCoroutine(InitAndRun());
     }
 
     // ─────────────────────────────────────────────────────────
