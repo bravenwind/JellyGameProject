@@ -109,9 +109,12 @@ public class FallingTile : MonoBehaviour
         GameObject navBlock = new GameObject("NavBlock");
         navBlock.transform.SetParent(transform.parent, false);
         navBlock.transform.localPosition = _originalPos;
+        navBlock.transform.localRotation = transform.localRotation;
+        navBlock.transform.localScale = transform.localScale;
 
         NavMeshObstacle permObs = navBlock.AddComponent<NavMeshObstacle>();
         permObs.carving = true;
+        permObs.carvingTimeToStationary = 0f;
         permObs.shape = NavMeshObstacleShape.Box;
         permObs.size = obstacle.size;
         permObs.center = obstacle.center;
