@@ -84,30 +84,6 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             photonView.RPC(nameof(RPC_StartGame), RpcTarget.All);
         }
-        else
-        {
-            TryJoinRunningGame();
-        }
-    }
-
-    private void TryJoinRunningGame()
-    {
-        var props = PhotonNetwork.CurrentRoom.CustomProperties;
-        if (props.ContainsKey("GameStartTime"))
-        {
-            int startTime = (int)props["GameStartTime"];
-            float elapsed = (PhotonNetwork.ServerTimestamp - startTime) / 1000f;
-            float remaining = gameDuration - elapsed;
-
-            if (remaining > 0f)
-            {
-                StartGameInternal(remaining);
-            }
-        }
-        else
-        {
-            StartGameInternal(gameDuration);
-        }
     }
 
     [PunRPC]
