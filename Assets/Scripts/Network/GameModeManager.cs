@@ -298,4 +298,20 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     public float GameTimer => _gameTimer;
     public bool IsGameRunning => _gameRunning;
     public float SurvivedTime => gameDuration - _gameTimer;
+
+    /// <summary>
+    /// 서버 시간 기준 게임 경과 시간 (초). 모든 클라이언트가 동일한 값을 봅니다.
+    /// "GameStartTime" 룸 프로퍼티가 없으면 -1 반환.
+    /// </summary>
+    public float NetworkedElapsedTime
+    {
+        get
+        {
+            if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null) return -1f;
+            var props = PhotonNetwork.CurrentRoom.CustomProperties;
+            if (!props.ContainsKey("GameStartTime")) return -1f;
+            int startTime = (int)props["GameStartTime"];
+            return (PhotonNetwork.ServerTimestamp - startTime) / 1000f;
+        }
+    }
 }

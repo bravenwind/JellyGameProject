@@ -50,6 +50,17 @@ public class TileCollapseManager : MonoBehaviour
         CatchUpCollapse();
     }
 
+    /// <summary>
+    /// 서버 시간 기준 경과 시간을 우선 사용. 없으면 로컬 타이머로 폴백.
+    /// </summary>
+    private float GetSyncedElapsed()
+    {
+        if (GameModeManager.Instance == null) return -1f;
+        float networked = GameModeManager.Instance.NetworkedElapsedTime;
+        if (networked >= 0f) return networked;
+        return GameModeManager.Instance.SurvivedTime;
+    }
+
     private void CollectTiles()
     {
         var gen = gridParent.GetComponent<AutoGridMapGenerator>();
@@ -101,8 +112,7 @@ public class TileCollapseManager : MonoBehaviour
 
     private void CatchUpCollapse()
     {
-        if (GameModeManager.Instance == null) return;
-        float elapsed = GameModeManager.Instance.SurvivedTime;
+        float elapsed = GetSyncedElapsed();
         if (elapsed < collapseStartTime) return;
 
         int ringsToCollapse = Mathf.FloorToInt((elapsed - collapseStartTime) / ringInterval) + 1;
@@ -118,7 +128,7 @@ public class TileCollapseManager : MonoBehaviour
     {
         if (GameModeManager.Instance == null || !GameModeManager.Instance.IsGameRunning) return;
 
-        float elapsed = GameModeManager.Instance.SurvivedTime;
+        float elapsed = GetSyncedElapsed();
         if (elapsed < collapseStartTime) return;
 
         int targetRing = Mathf.FloorToInt((elapsed - collapseStartTime) / ringInterval);
