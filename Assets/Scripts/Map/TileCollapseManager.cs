@@ -33,6 +33,7 @@ public class TileCollapseManager : MonoBehaviour
     private int _width, _height;
     private int _maxRing;
     private int _lastCollapsedRing = -1;
+    private int _lastShakenRing = -1;
 
     private void Awake()
     {
@@ -122,6 +123,14 @@ public class TileCollapseManager : MonoBehaviour
             CollapseRingImmediate(ring);
 
         _lastCollapsedRing = ringsToCollapse - 1;
+
+        // 캐치업 직후, 다음 차례인 링을 idle shake 상태로 진입시킴
+        int nextRing = _lastCollapsedRing + 1;
+        if (nextRing < _maxRing)
+        {
+            _lastShakenRing = nextRing;
+            StartIdleShakeOnRing(nextRing);
+        }
     }
 
     private void Update()
@@ -129,6 +138,20 @@ public class TileCollapseManager : MonoBehaviour
         if (GameModeManager.Instance == null || !GameModeManager.Instance.IsGameRunning) return;
 
         float elapsed = GetSyncedElapsed();
+        if (elapsed < 0f) return;
+
+        // 다음 차례인 링을 idle shake로 진입 — Fall 시점보다 ringInterval 만큼 일찍
+        int nextShakeRing = _lastCollapsedRing + 1;
+        if (nextShakeRing < _maxRing && nextShakeRing > _lastShakenRing)
+        {
+            float shakeStartTime = collapseStartTime + (nextShakeRing - 1) * ringInterval;
+            if (elapsed >= shakeStartTime)
+            {
+                _lastShakenRing = nextShakeRing;
+                StartIdleShakeOnRing(nextShakeRing);
+            }
+        }
+
         if (elapsed < collapseStartTime) return;
 
         int targetRing = Mathf.FloorToInt((elapsed - collapseStartTime) / ringInterval);
@@ -138,6 +161,22 @@ public class TileCollapseManager : MonoBehaviour
         {
             _lastCollapsedRing++;
             CollapseRingAnimated(_lastCollapsedRing);
+        }
+    }
+
+    private void StartIdleShakeOnRing(int ring)
+    {
+        for (int x = 0; x < _width; x++)
+        {
+            for (int z = 0; z < _height; z++)
+            {
+                if (GetRing(x, z) == ring && _tiles[x, z] != null)
+                {
+                    var ft = _tiles[x, z].GetComponent<FallingTile>();
+                    if (ft == null) ft = _tiles[x, z].AddComponent<FallingTile>();
+                    ft.StartIdleShake();
+                }
+            }
         }
     }
 
@@ -165,7 +204,8 @@ public class TileCollapseManager : MonoBehaviour
             {
                 if (GetRing(x, z) == ring && _tiles[x, z] != null)
                 {
-                    var ft = _tiles[x, z].AddComponent<FallingTile>();
+                    var ft = _tiles[x, z].GetComponent<FallingTile>();
+                    if (ft == null) ft = _tiles[x, z].AddComponent<FallingTile>();
                     ft.StartFall(warningDuration, fallDuration, fallDistance, delay);
                     _tiles[x, z] = null;
                     if (tileDelay > 0f) delay += tileDelay;
