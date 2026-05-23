@@ -47,7 +47,7 @@ public class TileCollapseManager : MonoBehaviour
         CollectTiles();
         if (_width == 0 || _height == 0) return;
         _maxRing = Mathf.Min(_width, _height) / 2;
-        CatchUpCollapse();
+        //CatchUpCollapse();
     }
 
     /// <summary>
@@ -165,6 +165,7 @@ public class TileCollapseManager : MonoBehaviour
             {
                 if (GetRing(x, z) == ring && _tiles[x, z] != null)
                 {
+                    _tiles[x, z].isStatic = false;
                     var ft = _tiles[x, z].AddComponent<FallingTile>();
                     ft.StartFall(warningDuration, fallDuration, fallDistance, delay);
                     _tiles[x, z] = null;

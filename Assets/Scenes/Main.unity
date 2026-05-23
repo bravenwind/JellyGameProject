@@ -6044,10 +6044,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: de5b0f4a44a353543abd4c90956c3a07, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerPrefabName: NetworkPlayer
+  playerPrefabName: NetworkPlayer_Bear
   spawnPoints: []
   spawnPointTag: SpawnPoint
-  botPrefabName: AIPlayer
+  botPrefabName: AIPlayer_Bear
   botCount: 10
   prefabFolder: Prefabs/
   minPlayersPerRoom: 2

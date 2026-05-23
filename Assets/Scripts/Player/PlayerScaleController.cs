@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -6,7 +6,6 @@ using UnityEngine;
 public class PlayerScaleController : MonoBehaviour
 {
     [Header("References")]
-    public PlayerMovement playerController;
     public SoftBody3D softBody3D;
     public Rigidbody[] rigidbodies;
 
