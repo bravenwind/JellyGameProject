@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -159,7 +158,6 @@ public class TileCollapseManager : MonoBehaviour
     private void CollapseRingAnimated(int ring)
     {
         float delay = 0f;
-        bool anyCollapsed = false;
         for (int x = 0; x < _width; x++)
         {
             for (int z = 0; z < _height; z++)
@@ -171,22 +169,9 @@ public class TileCollapseManager : MonoBehaviour
                     ft.StartFall(warningDuration, fallDuration, fallDistance, delay);
                     _tiles[x, z] = null;
                     if (tileDelay > 0f) delay += tileDelay;
-                    anyCollapsed = true;
                 }
             }
         }
-
-        if (anyCollapsed)
-            StartCoroutine(RebakeNavMeshAfter(warningDuration + fallDuration + delay));
-    }
-
-    private IEnumerator RebakeNavMeshAfter(float delay)
-    {
-        yield return new WaitForSeconds(delay);
-        if (gridParent == null) yield break;
-        Component surface = gridParent.GetComponent("NavMeshSurface");
-        if (surface != null)
-            surface.SendMessage("BuildNavMesh", SendMessageOptions.DontRequireReceiver);
     }
 
     public bool IsTileActive(int x, int z)
