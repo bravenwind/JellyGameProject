@@ -25,6 +25,10 @@ public class ChocolateFluid : MonoBehaviour
     [Tooltip("Y축 출렁임 강도 (위아래로 밀어주는 힘)")]
     public float waveForce = 3f;
 
+    [Header("수명 설정")]
+    [Tooltip("초콜릿에 빠진 오브젝트가 자동 비활성화되기까지의 시간 (초). 0이면 비활성화 안 함")]
+    public float floatingLifetime = 5f;
+
     [Header("디버그")]
     [Tooltip("OnTriggerEnter로 진입하는 모든 콜라이더 정보를 콘솔에 출력")]
     public bool debugLogTriggers = true;
@@ -137,6 +141,9 @@ public class ChocolateFluid : MonoBehaviour
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
             _processedBodies.Add(rb);
+
+            if (!isAI && floatingLifetime > 0f)
+                StartCoroutine(DeactivateAfterDelay(rb.gameObject, floatingLifetime));
         }
 
         if (wanderingAI != null) wanderingAI.enabled = false;
@@ -172,6 +179,17 @@ public class ChocolateFluid : MonoBehaviour
             rb.isKinematic = false;
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
+        }
+    }
+
+    private IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (obj != null)
+        {
+            var rb = obj.GetComponent<Rigidbody>();
+            if (rb != null) _processedBodies.Remove(rb);
+            obj.SetActive(false);
         }
     }
 
