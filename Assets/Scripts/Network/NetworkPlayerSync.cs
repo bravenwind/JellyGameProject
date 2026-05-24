@@ -215,6 +215,24 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
     }
 
+    /// <summary>
+    /// 현재 디스플레이 색상을 룸 프로퍼티에 저장. 씬 전환 후에도 색상 복원 가능.
+    /// 게임 종료 직전에 호출.
+    /// </summary>
+    public void SyncColor()
+    {
+        if (!photonView.IsMine) return;
+
+        Color c = GameState.CurrentDisplayColor;
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
+        {
+            { "Color_R", c.r },
+            { "Color_G", c.g },
+            { "Color_B", c.b }
+        };
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+    }
+
     public static float GetPlayerSyncedScale(Player player)
     {
         if (player?.CustomProperties != null &&

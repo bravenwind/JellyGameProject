@@ -288,7 +288,34 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         ShowResultUI($"시간 종료!\n최종 순위 : {finalRank}위");
         Debug.Log("[GameMode] 타임 오버! 생존 성공!");
 
+        // 결과 씬으로 색상을 가져갈 수 있도록 룸 프로퍼티에 저장
+        SyncAllColorsForResult();
+
         PhotonNetwork.LoadLevel(RESULT_SCENE_NAME);
+    }
+
+    /// <summary>
+    /// 결과 씬에서 젤리 색을 복원할 수 있도록 로컬 플레이어와 (마스터 클라이언트만) 모든 봇의 색을 룸 프로퍼티에 저장.
+    /// </summary>
+    private void SyncAllColorsForResult()
+    {
+        if (_localPlayer != null) _localPlayer.SyncColor();
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            foreach (var bot in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
+            {
+                if (bot == null || bot.IsEliminated) continue;
+                var aiSync = bot.GetComponent<AIPlayerSync>();
+                if (aiSync == null) continue;
+
+                var rend = bot.GetComponentInChildren<Renderer>();
+                if (rend == null) continue;
+
+                Color c = rend.material.GetColor("_BaseColor_01");
+                aiSync.SyncColor(c);
+            }
+        }
     }
 
     public void GameOver()

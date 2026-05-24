@@ -4,16 +4,19 @@ using System.Linq;
 using Photon.Pun;
 using Photon.Realtime;
 using TMPro;
+using Unity.Cinemachine;
 using UnityEngine;
 
 /// <summary>
-/// GameResult_io 씬에서 Top 3를 좌측(1위) → 중앙(2위) → 우측(3위) 순으로 배치하고
-/// 카메라가 3위 → 2위 → 1위 → 전체 순으로 포커싱하는 연출 컨트롤러.
+/// GameResult_io 씬에서 Top 3를 좌(1위)→우(3위) 순서로 배치하고,
+/// Cinemachine 가상 카메라가 3위→2위→1위→전체 순으로 부드럽게 전환됨.
 ///
-/// 데이터 출처: PhotonNetwork.PlayerList(스케일 = CustomProperties["Scale"]) +
-///              Room CustomProperties("Bot{viewID}_Name", "Bot{viewID}_Scale").
+/// 데이터 출처(룸 프로퍼티 / Player 프로퍼티):
+///   • Scale / Color_R/G/B  : NetworkPlayerSync.SyncScale + SyncColor
+///   • Bot{viewID}_Scale / Color_R/G/B / Name : AIPlayerSync.SyncScale + SyncColor + UpdateBotData
 ///
-/// 프리팹은 인스펙터에 직접 할당해도 되고, 비워두면 Resources에서 자동 로드.
+/// GameModeManager.SyncAllColorsForResult()가 LoadLevel 직전 호출되어
+/// 위 프로퍼티들이 결과 씬으로 넘어옴.
 /// </summary>
 public class GameResultDirector : MonoBehaviour
 {
@@ -33,21 +36,31 @@ public class GameResultDirector : MonoBehaviour
 
     [Header("카메라")]
     public Camera resultCamera;
+    [Tooltip("CinemachineBrain의 기본 블렌드 시간 (= 카메라 전환 시간)")]
+    public float cameraTransitionDuration = 1.2f;
     [Tooltip("포커싱 시 젤리 반지름 × 이 배율만큼 떨어진 거리에서 촬영")]
     public float focusDistanceMultiplier = 3.5f;
     [Tooltip("포커싱 시 카메라 높이 오프셋")]
     public float focusHeightOffset = 0.4f;
     [Tooltip("한 인물에 머무는 시간")]
     public float focusHoldDuration = 2.5f;
-    [Tooltip("카메라가 다음 위치로 이동하는 데 걸리는 시간")]
-    public float cameraTransitionDuration = 1.2f;
     [Tooltip("오버뷰 카메라 거리")]
     public float overviewDistance = 12f;
     [Tooltip("오버뷰 카메라 높이")]
     public float overviewHeight = 4f;
+    [Tooltip("가상 카메라 FoV")]
+    public float virtualCameraFov = 40f;
+
+    [Header("색상")]
+    [Tooltip("저장된 색상이 없을 때 사용할 기본 색")]
+    public Color fallbackColor = Color.white;
+    [Tooltip("BaseColor_02(밝은 색)를 만들 때 흰색과의 보간 비율")]
+    [Range(0f, 1f)] public float baseColor02Lightness = 0.6f;
+    public string baseColor01Property = "_BaseColor_01";
+    public string baseColor02Property = "_BaseColor_02";
+    public string fresnelProperty = "_FresnelColor";
 
     [Header("UI (선택)")]
-    [Tooltip("순위 안내 텍스트 (비워두면 자동 생성)")]
     public TextMeshProUGUI rankAnnouncementText;
     public string firstPlaceText = "1위";
     public string secondPlaceText = "2위";
@@ -55,12 +68,15 @@ public class GameResultDirector : MonoBehaviour
     public string finalText = "FINAL RESULT";
 
     private readonly List<GameObject> _jellies = new List<GameObject>();
-    private readonly List<int> _displayOrderRanks = new List<int>(); // _jellies[i]가 몇 위인지
+    private readonly List<int> _displayOrderRanks = new List<int>();
+    private readonly List<CinemachineCamera> _focusCams = new List<CinemachineCamera>();
+    private CinemachineCamera _overviewCam;
+    private CinemachineBrain _brain;
 
     private void Start()
     {
         EnsurePrefabs();
-        EnsureCamera();
+        EnsureCameraAndBrain();
 
         var top = GatherTopEntries();
         if (top.Count == 0)
@@ -70,6 +86,7 @@ public class GameResultDirector : MonoBehaviour
         }
 
         SpawnPodium(top);
+        BuildVirtualCameras();
         StartCoroutine(PlayCameraSequence());
     }
 
@@ -90,7 +107,7 @@ public class GameResultDirector : MonoBehaviour
             Debug.LogWarning($"[GameResult] 봇 프리팹 로드 실패 → 플레이어 프리팹 재사용");
     }
 
-    private void EnsureCamera()
+    private void EnsureCameraAndBrain()
     {
         if (resultCamera == null) resultCamera = Camera.main;
         if (resultCamera == null)
@@ -99,6 +116,12 @@ public class GameResultDirector : MonoBehaviour
             resultCamera = camGO.AddComponent<Camera>();
             resultCamera.tag = "MainCamera";
         }
+
+        _brain = resultCamera.GetComponent<CinemachineBrain>();
+        if (_brain == null) _brain = resultCamera.gameObject.AddComponent<CinemachineBrain>();
+
+        _brain.DefaultBlend = new CinemachineBlendDefinition(
+            CinemachineBlendDefinition.Styles.EaseInOut, cameraTransitionDuration);
     }
 
     // ──────────────────────────────────────────────
@@ -110,6 +133,7 @@ public class GameResultDirector : MonoBehaviour
         public string name;
         public float scale;
         public bool isBot;
+        public Color color;
     }
 
     private List<Entry> GatherTopEntries()
@@ -120,16 +144,15 @@ public class GameResultDirector : MonoBehaviour
 
         if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
         {
-            Debug.LogWarning("[GameResult] 룸 정보 없음 — 더미 데이터로 동작");
+            Debug.LogWarning("[GameResult] 룸 정보 없음 — 빈 상태로 종료");
             return entries;
         }
 
         foreach (Player p in PhotonNetwork.PlayerList)
         {
-            float scale = (p.CustomProperties != null &&
-                           p.CustomProperties.TryGetValue("Scale", out object sc))
-                ? (float)sc : defaultScale;
-            entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false });
+            float scale = ReadFloat(p.CustomProperties, "Scale", defaultScale);
+            Color color = ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
+            entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false, color = color });
         }
 
         var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
@@ -142,12 +165,28 @@ public class GameResultDirector : MonoBehaviour
             if (nameVal == null) continue;
 
             string prefix = keyStr.Replace("_Name", "");
-            float scale = (roomProps.TryGetValue($"{prefix}_Scale", out object sv) && sv != null)
-                ? (float)sv : defaultScale;
-            entries.Add(new Entry { name = nameVal.ToString(), scale = scale, isBot = true });
+            float scale = ReadFloat(roomProps, $"{prefix}_Scale", defaultScale);
+            Color color = ReadColor(roomProps, $"{prefix}_Color_R", $"{prefix}_Color_G", $"{prefix}_Color_B", fallbackColor);
+            entries.Add(new Entry { name = nameVal.ToString(), scale = scale, isBot = true, color = color });
         }
 
         return entries.OrderByDescending(e => e.scale).Take(3).ToList();
+    }
+
+    private static float ReadFloat(ExitGames.Client.Photon.Hashtable props, string key, float fallback)
+    {
+        if (props != null && props.TryGetValue(key, out object v) && v != null) return (float)v;
+        return fallback;
+    }
+
+    private static Color ReadColor(ExitGames.Client.Photon.Hashtable props,
+                                   string rKey, string gKey, string bKey, Color fallback)
+    {
+        if (props == null) return fallback;
+        if (!props.TryGetValue(rKey, out object rv) || rv == null) return fallback;
+        if (!props.TryGetValue(gKey, out object gv) || gv == null) return fallback;
+        if (!props.TryGetValue(bKey, out object bv) || bv == null) return fallback;
+        return new Color((float)rv, (float)gv, (float)bv, 1f);
     }
 
     // ──────────────────────────────────────────────
@@ -156,38 +195,27 @@ public class GameResultDirector : MonoBehaviour
 
     private void SpawnPodium(List<Entry> top)
     {
-        // 사용자 요청: 우측부터 순서대로 3위 - 2위 - 1위
-        // 인덱스 매핑 (top[0]=1위, top[1]=2위, top[2]=3위)
-        // 시각적 배치 (좌측부터): 1위 - 2위 - 3위
-        // 우측 anchor에서 시작해 좌측으로 누적 배치 (사이즈 + 패딩 누적)
-
         int count = top.Count;
         float[] radii = new float[count];
         for (int i = 0; i < count; i++)
             radii[i] = Mathf.Max(0.1f, baseRadius * top[i].scale);
 
-        // positions[i]: top[i] (i=0→1위, i=1→2위, i=2→3위)의 월드 좌표
         Vector3[] positions = new Vector3[count];
-
-        // 마지막 인덱스 (3위)를 우측 anchor에 배치
         int rightmost = count - 1;
         positions[rightmost] = rightAnchor;
-
-        // 우측에서 좌측으로 (i = rightmost-1 ... 0)
         for (int i = rightmost - 1; i >= 0; i--)
         {
             float gap = radii[i + 1] + padding + radii[i];
             positions[i] = positions[i + 1] + Vector3.left * gap;
         }
 
-        // 가운데 정렬(centroid를 X=0으로): 모든 X 평균을 0으로 맞춤
+        // X 중심을 0으로 정렬
         float avgX = 0f;
         for (int i = 0; i < count; i++) avgX += positions[i].x;
         avgX /= count;
         for (int i = 0; i < count; i++)
             positions[i] -= new Vector3(avgX, 0f, 0f);
 
-        // 인스턴스화 (네트워킹 컴포넌트 Awake가 실행되지 않도록 비활성 상태로 인스턴스화)
         for (int i = 0; i < count; i++)
         {
             var entry = top[i];
@@ -199,15 +227,13 @@ public class GameResultDirector : MonoBehaviour
             SetupNameTag(go, entry.name);
             go.SetActive(true);
 
+            ApplyJellyColor(go, entry.color);
+
             _jellies.Add(go);
-            _displayOrderRanks.Add(i + 1); // 1-indexed rank
+            _displayOrderRanks.Add(i + 1);
         }
     }
 
-    /// <summary>
-    /// 네트워킹/게임플레이 컴포넌트의 Awake가 실행되지 않도록
-    /// 프리팹을 잠시 비활성화한 채 인스턴스화 → 문제 컴포넌트 제거 → 호출자가 활성화.
-    /// </summary>
     private GameObject InstantiateDisplayOnly(GameObject prefab, Vector3 pos, Quaternion rot)
     {
         bool wasActive = prefab.activeSelf;
@@ -215,7 +241,7 @@ public class GameResultDirector : MonoBehaviour
         GameObject go = Instantiate(prefab, pos, rot);
         prefab.SetActive(wasActive);
 
-        // 이 시점에 go는 비활성 상태 → Awake 미실행. 문제 컴포넌트를 즉시 제거.
+        // 비활성 상태 → 모든 Awake 미실행. 문제 컴포넌트를 즉시 제거.
         StripNetworkingAndGameplay(go);
         return go;
     }
@@ -233,7 +259,11 @@ public class GameResultDirector : MonoBehaviour
         DestroyAll<PlayerBridge>(root);
         DestroyAll<BotBridge>(root);
         DestroyAll<UnityEngine.AI.NavMeshAgent>(root);
-        // PhotonView는 다른 컴포넌트가 참조했을 수 있으므로 마지막에
+
+        // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
+        DestroyAll<PlayerColorVisual>(root);
+
+        // PhotonView는 마지막에 (다른 컴포넌트가 photonView 참조)
         DestroyAll<PhotonView>(root);
 
         foreach (var col in root.GetComponentsInChildren<Collider>(true))
@@ -260,30 +290,118 @@ public class GameResultDirector : MonoBehaviour
         tag.SetName(playerName);
     }
 
+    private void ApplyJellyColor(GameObject root, Color color)
+    {
+        var rend = root.GetComponentInChildren<Renderer>(true);
+        if (rend == null) return;
+
+        // material은 매번 instance가 생성되도록 .material 접근 (sharedMaterial이 아님)
+        var mat = rend.material;
+        Color lighter = Color.Lerp(color, Color.white, baseColor02Lightness);
+        if (mat.HasProperty(baseColor01Property)) mat.SetColor(baseColor01Property, color);
+        if (mat.HasProperty(baseColor02Property)) mat.SetColor(baseColor02Property, lighter);
+        if (mat.HasProperty(fresnelProperty))     mat.SetColor(fresnelProperty, color);
+    }
+
     // ──────────────────────────────────────────────
-    // 카메라 시퀀스
+    // Cinemachine 가상 카메라 생성
+    // ──────────────────────────────────────────────
+
+    private void BuildVirtualCameras()
+    {
+        // 각 젤리마다 포커싱용 가상 카메라
+        for (int i = 0; i < _jellies.Count; i++)
+        {
+            var jelly = _jellies[i];
+            float radius = Mathf.Max(0.2f, jelly.transform.localScale.x * baseRadius);
+            float distance = ComputeFocusDistance(radius);
+
+            Vector3 centerWorld = jelly.transform.position + Vector3.up * radius;
+            Vector3 camPos = centerWorld + new Vector3(0f, focusHeightOffset, -distance);
+            Quaternion camRot = Quaternion.LookRotation(centerWorld - camPos);
+
+            var go = new GameObject($"VCam_Focus_Rank{_displayOrderRanks[i]}");
+            go.transform.SetParent(transform, false);
+            go.transform.position = camPos;
+            go.transform.rotation = camRot;
+
+            var vcam = go.AddComponent<CinemachineCamera>();
+            ApplyLens(vcam, virtualCameraFov);
+            vcam.Priority = 0;
+
+            _focusCams.Add(vcam);
+        }
+
+        // 오버뷰 카메라
+        Vector3 center = Vector3.zero;
+        foreach (var j in _jellies) center += j.transform.position;
+        if (_jellies.Count > 0) center /= _jellies.Count;
+
+        Vector3 ovPos = center + new Vector3(0f, overviewHeight, -overviewDistance);
+        Quaternion ovRot = Quaternion.LookRotation(center - ovPos);
+        var ovGo = new GameObject("VCam_Overview");
+        ovGo.transform.SetParent(transform, false);
+        ovGo.transform.position = ovPos;
+        ovGo.transform.rotation = ovRot;
+        _overviewCam = ovGo.AddComponent<CinemachineCamera>();
+        ApplyLens(_overviewCam, virtualCameraFov);
+        _overviewCam.Priority = 0;
+    }
+
+    private float ComputeFocusDistance(float radius)
+    {
+        // 전신이 들어오도록: half-FoV 기반 최소 거리 + 약간의 여유
+        float fov = virtualCameraFov;
+        if (resultCamera.orthographic)
+        {
+            resultCamera.orthographicSize = Mathf.Max(resultCamera.orthographicSize, radius * 1.3f);
+            return radius * focusDistanceMultiplier;
+        }
+        float halfFovRad = fov * 0.5f * Mathf.Deg2Rad;
+        float required = radius / Mathf.Tan(halfFovRad) + radius;
+        return Mathf.Max(radius * focusDistanceMultiplier, required);
+    }
+
+    private static void ApplyLens(CinemachineCamera vcam, float fov)
+    {
+        // Lens는 struct이므로 복사 → 수정 → 다시 대입
+        var lens = vcam.Lens;
+        lens.FieldOfView = fov;
+        vcam.Lens = lens;
+    }
+
+    // ──────────────────────────────────────────────
+    // 시퀀스 (Cinemachine Priority 전환)
     // ──────────────────────────────────────────────
 
     private IEnumerator PlayCameraSequence()
     {
-        if (_jellies.Count == 0 || resultCamera == null) yield break;
-
+        if (_jellies.Count == 0) yield break;
         EnsureRankText();
 
-        // 포커싱 순서: 우측(낮은 순위) → 좌측(높은 순위) = 3위 → 2위 → 1위
-        // _jellies 인덱스: 0=1위(좌측), 1=2위, 2=3위(우측)
-        int last = _jellies.Count - 1;
-        for (int i = last; i >= 0; i--)
+        // 우측(낮은 순위) → 좌측(높은 순위): _jellies[last] = 3위, _jellies[0] = 1위
+        for (int i = _jellies.Count - 1; i >= 0; i--)
         {
-            int rank = _displayOrderRanks[i];
-            SetRankText(GetRankString(rank));
-            yield return StartCoroutine(LerpCameraToFocus(_jellies[i]));
-            yield return new WaitForSeconds(focusHoldDuration);
+            // 이전 활성 카메라들을 0으로 낮추고 현재만 활성화
+            DeactivateAllVcams();
+            _focusCams[i].Priority = 100;
+
+            SetRankText(GetRankString(_displayOrderRanks[i]));
+            // 블렌드 시간 + 머무는 시간
+            yield return new WaitForSeconds(cameraTransitionDuration + focusHoldDuration);
         }
 
-        // 마지막: 전체 보기
+        // 마지막: 오버뷰
+        DeactivateAllVcams();
+        _overviewCam.Priority = 100;
         SetRankText(finalText);
-        yield return StartCoroutine(LerpCameraToOverview());
+    }
+
+    private void DeactivateAllVcams()
+    {
+        foreach (var cam in _focusCams)
+            if (cam != null) cam.Priority = 0;
+        if (_overviewCam != null) _overviewCam.Priority = 0;
     }
 
     private string GetRankString(int rank)
@@ -297,68 +415,6 @@ public class GameResultDirector : MonoBehaviour
         }
     }
 
-    private IEnumerator LerpCameraToFocus(GameObject target)
-    {
-        // 젤리 반지름 = 현재 localScale × baseRadius
-        float radius = Mathf.Max(0.2f, target.transform.localScale.x * baseRadius);
-
-        // 젤리 전신이 보이도록 거리/높이 계산
-        // 수직 FoV 기반: distance >= radius / tan(fov/2) 보장
-        float distance = radius * focusDistanceMultiplier;
-        if (resultCamera.orthographic)
-        {
-            resultCamera.orthographicSize = Mathf.Max(resultCamera.orthographicSize, radius * 1.3f);
-        }
-        else
-        {
-            float halfFovRad = resultCamera.fieldOfView * 0.5f * Mathf.Deg2Rad;
-            float requiredDistance = radius / Mathf.Tan(halfFovRad) + radius;
-            distance = Mathf.Max(distance, requiredDistance);
-        }
-
-        Vector3 centerWorld = target.transform.position + Vector3.up * radius;
-        Vector3 targetPos = centerWorld + new Vector3(0f, focusHeightOffset, -distance);
-        Quaternion targetRot = Quaternion.LookRotation(centerWorld - targetPos);
-
-        yield return LerpCamera(targetPos, targetRot, cameraTransitionDuration);
-    }
-
-    private IEnumerator LerpCameraToOverview()
-    {
-        Vector3 center = Vector3.zero;
-        float maxRadius = 0f;
-        foreach (var j in _jellies)
-        {
-            center += j.transform.position;
-            maxRadius = Mathf.Max(maxRadius, j.transform.localScale.x * baseRadius);
-        }
-        center /= _jellies.Count;
-
-        Vector3 targetPos = center + new Vector3(0f, overviewHeight, -overviewDistance);
-        Quaternion targetRot = Quaternion.LookRotation(center - targetPos);
-
-        yield return LerpCamera(targetPos, targetRot, cameraTransitionDuration);
-    }
-
-    private IEnumerator LerpCamera(Vector3 targetPos, Quaternion targetRot, float duration)
-    {
-        Vector3 startPos = resultCamera.transform.position;
-        Quaternion startRot = resultCamera.transform.rotation;
-
-        float t = 0f;
-        while (t < duration)
-        {
-            t += Time.deltaTime;
-            float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / duration));
-            resultCamera.transform.position = Vector3.Lerp(startPos, targetPos, p);
-            resultCamera.transform.rotation = Quaternion.Slerp(startRot, targetRot, p);
-            yield return null;
-        }
-
-        resultCamera.transform.position = targetPos;
-        resultCamera.transform.rotation = targetRot;
-    }
-
     // ──────────────────────────────────────────────
     // UI 헬퍼
     // ──────────────────────────────────────────────
@@ -367,7 +423,6 @@ public class GameResultDirector : MonoBehaviour
     {
         if (rankAnnouncementText != null) return;
 
-        // 자동 생성
         var canvasGO = new GameObject("ResultRankCanvas");
         var canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
