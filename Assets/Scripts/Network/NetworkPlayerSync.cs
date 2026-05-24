@@ -324,7 +324,12 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     {
         if (!photonView.IsMine) return;
         _absorbedBotIds.Add(botViewID);
-        GameState.CurrentScore += bonusScore;
+
+        var dm = DataManager.Instance;
+        float predictedScale = scaleController != null
+            ? Mathf.Min(scaleController.currentScaleValue + botScale * dm.absorbScalePercent, dm.maxScale)
+            : GameState.PlayerCurrentScale;
+        GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
         SyncScore(GameState.CurrentScore);
         scaleController?.GrowByAbsorbing(botScale);
     }
@@ -338,30 +343,19 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (_isAbsorbed) return;
         _isAbsorbed = true;
 
-        // 흡수한 플레이어 점수 증가 (흡수한 쪽 클라이언트에서만 처리)
         if (absorberViewID >= 0)
         {
             PhotonView absorberView = PhotonView.Find(absorberViewID);
             if (absorberView != null && absorberView.IsMine)
             {
-                // 흡수된 플레이어의 점수 읽기 (CustomProperties에 동기화된 값)
-                int absorbedScore = 0;
-                if (photonView.Owner?.CustomProperties != null &&
-                    photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreVal))
-                    absorbedScore = (int)scoreVal;
-
-                // 흡수한 쪽이 봇인지 플레이어인지 구분
-                AIPlayerMovement botAbsorber = absorberView.GetComponent<AIPlayerMovement>();
-                if (botAbsorber != null)
+                var absorberScale = absorberView.GetComponent<PlayerScaleController>();
+                if (absorberScale != null)
                 {
-                    // 봇이 플레이어를 흡수 → 봇 점수 증가
-                    // (AIPlayerMovement.OnTriggerEnter에서 MasterClient가 이미 처리했으므로 중복 방지)
-                    // 여기서는 스케일만 처리
-                }
-                else
-                {
-                    // 플레이어가 플레이어를 흡수 → 흡수된 플레이어의 점수 획득
-                    GameState.CurrentScore += absorbedScore;
+                    var dm = DataManager.Instance;
+                    float predictedScale = Mathf.Min(
+                        absorberScale.currentScaleValue + transform.localScale.x * dm.absorbScalePercent,
+                        dm.maxScale);
+                    GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
                     SyncScore(GameState.CurrentScore);
                 }
 

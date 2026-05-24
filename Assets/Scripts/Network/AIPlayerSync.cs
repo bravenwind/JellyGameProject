@@ -39,6 +39,13 @@ public class AIPlayerSync : MonoBehaviourPun
         UpdateBotData($"AI 봇 {photonView.ViewID}", _currentScore, transform.localScale.x);
     }
 
+    public void SetScoreFromScale(float scale)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+        _currentScore = DataManager.Instance.ScoreFromScale(scale);
+        UpdateBotData($"AI 봇 {photonView.ViewID}", _currentScore, scale);
+    }
+
     public void SyncScale(float scaleValue)
     {
         if (!PhotonNetwork.IsMasterClient || !PhotonNetwork.InRoom) return;

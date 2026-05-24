@@ -87,6 +87,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (GameState.Phase == GamePhase.Playing) return;
         _spawned = true;
 
+        // 1. 가상 포인트 포함 스폰 슬롯 미리 준비 → 2. 로컬 플레이어 → 3. 봇
+        NetworkManager.Instance?.PrepareSpawnSlots();
         NetworkManager.Instance?.SpawnLocalPlayer();
         NetworkManager.Instance?.SpawnBots();
 
@@ -225,38 +227,43 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 현재 방의 모든 플레이어와 봇의 점수를 가져와 내림차순으로 정렬하여 반환
+    /// 현재 방의 모든 플레이어와 봇의 (이름, 점수, 크기, 봇여부)를 가져와
+    /// 크기 내림차순으로 정렬하여 반환. 점수는 크기에서 자동 산출.
     /// </summary>
-    private List<(string name, int score, bool isBot)> GetSortedScores()
+    private List<(string name, int score, float scale, bool isBot)> GetSortedScores()
     {
-        var entries = new List<(string name, int score, bool isBot)>();
+        var dm = DataManager.Instance;
+        var entries = new List<(string name, int score, float scale, bool isBot)>();
 
-        // 1. 유저 점수
         foreach (Player player in PhotonNetwork.PlayerList)
         {
-            int score = player.CustomProperties.TryGetValue("Score", out object s) ? (int)s : 0;
-            entries.Add((player.NickName, score, false));
+            float scale = player.CustomProperties.TryGetValue("Scale", out object sc) ? (float)sc : dm.startingScale;
+            int score = dm.ScoreFromScale(scale);
+            entries.Add((player.NickName, score, scale, false));
         }
 
-        // 2. 봇 점수
         var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
         foreach (var key in roomProps.Keys)
         {
             string keyStr = key.ToString();
-            if (keyStr.EndsWith("_Score"))
+            if (keyStr.EndsWith("_Name"))
             {
-                string prefix = keyStr.Replace("_Score", "");
-                string botName = roomProps.ContainsKey($"{prefix}_Name") ? roomProps[$"{prefix}_Name"].ToString() : "Bot";
-                int botScore = (int)roomProps[keyStr];
+                string prefix = keyStr.Replace("_Name", "");
+                object nameVal = roomProps[keyStr];
+                if (nameVal == null) continue;
 
-                entries.Add((botName, botScore, true));
+                string botName = nameVal.ToString();
+                float scale = roomProps.TryGetValue($"{prefix}_Scale", out object sv) && sv != null
+                    ? (float)sv : dm.startingScale;
+                int score = dm.ScoreFromScale(scale);
+                entries.Add((botName, score, scale, true));
             }
         }
 
-        return entries.OrderByDescending(e => e.score).ToList();
+        return entries.OrderByDescending(e => e.scale).ToList();
     }
 
-    private int GetLocalPlayerRank(List<(string name, int score, bool isBot)> sortedEntries)
+    private int GetLocalPlayerRank(List<(string name, int score, float scale, bool isBot)> sortedEntries)
     {
         for (int i = 0; i < sortedEntries.Count; i++)
         {
@@ -340,7 +347,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         int displayCount = Mathf.Min(entries.Count, 5);
         for (int i = 0; i < displayCount; i++)
         {
-            var (name, score, isBot) = entries[i];
+            var (name, score, scale, isBot) = entries[i];
             LeaderboardEntry entryComp = _leaderboardPool.Get();
             entryComp.transform.SetAsLastSibling();
             _leaderboardEntries.Add(entryComp);

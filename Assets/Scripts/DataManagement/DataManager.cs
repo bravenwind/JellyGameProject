@@ -57,6 +57,13 @@ public class DataManager : MonoBehaviour
     [Header("Score Settings")]
     public int targetScore = 1000;
     public int scorePerJelly = 100;
+    public float startingScale = 2f;
+
+    public int ScoreFromScale(float scale)
+    {
+        if (jellyScaleIncrease <= 0f) return 0;
+        return Mathf.Max(0, Mathf.RoundToInt((scale - startingScale) * scorePerJelly / jellyScaleIncrease));
+    }
 
     [Header("Detection Settings")]
     public float originalDetectRadius = 4;

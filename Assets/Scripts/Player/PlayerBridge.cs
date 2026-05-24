@@ -102,6 +102,12 @@ public class PlayerBridge : MonoBehaviour
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius
             + (scaleValue - 1f) * DataManager.Instance.detectPlusRadiusPerLevel;
         GameState.PlayerCurrentScale = scaleValue;
+
+        GameState.CurrentScore = DataManager.Instance.ScoreFromScale(scaleValue);
+        var netSync = GetComponent<NetworkPlayerSync>();
+        if (netSync != null && netSync.photonView.IsMine)
+            netSync.SyncScore(GameState.CurrentScore);
+
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
@@ -134,11 +140,15 @@ public class PlayerBridge : MonoBehaviour
         var netSync = GetComponent<NetworkPlayerSync>();
         if (netSync == null || !netSync.photonView.IsMine) return;
 
-        GameState.CurrentScore += DataManager.Instance.scorePerJelly;
+        var dm = DataManager.Instance;
+        float predictedScale = _scaleCtrl != null
+            ? Mathf.Min(_scaleCtrl.currentScaleValue + dm.jellyScaleIncrease, dm.maxScale)
+            : GameState.PlayerCurrentScale + dm.jellyScaleIncrease;
+        GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
         netSync.SyncScore(GameState.CurrentScore);
         UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
-        if (GameState.CurrentScore >= DataManager.Instance.targetScore)
-            DataManager.Instance.missions[1].missionCleared = true;
+        if (GameState.CurrentScore >= dm.targetScore)
+            dm.missions[1].missionCleared = true;
     }
 }

@@ -455,12 +455,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             float playerScale = NetworkPlayerSync.GetPlayerSyncedScale(player.photonView.Owner);
             if (playerScale >= myScale) return;
 
-            int playerScore = 0;
-            if (player.photonView?.Owner?.CustomProperties != null &&
-                player.photonView.Owner.CustomProperties.TryGetValue("Score", out object scoreVal))
-                playerScore = (int)scoreVal;
-            _aiSync?.AddScore(playerScore);
-
             player.photonView.RPC("RPC_GetAbsorbed", RpcTarget.All, photonView.ViewID);
             ScaleCtrl?.GrowByAbsorbing(playerScale);
             return;
@@ -473,8 +467,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             float myScale = GetMyAuthorityScale();
             float otherScale = otherBot.GetMyAuthorityScale();
             if (otherScale >= myScale) return;
-
-            _aiSync?.AddScore(otherBot.CurrentScore);
 
             otherBot.photonView.RPC(nameof(RPC_BotAbsorbed), RpcTarget.All, photonView.ViewID);
             ScaleCtrl?.GrowByAbsorbing(otherScale);

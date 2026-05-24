@@ -71,8 +71,13 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [Tooltip("이미 사용된 스폰포인트와의 최소 거리")]
     public float minSpawnDistance = 3f;
 
-    // 이번 게임에서 이미 사용된 스폰 위치들 (플레이어 + 봇 공용)
-    private readonly List<Vector3> _usedSpawnPositions = new List<Vector3>();
+    [Tooltip("가상 스폰포인트 생성 시 탐색 반경")]
+    public float virtualSpawnRadius = 30f;
+
+    // 이번 게임의 스폰 슬롯 (물리 SpawnPoint + 부족하면 NavMesh 기반 가상 포인트)
+    // 인덱스로 분배: 0..PlayerCount-1 → 플레이어, 그 뒤 → 봇
+    private readonly List<Vector3> _spawnSlots = new List<Vector3>();
+    private bool _slotsPrepared = false;
 
     // 이벤트 코드 (다른 RaiseEvent와 안 겹치게)
     public const byte EVENT_COUNTDOWN = 11;
@@ -116,7 +121,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        _usedSpawnPositions.Clear();
+        _spawnSlots.Clear();
+        _slotsPrepared = false;
         spawnPoints = null;
         // 게임 오버/일시정지 상태에서 씬을 넘어가도 시간이 멈추지 않도록 복구
         Time.timeScale = 1f;
@@ -368,56 +374,88 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
-    /// 게임 씬이 로드된 후 GameModeManager에서 호출
-    /// → 로컬 플레이어 프리팹 생성
+    /// 스폰 슬롯 사전 준비. SpawnLocalPlayer/SpawnBots 호출 전에 한 번 실행.
+    /// 물리 SpawnPoint를 먼저 채우고, 부족하면 NavMesh 기반 가상 포인트로 보충.
+    /// 슬롯 인덱스로 분배: 플레이어들이 0..PlayerCount-1, 봇들이 그 뒤.
     /// </summary>
-    public void SpawnLocalPlayer()
+    public void PrepareSpawnSlots()
     {
-        // 스폰 위치 결정 (없으면 원점)
-        Vector3 spawnPos = Vector3.zero;
-        Quaternion spawnRot = Quaternion.identity;
+        if (_slotsPrepared) return;
 
-        // 1. 유효한 스폰 포인트 가져오기
-        var validPoints = GetValidSpawnPoints();
+        _spawnSlots.Clear();
 
-        // 2. 만약 현재 방 인원수(PlayerCount)보다 스폰 포인트가 부족하다면?
-        int currentRoomPlayers = PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.PlayerCount : 1;
-        while (validPoints.Count < currentRoomPlayers)
+        int playerCount = PhotonNetwork.CurrentRoom?.PlayerCount ?? 1;
+        int needed = playerCount + Mathf.Max(0, botCount);
+
+        // 1. 물리 SpawnPoint 채우기
+        var physical = GetValidSpawnPoints();
+        foreach (var t in physical)
+            if (t != null) _spawnSlots.Add(t.position);
+
+        // 2. 부족하면 NavMesh 기반 가상 포인트로 보충
+        Vector3 origin = _spawnSlots.Count > 0 ? _spawnSlots[0] : Vector3.zero;
+        int guard = 0;
+        while (_spawnSlots.Count < needed && guard++ < needed * 5)
         {
-            // 안 겹치는 랜덤 좌표를 하나 뽑아서 가상 스폰포인트 생성
-            Vector3 randomPos = PickNonOverlappingRandom();
-            GameObject virtualPoint = new GameObject($"VirtualSpawnPoint_Player_{validPoints.Count}");
-            virtualPoint.transform.position = randomPos;
-            virtualPoint.transform.rotation = Quaternion.identity;
-
-            validPoints.Add(virtualPoint.transform);
-            Debug.Log($"[Network] 스폰포인트 부족으로 플레이어용 가상 스폰포인트 추가 생성: {randomPos}");
+            if (TryGenerateVirtualSpawnPoint(origin, out Vector3 p))
+                _spawnSlots.Add(p);
+            else
+                break;
         }
 
-        // 3. 겹침 방지 인덱스 선택 진행 (이제 개수가 무조건 충분하므로 안심하고 사용)
-        if (validPoints.Count > 0)
+        _slotsPrepared = true;
+        Debug.Log($"[Network] 스폰 슬롯 준비 완료: 물리 {physical.Length}, 가상 {_spawnSlots.Count - physical.Length}, 총 {_spawnSlots.Count}/{needed}");
+    }
+
+    private bool TryGenerateVirtualSpawnPoint(Vector3 origin, out Vector3 result)
+    {
+        for (int attempt = 0; attempt < 30; attempt++)
         {
-            // PickNonOverlappingSpawnIndex가 배열을 받으므로 ToArray()로 변환해서 전달
-            int idx = PickNonOverlappingSpawnIndex(validPoints.ToArray());
-            spawnPos = validPoints[idx].position;
-            spawnRot = validPoints[idx].rotation;
+            Vector2 circle = Random.insideUnitCircle * virtualSpawnRadius;
+            Vector3 candidate = origin + new Vector3(circle.x, 0f, circle.y);
+
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out var hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            {
+                bool tooClose = false;
+                foreach (var existing in _spawnSlots)
+                {
+                    if (Vector3.Distance(existing, hit.position) < minSpawnDistance) { tooClose = true; break; }
+                }
+                if (!tooClose) { result = hit.position; return true; }
+            }
         }
+        result = origin;
+        return false;
+    }
 
-        _usedSpawnPositions.Add(spawnPos);
-
-        // PhotonNetwork.Instantiate: "Resources/playerPrefabName" 프리팹을 네트워크 전체에 생성
-        GameObject player = PhotonNetwork.Instantiate(
-            prefabFolder + playerPrefabName,
-            spawnPos,
-            spawnRot
-        );
-
-        Debug.Log($"[Network] 로컬 플레이어 스폰 완료: {player.name} 위치: {spawnPos}");
+    private Vector3 GetSlot(int idx)
+    {
+        if (_spawnSlots.Count == 0) return Vector3.zero;
+        return _spawnSlots[Mathf.Clamp(idx, 0, _spawnSlots.Count - 1)];
     }
 
     /// <summary>
-    /// MasterClient만 AI 봇을 생성
-    /// (방장이 AI를 관리하는 책임을 가짐)
+    /// 게임 씬이 로드된 후 GameModeManager에서 호출
+    /// → 로컬 플레이어 프리팹 생성. ActorNumber로 슬롯 결정.
+    /// </summary>
+    public void SpawnLocalPlayer()
+    {
+        if (!_slotsPrepared) PrepareSpawnSlots();
+
+        int slotIdx = (PhotonNetwork.LocalPlayer?.ActorNumber ?? 1) - 1;
+        Vector3 spawnPos = GetSlot(slotIdx);
+
+        GameObject player = PhotonNetwork.Instantiate(
+            prefabFolder + playerPrefabName,
+            spawnPos,
+            Quaternion.identity
+        );
+
+        Debug.Log($"[Network] 로컬 플레이어 스폰 완료: {player.name} 슬롯[{slotIdx}] 위치={spawnPos}");
+    }
+
+    /// <summary>
+    /// MasterClient만 AI 봇을 생성. 플레이어들이 사용한 슬롯 다음부터 봇 배치.
     /// </summary>
     public void SpawnBots()
     {
@@ -429,8 +467,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // 1. 유효한 스폰 포인트 가져오기
-        var validPoints = GetValidSpawnPoints();
+        if (!_slotsPrepared) PrepareSpawnSlots();
+
+        // 플레이어들이 사용한 슬롯 다음부터 봇 시작 — actorNumber 최댓값 기준으로 안전하게 결정
+        int botStartIdx = PhotonNetwork.PlayerList.Length;
+        foreach (var p in PhotonNetwork.PlayerList)
+            if (p.ActorNumber > botStartIdx) botStartIdx = p.ActorNumber;
 
         // 2. 봇까지 다 합쳐서 필요한 총 스폰 포인트 개수 계산 (현재 플레이어 수 + 생성할 봇 수)
         int currentRoomPlayers = PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.PlayerCount : 1;
@@ -451,89 +493,15 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // 4. 안전하게 대량 스폰 진행
         for (int i = 0; i < botCount; i++)
         {
-            Vector3 candidate = Vector3.zero;
-            if (validPoints.Count > 0)
-            {
-                int idx = PickNonOverlappingSpawnIndex(validPoints.ToArray());
-                candidate = validPoints[idx].position;
+            Vector3 spawnPos = GetSlot(botStartIdx + i);
 
-                // 한 번 뽑힌 스폰 포인트의 위치를 바로 _usedSpawnPositions에 넣으므로, 
-                // 다음 루프의 PickNonOverlappingSpawnIndex에서 이 위치를 "이미 사용됨"으로 인식해 피해 감!
-                _usedSpawnPositions.Add(candidate);
-            }
+            // 슬롯이 NavMesh 변경 등으로 무효해졌을 경우를 대비해 한번 더 보정
+            if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out var hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+                spawnPos = hit.position;
 
-            // NavMesh 위 가장 가까운 위치로 보정
-            UnityEngine.AI.NavMeshHit hit;
-            Vector3 spawnPos = UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas)
-                ? hit.position
-                : candidate;
-
-            Debug.Log($"[Network] AI봇 스폰 위치: {spawnPos} (candidate: {candidate})");
+            Debug.Log($"[Network] AI봇 스폰 슬롯[{botStartIdx + i}] 위치={spawnPos}");
             PhotonNetwork.InstantiateRoomObject(prefabFolder + botPrefabName, spawnPos, Quaternion.identity);
-            Debug.Log($"[Network] AI 봇 {i + 1} 스폰 완료");
         }
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 스폰 겹침 방지
-    // ─────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// validPoints 중 이미 사용된 위치와 minSpawnDistance 이상 떨어진 인덱스를 반환.
-    /// 모든 포인트가 겹치면 가장 먼 포인트를 선택.
-    /// </summary>
-    private int PickNonOverlappingSpawnIndex(Transform[] points)
-    {
-        // 셔플된 인덱스 순서로 탐색
-        int[] indices = new int[points.Length];
-        for (int i = 0; i < indices.Length; i++) indices[i] = i;
-        for (int i = indices.Length - 1; i > 0; i--)
-        {
-            int j = Random.Range(0, i + 1);
-            (indices[i], indices[j]) = (indices[j], indices[i]);
-        }
-
-        int bestIdx = indices[0];
-        float bestMinDist = 0f;
-
-        foreach (int idx in indices)
-        {
-            float closest = ClosestUsedDistance(points[idx].position);
-            if (closest >= minSpawnDistance)
-                return idx;                 // 충분히 멀면 즉시 반환
-            if (closest > bestMinDist)
-            {
-                bestMinDist = closest;
-                bestIdx = idx;              // 가장 먼 후보 기록
-            }
-        }
-
-        return bestIdx; // 모두 겹치면 그나마 가장 먼 포인트
-    }
-
-    /// <summary>
-    /// SpawnPoint가 없을 때 랜덤 좌표 중 가급적 겹치지 않는 위치 반환.
-    /// </summary>
-    private Vector3 PickNonOverlappingRandom()
-    {
-        for (int attempt = 0; attempt < 20; attempt++)
-        {
-            Vector3 candidate = new Vector3(Random.Range(-10f, 10f), 0, Random.Range(-10f, 10f));
-            if (ClosestUsedDistance(candidate) >= minSpawnDistance)
-                return candidate;
-        }
-        return new Vector3(Random.Range(-10f, 10f), 0, Random.Range(-10f, 10f));
-    }
-
-    private float ClosestUsedDistance(Vector3 pos)
-    {
-        float closest = float.MaxValue;
-        foreach (var used in _usedSpawnPositions)
-        {
-            float d = Vector3.Distance(pos, used);
-            if (d < closest) closest = d;
-        }
-        return closest;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -546,7 +514,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public void LeaveRoom()
     {
         _wantsToJoin = false;
-        _usedSpawnPositions.Clear();
+        _spawnSlots.Clear();
+        _slotsPrepared = false;
         PhotonNetwork.LeaveRoom();
     }
 
