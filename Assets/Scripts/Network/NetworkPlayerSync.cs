@@ -233,6 +233,16 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
     }
 
+    public void SyncEliminated()
+    {
+        if (!photonView.IsMine) return;
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
+        {
+            { "Eliminated", true }
+        };
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+    }
+
     public static float GetPlayerSyncedScale(Player player)
     {
         if (player?.CustomProperties != null &&
@@ -413,6 +423,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             }
         }
 
+        SyncEliminated();
         GameModeManager.Instance?.OnPlayerAbsorbed(this);
         StartCoroutine(AbsorbedSequence(absorberViewID));
     }
