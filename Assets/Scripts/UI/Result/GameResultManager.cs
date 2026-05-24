@@ -271,6 +271,10 @@ public class GameResultManager : MonoBehaviour
         // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
         DestroyAll<PlayerColorVisual>(root);
 
+        // Cloth 물리가 메시를 변형시키지 않도록 제거 (SoftBody3D.Awake가 Cloth를 재생성하므로 먼저 제거)
+        DestroyAll<SoftBody3D>(root);
+        DestroyAll<Cloth>(root);
+
         // photonView를 참조하는 모든 Photon View 컴포넌트를 PhotonView보다 먼저 제거
         DestroyAll<PhotonTransformView>(root);
         DestroyAll<PhotonAnimatorView>(root);
@@ -293,9 +297,16 @@ public class GameResultManager : MonoBehaviour
             DestroyImmediate(c);
     }
 
+    private static Renderer FindJellyRenderer(GameObject root)
+    {
+        var smr = root.GetComponentInChildren<SkinnedMeshRenderer>(true);
+        if (smr != null) return smr;
+        return root.GetComponentInChildren<Renderer>(true);
+    }
+
     private static void GroundToFloor(GameObject go, float floorY)
     {
-        var rend = go.GetComponentInChildren<Renderer>(true);
+        var rend = FindJellyRenderer(go);
         if (rend == null) return;
 
         float bottomY = rend.bounds.min.y;
@@ -313,7 +324,7 @@ public class GameResultManager : MonoBehaviour
 
     private void ApplyJellyColor(GameObject root, Color color)
     {
-        var rend = root.GetComponentInChildren<Renderer>(true);
+        var rend = FindJellyRenderer(root);
         if (rend == null) return;
 
         // material은 매번 instance가 생성되도록 .material 접근 (sharedMaterial이 아님)

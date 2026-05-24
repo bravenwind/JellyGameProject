@@ -335,6 +335,13 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         // 💡 탈락했으니 중앙 카운트다운 텍스트는 지워줌
         if (centerCountdownText != null) centerCountdownText.text = "";
 
+        // 탈락 시에도 결과 씬에서 색상/스케일을 복원할 수 있도록 미리 저장
+        if (_localPlayer != null)
+        {
+            _localPlayer.SyncColor();
+            _localPlayer.SyncScale();
+        }
+
         ShowResultUI($"탈락!\n{min}분 {sec}초 생존");
         Debug.Log($"[GameMode] 로컬 플레이어 탈락! 생존시간={min}분 {sec}초");
     }
