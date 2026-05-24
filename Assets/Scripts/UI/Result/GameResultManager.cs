@@ -309,14 +309,20 @@ public class GameResultManager : MonoBehaviour
     private static void GroundToFloor(GameObject go, float floorY)
     {
         var smr = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
-        if (smr != null)
+        if (smr != null && smr.sharedMesh != null)
         {
-            Bounds local = smr.localBounds;
-            if (float.IsNaN(local.min.y)) return;
-            float worldBottomY = smr.transform.position.y
-                + local.min.y * smr.transform.lossyScale.y;
-            go.transform.position += new Vector3(0f, floorY - worldBottomY, 0f);
-            return;
+            Vector3[] verts = smr.sharedMesh.vertices;
+            float minY = float.MaxValue;
+            for (int i = 0; i < verts.Length; i++)
+                if (verts[i].y < minY) minY = verts[i].y;
+
+            if (minY < float.MaxValue)
+            {
+                float worldBottomY = smr.transform.position.y
+                    + minY * smr.transform.lossyScale.y;
+                go.transform.position += new Vector3(0f, floorY - worldBottomY, 0f);
+                return;
+            }
         }
 
         var rend = go.GetComponentInChildren<Renderer>(true);
