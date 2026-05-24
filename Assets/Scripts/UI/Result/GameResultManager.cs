@@ -18,7 +18,7 @@ using UnityEngine;
 /// GameModeManager.SyncAllColorsForResult()가 LoadLevel 직전 호출되어
 /// 위 프로퍼티들이 결과 씬으로 넘어옴.
 /// </summary>
-public class GameResultDirector : MonoBehaviour
+public class GameResultManager : MonoBehaviour
 {
     [Header("프리팹 (비우면 Resources에서 자동 로드)")]
     public GameObject playerJellyPrefab;
