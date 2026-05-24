@@ -231,20 +231,9 @@ public class GameResultManager : MonoBehaviour
 
             // 1. 크기 적용 (Scale을 먼저 키워야 bounds가 제대로 갱신됨)
             go.transform.localScale = Vector3.one * entry.scale;
-
-            // 2. 바닥 접지 (Grounding) 보정
-            Renderer rend = go.GetComponentInChildren<Renderer>();
-            if (rend != null)
-            {
-                float currentBottomY = rend.bounds.min.y;
-                float targetBottomY = positions[i].y; // 배치 기준점의 Y 높이
-                float yOffset = targetBottomY - currentBottomY;
-
-                go.transform.position += new Vector3(0f, yOffset, 0f);
-            }
-
-            SetupNameTag(go, entry.name);
             go.SetActive(true);
+            GroundToFloor(go, positions[i].y);
+            SetupNameTag(go, entry.name);
 
             ApplyJellyColor(go, entry.color);
 
@@ -282,7 +271,10 @@ public class GameResultManager : MonoBehaviour
         // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
         DestroyAll<PlayerColorVisual>(root);
 
-        // PhotonView는 마지막에 (다른 컴포넌트가 photonView 참조)
+        // photonView를 참조하는 모든 Photon View 컴포넌트를 PhotonView보다 먼저 제거
+        DestroyAll<PhotonTransformView>(root);
+        DestroyAll<PhotonAnimatorView>(root);
+        DestroyAll<PhotonRigidbodyView>(root);
         DestroyAll<PhotonView>(root);
 
         foreach (var col in root.GetComponentsInChildren<Collider>(true))
@@ -299,6 +291,16 @@ public class GameResultManager : MonoBehaviour
     {
         foreach (var c in root.GetComponentsInChildren<T>(true))
             DestroyImmediate(c);
+    }
+
+    private static void GroundToFloor(GameObject go, float floorY)
+    {
+        var rend = go.GetComponentInChildren<Renderer>(true);
+        if (rend == null) return;
+
+        float bottomY = rend.bounds.min.y;
+        float offset = floorY - bottomY;
+        go.transform.position += new Vector3(0f, offset, 0f);
     }
 
     private void SetupNameTag(GameObject root, string playerName)
