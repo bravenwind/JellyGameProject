@@ -384,8 +384,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         _spawnSlots.Clear();
 
-        int playerCount = PhotonNetwork.CurrentRoom?.PlayerCount ?? 1;
-        int needed = playerCount + Mathf.Max(0, botCount);
+        // [안정성 개선] 런타임 인원 변동으로 인한 슬롯 부족을 원천 차단하기 위해 
+        // 방의 최대 인원(maxPlayersPerRoom)만큼 슬롯을 항상 넉넉하게 확보합니다.
+        int needed = Mathf.Max(maxPlayersPerRoom, (PhotonNetwork.CurrentRoom?.PlayerCount ?? 1) + botCount);
 
         // 1. 물리 SpawnPoint 채우기
         var physical = GetValidSpawnPoints();
@@ -404,7 +405,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         }
 
         _slotsPrepared = true;
-        Debug.Log($"[Network] 스폰 슬롯 준비 완료: 물리 {physical.Length}, 가상 {_spawnSlots.Count - physical.Length}, 총 {_spawnSlots.Count}/{needed}");
+        Debug.Log($"[Network] 스폰 슬롯 준비 완료: 물리 {physical.Count}, 가상 {_spawnSlots.Count - physical.Count}, 총 {_spawnSlots.Count}/{needed}");
     }
 
     private bool TryGenerateVirtualSpawnPoint(Vector3 origin, out Vector3 result)
@@ -431,6 +432,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     private Vector3 GetSlot(int idx)
     {
         if (_spawnSlots.Count == 0) return Vector3.zero;
+        // 인덱스가 범위를 벗어나지 않도록 안전하게 제한
         return _spawnSlots[Mathf.Clamp(idx, 0, _spawnSlots.Count - 1)];
     }
 
@@ -442,7 +444,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         if (!_slotsPrepared) PrepareSpawnSlots();
 
-        int slotIdx = (PhotonNetwork.LocalPlayer?.ActorNumber ?? 1) - 1;
+        // ActorNumber 기반 고유 슬롯 할당 (1번 플레이어 -> 0번 슬롯)
+        int slotIdx = (PhotonNetwork.LocalPlayer != null) ? PhotonNetwork.LocalPlayer.ActorNumber - 1 : 0;
         Vector3 spawnPos = GetSlot(slotIdx);
 
         GameObject player = PhotonNetwork.Instantiate(
@@ -469,37 +472,26 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         if (!_slotsPrepared) PrepareSpawnSlots();
 
-        // 플레이어들이 사용한 슬롯 다음부터 봇 시작 — actorNumber 최댓값 기준으로 안전하게 결정
+        // 플레이어들이 사용한 슬롯 다음부터 봇 인덱스 시작
         int botStartIdx = PhotonNetwork.PlayerList.Length;
         foreach (var p in PhotonNetwork.PlayerList)
-            if (p.ActorNumber > botStartIdx) botStartIdx = p.ActorNumber;
-
-        // 2. 봇까지 다 합쳐서 필요한 총 스폰 포인트 개수 계산 (현재 플레이어 수 + 생성할 봇 수)
-        int currentRoomPlayers = PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.PlayerCount : 1;
-        int totalRequiredPoints = currentRoomPlayers + botCount;
-
-        // 3. 부족한 만큼 안 겹치는 가상 스폰 포인트를 미리 채워 넣기
-        while (validPoints.Count < totalRequiredPoints)
         {
-            Vector3 randomPos = PickNonOverlappingRandom();
-            GameObject virtualPoint = new GameObject($"VirtualSpawnPoint_Bot_{validPoints.Count}");
-            virtualPoint.transform.position = randomPos;
-            virtualPoint.transform.rotation = Quaternion.identity;
-
-            validPoints.Add(virtualPoint.transform);
-            Debug.Log($"[Network] 스폰포인트 부족으로 봇용 가상 스폰포인트 추가 생성: {randomPos}");
+            if (p.ActorNumber > botStartIdx)
+                botStartIdx = p.ActorNumber;
         }
 
-        // 4. 안전하게 대량 스폰 진행
+        // [수정완료] 컴파일 에러를 일으키던 과거의 validPoints 찌꺼기 로직 완전 제거!
+        // 깨끗하게 정리된 슬롯 기반 루프로 안전하게 대량 스폰 진행
         for (int i = 0; i < botCount; i++)
         {
-            Vector3 spawnPos = GetSlot(botStartIdx + i);
+            int currentSlotIdx = botStartIdx + i;
+            Vector3 spawnPos = GetSlot(currentSlotIdx);
 
-            // 슬롯이 NavMesh 변경 등으로 무효해졌을 경우를 대비해 한번 더 보정
+            // 슬롯이 맵 외곽이나 NavMesh 변경 등으로 무효해졌을 경우를 대비해 최종 보정
             if (UnityEngine.AI.NavMesh.SamplePosition(spawnPos, out var hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
                 spawnPos = hit.position;
 
-            Debug.Log($"[Network] AI봇 스폰 슬롯[{botStartIdx + i}] 위치={spawnPos}");
+            Debug.Log($"[Network] AI봇 스폰 슬롯[{currentSlotIdx}] 위치={spawnPos}");
             PhotonNetwork.InstantiateRoomObject(prefabFolder + botPrefabName, spawnPos, Quaternion.identity);
         }
     }
