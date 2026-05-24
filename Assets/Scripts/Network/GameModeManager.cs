@@ -237,6 +237,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         foreach (Player player in PhotonNetwork.PlayerList)
         {
+            if (player.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
+                continue;
             float scale = player.CustomProperties.TryGetValue("Scale", out object sc) ? (float)sc : dm.startingScale;
             int score = dm.ScoreFromScale(scale);
             entries.Add((player.NickName, score, scale, false));

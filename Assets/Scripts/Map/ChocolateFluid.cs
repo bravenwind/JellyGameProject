@@ -158,6 +158,7 @@ public class ChocolateFluid : MonoBehaviour
         if (netPlayer.playerController != null)
             netPlayer.playerController.enabled = false;
 
+        netPlayer.SyncEliminated();
         if (netPlayer.photonView.IsMine)
             GameModeManager.Instance?.GameOver();
 

@@ -150,6 +150,8 @@ public class GameResultManager : MonoBehaviour
 
         foreach (Player p in PhotonNetwork.PlayerList)
         {
+            if (p.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
+                continue;
             float scale = ReadFloat(p.CustomProperties, "Scale", defaultScale);
             Color color = ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
             entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false, color = color });
