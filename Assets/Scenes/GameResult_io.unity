@@ -74014,6 +74014,75 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2013430845}
   m_Mesh: {fileID: -4434520673447221641, guid: 4726382e0671ca9459377fd501903c01, type: 3}
+--- !u!1 &2013748672
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2013748674}
+  - component: {fileID: 2013748673}
+  m_Layer: 0
+  m_Name: GameResultManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2013748673
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013748672}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8629a06bd5b5e1e4e8f0a0ebb8bfded9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  playerJellyPrefab: {fileID: 1177273754728550086, guid: e6104118e78dee7438729bf80b54c0e5, type: 3}
+  botJellyPrefab: {fileID: 1177273754728550086, guid: b1819b7e9bcac3e41927d859b19f03a0, type: 3}
+  playerPrefabResourcePath: Prefabs/NetworkPlayer_Bear
+  botPrefabResourcePath: Prefabs/AIPlayer_Bear
+  rightAnchor: {x: 3, y: 0, z: 0}
+  padding: 1
+  baseRadius: 0.5
+  resultCamera: {fileID: 1707815816}
+  cameraTransitionDuration: 1.2
+  focusDistanceMultiplier: 3.5
+  focusHeightOffset: 0.4
+  focusHoldDuration: 2.5
+  overviewDistance: 12
+  overviewHeight: 4
+  virtualCameraFov: 40
+  fallbackColor: {r: 1, g: 1, b: 1, a: 1}
+  baseColor02Lightness: 0.6
+  baseColor01Property: _BaseColor_01
+  baseColor02Property: _BaseColor_02
+  fresnelProperty: _FresnelColor
+  rankAnnouncementText: {fileID: 0}
+  firstPlaceText: "1\uC704"
+  secondPlaceText: "2\uC704"
+  thirdPlaceText: "3\uC704"
+  finalText: FINAL RESULT
+--- !u!4 &2013748674
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2013748672}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 189.59998, y: -778.5521, z: -167.39996}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &2016622415
 GameObject:
   m_ObjectHideFlags: 0
@@ -79183,3 +79252,4 @@ SceneRoots:
   - {fileID: 1697665733}
   - {fileID: 619703256}
   - {fileID: 1707815819}
+  - {fileID: 2013748674}

@@ -113,7 +113,7 @@ public class ChocolateFluid : MonoBehaviour
         bool isAI = aiPlayer != null || wanderingAI != null;
         bool isBackgroundObject = rb.gameObject.layer == 12; // BackGroundObject
 
-        if (other.CompareTag("Edible") || isAI || isBackgroundObject)
+        if (other.CompareTag("Edible") || isAI || isBackgroundObject || other.CompareTag("Sphere"))
         {
             rb.isKinematic = false;
             rb.useGravity = false;
