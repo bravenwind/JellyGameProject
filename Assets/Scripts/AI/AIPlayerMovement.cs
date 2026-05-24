@@ -202,6 +202,18 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             yield return new WaitForSeconds(0.2f);
         }
 
+        // 2차 폴백: 잘못된 위치(예: 원점)에 스폰된 경우 살아있는 다른 엔티티 위치로 텔레포트 후 재시도
+        if (!foundOnNavMesh && TryFindFallbackSpawnPos(out Vector3 fallback))
+        {
+            Debug.LogWarning($"[AIBot] {name} 초기 위치 {transform.position}에서 NavMesh 미발견 → 폴백 {fallback}로 이동");
+            transform.position = fallback;
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit fhit, 50f, NavMesh.AllAreas))
+            {
+                transform.position = fhit.position;
+                foundOnNavMesh = true;
+            }
+        }
+
         // NavMesh 위치 못 찾으면 Agent 활성화 시도 자체를 스킵 (Unity 에러 방지)
         if (!foundOnNavMesh)
         {
@@ -369,6 +381,40 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public Transform FindPrey() => Detector.FindPrey();
     public Transform FindTargetToChase() => Detector.FindTargetToChase();
     public Transform FindNearestJelly() => Detector.FindNearestJelly();
+
+    /// <summary>
+    /// 스폰 위치가 NavMesh로부터 멀리 떨어진 경우 폴백 위치 탐색.
+    /// 우선순위: 살아있는 다른 봇(NavMesh 위) → 살아있는 플레이어 → NavMesh 삼각망 정점
+    /// </summary>
+    private bool TryFindFallbackSpawnPos(out Vector3 pos)
+    {
+        // 1. 살아있는 다른 봇 (NavMesh 위에 있다고 검증된 경우)
+        foreach (var bot in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
+        {
+            if (bot == null || bot == this || bot.IsEliminated) continue;
+            if (bot.Agent != null && bot.Agent.enabled && bot.Agent.isOnNavMesh)
+            {
+                pos = bot.transform.position;
+                return true;
+            }
+        }
+        // 2. 살아있는 플레이어
+        foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
+        {
+            if (p == null) continue;
+            pos = p.transform.position;
+            return true;
+        }
+        // 3. NavMesh 삼각망 정점 (마지막 수단)
+        var tri = NavMesh.CalculateTriangulation();
+        if (tri.vertices != null && tri.vertices.Length > 0)
+        {
+            pos = tri.vertices[Random.Range(0, tri.vertices.Length)];
+            return true;
+        }
+        pos = Vector3.zero;
+        return false;
+    }
 
     /// <summary>배회용 랜덤 NavMesh 위치 탐색 (붕괴 예정 타일은 회피)</summary>
     public bool TryGetWanderDestination(out Vector3 destination)

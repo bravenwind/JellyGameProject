@@ -24,6 +24,10 @@ public class ChocolateFluid : MonoBehaviour
     [Tooltip("Y축 출렁임 강도 (위아래로 밀어주는 힘)")]
     public float waveForce = 3f;
 
+    [Header("디버그")]
+    [Tooltip("OnTriggerEnter로 진입하는 모든 콜라이더 정보를 콘솔에 출력")]
+    public bool debugLogTriggers = true;
+
     // 현재 흐르는 방향 (코루틴에서 실시간으로 변경됨)
     private Vector3 _currentFlowDirection;
 
@@ -98,12 +102,17 @@ public class ChocolateFluid : MonoBehaviour
         NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (netPlayer != null)
         {
+            if (debugLogTriggers) Debug.Log($"[Chocolate] ENTER NetworkPlayer: {other.name}");
             HandlePlayerEnterChocolate(netPlayer);
             return;
         }
 
         Rigidbody rb = other.attachedRigidbody;
-        if (rb == null) return;
+        if (rb == null)
+        {
+            if (debugLogTriggers) Debug.Log($"[Chocolate] ENTER (rb 없음, 무시): {other.name} layer={LayerMask.LayerToName(other.gameObject.layer)} tag={other.tag}");
+            return;
+        }
 
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
@@ -111,9 +120,19 @@ public class ChocolateFluid : MonoBehaviour
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
 
         bool isAI = aiPlayer != null || wanderingAI != null;
-        bool isBackgroundObject = rb.gameObject.layer == 12; // BackGroundObject
+        int bgLayer = LayerMask.NameToLayer("BackGroundObject");
+        // collider와 rigidbody 양쪽 모두 체크 (자식 콜라이더가 다른 레이어인 경우 대응)
+        bool isBackgroundObject = (bgLayer >= 0) &&
+            (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
+        bool isEdible = other.CompareTag("Edible");
 
-        if (other.CompareTag("Edible") || isAI || isBackgroundObject || other.CompareTag("Sphere"))
+        if (debugLogTriggers)
+        {
+            string category = isEdible ? "Edible" : isAI ? "AI" : isBackgroundObject ? "BG" : "기타(무시)";
+            Debug.Log($"[Chocolate] ENTER [{category}]: collider={other.name}(layer={LayerMask.LayerToName(other.gameObject.layer)}) rb={rb.name}(layer={LayerMask.LayerToName(rb.gameObject.layer)} kin={rb.isKinematic} gravity={rb.useGravity})");
+        }
+
+        if (isEdible || isAI || isBackgroundObject)
         {
             rb.isKinematic = false;
             rb.useGravity = false;
@@ -162,7 +181,9 @@ public class ChocolateFluid : MonoBehaviour
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
-        bool isBackgroundObject = rb.gameObject.layer == 12;
+        int bgLayer = LayerMask.NameToLayer("BackGroundObject");
+        bool isBackgroundObject = (bgLayer >= 0) &&
+            (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
         if (other.CompareTag("Edible") || isBackgroundObject)
         {
             rb.linearDamping = 0.05f;
