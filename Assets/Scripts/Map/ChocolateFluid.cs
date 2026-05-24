@@ -24,6 +24,10 @@ public class ChocolateFluid : MonoBehaviour
     [Tooltip("흐름 주기 변화 시간")]
     public float changeDirectionInterval;
 
+    [Header("수명 설정")]
+    [Tooltip("초콜릿에 빠진 오브젝트가 자동 비활성화되기까지의 시간 (초). 0이면 비활성화 안 함")]
+    public float floatingLifetime = 5f;
+
     [Header("디버그")]
     public bool debugLogTriggers = true;
 
@@ -131,6 +135,9 @@ public class ChocolateFluid : MonoBehaviour
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
             _processedBodies.Add(rb);
+
+            if (!isAI && floatingLifetime > 0f)
+                StartCoroutine(DeactivateAfterDelay(rb.gameObject, floatingLifetime));
         }
 
         if (wanderingAI != null) wanderingAI.enabled = false;
@@ -138,6 +145,46 @@ public class ChocolateFluid : MonoBehaviour
         if (navMeshAgent != null) navMeshAgent.enabled = false;
 
         if (aiPlayer != null) aiPlayer.OnEliminated();
+    }
+
+    private void HandlePlayerEnterChocolate(NetworkPlayerSync netPlayer)
+    {
+        if (netPlayer.playerController != null)
+            netPlayer.playerController.enabled = false;
+
+        if (netPlayer.photonView.IsMine)
+            GameModeManager.Instance?.GameOver();
+
+        CharacterController cc = netPlayer.GetComponent<CharacterController>();
+        if (cc != null && netPlayer.GetComponent<Rigidbody>() == null)
+        {
+            float radius = cc.radius;
+            float height = cc.height;
+            Vector3 center = cc.center;
+            cc.enabled = false;
+
+            CapsuleCollider capsule = netPlayer.gameObject.AddComponent<CapsuleCollider>();
+            capsule.radius = radius;
+            capsule.height = height;
+            capsule.center = center;
+
+            Rigidbody rb = netPlayer.gameObject.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.isKinematic = false;
+            rb.linearDamping = chocolateViscosity;
+            rb.angularDamping = chocolateViscosity;
+        }
+    }
+
+    private IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (obj != null)
+        {
+            var rb = obj.GetComponent<Rigidbody>();
+            if (rb != null) _processedBodies.Remove(rb);
+            obj.SetActive(false);
+        }
     }
 
     private void OnTriggerExit(Collider other)
