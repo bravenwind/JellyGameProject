@@ -301,28 +301,13 @@ public class GameResultManager : MonoBehaviour
 
     private static void GroundToFloor(GameObject go, float floorY)
     {
-        var smr = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
-        if (smr != null && smr.sharedMesh != null)
+        Transform bottom = go.transform.Find("BottomTransform");
+        if (bottom != null)
         {
-            Vector3[] verts = smr.sharedMesh.vertices;
-            float minY = float.MaxValue;
-            for (int i = 0; i < verts.Length; i++)
-                if (verts[i].y < minY) minY = verts[i].y;
-
-            if (minY < float.MaxValue)
-            {
-                float worldBottomY = smr.transform.position.y
-                    + minY * smr.transform.lossyScale.y;
-                go.transform.position += new Vector3(0f, floorY - worldBottomY, 0f);
-                return;
-            }
+            float offset = floorY - bottom.position.y;
+            go.transform.position += new Vector3(0f, offset, 0f);
+            return;
         }
-
-        var rend = go.GetComponentInChildren<Renderer>(true);
-        if (rend == null) return;
-        float bottomY = rend.bounds.min.y;
-        if (float.IsNaN(bottomY)) return;
-        go.transform.position += new Vector3(0f, floorY - bottomY, 0f);
     }
 
     private void SetupNameTag(GameObject root, string playerName)
@@ -331,6 +316,9 @@ public class GameResultManager : MonoBehaviour
         if (tag == null) return;
         tag.gameObject.SetActive(true);
         tag.SetName(playerName);
+
+        Transform top = root.transform.Find("TopTransform");
+        if (top != null) tag.topTransform = top;
     }
 
     private void ApplyJellyColor(GameObject root, Color color)
