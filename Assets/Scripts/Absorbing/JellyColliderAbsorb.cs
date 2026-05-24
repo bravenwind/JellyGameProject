@@ -119,11 +119,7 @@ public class JellyColliderAbsorb : MonoBehaviour
             player.AbsorbColor(GetComponent<JellyObject>().jellyType);
         }
 
-        AIPlayerSync aiPlayerSync = target.GetComponentInParent<AIPlayerSync>();
-        if (aiPlayerSync != null)
-        {
-            aiPlayerSync.AddScore(jellyScore);
-        }
+        // 봇 점수는 BotBridge.HandleScaleCompleted에서 크기 기반으로 자동 산출
 
         if (NetworkJellyManager.Instance != null)
         {
