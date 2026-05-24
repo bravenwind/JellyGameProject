@@ -166,6 +166,8 @@ public class FallingTile : MonoBehaviour
             {
                 rb.isKinematic = false;
                 rb.useGravity = true;
+                // 빠르게 낙하해도 초콜릿 트리거를 통과(tunneling)하지 않도록 연속 충돌 검사
+                rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
 
                 // 탕후루 꼬치가 삐딱하게 떨어지는 역동적인 연출
                 rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);

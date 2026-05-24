@@ -186,17 +186,27 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             areaMask    = NavMesh.AllAreas
         };
 
-        // NavMesh 위 위치 확정
+        // NavMesh 위 위치 확정 (NavFilter 우선, agent type 미스매치 등으로 실패 시 AllAreas 폴백)
+        bool foundOnNavMesh = false;
         float elapsed = 0f;
         while (elapsed < 5f)
         {
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 100f, NavFilter))
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 100f, NavFilter)
+                || NavMesh.SamplePosition(transform.position, out hit, 100f, NavMesh.AllAreas))
             {
                 transform.position = hit.position;
+                foundOnNavMesh = true;
                 break;
             }
             elapsed += 0.2f;
             yield return new WaitForSeconds(0.2f);
+        }
+
+        // NavMesh 위치 못 찾으면 Agent 활성화 시도 자체를 스킵 (Unity 에러 방지)
+        if (!foundOnNavMesh)
+        {
+            Debug.LogWarning($"[AIBot] {name} NavMesh 위치 탐색 실패 - Agent 비활성 유지");
+            yield break;
         }
 
         Agent.enabled = true;
@@ -215,7 +225,8 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             yield break;
         }
 
-        if (NavMesh.SamplePosition(transform.position, out NavMeshHit warpHit, 5f, NavFilter))
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit warpHit, 5f, NavFilter)
+            || NavMesh.SamplePosition(transform.position, out warpHit, 5f, NavMesh.AllAreas))
             Agent.Warp(warpHit.position);
 
         Agent.avoidancePriority = Random.Range(20, 80);
@@ -417,8 +428,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         Agent.height = baseAgentHeight * s;
         Agent.avoidancePriority = Mathf.Max(0, Agent.avoidancePriority - 5);
 
-        // NavMesh 위로 Warp
-        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 5f * s, NavFilter))
+        // NavMesh 위로 Warp (NavFilter 실패 시 AllAreas 폴백)
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 5f * s, NavFilter)
+            || NavMesh.SamplePosition(transform.position, out hit, 5f * s, NavMesh.AllAreas))
             Agent.Warp(hit.position);
 
         // ScaleState 복귀는 AIScaleState.Update()가 IsScaling=false를 감지해 처리함.
