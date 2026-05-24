@@ -56,19 +56,28 @@ public class ChocolateFluid : MonoBehaviour
 
         if (rb != null)
         {
-            // [해결책 1] 유체 내부에서 다른 스크립트가 중력을 켜는 것을 방지하기 위해 Stay에서 매번 꺼줌
-            if (other.CompareTag("Edible") || other.CompareTag("BackGroundObject") || rb.GetComponent<AIPlayerMovement>() != null || rb.GetComponent<WanderingAI>() != null)
+            // OnTriggerEnter 누락 안전장치: 초콜릿 안에 있는데 아직 중력이 켜져있으면 보정
+            if (rb.useGravity || rb.isKinematic)
             {
-                rb.useGravity = false;
-                rb.isKinematic = false;
-                rb.linearDamping = chocolateViscosity;
-                rb.angularDamping = chocolateViscosity;
-            }
+                if (rb.GetComponent<NetworkPlayerSync>() == null)
+                {
+                    bool isEdible = other.CompareTag("Edible");
+                    int bgLayer = LayerMask.NameToLayer("BackGroundObject");
+                    bool isBackgroundObject = (bgLayer >= 0) &&
+                        (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
+                    bool isAI = rb.GetComponent<AIPlayerMovement>() != null ||
+                                rb.GetComponent<WanderingAI>() != null;
 
-            // [해결책 2] 물리 엔진이 이 오브젝트를 Sleep 상태로 만드는 것을 방지 (부력이 안 먹히는 현상 해결)
-            if (rb.IsSleeping())
-            {
-                rb.WakeUp();
+                    if (isEdible || isAI || isBackgroundObject)
+                    {
+                        if (debugLogTriggers)
+                            Debug.Log($"[Chocolate] STAY 보정: {rb.name} (gravity={rb.useGravity}, kin={rb.isKinematic})");
+                        rb.isKinematic = false;
+                        rb.useGravity = false;
+                        rb.linearDamping = chocolateViscosity;
+                        rb.angularDamping = chocolateViscosity;
+                    }
+                }
             }
 
             // 1. 기본 부력 적용 (물체가 초콜릿 표면보다 아래에 있으면 위로 밀어올림)
