@@ -307,18 +307,21 @@ public class GameResultManager : MonoBehaviour
     private static void GroundToFloor(GameObject go, float floorY)
     {
         var smr = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
-        if (smr != null)
+        if (smr != null && smr.sharedMesh != null)
         {
-            // bounds는 렌더링 전이면 빈 값을 반환할 수 있으므로 localBounds 사용
+            float localBottomY = smr.sharedMesh.bounds.min.y;
             float worldBottomY = smr.transform.TransformPoint(
-                new Vector3(0f, smr.localBounds.min.y, 0f)).y;
+                new Vector3(0f, localBottomY, 0f)).y;
+            if (float.IsNaN(worldBottomY)) return;
             go.transform.position += new Vector3(0f, floorY - worldBottomY, 0f);
             return;
         }
 
         var rend = go.GetComponentInChildren<Renderer>(true);
         if (rend == null) return;
-        go.transform.position += new Vector3(0f, floorY - rend.bounds.min.y, 0f);
+        float bottomY = rend.bounds.min.y;
+        if (float.IsNaN(bottomY)) return;
+        go.transform.position += new Vector3(0f, floorY - bottomY, 0f);
     }
 
     private void SetupNameTag(GameObject root, string playerName)
