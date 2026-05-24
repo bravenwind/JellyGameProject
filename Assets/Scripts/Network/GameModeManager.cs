@@ -278,7 +278,6 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         var sortedEntries = GetSortedScores();
         int finalRank = GetLocalPlayerRank(sortedEntries);
 
-        ShowResultUI($"시간 종료!\n최종 순위 : {finalRank}위");
         Debug.Log("[GameMode] 타임 오버! 생존 성공!");
 
         PhotonNetwork.LoadLevel(RESULT_SCENE_NAME);

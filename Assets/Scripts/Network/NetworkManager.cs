@@ -14,7 +14,9 @@ using Photon.Pun;           // PhotonNetwork, PhotonView 등 핵심 클래스
 using Photon.Realtime;      // IConnectionCallbacks, IMatchmakingCallbacks 등 콜백 인터페이스
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -328,21 +330,23 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     // 게임 씬 진입 후: 플레이어 + AI 봇 생성
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// 씬에서 유효한 스폰 포인트 목록 반환
-    /// 인스펙터에 지정된 것이 없으면 태그로 자동 탐색
-    /// </summary>
-    private Transform[] GetValidSpawnPoints()
+    private List<Transform> GetValidSpawnPoints()
     {
-        // 인스펙터에 직접 지정된 경우
+        List<Transform> resultList = new List<Transform>();
+
+        // 1. 인스펙터에 직접 지정된 경우
         if (spawnPoints != null && spawnPoints.Length > 0)
         {
             var valid = System.Array.FindAll(spawnPoints, p => p != null);
             Debug.Log($"[Network] 인스펙터 스폰포인트: 전체 {spawnPoints.Length}개, 유효 {valid.Length}개");
-            if (valid.Length > 0) return valid;
+            if (valid.Length > 0)
+            {
+                resultList.AddRange(valid);
+                return resultList;
+            }
         }
 
-        // 태그로 씬에서 자동 탐색
+        // 2. 태그로 씬에서 자동 탐색
         Debug.Log($"[Network] 태그 '{spawnPointTag}'로 스폰포인트 탐색 시작...");
         GameObject[] tagged = GameObject.FindGameObjectsWithTag(spawnPointTag);
         Debug.Log($"[Network] 태그 탐색 결과: {tagged.Length}개");
@@ -352,14 +356,15 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             for (int i = 0; i < tagged.Length; i++)
             {
                 result[i] = tagged[i].transform;
+                resultList.Add(tagged[i].transform);
                 Debug.Log($"[Network] SpawnPoint[{i}]: {tagged[i].name} 위치={tagged[i].transform.position}");
             }
             spawnPoints = result; // 인스펙터에서 확인 가능하도록 저장
-            return result;
+            return resultList;
         }
 
-        Debug.LogWarning("[Network] 스폰포인트를 찾지 못했습니다! 원점(0,0,0)에 스폰됩니다.");
-        return new Transform[0];
+        Debug.LogWarning("[Network] 스폰포인트를 찾지 못했습니다! 기본 리스트(빈 상태)를 반환합니다.");
+        return resultList;
     }
 
     /// <summary>
@@ -372,10 +377,28 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         Vector3 spawnPos = Vector3.zero;
         Quaternion spawnRot = Quaternion.identity;
 
+        // 1. 유효한 스폰 포인트 가져오기
         var validPoints = GetValidSpawnPoints();
-        if (validPoints.Length > 0)
+
+        // 2. 만약 현재 방 인원수(PlayerCount)보다 스폰 포인트가 부족하다면?
+        int currentRoomPlayers = PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.PlayerCount : 1;
+        while (validPoints.Count < currentRoomPlayers)
         {
-            int idx = PickNonOverlappingSpawnIndex(validPoints);
+            // 안 겹치는 랜덤 좌표를 하나 뽑아서 가상 스폰포인트 생성
+            Vector3 randomPos = PickNonOverlappingRandom();
+            GameObject virtualPoint = new GameObject($"VirtualSpawnPoint_Player_{validPoints.Count}");
+            virtualPoint.transform.position = randomPos;
+            virtualPoint.transform.rotation = Quaternion.identity;
+
+            validPoints.Add(virtualPoint.transform);
+            Debug.Log($"[Network] 스폰포인트 부족으로 플레이어용 가상 스폰포인트 추가 생성: {randomPos}");
+        }
+
+        // 3. 겹침 방지 인덱스 선택 진행 (이제 개수가 무조건 충분하므로 안심하고 사용)
+        if (validPoints.Count > 0)
+        {
+            // PickNonOverlappingSpawnIndex가 배열을 받으므로 ToArray()로 변환해서 전달
+            int idx = PickNonOverlappingSpawnIndex(validPoints.ToArray());
             spawnPos = validPoints[idx].position;
             spawnRot = validPoints[idx].rotation;
         }
@@ -383,14 +406,13 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         _usedSpawnPositions.Add(spawnPos);
 
         // PhotonNetwork.Instantiate: "Resources/playerPrefabName" 프리팹을 네트워크 전체에 생성
-        // → 다른 클라이언트 화면에도 자동으로 생성됨
         GameObject player = PhotonNetwork.Instantiate(
             prefabFolder + playerPrefabName,
             spawnPos,
             spawnRot
         );
 
-        Debug.Log($"[Network] 로컬 플레이어 스폰 완료: {player.name}");
+        Debug.Log($"[Network] 로컬 플레이어 스폰 완료: {player.name} 위치: {spawnPos}");
     }
 
     /// <summary>
@@ -401,27 +423,43 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         Debug.Log($"[Network] SpawnBots 호출됨 - IsMasterClient: {PhotonNetwork.IsMasterClient}, InRoom: {PhotonNetwork.InRoom}, BotCount: {botCount}, BotPrefab: '{botPrefabName}'");
 
-        // IsMasterClient: 이 클라이언트가 방장인지 확인
-        // AI 봇은 방장 하나만 관리해야 중복 생성이 없음
         if (!PhotonNetwork.IsMasterClient)
         {
             Debug.LogWarning("[Network] MasterClient가 아니라 봇 스폰 건너뜀");
             return;
         }
 
+        // 1. 유효한 스폰 포인트 가져오기
         var validPoints = GetValidSpawnPoints();
 
+        // 2. 봇까지 다 합쳐서 필요한 총 스폰 포인트 개수 계산 (현재 플레이어 수 + 생성할 봇 수)
+        int currentRoomPlayers = PhotonNetwork.CurrentRoom != null ? PhotonNetwork.CurrentRoom.PlayerCount : 1;
+        int totalRequiredPoints = currentRoomPlayers + botCount;
+
+        // 3. 부족한 만큼 안 겹치는 가상 스폰 포인트를 미리 채워 넣기
+        while (validPoints.Count < totalRequiredPoints)
+        {
+            Vector3 randomPos = PickNonOverlappingRandom();
+            GameObject virtualPoint = new GameObject($"VirtualSpawnPoint_Bot_{validPoints.Count}");
+            virtualPoint.transform.position = randomPos;
+            virtualPoint.transform.rotation = Quaternion.identity;
+
+            validPoints.Add(virtualPoint.transform);
+            Debug.Log($"[Network] 스폰포인트 부족으로 봇용 가상 스폰포인트 추가 생성: {randomPos}");
+        }
+
+        // 4. 안전하게 대량 스폰 진행
         for (int i = 0; i < botCount; i++)
         {
             Vector3 candidate = Vector3.zero;
-            if (validPoints.Length > 0)
+            if (validPoints.Count > 0)
             {
-                int idx = PickNonOverlappingSpawnIndex(validPoints);
+                int idx = PickNonOverlappingSpawnIndex(validPoints.ToArray());
                 candidate = validPoints[idx].position;
-            }
-            else
-            {
-                candidate = PickNonOverlappingRandom();
+
+                // 한 번 뽑힌 스폰 포인트의 위치를 바로 _usedSpawnPositions에 넣으므로, 
+                // 다음 루프의 PickNonOverlappingSpawnIndex에서 이 위치를 "이미 사용됨"으로 인식해 피해 감!
+                _usedSpawnPositions.Add(candidate);
             }
 
             // NavMesh 위 가장 가까운 위치로 보정
@@ -429,8 +467,6 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             Vector3 spawnPos = UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas)
                 ? hit.position
                 : candidate;
-
-            _usedSpawnPositions.Add(spawnPos);
 
             Debug.Log($"[Network] AI봇 스폰 위치: {spawnPos} (candidate: {candidate})");
             PhotonNetwork.InstantiateRoomObject(prefabFolder + botPrefabName, spawnPos, Quaternion.identity);
