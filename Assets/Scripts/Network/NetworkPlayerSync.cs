@@ -270,17 +270,15 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         // 1. 내 캐릭터(로컬 플레이어)일 때만 마스터 역할을 수행하여 상태 변경
         if (photonView.IsMine)
         {
+            // 이동 권한 컴포넌트 끄기
+            if (playerController != null) playerController.enabled = false;
+
             // 애니메이션 매개변수 변경 -> PhotonAnimatorView가 자동으로 전 서버에 동기화 시켜줌!
             Animator playerAnimator = GetComponent<Animator>();
             if (playerAnimator != null)
             {
                 playerAnimator.SetBool("isMoving", false);
-                // 필요하다면 타격이나 탈락 애니메이션 트리거 작동
-                // playerAnimator.SetTrigger("OnFall"); 
             }
-
-            // 이동 권한 컴포넌트 끄기
-            if (playerController != null) playerController.enabled = false;
 
             // 게임오버 판정 UI 호출
             GameModeManager.Instance?.GameOver();

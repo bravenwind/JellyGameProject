@@ -65,7 +65,7 @@ public class GameResultManager : MonoBehaviour
     public string firstPlaceText = "1위";
     public string secondPlaceText = "2위";
     public string thirdPlaceText = "3위";
-    public string finalText = "FINAL RESULT";
+    public string finalText = "최종 결과";
 
     private readonly List<GameObject> _jellies = new List<GameObject>();
     private readonly List<int> _displayOrderRanks = new List<int>();
@@ -202,14 +202,17 @@ public class GameResultManager : MonoBehaviour
 
         Vector3[] positions = new Vector3[count];
         int rightmost = count - 1;
+
+        // rightAnchor는 "3위가 배치될 시작 위치(월드 좌표)"
         positions[rightmost] = rightAnchor;
+
         for (int i = rightmost - 1; i >= 0; i--)
         {
             float gap = radii[i + 1] + padding + radii[i];
             positions[i] = positions[i + 1] + Vector3.left * gap;
         }
 
-        // X 중심을 0으로 정렬
+        // 전체 배치의 X 중심을 0으로 정렬 (보기 좋게 중앙 정렬)
         float avgX = 0f;
         for (int i = 0; i < count; i++) avgX += positions[i].x;
         avgX /= count;
@@ -222,8 +225,24 @@ public class GameResultManager : MonoBehaviour
             GameObject prefab = entry.isBot && botJellyPrefab != null ? botJellyPrefab : playerJellyPrefab;
             if (prefab == null) continue;
 
+            // 여기서 pos는 X, Z 위치만 중요해지고, Y는 바닥 보정에 쓰임
             GameObject go = InstantiateDisplayOnly(prefab, positions[i], Quaternion.identity);
+            go.transform.Rotate(new Vector3(0, 180, 0)); // 카메라 정면을 보도록 180도 회전
+
+            // 1. 크기 적용 (Scale을 먼저 키워야 bounds가 제대로 갱신됨)
             go.transform.localScale = Vector3.one * entry.scale;
+
+            // 2. 바닥 접지 (Grounding) 보정
+            Renderer rend = go.GetComponentInChildren<Renderer>();
+            if (rend != null)
+            {
+                float currentBottomY = rend.bounds.min.y;
+                float targetBottomY = positions[i].y; // 배치 기준점의 Y 높이
+                float yOffset = targetBottomY - currentBottomY;
+
+                go.transform.position += new Vector3(0f, yOffset, 0f);
+            }
+
             SetupNameTag(go, entry.name);
             go.SetActive(true);
 
@@ -387,6 +406,13 @@ public class GameResultManager : MonoBehaviour
             _focusCams[i].Priority = 100;
 
             SetRankText(GetRankString(_displayOrderRanks[i]));
+
+            if (!_brain.IsBlending)
+            {
+                Animator playerAnimator = _jellies[i].GetComponentInChildren<Animator>();
+                playerAnimator.SetTrigger("Jump");
+            }
+
             // 블렌드 시간 + 머무는 시간
             yield return new WaitForSeconds(cameraTransitionDuration + focusHoldDuration);
         }
