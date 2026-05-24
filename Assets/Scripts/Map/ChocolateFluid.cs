@@ -23,7 +23,7 @@ public class ChocolateFluid : MonoBehaviour
     public float waveSpeed = 2f;
 
     [Tooltip("Y축 출렁임 강도 (위아래로 밀어주는 힘)")]
-    public float waveForce = 3f;
+    public float waveForce = 6f;
 
     [Header("수명 설정")]
     [Tooltip("초콜릿에 빠진 오브젝트가 자동 비활성화되기까지의 시간 (초). 0이면 비활성화 안 함")]
@@ -38,6 +38,15 @@ public class ChocolateFluid : MonoBehaviour
 
     // OnTriggerEnter에서 이미 물리 설정 완료된 Rigidbody 캐싱 (Stay에서 중복 GetComponent 방지)
     private readonly HashSet<Rigidbody> _processedBodies = new HashSet<Rigidbody>();
+
+    private struct FloatData
+    {
+        public float phase;
+        public float speedMul;
+        public float forceMul;
+        public Vector2 flowOffset;
+    }
+    private readonly Dictionary<Rigidbody, FloatData> _floatData = new Dictionary<Rigidbody, FloatData>();
 
     private void Start()
     {
@@ -89,12 +98,18 @@ public class ChocolateFluid : MonoBehaviour
         if (rb.position.y < transform.position.y)
             rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
 
-        // 흐름 + 출렁임
-        float waveY = Mathf.Sin(Time.time * waveSpeed);
+        // 오브젝트별 고유 출렁임
+        if (!_floatData.TryGetValue(rb, out FloatData fd))
+        {
+            fd = CreateFloatData(rb);
+            _floatData[rb] = fd;
+        }
+
+        float waveY = Mathf.Sin(Time.time * waveSpeed * fd.speedMul + fd.phase);
         rb.AddForce(new Vector3(
-            _currentFlowDirection.x * flowForce,
-            waveY * waveForce,
-            _currentFlowDirection.z * flowForce
+            (_currentFlowDirection.x + fd.flowOffset.x) * flowForce,
+            waveY * waveForce * fd.forceMul,
+            (_currentFlowDirection.z + fd.flowOffset.y) * flowForce
         ), ForceMode.Acceleration);
     }
 
@@ -183,13 +198,31 @@ public class ChocolateFluid : MonoBehaviour
         }
     }
 
+    private static FloatData CreateFloatData(Rigidbody rb)
+    {
+        int id = rb.GetInstanceID();
+        return new FloatData
+        {
+            phase = (id * 2.3f) % (Mathf.PI * 2f),
+            speedMul = 0.7f + ((id * 7.9f) % 1000f) / 1000f * 0.6f,
+            forceMul = 1.2f + ((id * 3.1f) % 1000f) / 1000f * 0.8f,
+            flowOffset = new Vector2(
+                ((id * 5.7f) % 1000f) / 1000f * 0.6f - 0.3f,
+                ((id * 11.3f) % 1000f) / 1000f * 0.6f - 0.3f)
+        };
+    }
+
     private IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
     {
         yield return new WaitForSeconds(delay);
         if (obj != null)
         {
             var rb = obj.GetComponent<Rigidbody>();
-            if (rb != null) _processedBodies.Remove(rb);
+            if (rb != null)
+            {
+                _processedBodies.Remove(rb);
+                _floatData.Remove(rb);
+            }
             obj.SetActive(false);
         }
     }
@@ -200,6 +233,7 @@ public class ChocolateFluid : MonoBehaviour
         if (rb == null) return;
 
         _processedBodies.Remove(rb);
+        _floatData.Remove(rb);
 
         int bgLayer = LayerMask.NameToLayer("BackGroundObject");
         bool isBackgroundObject = (bgLayer >= 0) &&
