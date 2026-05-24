@@ -87,6 +87,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (GameState.Phase == GamePhase.Playing) return;
         _spawned = true;
 
+        // 1. 가상 포인트 포함 스폰 슬롯 미리 준비 → 2. 로컬 플레이어 → 3. 봇
+        NetworkManager.Instance?.PrepareSpawnSlots();
         NetworkManager.Instance?.SpawnLocalPlayer();
         NetworkManager.Instance?.SpawnBots();
 
