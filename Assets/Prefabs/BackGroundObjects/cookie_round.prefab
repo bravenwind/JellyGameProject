@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 1907690407143666699}
   m_Layer: 12
   m_Name: cookie_round
-  m_TagString: Untagged
+  m_TagString: BackGroundObject
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

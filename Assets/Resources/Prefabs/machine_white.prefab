@@ -184,7 +184,7 @@ GameObject:
   - component: {fileID: 3769478076844560760}
   m_Layer: 12
   m_Name: machine_white
-  m_TagString: Untagged
+  m_TagString: BackGroundObject
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

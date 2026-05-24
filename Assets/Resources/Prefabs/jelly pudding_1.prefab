@@ -317,7 +317,7 @@ GameObject:
   - component: {fileID: 8296275431348159300}
   m_Layer: 12
   m_Name: jelly pudding_1
-  m_TagString: Untagged
+  m_TagString: BackGroundObject
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

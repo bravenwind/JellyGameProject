@@ -29,47 +29,58 @@ public class ChocolateFluid : MonoBehaviour
 
     private void Start()
     {
-        // 게임 시작 시 주기적으로 방향을 바꾸는 코루틴 실행
         StartCoroutine(ChangeDirectionRoutine());
     }
 
-    // 지정된 시간마다 X, Z 방향을 랜덤으로 바꾸는 함수
     private IEnumerator ChangeDirectionRoutine()
     {
         while (true)
         {
-            // X, Z 방향을 -1 ~ 1 사이의 랜덤 값으로 설정
             float randomX = Random.Range(-1f, 1f);
             float randomZ = Random.Range(-1f, 1f);
 
-            // Y는 Update에서 실시간 계산하므로 일단 0으로 둠
             _currentFlowDirection = new Vector3(randomX, 0, randomZ).normalized;
 
-            // changeDirectionInterval(예: 3초) 만큼 대기 후 다시 방향 변경
             yield return new WaitForSeconds(changeDirectionInterval);
         }
     }
 
+    // FixedUpdate 주기와 싱크를 맞추기 위해 유체 물리 연산은 OnTriggerStay에서 확실히 보정
     private void OnTriggerStay(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
 
         if (rb != null)
         {
+            // [해결책 1] 유체 내부에서 다른 스크립트가 중력을 켜는 것을 방지하기 위해 Stay에서 매번 꺼줌
+            if (other.CompareTag("Edible") || other.CompareTag("BackGroundObject") || rb.GetComponent<AIPlayerMovement>() != null || rb.GetComponent<WanderingAI>() != null)
+            {
+                rb.useGravity = false;
+                rb.isKinematic = false;
+                rb.linearDamping = chocolateViscosity;
+                rb.angularDamping = chocolateViscosity;
+            }
+
+            // [해결책 2] 물리 엔진이 이 오브젝트를 Sleep 상태로 만드는 것을 방지 (부력이 안 먹히는 현상 해결)
+            if (rb.IsSleeping())
+            {
+                rb.WakeUp();
+            }
+
             // 1. 기본 부력 적용 (물체가 초콜릿 표면보다 아래에 있으면 위로 밀어올림)
             if (other.transform.position.y < transform.position.y)
             {
+                // 조금 더 확실한 상승을 위해 속도 비례 댐핑을 뚫고 밀어올리도록 힘 보정
                 rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
             }
 
-            // 2. 시간에 따른 Y축 출렁임 계산 (-1 ~ 1 사이를 부드럽게 진동)
+            // 2. 시간에 따른 Y축 출렁임 계산
             float waveY = Mathf.Sin(Time.time * waveSpeed);
 
-            // 3. 최종 흐름 힘 계산 (랜덤 X, Z + 출렁이는 Y)
+            // 3. 최종 흐름 힘 계산
             Vector3 finalFlowDirection = _currentFlowDirection;
-            finalFlowDirection.y = waveY; // Y축에 -1 ~ 1 값 대입
+            finalFlowDirection.y = waveY;
 
-            // X, Z는 flowForce만큼, Y는 waveForce만큼의 크기로 힘을 가함
             Vector3 appliedForce = new Vector3(
                 finalFlowDirection.x * flowForce,
                 finalFlowDirection.y * waveForce,
@@ -91,25 +102,21 @@ public class ChocolateFluid : MonoBehaviour
         AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
 
-        // Edible 젤리 또는 AI(WanderingAI / AIPlayer)는 끈적한 액체 상태로 전환
-        // 실제 플레이어(NetworkPlayerSync)는 자체 이동 시스템이므로 건드리지 않음
         bool isAI = aiPlayer != null || wanderingAI != null;
-        if (other.CompareTag("Edible") || isAI)
+        if (other.CompareTag("Edible") || isAI || other.CompareTag("BackGroundObject"))
         {
             rb.isKinematic = false;
             rb.useGravity = false;
 
-            // 물에 들어오면 끈적하게 (저항 증가)
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
         }
 
-        // AI 끄기
+        // AI 컴포넌트 비활성화
         if (wanderingAI != null) wanderingAI.enabled = false;
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
         if (navMeshAgent != null) navMeshAgent.enabled = false;
 
-        // AIPlayer는 게임오버 처리 (리더보드/이름표 제거, 둥둥 떠다니기는 유지)
         if (aiPlayer != null) aiPlayer.OnEliminated();
     }
 
@@ -122,13 +129,12 @@ public class ChocolateFluid : MonoBehaviour
         {
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
+            rb.useGravity = true; // 유체 밖으로 나갔으니 기본 중력 복구
         }
 
-        // 탈락한 AIPlayer는 복구 안 함 (이름표/리더보드 제거된 상태로 떠다녀야 함)
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
         if (aiPlayer != null && aiPlayer.IsEliminated) return;
 
-        // OnTriggerEnter에서 꺼놓은 AI 컴포넌트 복구
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
         AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
@@ -140,6 +146,7 @@ public class ChocolateFluid : MonoBehaviour
             {
                 rb.transform.position = hit.position;
             }
+            // NavMeshAgent가 켜지면 에이전트 자체 시스템이 이동과 중력을 제어하므로 상황에 맞게 설정
             rb.useGravity = false;
             navMeshAgent.enabled = true;
         }

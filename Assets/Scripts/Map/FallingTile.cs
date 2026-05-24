@@ -136,7 +136,7 @@ public class FallingTile : MonoBehaviour
     {
         // 💡 핵심 수정: halfExtents는 전체 크기의 절반이어야 함!
         // Y축 높이는 타일 위로 5m만 검사하도록 세팅 (반지름이므로 2.5f)
-        Vector3 halfExtents = new Vector3(colliderSize.x * 0.5f, 2.5f, colliderSize.z * 0.5f);
+        Vector3 halfExtents = new Vector3(colliderSize.x * 0.5f, 10f, colliderSize.z * 0.5f);
 
         // 💡 박스의 중심점을 타일 표면에서 약간 위쪽(Y축 +2.5m)으로 배치해서 딱 타일 위의 공간만 스캔
         Vector3 boxCenter = transform.position + new Vector3(0f, halfExtents.y, 0f);

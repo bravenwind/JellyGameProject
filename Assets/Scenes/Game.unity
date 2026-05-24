@@ -3654,8 +3654,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   respawnTime: 7
-  scaleController: {fileID: 0}
-  mainCamera_Action: {fileID: 1707815814}
 --- !u!64 &177743204
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -5627,6 +5625,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 2
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (4)
@@ -6210,8 +6212,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   respawnTime: 7
-  scaleController: {fileID: 0}
-  mainCamera_Action: {fileID: 1707815814}
 --- !u!64 &257034731
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -16259,6 +16259,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 4
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation
@@ -20306,8 +20310,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   respawnTime: 7
-  scaleController: {fileID: 0}
-  mainCamera_Action: {fileID: 1707815814}
 --- !u!1 &667774044
 GameObject:
   m_ObjectHideFlags: 0
@@ -21950,8 +21952,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   respawnTime: 7
-  scaleController: {fileID: 0}
-  mainCamera_Action: {fileID: 1707815814}
 --- !u!64 &751366791
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -23823,6 +23823,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (2)
@@ -27193,6 +27197,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (1)
@@ -32131,14 +32139,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 66f6fb40d6f67b1499e9c70beee42cfb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  jellyColorImages:
-  - {fileID: 808051309}
-  - {fileID: 90753103}
-  - {fileID: 260243916}
   currentColorImage: {fileID: 0}
-  currentColorText: {fileID: 0}
   currentScaleText: {fileID: 0}
-  checkImage: {fileID: 0}
 --- !u!1 &1141294336 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: -7382688812607282648, guid: 2f3e6a0d9711d614ca7adc5e9b2afbca, type: 3}
@@ -32768,36 +32770,33 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1bab5c33063988438b72d73249288f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  maxImpurity: 120
-  maxDifference: 80
   spawnCoolTime: 10
-  scaleLevelUpExp: 5
-  scalePerLevel:
-  - 2
-  - 6
-  - 10
-  - 14
-  - 18
-  playerCurrentScaleLevel: 1
-  absorbedJellyCount: 0
-  maxScaleLevel: 5
-  targetScaleLevel: 3
+  jellyScaleIncrease: 0.05
+  absorbScalePercent: 0.3
+  minScale: 1
+  maxScale: 5
+  scaleDecreaseAmount: 0.3
+  jumpScaleThreshold: 2
   scaleIncreaseTime: 1.5
   scaleDecreaseTime: 2
   IncreaseJumpForceValue: 5
   scaleIncreaseDuration: 1.5
   scaleDecreaseDuration: 2
   scaleChangedPlusSize: 7
+  cameraZoomFirstThreshold: 6
+  cameraZoomThresholdStep: 4
   gameFailMinusSizePerLevel: []
-  currentScore: 0
   targetScore: 1000
   scorePerJelly: 100
+  startingScale: 2
   originalDetectRadius: 4
-  detectRadius: 0
   detectPlusRadiusPerLevel: 2
   detectLayerMask:
     serializedVersion: 2
     m_Bits: 128
+  objectLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
   missions:
   - missionName: "\uD30C\uB780\uC0C9 \uC824\uB9AC \uD761\uC218\uD558\uAE30"
     missionCleared: 0
@@ -32806,123 +32805,49 @@ MonoBehaviour:
   - missionName: "\uC2A4\uD14C\uC774\uC9C0 \uD074\uB9AC\uC5B4\uD558\uAE30"
     missionCleared: 0
   targetTime: 120
-  initialViewColor:
-    serializedVersion: 2
-    rgba: 4294967295
-  currentColor:
-    serializedVersion: 2
-    rgba: 0
-  targetColor:
-    serializedVersion: 2
-    rgba: 0
-  systemCurrentColor:
-    serializedVersion: 2
-    rgba: 0
-  darknessStep: 0
-  initialSystemColor:
-    serializedVersion: 2
-    rgba: 4294967295
   jellyEffects:
   - colorName: Red
     type: 0
-    rgbChange: {x: 60, y: -30, z: -30}
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
   - colorName: Green
     type: 1
-    rgbChange: {x: -30, y: 60, z: -30}
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
   - colorName: Blue
     type: 2
-    rgbChange: {x: -30, y: -30, z: 60}
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
   - colorName: Cyan
     type: 3
-    rgbChange: {x: -40, y: 40, z: 40}
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
   - colorName: Magenta
     type: 4
-    rgbChange: {x: 40, y: -40, z: 40}
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
   - colorName: Yellow
     type: 5
-    rgbChange: {x: 40, y: 40, z: -40}
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
   - colorName: White
     type: 6
-    rgbChange: {x: 255, y: 255, z: 255}
-  rangeRules:
-  - colorName: Red
-    color: {r: 1, g: 0, b: 0, a: 1}
-    minRGB: {x: 170, y: 0, z: 0}
-    resultType: 0
-    minPrimary: 90
-    maxOthers: 120
-    primaryMinDifference: 25
-    isComposite: 0
-    minComposite: 0
-    compositeMaxDifference: 0
-    maxOther: 0
-  - colorName: Green
-    color: {r: 0, g: 1, b: 0, a: 1}
-    minRGB: {x: 0, y: 170, z: 0}
-    resultType: 1
-    minPrimary: 170
-    maxOthers: 120
-    primaryMinDifference: 25
-    isComposite: 0
-    minComposite: 0
-    compositeMaxDifference: 0
-    maxOther: 0
-  - colorName: Blue
-    color: {r: 0, g: 0, b: 1, a: 1}
-    minRGB: {x: 0, y: 0, z: 170}
-    resultType: 2
-    minPrimary: 170
-    maxOthers: 120
-    primaryMinDifference: 25
-    isComposite: 0
-    minComposite: 0
-    compositeMaxDifference: 0
-    maxOther: 0
-  - colorName: Cyan
-    color: {r: 0, g: 1, b: 1, a: 1}
-    minRGB: {x: 0, y: 120, z: 120}
-    resultType: 3
-    minPrimary: 0
-    maxOthers: 0
-    primaryMinDifference: 0
-    isComposite: 1
-    minComposite: 80
-    compositeMaxDifference: 60
-    maxOther: 130
-  - colorName: Magenta
-    color: {r: 1, g: 0, b: 1, a: 1}
-    minRGB: {x: 120, y: 0, z: 120}
-    resultType: 4
-    minPrimary: 0
-    maxOthers: 0
-    primaryMinDifference: 0
-    isComposite: 0
-    minComposite: 70
-    compositeMaxDifference: 60
-    maxOther: 130
-  - colorName: Yellow
-    color: {r: 1, g: 1, b: 0, a: 1}
-    minRGB: {x: 120, y: 120, z: 0}
-    resultType: 5
-    minPrimary: 0
-    maxOthers: 0
-    primaryMinDifference: 0
-    isComposite: 1
-    minComposite: 80
-    compositeMaxDifference: 60
-    maxOther: 130
-  thisGameRangeRule:
-    colorName: 
-    color: {r: 0, g: 0, b: 0, a: 1}
-    minRGB: {x: 0, y: 0, z: 0}
-    resultType: 0
-    minPrimary: 0
-    maxOthers: 0
-    primaryMinDifference: 0
-    isComposite: 0
-    minComposite: 0
-    compositeMaxDifference: 0
-    maxOther: 0
+    rybChange:
+      r: 0
+      y: 0
+      b: 0
 --- !u!4 &1185959243
 Transform:
   m_ObjectHideFlags: 0
@@ -33297,6 +33222,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 2098720144}
     m_Modifications:
+    - target: {fileID: 363339223063704922, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
+      propertyPath: sceneViewId
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 982802577469632659, guid: b821c6bb44dc08f4aa47c97c5dec838a, type: 3}
       propertyPath: m_Name
       value: sphere candy rolling animation (3)
@@ -44868,7 +44797,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 358686134}
-  debug: {fileID: 1707815813}
   followSpeed: 10
   offset: {x: 0, y: 60, z: -68.9}
   pitch: 0
@@ -46462,7 +46390,7 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.16666667
+  m_VoxelSize: 0.25666666
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 23800000, guid: e73ca1859351d1042894186b968ecc86, type: 2}
   m_BuildHeightMesh: 0
@@ -50531,8 +50459,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   respawnTime: 7
-  scaleController: {fileID: 0}
-  mainCamera_Action: {fileID: 1707815814}
 --- !u!64 &1908593408
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -54934,11 +54860,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 66f6fb40d6f67b1499e9c70beee42cfb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  jellyColorImages: []
   currentColorImage: {fileID: 1982792080}
-  currentColorText: {fileID: 0}
   currentScaleText: {fileID: 1031876767}
-  checkImage: {fileID: 0}
 --- !u!1001 &1982916490
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -58224,8 +58147,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   respawnTime: 7
-  scaleController: {fileID: 0}
-  mainCamera_Action: {fileID: 1707815814}
 --- !u!95 &2098180465 stripped
 Animator:
   m_CorrespondingSourceObject: {fileID: 3131908077549362287, guid: 82184493cb033664ab45cccd436e10f5, type: 3}
@@ -58243,7 +58164,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6b8529383b0922848a43d74ffec44ca1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  currentStatusUI: {fileID: 1982792081}
   jellyCamera: {fileID: 1707815815}
   mainCamera_Action: {fileID: 1707815814}
   uIPoolManager: {fileID: 521023267}
@@ -58261,16 +58181,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rend: {fileID: 1780367004}
-  originalFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  currentFresnelColor:
-    serializedVersion: 2
-    rgba: 0
-  targetFresnelColor:
-    serializedVersion: 2
-    rgba: 0
+  originalFresnelColor: {r: 0, g: 0, b: 0, a: 0}
+  currentFresnelColor: {r: 0, g: 0, b: 0, a: 0}
   baseColor02Lightness: 0.6
+  blendTime: 0.5
   BaseColor_01Property: _BaseColor_01
   BaseColor_02Property: _BaseColor_02
   FresnelProperty: _FresnelColor
@@ -58286,7 +58200,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ba8419777fc8c774fafd207b345c792c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  playerController: {fileID: 358686135}
   softBody3D: {fileID: 1780367000}
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}

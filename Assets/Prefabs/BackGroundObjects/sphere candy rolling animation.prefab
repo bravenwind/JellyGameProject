@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: -6128451571784631237}
   m_Layer: 12
   m_Name: sphere candy rolling animation
-  m_TagString: Sphere
+  m_TagString: BackGroundObject
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

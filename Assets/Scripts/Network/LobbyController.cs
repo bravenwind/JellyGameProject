@@ -12,7 +12,9 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     [Header("입력 패널")]
     public RectTransform inputPanel;
     public TMP_InputField nameInputField;
+    public int nicknameMaxLength = 10;
     public Button startButton;
+    public GameObject warningText;
 
     [Header("매칭 UI")]
     public RectTransform matchingPanel;
@@ -67,6 +69,8 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
         if (gameStartText != null)
             gameStartText.gameObject.SetActive(false);
+
+        warningText?.SetActive(false);
 
         startButton.onClick.AddListener(OnStartButtonClicked);
     }
@@ -221,6 +225,17 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
         string playerName = nameInputField != null && !string.IsNullOrEmpty(nameInputField.text)
             ? nameInputField.text
             : "Jelly";
+
+        if (playerName.Length > 10)
+        {
+            warningText?.SetActive(true);
+            startButton.interactable = true;
+            return;
+        }
+        else
+        {
+            warningText?.SetActive(false);
+        }
 
         PlayAnimation(playerName);
     }
