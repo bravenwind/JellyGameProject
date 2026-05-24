@@ -83,6 +83,14 @@ public class ChocolateFluid : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // NetworkPlayer(실제 플레이어) → 게임 오버 + 둥둥 떠다니기
+        NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
+        if (netPlayer != null)
+        {
+            HandlePlayerEnterChocolate(netPlayer);
+            return;
+        }
+
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
@@ -91,26 +99,51 @@ public class ChocolateFluid : MonoBehaviour
         AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
 
-        // Edible 젤리 또는 AI(WanderingAI / AIPlayer)는 끈적한 액체 상태로 전환
-        // 실제 플레이어(NetworkPlayerSync)는 자체 이동 시스템이므로 건드리지 않음
         bool isAI = aiPlayer != null || wanderingAI != null;
-        if (other.CompareTag("Edible") || isAI)
+        bool isBackgroundObject = rb.gameObject.layer == 12; // BackGroundObject
+
+        if (other.CompareTag("Edible") || isAI || isBackgroundObject)
         {
             rb.isKinematic = false;
             rb.useGravity = false;
-
-            // 물에 들어오면 끈적하게 (저항 증가)
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
         }
 
-        // AI 끄기
         if (wanderingAI != null) wanderingAI.enabled = false;
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
         if (navMeshAgent != null) navMeshAgent.enabled = false;
 
-        // AIPlayer는 게임오버 처리 (리더보드/이름표 제거, 둥둥 떠다니기는 유지)
         if (aiPlayer != null) aiPlayer.OnEliminated();
+    }
+
+    private void HandlePlayerEnterChocolate(NetworkPlayerSync netPlayer)
+    {
+        if (netPlayer.playerController != null)
+            netPlayer.playerController.enabled = false;
+
+        if (netPlayer.photonView.IsMine)
+            GameModeManager.Instance?.GameOver();
+
+        CharacterController cc = netPlayer.GetComponent<CharacterController>();
+        if (cc != null && netPlayer.GetComponent<Rigidbody>() == null)
+        {
+            float radius = cc.radius;
+            float height = cc.height;
+            Vector3 center = cc.center;
+            cc.enabled = false;
+
+            CapsuleCollider capsule = netPlayer.gameObject.AddComponent<CapsuleCollider>();
+            capsule.radius = radius;
+            capsule.height = height;
+            capsule.center = center;
+
+            Rigidbody rb = netPlayer.gameObject.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.isKinematic = false;
+            rb.linearDamping = chocolateViscosity;
+            rb.angularDamping = chocolateViscosity;
+        }
     }
 
     private void OnTriggerExit(Collider other)
@@ -118,13 +151,14 @@ public class ChocolateFluid : MonoBehaviour
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
-        if (other.CompareTag("Edible"))
+        bool isBackgroundObject = rb.gameObject.layer == 12;
+        if (other.CompareTag("Edible") || isBackgroundObject)
         {
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
+            if (isBackgroundObject) rb.useGravity = true;
         }
 
-        // 탈락한 AIPlayer는 복구 안 함 (이름표/리더보드 제거된 상태로 떠다녀야 함)
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
         if (aiPlayer != null && aiPlayer.IsEliminated) return;
 
