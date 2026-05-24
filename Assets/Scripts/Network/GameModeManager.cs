@@ -133,12 +133,6 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (Time.frameCount % 30 == 0)
             UpdateLeaderboard();
 
-        if (_gameTimer <= 0f)
-        {
-            _gameTimer = 0f;
-            GameWin();
-        }
-
         if (_gameTimer <= 3f && !_isEndingSequenceStarted)
         {
             _isEndingSequenceStarted = true;
