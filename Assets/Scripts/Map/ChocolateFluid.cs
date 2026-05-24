@@ -25,72 +25,69 @@ public class ChocolateFluid : MonoBehaviour
     [Header("디버그")]
     public bool debugLogTriggers = true;
 
-    // 코루틴과 전역 방향 변수(_currentFlowDirection)는 이제 필요 없습니다! 
+    // 현재 흐르는 방향 (코루틴에서 실시간으로 변경됨)
+    private Vector3 _currentFlowDirection;
+
+    // OnTriggerEnter에서 이미 물리 설정 완료된 Rigidbody 캐싱 (Stay에서 중복 GetComponent 방지)
+    private readonly HashSet<Rigidbody> _processedBodies = new HashSet<Rigidbody>();
+
+    private void Start()
+    {
+        // 게임 시작 시 주기적으로 방향을 바꾸는 코루틴 실행
+        StartCoroutine(ChangeDirectionRoutine());
+    }
+
+    // 지정된 시간마다 X, Z 방향을 랜덤으로 바꾸는 함수
+    private IEnumerator ChangeDirectionRoutine()
+    {
+        while (true)
+        {
+            // X, Z 방향을 -1 ~ 1 사이의 랜덤 값으로 설정
+            float randomX = Random.Range(-1f, 1f);
+            float randomZ = Random.Range(-1f, 1f);
+
+            // Y는 Update에서 실시간 계산하므로 일단 0으로 둠
+            _currentFlowDirection = new Vector3(randomX, 0, randomZ).normalized;
+
+            // changeDirectionInterval(예: 3초) 만큼 대기 후 다시 방향 변경
+            yield return new WaitForSeconds(changeDirectionInterval);
+        }
+    }
 
     private void OnTriggerStay(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
-        // 실제 유저는 유저 동기화 스크립트(SyncChocolateElimination)에서 별도 제어하므로 제외
-        if (rb.GetComponent<NetworkPlayerSync>() != null) return;
-
-        // 대상 필터링 (Edible, AI, 배경 오브젝트, 사탕 등)
-        bool isEdible = other.CompareTag("Edible") || rb.gameObject.CompareTag("Edible");
-        bool isCandy = other.CompareTag("Sphere") || rb.gameObject.CompareTag("Sphere");
-        int bgLayer = LayerMask.NameToLayer("BackGroundObject");
-        bool isBackgroundObject = (bgLayer >= 0) && (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
-        bool isAI = rb.GetComponent<AIPlayerMovement>() != null || rb.GetComponent<WanderingAI>() != null;
-
-        if (isEdible || isAI || isBackgroundObject || isCandy)
+        // OnTriggerEnter 누락 안전장치: 아직 미처리된 오브젝트만 체크
+        if (!_processedBodies.Contains(rb) && (rb.useGravity || rb.isKinematic))
         {
-            if (rb.IsSleeping())
+            bool isEdible = other.CompareTag("Edible");
+            int bgLayer = LayerMask.NameToLayer("BackGroundObject");
+            bool isBackgroundObject = (bgLayer >= 0) &&
+                (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
+
+            if (isEdible || isBackgroundObject)
             {
-                rb.WakeUp();
+                rb.isKinematic = false;
+                rb.useGravity = false;
+                rb.linearDamping = chocolateViscosity;
+                rb.angularDamping = chocolateViscosity;
+                _processedBodies.Add(rb);
             }
-
-            rb.isKinematic = false;
-            rb.useGravity = false;
-            rb.linearDamping = chocolateViscosity;
-            rb.angularDamping = chocolateViscosity;
-
-            // 1. 기본 부력 적용
-            if (other.transform.position.y < transform.position.y)
-            {
-                float antiFallBonus = 0f;
-                if (rb.linearVelocity.y < 0)
-                {
-                    antiFallBonus = Mathf.Abs(rb.linearVelocity.y) * 2f;
-                }
-
-                Vector3 upwardForce = Vector3.up * (buoyancyForce + antiFallBonus);
-                rb.AddForce(upwardForce, ForceMode.Acceleration);
-            }
-
-            // ---------------------------------------------------------
-            // [개선된 부분] 물체마다 완전히 독립적인 흐름(Flow) 계산!
-            // ---------------------------------------------------------
-
-            // 2. 시간에 따른 Y축 출렁임 계산 (위치값을 더해서 물체마다 다른 타이밍에 출렁이게 함)
-            float wavePhase = other.transform.position.x * 0.5f + other.transform.position.z * 0.5f;
-            float waveY = Mathf.Sin(Time.time * waveSpeed + wavePhase);
-
-            // 3. 물체 고유의 ID를 이용해 개별적인 X, Z 흐름 방향 계산
-            // GetInstanceID()는 오브젝트마다 완전히 다른 숫자를 반환하므로, 이 값을 사인/코사인 함수의 오프셋으로 씁니다.
-            float uniqueOffset = rb.gameObject.GetInstanceID();
-
-            float objFlowX = Mathf.Sin(Time.time * flowChangeSpeed + uniqueOffset);
-            float objFlowZ = Mathf.Cos(Time.time * (flowChangeSpeed * 0.8f) + uniqueOffset);
-
-            // 4. 물체별 흐름 힘 가하기
-            Vector3 appliedForce = new Vector3(
-                objFlowX * flowForce,
-                waveY * waveForce,
-                objFlowZ * flowForce
-            );
-
-            rb.AddForce(appliedForce, ForceMode.Acceleration);
         }
+
+        // 부력 (수면 아래일 때만)
+        if (rb.position.y < transform.position.y)
+            rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
+
+        // 흐름 + 출렁임
+        float waveY = Mathf.Sin(Time.time * waveSpeed);
+        rb.AddForce(new Vector3(
+            _currentFlowDirection.x * flowForce,
+            waveY * waveForce,
+            _currentFlowDirection.z * flowForce
+        ), ForceMode.Acceleration);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -131,6 +128,7 @@ public class ChocolateFluid : MonoBehaviour
             rb.useGravity = false;
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
+            _processedBodies.Add(rb);
         }
 
         if (wanderingAI != null) wanderingAI.enabled = false;
@@ -144,6 +142,8 @@ public class ChocolateFluid : MonoBehaviour
     {
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
+
+        _processedBodies.Remove(rb);
 
         int bgLayer = LayerMask.NameToLayer("BackGroundObject");
         bool isBackgroundObject = (bgLayer >= 0) && (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
