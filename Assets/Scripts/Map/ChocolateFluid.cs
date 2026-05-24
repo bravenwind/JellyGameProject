@@ -94,6 +94,14 @@ public class ChocolateFluid : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // NetworkPlayer(실제 플레이어) → 게임 오버 + 둥둥 떠다니기
+        NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
+        if (netPlayer != null)
+        {
+            HandlePlayerEnterChocolate(netPlayer);
+            return;
+        }
+
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
@@ -103,16 +111,16 @@ public class ChocolateFluid : MonoBehaviour
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
 
         bool isAI = aiPlayer != null || wanderingAI != null;
-        if (other.CompareTag("Edible") || isAI || other.CompareTag("BackGroundObject"))
+        bool isBackgroundObject = rb.gameObject.layer == 12; // BackGroundObject
+
+        if (other.CompareTag("Edible") || isAI || isBackgroundObject)
         {
             rb.isKinematic = false;
             rb.useGravity = false;
-
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
         }
 
-        // AI 컴포넌트 비활성화
         if (wanderingAI != null) wanderingAI.enabled = false;
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
         if (navMeshAgent != null) navMeshAgent.enabled = false;
@@ -120,16 +128,46 @@ public class ChocolateFluid : MonoBehaviour
         if (aiPlayer != null) aiPlayer.OnEliminated();
     }
 
+    private void HandlePlayerEnterChocolate(NetworkPlayerSync netPlayer)
+    {
+        if (netPlayer.playerController != null)
+            netPlayer.playerController.enabled = false;
+
+        if (netPlayer.photonView.IsMine)
+            GameModeManager.Instance?.GameOver();
+
+        CharacterController cc = netPlayer.GetComponent<CharacterController>();
+        if (cc != null && netPlayer.GetComponent<Rigidbody>() == null)
+        {
+            float radius = cc.radius;
+            float height = cc.height;
+            Vector3 center = cc.center;
+            cc.enabled = false;
+
+            CapsuleCollider capsule = netPlayer.gameObject.AddComponent<CapsuleCollider>();
+            capsule.radius = radius;
+            capsule.height = height;
+            capsule.center = center;
+
+            Rigidbody rb = netPlayer.gameObject.AddComponent<Rigidbody>();
+            rb.useGravity = false;
+            rb.isKinematic = false;
+            rb.linearDamping = chocolateViscosity;
+            rb.angularDamping = chocolateViscosity;
+        }
+    }
+
     private void OnTriggerExit(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
-        if (other.CompareTag("Edible"))
+        bool isBackgroundObject = rb.gameObject.layer == 12;
+        if (other.CompareTag("Edible") || isBackgroundObject)
         {
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
-            rb.useGravity = true; // 유체 밖으로 나갔으니 기본 중력 복구
+            if (isBackgroundObject) rb.useGravity = true;
         }
 
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();

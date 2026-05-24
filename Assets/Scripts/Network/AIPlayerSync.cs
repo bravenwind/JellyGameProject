@@ -56,6 +56,23 @@ public class AIPlayerSync : MonoBehaviourPun
         PhotonNetwork.CurrentRoom.SetCustomProperties(props);
     }
 
+    /// <summary>
+    /// 봇의 현재 색상을 룸 프로퍼티에 저장. 씬 전환 후에도 색상 복원 가능.
+    /// MasterClient에서만 실행. 게임 종료 직전에 호출.
+    /// </summary>
+    public void SyncColor(Color c)
+    {
+        if (!PhotonNetwork.IsMasterClient || !PhotonNetwork.InRoom) return;
+        if (string.IsNullOrEmpty(_botPrefix)) return;
+        Hashtable props = new Hashtable
+        {
+            { $"{_botPrefix}_Color_R", c.r },
+            { $"{_botPrefix}_Color_G", c.g },
+            { $"{_botPrefix}_Color_B", c.b }
+        };
+        PhotonNetwork.CurrentRoom.SetCustomProperties(props);
+    }
+
     public float GetSyncedScale()
     {
         if (!PhotonNetwork.InRoom) return transform.localScale.x;
@@ -93,7 +110,10 @@ public class AIPlayerSync : MonoBehaviourPun
         {
             { $"{_botPrefix}_Name", null },
             { $"{_botPrefix}_Score", null },
-            { $"{_botPrefix}_Scale", null }
+            { $"{_botPrefix}_Scale", null },
+            { $"{_botPrefix}_Color_R", null },
+            { $"{_botPrefix}_Color_G", null },
+            { $"{_botPrefix}_Color_B", null }
         };
         PhotonNetwork.CurrentRoom.SetCustomProperties(props);
     }
