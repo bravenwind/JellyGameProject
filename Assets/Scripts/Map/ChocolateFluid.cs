@@ -21,6 +21,8 @@ public class ChocolateFluid : MonoBehaviour
     public float waveSpeed = 2f;
     [Tooltip("Y축 출렁임 강도 (위아래로 밀어주는 힘)")]
     public float waveForce = 3f;
+    [Tooltip("흐름 주기 변화 시간")]
+    public float changeDirectionInterval;
 
     [Header("디버그")]
     public bool debugLogTriggers = true;
