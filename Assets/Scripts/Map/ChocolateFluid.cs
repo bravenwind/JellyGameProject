@@ -98,12 +98,14 @@ public class ChocolateFluid : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        // NetworkPlayer(실제 플레이어) → 게임 오버 + 둥둥 떠다니기
+        // NetworkPlayer(실제 플레이어) 발견 시
         NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (netPlayer != null)
         {
             if (debugLogTriggers) Debug.Log($"[Chocolate] ENTER NetworkPlayer: {other.name}");
-            HandlePlayerEnterChocolate(netPlayer);
+
+            // [수정] 직접 컴포넌트를 건드리지 않고, 플레이어 내부 탈락 함수를 호출!
+            netPlayer.SyncChocolateElimination();
             return;
         }
 
@@ -125,6 +127,7 @@ public class ChocolateFluid : MonoBehaviour
         bool isBackgroundObject = (bgLayer >= 0) &&
             (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
         bool isEdible = other.CompareTag("Edible");
+        bool isCandy = other.CompareTag("Sphere");
 
         if (debugLogTriggers)
         {
@@ -132,7 +135,7 @@ public class ChocolateFluid : MonoBehaviour
             Debug.Log($"[Chocolate] ENTER [{category}]: collider={other.name}(layer={LayerMask.LayerToName(other.gameObject.layer)}) rb={rb.name}(layer={LayerMask.LayerToName(rb.gameObject.layer)} kin={rb.isKinematic} gravity={rb.useGravity})");
         }
 
-        if (isEdible || isAI || isBackgroundObject)
+        if (isEdible || isAI || isBackgroundObject || isCandy)
         {
             rb.isKinematic = false;
             rb.useGravity = false;
@@ -145,35 +148,6 @@ public class ChocolateFluid : MonoBehaviour
         if (navMeshAgent != null) navMeshAgent.enabled = false;
 
         if (aiPlayer != null) aiPlayer.OnEliminated();
-    }
-
-    private void HandlePlayerEnterChocolate(NetworkPlayerSync netPlayer)
-    {
-        if (netPlayer.playerController != null)
-            netPlayer.playerController.enabled = false;
-
-        if (netPlayer.photonView.IsMine)
-            GameModeManager.Instance?.GameOver();
-
-        CharacterController cc = netPlayer.GetComponent<CharacterController>();
-        if (cc != null && netPlayer.GetComponent<Rigidbody>() == null)
-        {
-            float radius = cc.radius;
-            float height = cc.height;
-            Vector3 center = cc.center;
-            cc.enabled = false;
-
-            CapsuleCollider capsule = netPlayer.gameObject.AddComponent<CapsuleCollider>();
-            capsule.radius = radius;
-            capsule.height = height;
-            capsule.center = center;
-
-            Rigidbody rb = netPlayer.gameObject.AddComponent<Rigidbody>();
-            rb.useGravity = false;
-            rb.isKinematic = false;
-            rb.linearDamping = chocolateViscosity;
-            rb.angularDamping = chocolateViscosity;
-        }
     }
 
     private void OnTriggerExit(Collider other)

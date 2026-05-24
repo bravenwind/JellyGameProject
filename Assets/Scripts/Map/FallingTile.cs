@@ -9,7 +9,7 @@ public class FallingTile : MonoBehaviour
     public bool drawOverlapGizmo = true;
 
     [Tooltip("OverlapBox 높이 (타일 위로 몇 미터까지 검사할지)")]
-    public float overlapBoxHeight = 5f;
+    public float overlapBoxHeight = 20f;
 
     private Coroutine _idleCoroutine;
     private Vector3 _originalPos;
