@@ -36,6 +36,10 @@ public class NameTagBillboard : MonoBehaviour
     public Color otherColor  = new Color(1f, 0.8f, 0.2f, 1f);  // 다른 플레이어 (노란색)
     public Color botColor    = new Color(0.8f, 0.8f, 0.8f, 1f); // AI봇 (회색)
 
+    [Header("TopTransform 기준")]
+    [Tooltip("비어있으면 기존 heightOffset 방식, 할당하면 TopTransform 위치 + heightOffset")]
+    public Transform topTransform;
+
     private Camera _cam;
     private Transform _parentTf;
 
@@ -52,10 +56,16 @@ public class NameTagBillboard : MonoBehaviour
 
         float parentScale = _parentTf != null ? Mathf.Max(_parentTf.localScale.x, 0.01f) : 1f;
 
-        // ── 1. 높이 오프셋: 로컬 좌표 고정 → 부모가 커지면 월드 높이도 같이 올라감 ──
-        // localPosition.y = heightOffset 이면 월드 높이 = pivot + heightOffset * parentScale
-        // 즉 스케일 2 → 이름표 worldY = heightOffset * 2, 스케일 3 → heightOffset * 3
-        transform.localPosition = new Vector3(0f, heightOffset, 0f);
+        // ── 1. 위치: TopTransform 기준 또는 기존 heightOffset 방식 ──
+        if (topTransform != null)
+        {
+            Vector3 worldPos = topTransform.position + Vector3.up * heightOffset;
+            transform.position = worldPos;
+        }
+        else
+        {
+            transform.localPosition = new Vector3(0f, heightOffset, 0f);
+        }
 
         // ── 2. 빌보드: 카메라 정면을 바라봄 ──
         transform.rotation = Quaternion.LookRotation(
