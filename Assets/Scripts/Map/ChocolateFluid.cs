@@ -60,6 +60,30 @@ public class ChocolateFluid : MonoBehaviour
 
         if (rb != null)
         {
+            // OnTriggerEnter 누락 안전장치: 초콜릿 안에 있는데 아직 중력이 켜져있으면 보정
+            if (rb.useGravity || rb.isKinematic)
+            {
+                if (rb.GetComponent<NetworkPlayerSync>() == null)
+                {
+                    bool isEdible = other.CompareTag("Edible");
+                    int bgLayer = LayerMask.NameToLayer("BackGroundObject");
+                    bool isBackgroundObject = (bgLayer >= 0) &&
+                        (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
+                    bool isAI = rb.GetComponent<AIPlayerMovement>() != null ||
+                                rb.GetComponent<WanderingAI>() != null;
+
+                    if (isEdible || isAI || isBackgroundObject)
+                    {
+                        if (debugLogTriggers)
+                            Debug.Log($"[Chocolate] STAY 보정: {rb.name} (gravity={rb.useGravity}, kin={rb.isKinematic})");
+                        rb.isKinematic = false;
+                        rb.useGravity = false;
+                        rb.linearDamping = chocolateViscosity;
+                        rb.angularDamping = chocolateViscosity;
+                    }
+                }
+            }
+
             // 1. 기본 부력 적용 (물체가 초콜릿 표면보다 아래에 있으면 위로 밀어올림)
             if (other.transform.position.y < transform.position.y)
             {
