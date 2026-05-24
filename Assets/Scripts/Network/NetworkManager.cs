@@ -387,7 +387,24 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         foreach (var t in physical)
             if (t != null) _spawnSlots.Add(t.position);
 
-        // 2. 부족하면 NavMesh 기반 가상 포인트로 보충
+        // 2. 폴백: 물리 SpawnPoint가 없으면 NavMesh 삼각망 정점을 시드로 사용
+        // (없는 경우 origin이 Vector3.zero가 되어 가상 포인트도 못 만들고 봇이 원점에 스폰되는 버그 방지)
+        if (_spawnSlots.Count == 0)
+        {
+            var tri = UnityEngine.AI.NavMesh.CalculateTriangulation();
+            if (tri.vertices != null && tri.vertices.Length > 0)
+            {
+                Vector3 seed = tri.vertices[Random.Range(0, tri.vertices.Length)];
+                _spawnSlots.Add(seed);
+                Debug.LogWarning($"[Network] 물리 SpawnPoint 없음 - NavMesh 정점 {seed}을 시드로 사용");
+            }
+            else
+            {
+                Debug.LogError("[Network] 물리 SpawnPoint도 NavMesh도 없음! 봇 스폰 실패가 예상됨");
+            }
+        }
+
+        // 3. 부족하면 NavMesh 기반 가상 포인트로 보충
         Vector3 origin = _spawnSlots.Count > 0 ? _spawnSlots[0] : Vector3.zero;
         int guard = 0;
         while (_spawnSlots.Count < needed && guard++ < needed * 5)
