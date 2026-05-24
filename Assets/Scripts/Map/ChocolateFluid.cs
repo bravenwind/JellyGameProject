@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -31,6 +32,9 @@ public class ChocolateFluid : MonoBehaviour
     // 현재 흐르는 방향 (코루틴에서 실시간으로 변경됨)
     private Vector3 _currentFlowDirection;
 
+    // OnTriggerEnter에서 이미 물리 설정 완료된 Rigidbody 캐싱 (Stay에서 중복 GetComponent 방지)
+    private readonly HashSet<Rigidbody> _processedBodies = new HashSet<Rigidbody>();
+
     private void Start()
     {
         // 게임 시작 시 주기적으로 방향을 바꾸는 코루틴 실행
@@ -57,56 +61,37 @@ public class ChocolateFluid : MonoBehaviour
     private void OnTriggerStay(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
+        if (rb == null) return;
 
-        if (rb != null)
+        // OnTriggerEnter 누락 안전장치: 아직 미처리된 오브젝트만 체크
+        if (!_processedBodies.Contains(rb) && (rb.useGravity || rb.isKinematic))
         {
-            // OnTriggerEnter 누락 안전장치: 초콜릿 안에 있는데 아직 중력이 켜져있으면 보정
-            if (rb.useGravity || rb.isKinematic)
+            bool isEdible = other.CompareTag("Edible");
+            int bgLayer = LayerMask.NameToLayer("BackGroundObject");
+            bool isBackgroundObject = (bgLayer >= 0) &&
+                (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
+
+            if (isEdible || isBackgroundObject)
             {
-                if (rb.GetComponent<NetworkPlayerSync>() == null)
-                {
-                    bool isEdible = other.CompareTag("Edible");
-                    int bgLayer = LayerMask.NameToLayer("BackGroundObject");
-                    bool isBackgroundObject = (bgLayer >= 0) &&
-                        (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
-                    bool isAI = rb.GetComponent<AIPlayerMovement>() != null ||
-                                rb.GetComponent<WanderingAI>() != null;
-
-                    if (isEdible || isAI || isBackgroundObject)
-                    {
-                        if (debugLogTriggers)
-                            Debug.Log($"[Chocolate] STAY 보정: {rb.name} (gravity={rb.useGravity}, kin={rb.isKinematic})");
-                        rb.isKinematic = false;
-                        rb.useGravity = false;
-                        rb.linearDamping = chocolateViscosity;
-                        rb.angularDamping = chocolateViscosity;
-                    }
-                }
+                rb.isKinematic = false;
+                rb.useGravity = false;
+                rb.linearDamping = chocolateViscosity;
+                rb.angularDamping = chocolateViscosity;
+                _processedBodies.Add(rb);
             }
-
-            // 1. 기본 부력 적용 (물체가 초콜릿 표면보다 아래에 있으면 위로 밀어올림)
-            if (other.transform.position.y < transform.position.y)
-            {
-                rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
-            }
-
-            // 2. 시간에 따른 Y축 출렁임 계산 (-1 ~ 1 사이를 부드럽게 진동)
-            float waveY = Mathf.Sin(Time.time * waveSpeed);
-
-            // 3. 최종 흐름 힘 계산 (랜덤 X, Z + 출렁이는 Y)
-            Vector3 finalFlowDirection = _currentFlowDirection;
-            finalFlowDirection.y = waveY; // Y축에 -1 ~ 1 값 대입
-
-            // X, Z는 flowForce만큼, Y는 waveForce만큼의 크기로 힘을 가함
-            Vector3 appliedForce = new Vector3(
-                finalFlowDirection.x * flowForce,
-                finalFlowDirection.y * waveForce,
-                finalFlowDirection.z * flowForce
-            );
-
-            // 4. 물체에 힘 가하기
-            rb.AddForce(appliedForce, ForceMode.Acceleration);
         }
+
+        // 부력 (수면 아래일 때만)
+        if (rb.position.y < transform.position.y)
+            rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
+
+        // 흐름 + 출렁임
+        float waveY = Mathf.Sin(Time.time * waveSpeed);
+        rb.AddForce(new Vector3(
+            _currentFlowDirection.x * flowForce,
+            waveY * waveForce,
+            _currentFlowDirection.z * flowForce
+        ), ForceMode.Acceleration);
     }
 
     private void OnTriggerEnter(Collider other)
@@ -151,6 +136,7 @@ public class ChocolateFluid : MonoBehaviour
             rb.useGravity = false;
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
+            _processedBodies.Add(rb);
         }
 
         if (wanderingAI != null) wanderingAI.enabled = false;
@@ -193,6 +179,8 @@ public class ChocolateFluid : MonoBehaviour
     {
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
+
+        _processedBodies.Remove(rb);
 
         int bgLayer = LayerMask.NameToLayer("BackGroundObject");
         bool isBackgroundObject = (bgLayer >= 0) &&

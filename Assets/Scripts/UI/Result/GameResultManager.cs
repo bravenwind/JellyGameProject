@@ -264,9 +264,11 @@ public class GameResultManager : MonoBehaviour
         // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
         DestroyAll<PlayerColorVisual>(root);
 
-        // Cloth 물리가 메시를 변형시키지 않도록 제거 (SoftBody3D.Awake가 Cloth를 재생성하므로 먼저 제거)
-        DestroyAll<SoftBody3D>(root);
-        DestroyAll<Cloth>(root);
+        // Cloth를 DestroyImmediate하면 SkinnedMeshRenderer 데이터가 오염되므로 비활성화만
+        foreach (var sb in root.GetComponentsInChildren<SoftBody3D>(true))
+            sb.enabled = false;
+        foreach (var cloth in root.GetComponentsInChildren<Cloth>(true))
+            cloth.enabled = false;
 
         // photonView를 참조하는 모든 Photon View 컴포넌트를 PhotonView보다 먼저 제거
         DestroyAll<PhotonTransformView>(root);
@@ -300,12 +302,12 @@ public class GameResultManager : MonoBehaviour
     private static void GroundToFloor(GameObject go, float floorY)
     {
         var smr = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
-        if (smr != null && smr.sharedMesh != null)
+        if (smr != null)
         {
-            float localBottomY = smr.sharedMesh.bounds.min.y;
-            float worldBottomY = smr.transform.TransformPoint(
-                new Vector3(0f, localBottomY, 0f)).y;
-            if (float.IsNaN(worldBottomY)) return;
+            Bounds local = smr.localBounds;
+            if (float.IsNaN(local.min.y)) return;
+            float worldBottomY = smr.transform.position.y
+                + local.min.y * smr.transform.lossyScale.y;
             go.transform.position += new Vector3(0f, floorY - worldBottomY, 0f);
             return;
         }
