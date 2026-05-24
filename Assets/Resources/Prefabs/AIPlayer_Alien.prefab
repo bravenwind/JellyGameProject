@@ -5752,6 +5752,7 @@ MonoBehaviour:
   playerColor: {r: 1, g: 1, b: 1, a: 1}
   otherColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   botColor: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+  topTransform: {fileID: 6971173228921334152}
 --- !u!1 &2761503745362650867
 GameObject:
   m_ObjectHideFlags: 0

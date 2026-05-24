@@ -1260,10 +1260,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nameText: {fileID: 6383651738963351664}
   heightOffset: 1
-  fixedWorldSize: 0
+  fixedWorldSize: 1
   playerColor: {r: 1, g: 1, b: 1, a: 1}
   otherColor: {r: 1, g: 0.8, b: 0.2, a: 1}
   botColor: {r: 0.8, g: 0.8, b: 0.8, a: 1}
+  topTransform: {fileID: 7070744451627320867}
 --- !u!1 &6613023925549854833
 GameObject:
   m_ObjectHideFlags: 0
