@@ -4,6 +4,13 @@ using UnityEngine.AI;
 
 public class FallingTile : MonoBehaviour
 {
+    [Header("디버그")]
+    [Tooltip("AwakePhysicsOnTile이 사용하는 OverlapBox 범위를 Scene 뷰에 시각화")]
+    public bool drawOverlapGizmo = true;
+
+    [Tooltip("OverlapBox 높이 (타일 위로 몇 미터까지 검사할지)")]
+    public float overlapBoxHeight = 5f;
+
     private Coroutine _idleCoroutine;
     private Vector3 _originalPos;
     private float _phase;
@@ -12,6 +19,10 @@ public class FallingTile : MonoBehaviour
 
     private Transform _shakeTransform;
     private Vector3 _shakeOrigin;
+
+    // 디버그용: 최근 AwakePhysicsOnTile이 잡은 콜라이더들을 일정 시간 강조 표시
+    private Collider[] _lastOverlapResult;
+    private float _lastOverlapTime = -999f;
 
     private void EnsureInit()
     {
@@ -134,11 +145,11 @@ public class FallingTile : MonoBehaviour
 
     private void AwakePhysicsOnTile(Vector3 colliderSize)
     {
-        // 💡 핵심 수정: halfExtents는 전체 크기의 절반이어야 함!
-        // Y축 높이는 타일 위로 5m만 검사하도록 세팅 (반지름이므로 2.5f)
-        Vector3 halfExtents = new Vector3(colliderSize.x * 0.5f, 2.5f, colliderSize.z * 0.5f);
+        // halfExtents는 전체 크기의 절반
+        // Y축은 overlapBoxHeight 만큼 타일 위 공간을 검사 (반지름이므로 절반)
+        Vector3 halfExtents = new Vector3(colliderSize.x * 0.5f, overlapBoxHeight * 0.5f, colliderSize.z * 0.5f);
 
-        // 💡 박스의 중심점을 타일 표면에서 약간 위쪽(Y축 +2.5m)으로 배치해서 딱 타일 위의 공간만 스캔
+        // 박스 중심을 타일 표면 위쪽에 배치 (타일 위 공간만 스캔)
         Vector3 boxCenter = transform.position + new Vector3(0f, halfExtents.y, 0f);
 
         // 배경 오브젝트 + AI (Player/Edible 레이어) 모두 감지
@@ -147,6 +158,21 @@ public class FallingTile : MonoBehaviour
             | (1 << LayerMask.NameToLayer("Edible"));
 
         Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, mask);
+
+        // 디버그: 시각화용 기록 + Scene 뷰에 라인으로 5초간 그림
+        _lastOverlapResult = OverlappedCols;
+        _lastOverlapTime = Time.time;
+        if (drawOverlapGizmo)
+        {
+            DebugDrawOverlapBox(boxCenter, halfExtents, transform.rotation, Color.red, 5f);
+            Debug.Log($"[FallingTile] {name} AwakePhysicsOnTile: {OverlappedCols.Length}개 콜라이더 감지");
+            foreach (var c in OverlappedCols)
+            {
+                if (c == null || c == _collider) continue;
+                Rigidbody r = c.GetComponentInParent<Rigidbody>();
+                Debug.Log($"  └ {c.name} layer={LayerMask.LayerToName(c.gameObject.layer)} tag={c.tag} rb={(r != null ? r.name + "(kin=" + r.isKinematic + ")" : "없음")}");
+            }
+        }
 
         foreach (var col in OverlappedCols)
         {
@@ -185,5 +211,59 @@ public class FallingTile : MonoBehaviour
 
         var aiPlayer = obj.GetComponent<AIPlayerMovement>();
         if (aiPlayer != null) aiPlayer.enabled = false;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 디버그 시각화
+    // ─────────────────────────────────────────────────────────
+
+    /// <summary>OverlapBox 영역을 Debug.DrawLine으로 표시 (Scene 뷰, duration초 동안)</summary>
+    private static void DebugDrawOverlapBox(Vector3 center, Vector3 halfExtents, Quaternion rotation, Color color, float duration)
+    {
+        Vector3[] corners = new Vector3[8];
+        for (int i = 0; i < 8; i++)
+        {
+            Vector3 local = new Vector3(
+                (i & 1) == 0 ? -halfExtents.x : halfExtents.x,
+                (i & 2) == 0 ? -halfExtents.y : halfExtents.y,
+                (i & 4) == 0 ? -halfExtents.z : halfExtents.z);
+            corners[i] = center + rotation * local;
+        }
+        // 12개 모서리
+        int[,] edges = new int[,] {
+            {0,1},{2,3},{4,5},{6,7},
+            {0,2},{1,3},{4,6},{5,7},
+            {0,4},{1,5},{2,6},{3,7}
+        };
+        for (int i = 0; i < 12; i++)
+            Debug.DrawLine(corners[edges[i, 0]], corners[edges[i, 1]], color, duration, false);
+    }
+
+    /// <summary>Scene 뷰 항상 표시: 이 타일의 OverlapBox 예정 범위를 녹색 와이어로 표시</summary>
+    private void OnDrawGizmos()
+    {
+        if (!drawOverlapGizmo) return;
+
+        Collider col = _collider != null ? _collider : GetComponent<Collider>();
+        if (col == null) return;
+
+        Vector3 size = col.bounds.size;
+        Vector3 halfExtents = new Vector3(size.x * 0.5f, overlapBoxHeight * 0.5f, size.z * 0.5f);
+        Vector3 center = transform.position + new Vector3(0f, halfExtents.y, 0f);
+
+        // 최근에 트리거된 박스는 빨강, 아니면 녹색
+        bool recentlyTriggered = Time.time - _lastOverlapTime < 5f;
+        Color baseColor = recentlyTriggered ? Color.red : Color.green;
+
+        Matrix4x4 prev = Gizmos.matrix;
+        Gizmos.matrix = Matrix4x4.TRS(center, transform.rotation, Vector3.one);
+
+        Gizmos.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.8f);
+        Gizmos.DrawWireCube(Vector3.zero, halfExtents * 2f);
+
+        Gizmos.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.1f);
+        Gizmos.DrawCube(Vector3.zero, halfExtents * 2f);
+
+        Gizmos.matrix = prev;
     }
 }
