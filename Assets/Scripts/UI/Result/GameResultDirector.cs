@@ -299,12 +299,19 @@ public class GameResultDirector : MonoBehaviour
 
     private static void GroundToFloor(GameObject go, float floorY)
     {
-        var rend = FindJellyRenderer(go);
-        if (rend == null) return;
+        var smr = go.GetComponentInChildren<SkinnedMeshRenderer>(true);
+        if (smr != null)
+        {
+            // bounds는 렌더링 전이면 빈 값을 반환할 수 있으므로 localBounds 사용
+            float worldBottomY = smr.transform.TransformPoint(
+                new Vector3(0f, smr.localBounds.min.y, 0f)).y;
+            go.transform.position += new Vector3(0f, floorY - worldBottomY, 0f);
+            return;
+        }
 
-        float bottomY = rend.bounds.min.y;
-        float offset = floorY - bottomY;
-        go.transform.position += new Vector3(0f, offset, 0f);
+        var rend = go.GetComponentInChildren<Renderer>(true);
+        if (rend == null) return;
+        go.transform.position += new Vector3(0f, floorY - rend.bounds.min.y, 0f);
     }
 
     private void SetupNameTag(GameObject root, string playerName)
