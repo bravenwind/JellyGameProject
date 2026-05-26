@@ -277,24 +277,14 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // NetworkPlayerSync.cs 내부 혹은 플레이어 메인 스크립트에 추가
     public void SyncChocolateElimination()
     {
-        // 1. 내 캐릭터(로컬 플레이어)일 때만 마스터 역할을 수행하여 상태 변경
-        if (photonView.IsMine)
-        {
-            // 이동 권한 컴포넌트 끄기
-            if (playerController != null) playerController.enabled = false;
+        if (!photonView.IsMine) return;
+        photonView.RPC(nameof(RPC_ChocolateElimination), RpcTarget.All);
+    }
 
-            // 애니메이션 매개변수 변경 -> PhotonAnimatorView가 자동으로 전 서버에 동기화 시켜줌!
-            Animator playerAnimator = GetComponent<Animator>();
-            if (playerAnimator != null)
-            {
-                playerAnimator.SetBool("isMoving", false);
-            }
-
-            // 게임오버 판정 UI 호출
-            GameModeManager.Instance?.GameOver();
-        }
-
-        // 2. 물리 구조 전환 (미리 컴포넌트가 붙어있다고 가정할 때의 가장 안전한 전환)
+    [PunRPC]
+    private void RPC_ChocolateElimination()
+    {
+        // 물리 구조 전환 (모든 클라이언트에서 실행)
         CharacterController cc = GetComponent<CharacterController>();
         Rigidbody rb = GetComponent<Rigidbody>();
 
@@ -304,9 +294,21 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         {
             rb.isKinematic = false;
             rb.useGravity = false;
-            // 유체 점성 수치 대입 (ChocolateFluid의 변수를 가져오거나 하드코딩)
             rb.linearDamping = 3f;
             rb.angularDamping = 3f;
+        }
+
+        // 소유자만: 입력 차단, 애니메이션 정지, 탈락 동기화, 게임오버
+        if (photonView.IsMine)
+        {
+            if (playerController != null) playerController.enabled = false;
+
+            Animator playerAnimator = GetComponent<Animator>();
+            if (playerAnimator != null)
+                playerAnimator.SetBool("isMoving", false);
+
+            SyncEliminated();
+            GameModeManager.Instance?.GameOver();
         }
     }
 
@@ -466,6 +468,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void Respawn()
     {
         _isAbsorbed = false;
+        _absorbedBotIds.Clear();
 
         // 스폰 포인트 중 랜덤 위치로 이동
         if (NetworkManager.Instance?.spawnPoints?.Length > 0)

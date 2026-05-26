@@ -292,6 +292,14 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         // 결과 씬으로 색상을 가져갈 수 있도록 룸 프로퍼티에 저장
         SyncAllColorsForResult();
 
+        StartCoroutine(LoadResultSceneAfterSync());
+    }
+
+    private IEnumerator LoadResultSceneAfterSync()
+    {
+        // SetCustomProperties()는 비동기 — 서버 왕복 후 다른 클라이언트에 전파됨
+        // 전파 완료 전 씬을 로드하면 결과 화면에서 색상/스케일이 누락되므로 대기
+        yield return new WaitForSecondsRealtime(0.5f);
         PhotonNetwork.LoadLevel(RESULT_SCENE_NAME);
     }
 
