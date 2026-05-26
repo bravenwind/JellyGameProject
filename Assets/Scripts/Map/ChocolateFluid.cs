@@ -46,6 +46,9 @@ public class ChocolateFluid : MonoBehaviour
     }
     private readonly Dictionary<Rigidbody, FloatData> _floatData = new Dictionary<Rigidbody, FloatData>();
 
+    private const float PurgeInterval = 5f;
+    private float _lastPurgeTime;
+
     private void Start()
     {
         // 게임 시작 시 주기적으로 방향을 바꾸는 코루틴 실행
@@ -71,6 +74,12 @@ public class ChocolateFluid : MonoBehaviour
 
     private void OnTriggerStay(Collider other)
     {
+        if (Time.time - _lastPurgeTime >= PurgeInterval)
+        {
+            PurgeDestroyedEntries();
+            _lastPurgeTime = Time.time;
+        }
+
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 
@@ -219,6 +228,30 @@ public class ChocolateFluid : MonoBehaviour
             }
             obj.SetActive(false);
         }
+    }
+
+    private void PurgeDestroyedEntries()
+    {
+        _processedBodies.RemoveWhere(rb => rb == null);
+
+        List<Rigidbody> staleKeys = null;
+        foreach (var kvp in _floatData)
+        {
+            if (kvp.Key == null)
+            {
+                staleKeys ??= new List<Rigidbody>();
+                staleKeys.Add(kvp.Key);
+            }
+        }
+        if (staleKeys != null)
+            foreach (var key in staleKeys)
+                _floatData.Remove(key);
+    }
+
+    private void OnDisable()
+    {
+        _processedBodies.Clear();
+        _floatData.Clear();
     }
 
     private void OnTriggerExit(Collider other)
