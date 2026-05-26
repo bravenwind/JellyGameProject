@@ -430,6 +430,7 @@ public class GameResultManager : MonoBehaviour
 
             if (!_brain.IsBlending)
             {
+                yield return new WaitForSeconds(0.5f);
                 Animator playerAnimator = _jellies[i].GetComponentInChildren<Animator>();
                 playerAnimator.SetTrigger("Jump");
             }

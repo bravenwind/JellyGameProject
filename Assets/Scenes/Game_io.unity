@@ -57655,6 +57655,7 @@ MonoBehaviour:
   resultTitleText: {fileID: 722883341}
   leaderboardContainer: {fileID: 217354872}
   leaderboardEntryPrefab: {fileID: 585618893292266002, guid: 81c991277264e1742ab43d3bb56cb6c8, type: 3}
+  _gameTimer: 0
 --- !u!114 &708981560
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -131522,7 +131523,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 1500, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1651101868
 MonoBehaviour:
@@ -162091,8 +162092,8 @@ MonoBehaviour:
   flowChangeSpeed: 0.5
   flowForce: 10
   waveSpeed: 2
-  waveForce: 3
-  changeDirectionInterval: 0
+  waveForce: 6
+  changeDirectionInterval: 1
   floatingLifetime: 5
   debugLogTriggers: 1
 --- !u!23 &1948921031

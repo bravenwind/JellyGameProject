@@ -36,6 +36,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     public GameObject leaderboardEntryPrefab;
 
     private bool _gameRunning = false;
+
+    [SerializeField]
     private float _gameTimer = 0f;
     private static bool _spawned = false;
 
@@ -143,6 +145,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private IEnumerator GameEndingSequenceRoutine()
     {
         int count = 3;
+
+        centerCountdownText.gameObject.SetActive(true);
 
         // 3, 2, 1 카운트다운 처리
         while (count > 0)
