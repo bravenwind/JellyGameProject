@@ -71,6 +71,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private void OnDestroy()
     {
         _spawned = false;
+        Time.timeScale = 1f;
     }
 
     private void Start()
@@ -281,6 +282,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         _gameRunning = false;
         GameState.Phase = GamePhase.Result;
+        Time.timeScale = 1f;
 
         var sortedEntries = GetSortedScores();
         int finalRank = GetLocalPlayerRank(sortedEntries);

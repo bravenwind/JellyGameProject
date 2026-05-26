@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using Photon.Pun;
 
 public class ChocolateFluid : MonoBehaviour
 {
@@ -48,32 +49,35 @@ public class ChocolateFluid : MonoBehaviour
 
     private const float PurgeInterval = 5f;
     private float _lastPurgeTime;
+    private int _lastDirectionInterval = -1;
 
-    private void Start()
+    private void UpdateFlowDirection()
     {
-        // 게임 시작 시 주기적으로 방향을 바꾸는 코루틴 실행
-        StartCoroutine(ChangeDirectionRoutine());
+        int interval = GetCurrentInterval();
+        if (interval == _lastDirectionInterval) return;
+        _lastDirectionInterval = interval;
+
+        var rng = new System.Random(interval);
+        float x = (float)(rng.NextDouble() * 2.0 - 1.0);
+        float z = (float)(rng.NextDouble() * 2.0 - 1.0);
+        _currentFlowDirection = new Vector3(x, 0, z).normalized;
     }
 
-    // 지정된 시간마다 X, Z 방향을 랜덤으로 바꾸는 함수
-    private IEnumerator ChangeDirectionRoutine()
+    private int GetCurrentInterval()
     {
-        while (true)
+        float intervalSec = Mathf.Max(changeDirectionInterval, 0.01f);
+        if (PhotonNetwork.InRoom)
         {
-            // X, Z 방향을 -1 ~ 1 사이의 랜덤 값으로 설정
-            float randomX = Random.Range(-1f, 1f);
-            float randomZ = Random.Range(-1f, 1f);
-
-            // Y는 Update에서 실시간 계산하므로 일단 0으로 둠
-            _currentFlowDirection = new Vector3(randomX, 0, randomZ).normalized;
-
-            // changeDirectionInterval(예: 3초) 만큼 대기 후 다시 방향 변경
-            yield return new WaitForSeconds(changeDirectionInterval);
+            int intervalMs = (int)(intervalSec * 1000f);
+            return PhotonNetwork.ServerTimestamp / intervalMs;
         }
+        return (int)(Time.time / intervalSec);
     }
 
     private void OnTriggerStay(Collider other)
     {
+        UpdateFlowDirection();
+
         if (Time.time - _lastPurgeTime >= PurgeInterval)
         {
             PurgeDestroyedEntries();
