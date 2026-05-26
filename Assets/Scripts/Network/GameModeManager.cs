@@ -147,7 +147,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         int count = 3;
 
-        centerCountdownText.gameObject.SetActive(true);
+        if (centerCountdownText != null)
+        {
+            centerCountdownText.gameObject.SetActive(true);
+        }
 
         // 3, 2, 1 카운트다운 처리
         while (count > 0)

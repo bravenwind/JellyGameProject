@@ -432,7 +432,10 @@ public class GameResultManager : MonoBehaviour
             {
                 yield return new WaitForSeconds(0.5f);
                 Animator playerAnimator = _jellies[i].GetComponentInChildren<Animator>();
-                playerAnimator.SetTrigger("Jump");
+                if (playerAnimator != null)
+                {
+                    playerAnimator.SetTrigger("Jump");
+                }
             }
 
             // 블렌드 시간 + 머무는 시간
