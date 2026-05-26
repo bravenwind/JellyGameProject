@@ -9,6 +9,14 @@ public class AIDetector : MonoBehaviour
 
     private AIPlayerMovement _owner;
 
+    private const float ScanCacheDuration = 0.1f;
+    private Transform _cachedThreat;
+    private Transform _cachedPrey;
+    private Transform _cachedJelly;
+    private float _lastThreatScan = -1f;
+    private float _lastPreyScan = -1f;
+    private float _lastJellyScan = -1f;
+
     private void Awake()
     {
         _owner = GetComponent<AIPlayerMovement>();
@@ -16,14 +24,22 @@ public class AIDetector : MonoBehaviour
 
     public Transform FindThreat()
     {
+        if (Time.time - _lastThreatScan < ScanCacheDuration && _cachedThreat != null)
+            return _cachedThreat;
+        _lastThreatScan = Time.time;
         float myScale = _owner != null ? _owner.GetMyAuthorityScale() : transform.localScale.x;
-        return FindEntityByScaleComparison(myScale, biggerThanMe: true);
+        _cachedThreat = FindEntityByScaleComparison(myScale, biggerThanMe: true);
+        return _cachedThreat;
     }
 
     public Transform FindPrey()
     {
+        if (Time.time - _lastPreyScan < ScanCacheDuration && _cachedPrey != null)
+            return _cachedPrey;
+        _lastPreyScan = Time.time;
         float myScale = _owner != null ? _owner.GetMyAuthorityScale() : transform.localScale.x;
-        return FindEntityByScaleComparison(myScale, biggerThanMe: false);
+        _cachedPrey = FindEntityByScaleComparison(myScale, biggerThanMe: false);
+        return _cachedPrey;
     }
 
     public Transform FindTargetToChase()
@@ -35,6 +51,10 @@ public class AIDetector : MonoBehaviour
 
     public Transform FindNearestJelly()
     {
+        if (Time.time - _lastJellyScan < ScanCacheDuration && _cachedJelly != null)
+            return _cachedJelly;
+        _lastJellyScan = Time.time;
+
         Transform nearest = null;
         float minDist = detectRadius;
 
@@ -48,6 +68,7 @@ public class AIDetector : MonoBehaviour
                 nearest = j.transform;
             }
         }
+        _cachedJelly = nearest;
         return nearest;
     }
 

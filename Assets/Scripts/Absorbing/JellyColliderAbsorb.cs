@@ -113,10 +113,11 @@ public class JellyColliderAbsorb : MonoBehaviour
 
     void OnAbsorbed()
     {
-        PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
-        if (player != null)
+        if (target != null)
         {
-            player.AbsorbColor(GetComponent<JellyObject>().jellyType);
+            PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
+            if (player != null)
+                player.AbsorbColor(GetComponent<JellyObject>().jellyType);
         }
 
         // 봇 점수는 BotBridge.HandleScaleCompleted에서 크기 기반으로 자동 산출

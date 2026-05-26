@@ -59,6 +59,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     [SerializeField] private string _dbg_currentState = "-";
 
     private AIBaseState _currentState;
+    private bool _isTransitioning = false;
     public  AIBaseState CurrentState => _currentState;
 
     // 상태 인스턴스 (Start에서 1회 생성, 재사용)
@@ -70,6 +71,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     // Scale 상태 복귀용
     private AIBaseState _stateBeforeScale;
     private float _prevScaleValue = 1f;
+    private float _lastUrgentThreatCheck;
     public bool IsBeingAbsorbed { get; set; } = false;
     public bool IsEliminated { get; private set; } = false;
 
@@ -255,12 +257,14 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public void ChangeState(AIBaseState newState)
     {
         if (_currentState == newState) return;
+        if (_isTransitioning) return;
 
+        _isTransitioning = true;
         _currentState?.Exit();
         _currentState = newState;
         _currentState?.Enter();
-
         _dbg_currentState = _currentState?.GetType().Name ?? "-";
+        _isTransitioning = false;
     }
 
     /// <summary>주기적으로 상태 전환 평가 (우선순위: Scale > Flee > Chase > Wander)</summary>
@@ -312,11 +316,11 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         ChangeState(WanderState);
     }
 
-    /// <summary>ScaleState 완료 후 이전 상태로 복귀 (AIScaleState에서 호출)</summary>
+    /// <summary>ScaleState 완료 후 상황 재평가 (AIScaleState에서 호출)</summary>
     public void RestoreStateBeforeScale()
     {
         _prevScaleValue = transform.localScale.x;
-        ChangeState(_stateBeforeScale ?? WanderState);
+        EvaluateAndTransition();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -334,6 +338,15 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         // 현재 상태 Update (목적지 설정 등)
         _currentState?.Update();
+
+        // 긴급 위협 감지: Flee/ScaleState가 아닐 때 0.1초 간격으로 위협 체크
+        if (_currentState != FleeState && _currentState != ScaleState
+            && Time.time - _lastUrgentThreatCheck >= 0.1f)
+        {
+            _lastUrgentThreatCheck = Time.time;
+            if (FindThreat() != null)
+                ChangeState(FleeState);
+        }
 
         // ─────────────────────────────────────────────────────────
         // [개선] 플레이어의 MoveAndRotate()와 연산 공식 일치시키기
@@ -479,9 +492,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             || NavMesh.SamplePosition(transform.position, out hit, 5f * s, NavMesh.AllAreas))
             Agent.Warp(hit.position);
 
-        // ScaleState 복귀는 AIScaleState.Update()가 IsScaling=false를 감지해 처리함.
-        // 여기서 RestoreStateBeforeScale()을 중복 호출하면 EvaluateAndTransition()이
-        // 이미 FleeState로 전환한 것을 WanderState로 되돌리는 경쟁 조건이 발생함.
         if (_currentState == ScaleState)
             RestoreStateBeforeScale();
     }
