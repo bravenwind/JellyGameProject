@@ -66,11 +66,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public AIWanderState WanderState { get; private set; }
     public AIChaseState  ChaseState  { get; private set; }
     public AIFleeState   FleeState   { get; private set; }
-    public AIScaleState  ScaleState  { get; private set; }
 
-    // Scale 상태 복귀용
-    private AIBaseState _stateBeforeScale;
-    private float _prevScaleValue = 1f;
     private float _lastUrgentThreatCheck;
     public bool IsBeingAbsorbed { get; set; } = false;
     public bool IsEliminated { get; private set; } = false;
@@ -150,7 +146,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         WanderState = new AIWanderState(this);
         ChaseState  = new AIChaseState(this);
         FleeState   = new AIFleeState(this);
-        ScaleState  = new AIScaleState(this);
 
         if (!PhotonNetwork.IsMasterClient)
         {
@@ -267,7 +262,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         _isTransitioning = false;
     }
 
-    /// <summary>주기적으로 상태 전환 평가 (우선순위: Scale > Flee > Chase > Wander)</summary>
+    /// <summary>주기적으로 상태 전환 평가 (우선순위: Flee > Chase > Wander)</summary>
     private IEnumerator StateEvalLoop()
     {
         while (true)
@@ -275,9 +270,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             yield return new WaitForSeconds(stateEvalRate);
 
             if (!Agent.enabled || !Agent.isOnNavMesh) continue;
-
-            // Scale 상태 중이면 ScaleState.Update()가 복귀를 처리
-            if (_currentState == ScaleState) continue;
 
             // 위험 타일 위면 다른 판단보다 우선적으로 안전한 곳으로 도망
             var collapse = TileCollapseManager.Instance;
@@ -296,31 +288,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     /// <summary>현재 상황을 평가하여 적절한 상태로 전환</summary>
     public void EvaluateAndTransition()
     {
-        // 스케일 변화 중이면 ScaleState 진입
-        if (ScaleCtrl != null && ScaleCtrl.IsScaling)
-        {
-            if (_currentState != ScaleState)
-            {
-                _stateBeforeScale = _currentState;
-                float nowScale = transform.localScale.x;
-                ScaleState.IsIncreasing = (nowScale >= _prevScaleValue);
-                _prevScaleValue = nowScale;
-                ChangeState(ScaleState);
-            }
-            return;
-        }
-
         // 우선순위: Flee > Chase > Wander
         if (FindThreat() != null) { ChangeState(FleeState); return; }
         if (FindTargetToChase() != null) { ChangeState(ChaseState); return; }
         ChangeState(WanderState);
-    }
-
-    /// <summary>ScaleState 완료 후 상황 재평가 (AIScaleState에서 호출)</summary>
-    public void RestoreStateBeforeScale()
-    {
-        _prevScaleValue = transform.localScale.x;
-        EvaluateAndTransition();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -339,8 +310,8 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         // 현재 상태 Update (목적지 설정 등)
         _currentState?.Update();
 
-        // 긴급 위협 감지: Flee/ScaleState가 아닐 때 0.1초 간격으로 위협 체크
-        if (_currentState != FleeState && _currentState != ScaleState
+        // 긴급 위협 감지: FleeState가 아닐 때 0.1초 간격으로 위협 체크
+        if (_currentState != FleeState
             && Time.time - _lastUrgentThreatCheck >= 0.1f)
         {
             _lastUrgentThreatCheck = Time.time;
@@ -491,20 +462,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 5f * s, NavFilter)
             || NavMesh.SamplePosition(transform.position, out hit, 5f * s, NavMesh.AllAreas))
             Agent.Warp(hit.position);
-
-        if (_currentState == ScaleState)
-            RestoreStateBeforeScale();
-    }
-
-    /// <summary>봇 스케일 감소 시작 시 외부 호출</summary>
-    public void OnBotScaleDecreaseStart()
-    {
-        if (_currentState != ScaleState)
-        {
-            _stateBeforeScale = _currentState;
-            ScaleState.IsIncreasing = false;
-            ChangeState(ScaleState);
-        }
     }
 
     // ─────────────────────────────────────────────────────────
