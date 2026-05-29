@@ -164,8 +164,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
 
-        _prevScaleValue = transform.localScale.x;
-
         if (ScaleCtrl != null)
             ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
 
@@ -580,8 +578,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (absorber != null) absorber.enabled = true;
         PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
         if (absorbMgr != null) absorbMgr.enabled = true;
-
-        _prevScaleValue = transform.localScale.x;
 
         if (ScaleCtrl != null)
             ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
