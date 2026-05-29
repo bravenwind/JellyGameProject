@@ -43,6 +43,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     private bool _isEndingSequenceStarted = false;
 
+    // 결과 씬 진입 전, 룸 프로퍼티(봇 색상 등) 동기화 완료를 확인하기 위한 토큰 키
+    private const string RESULT_SYNC_TOKEN_KEY = "ResultSyncToken";
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
@@ -300,10 +303,48 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     private IEnumerator LoadResultSceneAfterSync()
     {
-        // SetCustomProperties()는 비동기 — 서버 왕복 후 다른 클라이언트에 전파됨
-        // 전파 완료 전 씬을 로드하면 결과 화면에서 색상/스케일이 누락되므로 대기
-        yield return new WaitForSecondsRealtime(0.5f);
+        // SetCustomProperties()는 비동기다 — 서버를 왕복한 뒤에야 다른 클라이언트로 전파된다.
+        // 고정 시간(0.5초)만 기다리면 네트워크가 느릴 때 색상/스케일이 누락된 채로
+        // 결과 씬이 로드될 수 있다.
+        //
+        // [개선] 마스터가 모든 색상 write 뒤에 '동기화 토큰'(ServerTimestamp)을 마지막으로 기록한다.
+        // 룸 프로퍼티는 신뢰성 있고 순서가 보장되는 채널로 전송되므로, 어떤 클라이언트든
+        // 새 토큰이 도착했다면 그 앞에 보낸 색상 write도 모두 도착했음이 보장된다.
+        // → 모든 클라이언트는 새 토큰이 도착할 때까지 기다린 뒤 결과 씬을 로드한다.
+        //
+        // 모든 클라이언트가 각자 LoadLevel을 호출하는 기존 동작을 유지한다.
+        // (마스터만 로드하게 하면, 마스터가 시간 종료 전 탈락해 GameWin에 도달하지 못할 때
+        //  생존자들이 결과 씬으로 넘어가지 못하고 멈추는 데드락이 발생하기 때문)
+        // 토큰이 끝내 도착하지 않는 경우(지연/유실, 마스터 탈락 등)를 대비해 최대 대기 시간을 둔다.
+        const float maxWait = 2f;
+
+        // 코루틴 진입 시점의 토큰 값을 기억 → 이번에 새로 기록될 토큰과 구분(재시작/재경기 대비)
+        int previousToken = GetRoomSyncToken();
+
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.CurrentRoom.SetCustomProperties(
+                new Hashtable { { RESULT_SYNC_TOKEN_KEY, PhotonNetwork.ServerTimestamp } });
+        }
+
+        float elapsed = 0f;
+        while (GetRoomSyncToken() == previousToken && elapsed < maxWait)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            yield return null;
+        }
+
         PhotonNetwork.LoadLevel(RESULT_SCENE_NAME);
+    }
+
+    /// <summary>현재 룸에 기록된 결과 동기화 토큰 값. 없으면 0.</summary>
+    private int GetRoomSyncToken()
+    {
+        if (PhotonNetwork.CurrentRoom != null
+            && PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(RESULT_SYNC_TOKEN_KEY, out object t)
+            && t is int token)
+            return token;
+        return 0;
     }
 
     /// <summary>
