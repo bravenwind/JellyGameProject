@@ -67,6 +67,9 @@ public class GameResultManager : MonoBehaviour
     public string thirdPlaceText = "3위";
     public string finalText = "최종 결과";
 
+    public GameObject buttonRestart;
+    public GameObject buttonGameQuit;
+
     private readonly List<GameObject> _jellies = new List<GameObject>();
     private readonly List<int> _displayOrderRanks = new List<int>();
     private readonly List<CinemachineCamera> _focusCams = new List<CinemachineCamera>();
@@ -446,6 +449,16 @@ public class GameResultManager : MonoBehaviour
         DeactivateAllVcams();
         _overviewCam.Priority = 100;
         SetRankText(finalText);
+
+        if (_brain.IsBlending)
+        {
+            yield return null;
+        }
+        else
+        {
+            buttonRestart.SetActive(true);
+            buttonGameQuit.SetActive(true);
+        }
     }
 
     private void DeactivateAllVcams()

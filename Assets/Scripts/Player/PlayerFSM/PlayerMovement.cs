@@ -15,7 +15,7 @@ public class PlayerMovement : MonoBehaviour
     public float terminalVelocity = -53.0f;
 
     [Header("Dash Settings")]
-    public float dashSpeed = 20f;
+    public float dashSpeed = 50f;
     public float dashDuration = 0.2f;
     public float dashCooldown = 3f;
     [HideInInspector] public float dashCooldownTimer = 0f;

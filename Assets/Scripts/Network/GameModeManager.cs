@@ -29,6 +29,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     [Header("UI 연결 — 결과")]
     public GameObject gameResultPanel;
     public TextMeshProUGUI resultTitleText;
+    public string gameEndText = "게임 종료!";
     public const string RESULT_SCENE_NAME = "GameResult_io";
 
     [Header("UI 연결 — 순위표")]
@@ -224,7 +225,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             // 크기 보간 (점점 커짐)
             targetText.transform.localScale = Vector3.Lerp(startScale, targetScale, t);
 
-            // 알파값 보간 (점점 투명해짐)
+            // 색상 보간
             startColor.a = Mathf.Lerp(1f, 0f, t);
             targetText.color = startColor;
 

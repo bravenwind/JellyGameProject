@@ -52,6 +52,10 @@ MonoBehaviour:
   - RPC_SetIsMoving
   - RPC_PlayWiggle
   - RPC_ChocolateElimination
+  - RPC_ApplyKnockback
+  - RPC_PlayDash
+  - RPC_RequestDashHitBot
+  - RPC_RequestDashHitPlayer
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0
