@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
+using Photon.Pun;
 
 public class FallingTile : MonoBehaviour
 {
@@ -184,6 +185,13 @@ public class FallingTile : MonoBehaviour
 
             // 실제 플레이어는 자체 이동 시스템이 있으므로 건드리지 않음
             if (rb.GetComponent<NetworkPlayerSync>() != null) continue;
+
+            // 네트워크 오브젝트(PhotonView 있음)는 마스터클라이언트만 물리를 활성화한다.
+            // 비마스터에서 로컬 물리를 켜면 PhotonTransformView 위치 동기화와 충돌해
+            // 젤리가 없어진 발판 위에서 떠다니거나 이상하게 움직이는 현상이 발생한다.
+            // 마스터가 물리를 켜서 낙하 → PhotonTransformView가 새 위치를 비마스터에 전파.
+            PhotonView netView = rb.GetComponent<PhotonView>();
+            if (netView != null && !PhotonNetwork.IsMasterClient) continue;
 
             // AI 위에 있다면 AI 컴포넌트들을 먼저 꺼서 NavMeshAgent가 물리와 싸우지 않게 함
             DisableAIOnObject(rb.gameObject);

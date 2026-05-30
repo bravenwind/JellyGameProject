@@ -3,7 +3,7 @@ using Photon.Pun;
 using ExitGames.Client.Photon;
 
 [RequireComponent(typeof(PhotonView))]
-public class AIPlayerSync : MonoBehaviourPun
+public class AIPlayerSync : MonoBehaviourPun, IPunInstantiateMagicCallback
 {
     private string _botPrefix;
 
@@ -12,7 +12,23 @@ public class AIPlayerSync : MonoBehaviourPun
 
     public string BotPrefix => _botPrefix;
 
+    // IPunInstantiateMagicCallback: PhotonNetwork.Instantiate/InstantiateRoomObject 완료 후 호출.
+    // Start()보다 먼저 실행되며 이 시점에는 photonView.ViewID가 반드시 유효하다.
+    // Start()에서 ViewID를 읽으면 PUN2 내부 초기화 타이밍에 따라 0이 반환되는 경우가 있어
+    // 일부 봇의 이름표가 "AI 봇 0"으로 설정되거나 누락되는 버그가 발생한다.
+    public void OnPhotonInstantiate(PhotonMessageInfo info)
+    {
+        InitBotIdentity();
+    }
+
     private void Start()
+    {
+        // OnPhotonInstantiate가 먼저 실행되지 않는 경로(씬 직접 배치 등)의 폴백
+        if (string.IsNullOrEmpty(_botPrefix))
+            InitBotIdentity();
+    }
+
+    private void InitBotIdentity()
     {
         string botName = $"AI 봇 {photonView.ViewID}";
 

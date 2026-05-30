@@ -38,7 +38,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     // 원격 플레이어 보간용 변수
     // ─────────────────────────────────────────────────────────
-    private Color _networkColor;
+    // 첫 스트림 패킷 전에 Color(0,0,0,0) 기본값이 적용되어 원격 플레이어가 투명해지는 것을 방지
+    private Color _networkColor = Color.white;
 
     private const float LerpSpeed = 10f;
 
