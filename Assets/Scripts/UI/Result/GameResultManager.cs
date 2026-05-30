@@ -214,12 +214,12 @@ public class GameResultManager : MonoBehaviour
             positions[i] = positions[i + 1] + Vector3.left * gap;
         }
 
-        // 전체 배치의 X 중심을 0으로 정렬 (보기 좋게 중앙 정렬)
-        float avgX = 0f;
-        for (int i = 0; i < count; i++) avgX += positions[i].x;
-        avgX /= count;
+        // 중앙 캐릭터(인덱스 count/2)를 X=0 기준으로 정렬
+        // avgX 방식은 각 캐릭터 크기 차이로 인해 중앙 캐릭터가 화면 중심에서 벗어남
+        int centerIdx = count / 2;
+        float centerX = positions[centerIdx].x;
         for (int i = 0; i < count; i++)
-            positions[i] -= new Vector3(avgX, 0f, 0f);
+            positions[i] -= new Vector3(centerX, 0f, 0f);
 
         for (int i = 0; i < count; i++)
         {

@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class PlaySFXAudio : MonoBehaviour
 {
@@ -55,6 +56,18 @@ public class PlaySFXAudio : MonoBehaviour
 
         prevIsSteppingMilk = isSteppingMilk;
         walkAudioSource.clip = isSteppingMilk ? milkWalkAudio : walkAudio;
+
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        StopWalking();
     }
 
     private void Update()

@@ -259,6 +259,22 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 object nameVal = roomProps[keyStr];
                 if (nameVal == null) continue;
 
+                // 룸 프로퍼티 전파 지연(비마스터)으로 아직 null이 안 된 경우를 대비해
+                // EntityRegistry에서 해당 봇이 탈락했는지 로컬로 확인한다.
+                if (prefix.StartsWith("Bot") && int.TryParse(prefix.Substring(3), out int vid))
+                {
+                    bool eliminated = false;
+                    foreach (var b in EntityRegistry.Bots)
+                    {
+                        if (b != null && b.photonView != null && b.photonView.ViewID == vid && b.IsEliminated)
+                        {
+                            eliminated = true;
+                            break;
+                        }
+                    }
+                    if (eliminated) continue;
+                }
+
                 string botName = nameVal.ToString();
                 float scale = roomProps.TryGetValue($"{prefix}_Scale", out object sv) && sv != null
                     ? (float)sv : dm.startingScale;
