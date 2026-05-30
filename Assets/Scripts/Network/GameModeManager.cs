@@ -177,8 +177,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         if (centerCountdownText != null)
         {
-            centerCountdownText.text = "게임 종료!";
-            // "게임 종료!" 텍스트는 사라지지 않고 화면에 유지
+            centerCountdownText.text = gameEndText;
+            // 게임 종료 텍스트는 사라지지 않고 화면에 유지
             centerCountdownText.transform.localScale = Vector3.one * 2f;
             Color c = centerCountdownText.color;
             c.a = 1f;
@@ -200,8 +200,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         // 잠시 멈췄다가 최종 결과 도출 및 씬 전환 준비
         yield return new WaitForSecondsRealtime(1.0f);
 
-        // 타임스케일 원상 복구 후 결과창 호출
-        Time.timeScale = 1f;
+        // 타임스케일은 0(정지)으로 유지한 채 결과 전환을 시작한다.
+        // 여기서 1f로 복구하면 결과 동기화 대기(최대 2초) 동안 플레이어/봇이 다시 움직이는
+        // 버그가 발생한다. 씬이 로드되면 NetworkManager.OnSceneLoaded가 timeScale을 1로 복구한다.
         GameWin();
     }
 
@@ -310,7 +311,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         _gameRunning = false;
         GameState.Phase = GamePhase.Result;
-        Time.timeScale = 1f;
+        // timeScale은 정지 상태로 유지 — 씬 로드 시 NetworkManager.OnSceneLoaded가 1로 복구한다.
+
+        // 결과 씬으로 넘어갈 때도 메인→인게임처럼 로딩 화면을 거치도록 설정.
+        // GameWin은 모든 클라이언트에서 실행되므로 각 클라이언트가 자신의 로딩 타겟을 직접 지정한다.
+        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME;
+        LoadingSceneController.AllClientsLoad = true;
 
         // 흡수 애니메이션 진행 중인 봇들을 즉시 정리한다.
         // 이 Destroy 이벤트가 LoadLevel 룸 프로퍼티보다 먼저 전송되어
@@ -372,7 +378,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             yield return null;
         }
 
-        PhotonNetwork.LoadLevel(RESULT_SCENE_NAME);
+        // 결과 씬으로 바로 가지 않고 로딩 화면(Loading 씬)을 거친다.
+        // 로딩 타겟(RESULT_SCENE_NAME)은 GameWin에서 LoadingSceneController에 지정해 두었다.
+        PhotonNetwork.LoadLevel(NetworkManager.Instance.loadingSceneName);
     }
 
     /// <summary>현재 룸에 기록된 결과 동기화 토큰 값. 없으면 0.</summary>
