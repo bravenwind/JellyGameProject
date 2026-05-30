@@ -123,11 +123,18 @@ public class SoftBody3D : MonoBehaviour
 
     public void RemoveCloth()
     {
+        Mesh cachedMesh = _skinnedMeshRenderer != null ? _skinnedMeshRenderer.sharedMesh : null;
+
         if (_cloth != null)
             Destroy(_cloth);
         _cloth = null;
+
         if (_skinnedMeshRenderer != null)
+        {
             _skinnedMeshRenderer.updateWhenOffscreen = true;
+            if (cachedMesh != null)
+                _skinnedMeshRenderer.sharedMesh = cachedMesh;
+        }
         enabled = false;
     }
 

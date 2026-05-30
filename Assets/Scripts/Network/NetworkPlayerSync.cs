@@ -38,10 +38,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     // 원격 플레이어 보간용 변수
     // ─────────────────────────────────────────────────────────
-    // 첫 스트림 패킷 전에 Color(0,0,0,0) 기본값이 적용되어 원격 플레이어가 투명해지는 것을 방지
     private Color _networkColor = Color.white;
 
     private const float LerpSpeed = 10f;
+    private const float ColorDarkenFactor = 0.85f;
+    private const float BaseColor02Lightness = 0.6f;
 
     // ─────────────────────────────────────────────────────────
     // 생존 모드: 플레이어 흡수 관련
@@ -58,6 +59,14 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     private void OnEnable() => EntityRegistry.Register(this);
     private void OnDisable() => EntityRegistry.Unregister(this);
+
+    private void Awake()
+    {
+        if (jellyRenderer == null)
+            jellyRenderer = GetComponentInChildren<SkinnedMeshRenderer>();
+        if (jellyRenderer == null)
+            jellyRenderer = GetComponentInChildren<Renderer>();
+    }
 
     // ─────────────────────────────────────────────────────────
     // 초기화
@@ -147,15 +156,29 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void Update()
     {
         if (photonView.IsMine) return;
+        if (_isAbsorbed) return;
 
         // 스케일: CustomProperties에서 읽어 Lerp (권위적 소스)
         float targetScale = GetAuthorityScale(photonView);
         transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * targetScale, Time.deltaTime * LerpSpeed);
 
-        // 색상 적용
         if (jellyRenderer != null)
         {
-            jellyRenderer.material.SetColor("_BaseColor_01", _networkColor);
+            if (!jellyRenderer.enabled)
+                jellyRenderer.enabled = true;
+
+            Color displayColor = _networkColor;
+            displayColor.a = 1f;
+
+            Color baseColor = new Color(
+                displayColor.r * ColorDarkenFactor,
+                displayColor.g * ColorDarkenFactor,
+                displayColor.b * ColorDarkenFactor, 1f);
+            Color baseColor02 = Color.Lerp(baseColor, Color.white, BaseColor02Lightness);
+
+            jellyRenderer.material.SetColor("_BaseColor_01", baseColor);
+            jellyRenderer.material.SetColor("_BaseColor_02", baseColor02);
+            jellyRenderer.material.SetColor("_FresnelColor", displayColor);
         }
     }
 
@@ -182,7 +205,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             float g = (float)stream.ReceiveNext();
             float b = (float)stream.ReceiveNext();
             float a = (float)stream.ReceiveNext();
-            _networkColor = new Color(r, g, b, a);
+            _networkColor = new Color(r, g, b, 1f);
         }
     }
 
