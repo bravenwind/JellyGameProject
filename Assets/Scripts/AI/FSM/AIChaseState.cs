@@ -80,10 +80,15 @@ public class AIChaseState : AIBaseState
             if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
                 dest = hit.position;
 
-            // 💡 [수정됨] CalculatePath로 미리 경로를 계산해보고 성공할 때만 걷도록 지시
             ai.CachedPath.ClearCorners();
             if (ai.Agent.CalculatePath(dest, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
             {
+                var collapse = TileCollapseManager.Instance;
+                if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
+                {
+                    ai.EvaluateAndTransition();
+                    return;
+                }
                 ai.Agent.SetPath(ai.CachedPath);
             }
         }

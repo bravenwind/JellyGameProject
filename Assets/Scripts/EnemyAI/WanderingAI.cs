@@ -108,7 +108,16 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
 
         Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
         if (TryGetRandomPointOnNavMesh(origin, wanderRadius, out Vector3 newPos))
-            agent.SetDestination(newPos);
+        {
+            NavMeshPath path = new NavMeshPath();
+            if (agent.CalculatePath(newPos, path) && path.status == NavMeshPathStatus.PathComplete)
+            {
+                var collapse = TileCollapseManager.Instance;
+                if (collapse != null && collapse.IsPathDangerous(path.corners, path.corners.Length))
+                    return;
+                agent.SetPath(path);
+            }
+        }
     }
 
     public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, out Vector3 result)

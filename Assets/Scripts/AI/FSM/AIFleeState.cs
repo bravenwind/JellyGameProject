@@ -75,15 +75,17 @@ public class AIFleeState : AIBaseState
         // ── 3. NavMesh 위 유효한 위치인지 확인 후 이동 ──
         if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10f, ai.NavFilter))
         {
-            // 💡 도망갈 곳도 경로가 온전한지 검증 후 이동
             ai.CachedPath.ClearCorners();
             if (ai.Agent.CalculatePath(hit.position, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
             {
-                ai.Agent.SetPath(ai.CachedPath);
+                var collapse = TileCollapseManager.Instance;
+                if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
+                    TryFallbackFlee(fleeDir);
+                else
+                    ai.Agent.SetPath(ai.CachedPath);
             }
             else
             {
-                // 경로를 찾지 못했다면 강제로 조금 덜 멀리 이동 시도 (Fallback)
                 TryFallbackFlee(fleeDir);
             }
         }

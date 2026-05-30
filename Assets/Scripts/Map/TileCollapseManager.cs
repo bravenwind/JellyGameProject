@@ -208,6 +208,20 @@ public class TileCollapseManager : MonoBehaviour
     }
 
     /// <summary>
+    /// NavMeshPath의 코너(경유 지점)들 중 위험 구간을 지나는지 검사.
+    /// NavMeshObstacle carving이 지연되는 동안의 이중 안전장치.
+    /// </summary>
+    public bool IsPathDangerous(Vector3[] corners, int count)
+    {
+        if (_stepX == 0f || _stepZ == 0f) return false;
+        for (int i = 0; i < count; i++)
+        {
+            if (IsPositionDangerous(corners[i])) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// 현재 안전 영역의 월드 좌표 바운드를 반환.
     /// 젤리 스폰 범위 등에 사용.
     /// </summary>

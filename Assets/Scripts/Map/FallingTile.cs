@@ -17,6 +17,7 @@ public class FallingTile : MonoBehaviour
     private float _phase;
     private bool _initialized;
     private Collider _collider;
+    private NavMeshObstacle _navObstacle;
 
     private Transform _shakeTransform;
     private Vector3 _shakeOrigin;
@@ -124,7 +125,12 @@ public class FallingTile : MonoBehaviour
             // 1. 위에 있는 오브젝트들 물리 켜기 (HalfExtents 공식 적용)
             AwakePhysicsOnTile(_collider.bounds.size);
 
-            // 2. [추가] 낙하하는 타일 콜라이더 비활성화 (플레이어 밀림/끼임 버그 방지)
+            // 2. NavMeshObstacle(Carving)을 켜서 이 타일 위치의 NavMesh에 구멍을 뚫는다.
+            //    NavMesh는 게임 시작 시 한 번만 베이크되므로, 타일이 사라져도 NavMesh 표면은 그대로 남아
+            //    AI가 빈 공간을 걸어다니는 원인이 된다. Carving은 런타임에 NavMesh를 동적으로 잘라준다.
+            CarveNavMesh(_collider.bounds.size);
+
+            // 3. 낙하하는 타일 콜라이더 비활성화 (플레이어 밀림/끼임 버그 방지)
             _collider.enabled = false;
         }
 
@@ -207,6 +213,16 @@ public class FallingTile : MonoBehaviour
                 rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);
             }
         }
+    }
+
+    private void CarveNavMesh(Vector3 colliderSize)
+    {
+        _navObstacle = gameObject.AddComponent<NavMeshObstacle>();
+        _navObstacle.shape = NavMeshObstacleShape.Box;
+        _navObstacle.size = new Vector3(colliderSize.x, colliderSize.y + 1f, colliderSize.z);
+        _navObstacle.center = Vector3.up * (colliderSize.y * 0.5f);
+        _navObstacle.carving = true;
+        _navObstacle.carveOnlyStationary = false;
     }
 
     private static void DisableAIOnObject(GameObject obj)
