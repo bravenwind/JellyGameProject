@@ -290,6 +290,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         GameState.Phase = GamePhase.Result;
         Time.timeScale = 1f;
 
+        // 흡수 애니메이션 진행 중인 봇들을 즉시 정리한다.
+        // 이 Destroy 이벤트가 LoadLevel 룸 프로퍼티보다 먼저 전송되어
+        // 비마스터에서 순서 역전으로 인한 "Could not find PhotonView" 에러를 방지한다.
+        if (PhotonNetwork.IsMasterClient)
+            DestroyAbsorbedBots();
+
         var sortedEntries = GetSortedScores();
         int finalRank = GetLocalPlayerRank(sortedEntries);
 
@@ -299,6 +305,16 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         SyncAllColorsForResult();
 
         StartCoroutine(LoadResultSceneAfterSync());
+    }
+
+    private void DestroyAbsorbedBots()
+    {
+        foreach (var bot in EntityRegistry.Bots)
+        {
+            if (bot == null || !bot.IsBeingAbsorbed) continue;
+            bot.StopAllCoroutines();
+            PhotonNetwork.Destroy(bot.gameObject);
+        }
     }
 
     private IEnumerator LoadResultSceneAfterSync()

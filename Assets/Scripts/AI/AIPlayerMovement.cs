@@ -559,7 +559,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         foreach (var r in GetComponentsInChildren<Renderer>())
             r.enabled = false;
 
-        if (PhotonNetwork.IsMasterClient)
+        // 게임이 이미 끝난 상태(Result)면 Destroy를 보내지 않는다.
+        // LoadLevel과 Destroy 이벤트가 서로 다른 채널로 전파되어,
+        // 비마스터에서 씬 전환 후 stale Destroy가 도착하면
+        // "Could not find PhotonView" 에러가 발생하기 때문이다.
+        // 씬 전환 시 PUN이 네트워크 오브젝트를 자동 정리하므로 안전하다.
+        if (PhotonNetwork.IsMasterClient && GameState.Phase == GamePhase.Playing)
             PhotonNetwork.Destroy(gameObject);
     }
 
