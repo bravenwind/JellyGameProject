@@ -175,36 +175,6 @@ public class ChocolateFluid : MonoBehaviour
         if (aiPlayer != null) aiPlayer.OnEliminated();
     }
 
-    private void HandlePlayerEnterChocolate(NetworkPlayerSync netPlayer)
-    {
-        if (netPlayer.playerController != null)
-            netPlayer.playerController.enabled = false;
-
-        netPlayer.SyncEliminated();
-        if (netPlayer.photonView.IsMine)
-            GameModeManager.Instance?.GameOver();
-
-        CharacterController cc = netPlayer.GetComponent<CharacterController>();
-        if (cc != null && netPlayer.GetComponent<Rigidbody>() == null)
-        {
-            float radius = cc.radius;
-            float height = cc.height;
-            Vector3 center = cc.center;
-            cc.enabled = false;
-
-            CapsuleCollider capsule = netPlayer.gameObject.AddComponent<CapsuleCollider>();
-            capsule.radius = radius;
-            capsule.height = height;
-            capsule.center = center;
-
-            Rigidbody rb = netPlayer.gameObject.AddComponent<Rigidbody>();
-            rb.useGravity = false;
-            rb.isKinematic = false;
-            rb.linearDamping = chocolateViscosity;
-            rb.angularDamping = chocolateViscosity;
-        }
-    }
-
     private static FloatData CreateFloatData(Rigidbody rb)
     {
         int id = rb.GetInstanceID();

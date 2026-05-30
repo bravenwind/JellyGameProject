@@ -70,7 +70,12 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
                 if (curDanger || destDanger)
                 {
                     isWaiting = false;
-                    MoveToRandomPosition();
+                    // 안전한 랜덤 목적지를 못 찾으면 기존 경로(위험 방향)를 버리고 안전지대로 이동
+                    if (!MoveToRandomPosition())
+                    {
+                        agent.ResetPath();
+                        TryMoveToSafeZone(collapse);
+                    }
                     return;
                 }
             }
@@ -102,9 +107,9 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
         isWaiting = false;
     }
 
-    void MoveToRandomPosition()
+    bool MoveToRandomPosition()
     {
-        if (!agent.isOnNavMesh) return;
+        if (!agent.isOnNavMesh) return false;
 
         Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
         if (TryGetRandomPointOnNavMesh(origin, wanderRadius, out Vector3 newPos))
@@ -114,9 +119,29 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
             {
                 var collapse = TileCollapseManager.Instance;
                 if (collapse != null && collapse.IsPathDangerous(path.corners, path.corners.Length))
-                    return;
+                    return false;
                 agent.SetPath(path);
+                return true;
             }
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// 안전한 랜덤 목적지를 못 찾았을 때, 붕괴되지 않은 안전 영역 중심으로 이동.
+    /// 가장자리에서 위험을 회피하지 못해 빈 공간으로 걸어가는 것을 방지한다.
+    /// </summary>
+    void TryMoveToSafeZone(TileCollapseManager collapse)
+    {
+        if (!agent.isOnNavMesh || collapse == null) return;
+        if (!collapse.GetSafeBounds(out Vector3 min, out Vector3 max)) return;
+
+        Vector3 center = (min + max) * 0.5f;
+        if (NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+        {
+            NavMeshPath path = new NavMeshPath();
+            if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
+                agent.SetPath(path);
         }
     }
 

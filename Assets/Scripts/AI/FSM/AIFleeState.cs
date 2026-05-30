@@ -73,40 +73,58 @@ public class AIFleeState : AIBaseState
         Vector3 candidate = ai.transform.position + fleeDir * FLEE_DISTANCE;
 
         // ── 3. NavMesh 위 유효한 위치인지 확인 후 이동 ──
-        if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10f, ai.NavFilter))
+        if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10f, ai.NavFilter)
+            && TrySetSafePath(hit.position))
         {
-            ai.CachedPath.ClearCorners();
-            if (ai.Agent.CalculatePath(hit.position, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
-            {
-                var collapse = TileCollapseManager.Instance;
-                if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
-                    TryFallbackFlee(fleeDir);
-                else
-                    ai.Agent.SetPath(ai.CachedPath);
-            }
-            else
-            {
-                TryFallbackFlee(fleeDir);
-            }
+            return; // 정방향 도주 성공
         }
-        else
-        {
-            TryFallbackFlee(fleeDir);
-        }
+
+        // 정방향이 위험/막힘 → 짧은 거리 폴백 → 그래도 안 되면 안전지대로
+        if (!TryFallbackFlee(fleeDir))
+            TryFleeToSafeZone();
     }
 
-    // 💡 [추가됨] 가독성을 위해 Fallback 로직 분리
-    private void TryFallbackFlee(Vector3 fleeDir)
+    /// <summary>
+    /// 목적지까지 경로를 계산하고, 위험 구간을 지나지 않을 때만 SetPath.
+    /// 위험하거나 경로가 불완전하면 false를 반환해 호출부가 대안을 시도하게 한다.
+    /// </summary>
+    private bool TrySetSafePath(Vector3 destination)
+    {
+        ai.CachedPath.ClearCorners();
+        if (!ai.Agent.CalculatePath(destination, ai.CachedPath)
+            || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
+            return false;
+
+        var collapse = TileCollapseManager.Instance;
+        if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
+            return false;
+
+        ai.Agent.SetPath(ai.CachedPath);
+        return true;
+    }
+
+    // 💡 짧은 거리 폴백 도주 (위험 검사 포함)
+    private bool TryFallbackFlee(Vector3 fleeDir)
     {
         Vector3 fallback = ai.transform.position + fleeDir * 5f;
         if (NavMesh.SamplePosition(fallback, out NavMeshHit fbHit, 5f, ai.NavFilter))
-        {
-            ai.CachedPath.ClearCorners();
-            if (ai.Agent.CalculatePath(fbHit.position, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
-            {
-                ai.Agent.SetPath(ai.CachedPath);
-            }
-        }
+            return TrySetSafePath(fbHit.position);
+        return false;
+    }
+
+    /// <summary>
+    /// 모든 직선 도주 방향이 위험할 때(보통 위협이 맵 중심 쪽에 있어 도주 방향이
+    /// 가장자리=붕괴 구역을 향할 때) 떨어지지 않도록 안전 영역 중심으로 도주한다.
+    /// </summary>
+    private void TryFleeToSafeZone()
+    {
+        var collapse = TileCollapseManager.Instance;
+        if (collapse == null || !collapse.GetSafeBounds(out Vector3 min, out Vector3 max))
+            return;
+
+        Vector3 center = (min + max) * 0.5f;
+        if (NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, ai.NavFilter))
+            TrySetSafePath(hit.position);
     }
 
     public override void Exit()

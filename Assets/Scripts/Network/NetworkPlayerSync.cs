@@ -285,32 +285,59 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     [PunRPC]
     private void RPC_ChocolateElimination()
     {
-        // 물리 구조 전환 (모든 클라이언트에서 실행)
-        CharacterController cc = GetComponent<CharacterController>();
-        Rigidbody rb = GetComponent<Rigidbody>();
+        // 모든 클라이언트: 입력/이동 FSM 정지
+        if (playerController != null) playerController.enabled = false;
 
-        if (cc != null) cc.enabled = false;
+        Animator playerAnimator = GetComponent<Animator>();
+        if (playerAnimator != null)
+            playerAnimator.SetBool("isMoving", false);
 
-        if (rb != null)
-        {
-            rb.isKinematic = false;
-            rb.useGravity = false;
-            rb.linearDamping = 3f;
-            rb.angularDamping = 3f;
-        }
-
-        // 소유자만: 입력 차단, 애니메이션 정지, 탈락 동기화, 게임오버
         if (photonView.IsMine)
         {
-            if (playerController != null) playerController.enabled = false;
-
-            Animator playerAnimator = GetComponent<Animator>();
-            if (playerAnimator != null)
-                playerAnimator.SetBool("isMoving", false);
-
+            // 소유자만 물리 바디로 전환 → 초콜릿 강의 부력/유동으로 둥둥 떠다님.
+            // PhotonTransformView가 이 위치를 원격 클라이언트로 전파한다.
+            ConvertToFloatingBody();
             SyncEliminated();
             GameModeManager.Instance?.GameOver();
         }
+        else
+        {
+            // 원격: CC만 끄고 위치는 네트워크 동기화에 맡김 (로컬 물리 중복 방지)
+            CharacterController cc = GetComponent<CharacterController>();
+            if (cc != null) cc.enabled = false;
+        }
+    }
+
+    /// <summary>
+    /// CharacterController를 CapsuleCollider + Rigidbody로 전환.
+    /// 초콜릿 강(ChocolateFluid.OnTriggerStay)의 부력/유동 힘을 받아 둥둥 떠다니게 한다.
+    /// CC는 트리거 힘에 반응하지 않으므로 반드시 Rigidbody가 필요하다.
+    /// </summary>
+    private void ConvertToFloatingBody()
+    {
+        if (GetComponent<Rigidbody>() != null) return;
+
+        CharacterController cc = GetComponent<CharacterController>();
+        float radius = 0.5f, height = 2f;
+        Vector3 center = Vector3.zero;
+        if (cc != null)
+        {
+            radius = cc.radius;
+            height = cc.height;
+            center = cc.center;
+            cc.enabled = false;
+        }
+
+        CapsuleCollider capsule = gameObject.AddComponent<CapsuleCollider>();
+        capsule.radius = radius;
+        capsule.height = height;
+        capsule.center = center;
+
+        Rigidbody rb = gameObject.AddComponent<Rigidbody>();
+        rb.useGravity = false;
+        rb.isKinematic = false;
+        rb.linearDamping = 3f;
+        rb.angularDamping = 3f;
     }
 
     // ─────────────────────────────────────────────────────────
