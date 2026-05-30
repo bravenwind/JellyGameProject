@@ -255,6 +255,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void OnTriggerEnter(Collider other)
     {
         if (!photonView.IsMine || _isAbsorbed) return;
+        if (GameState.Phase != GamePhase.Playing) return;
 
         NetworkPlayerSync otherPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (otherPlayer != null && otherPlayer != this)
@@ -278,7 +279,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // NetworkPlayerSync.cs 내부 혹은 플레이어 메인 스크립트에 추가
     public void SyncChocolateElimination()
     {
-        if (!photonView.IsMine) return;
+        if (!photonView.IsMine || _isAbsorbed) return;
+        if (GameState.Phase != GamePhase.Playing) return;
         photonView.RPC(nameof(RPC_ChocolateElimination), RpcTarget.All);
     }
 
@@ -366,6 +368,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void RPC_RequestAbsorbValidation(int absorberViewID)
     {
         if (!PhotonNetwork.IsMasterClient) return;
+        if (GameState.Phase != GamePhase.Playing) return;
 
         PhotonView absorberPV = PhotonView.Find(absorberViewID);
         if (absorberPV == null) return;
@@ -383,6 +386,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void RPC_RequestBotAbsorbValidation(int botViewID)
     {
         if (!PhotonNetwork.IsMasterClient) return;
+        if (GameState.Phase != GamePhase.Playing) return;
 
         PhotonView botPV = PhotonView.Find(botViewID);
         if (botPV == null) return;
@@ -572,6 +576,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     public void RPC_RequestDashHitPlayer(int victimViewID)
     {
         if (!PhotonNetwork.IsMasterClient) return;
+        if (GameState.Phase != GamePhase.Playing) return;
 
         PhotonView victimPV = PhotonView.Find(victimViewID);
         if (victimPV == null) return;
@@ -606,6 +611,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     public void RPC_RequestDashHitBot(int botViewID)
     {
         if (!PhotonNetwork.IsMasterClient) return;
+        if (GameState.Phase != GamePhase.Playing) return;
 
         PhotonView botPV = PhotonView.Find(botViewID);
         if (botPV == null) return;

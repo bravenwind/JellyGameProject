@@ -169,14 +169,19 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             count--;
         }
 
-        // 게임 시간 정지 및 슬로우 모션 돌입
+        // 게임 시간 정지 — 이 시점부터 흡수/대쉬 등 전투 행동을 차단한다.
         _gameRunning = false;
         _gameTimer = 0f;
+        GameState.Phase = GamePhase.Result;
 
         if (centerCountdownText != null)
         {
             centerCountdownText.text = "게임 종료!";
-            StartCoroutine(AnimateCenterText(centerCountdownText));
+            // "게임 종료!" 텍스트는 사라지지 않고 화면에 유지
+            centerCountdownText.transform.localScale = Vector3.one * 2f;
+            Color c = centerCountdownText.color;
+            c.a = 1f;
+            centerCountdownText.color = c;
         }
 
         // 💡 게임 속도가 점점 느려지는 연출 (100% -> 10% 속도로)
@@ -405,11 +410,31 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     public void GameOver()
     {
-        if (!_gameRunning && !_isEndingSequenceStarted) return; // 💡 조건 수정: 엔딩 시퀀스 중이어도 탈락 처리 허용
+        if (!_gameRunning && !_isEndingSequenceStarted) return;
 
-        // 💡 플레이어가 탈락했으므로 돌고 있던 모든 엔딩 연출/코루틴을 강제로 멈춤
+        // 엔딩 시퀀스(3→2→1→게임 종료!)가 이미 진행 중이면
+        // 어차피 곧 결과 씬으로 넘어가므로, 시퀀스를 끊지 않고 사망만 기록한다.
+        // StopAllCoroutines로 시퀀스를 죽이면 결과 씬 전환이 영영 일어나지 않는다.
+        if (_isEndingSequenceStarted)
+        {
+            GameState.Phase = GamePhase.GameOver;
+
+            if (_localPlayer != null)
+            {
+                _localPlayer.SyncColor();
+                _localPlayer.SyncScale();
+            }
+
+            // 입력만 차단하고 엔딩 시퀀스는 계속 진행
+            if (_localPlayer != null && _localPlayer.playerController != null)
+                _localPlayer.playerController.enabled = false;
+
+            Debug.Log("[GameMode] 엔딩 시퀀스 중 탈락 — 결과 씬 전환 대기");
+            return;
+        }
+
         StopAllCoroutines();
-        Time.timeScale = 1f; // 💡 타임스케일 원상복구
+        Time.timeScale = 1f;
 
         _gameRunning = false;
         GameState.Phase = GamePhase.GameOver;
@@ -418,10 +443,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         int min = Mathf.FloorToInt(survived / 60f);
         int sec = Mathf.FloorToInt(survived % 60f);
 
-        // 💡 탈락했으니 중앙 카운트다운 텍스트는 지워줌
         if (centerCountdownText != null) centerCountdownText.text = "";
 
-        // 탈락 시에도 결과 씬에서 색상/스케일을 복원할 수 있도록 미리 저장
         if (_localPlayer != null)
         {
             _localPlayer.SyncColor();
