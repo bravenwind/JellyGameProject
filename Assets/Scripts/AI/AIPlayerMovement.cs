@@ -618,6 +618,55 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     }
 
     // ─────────────────────────────────────────────────────────
+    // 대쉬 밀치기 (넉백)
+    // ─────────────────────────────────────────────────────────
+
+    private Coroutine _knockbackCoroutine;
+
+    [PunRPC]
+    public void RPC_ApplyKnockback(float dirX, float dirZ, float force)
+    {
+        if (IsEliminated || IsBeingAbsorbed) return;
+
+        if (Agent != null && Agent.isOnNavMesh)
+            Agent.ResetPath();
+
+        if (_knockbackCoroutine != null)
+            StopCoroutine(_knockbackCoroutine);
+        _knockbackCoroutine = StartCoroutine(KnockbackRoutine(new Vector3(dirX, 0f, dirZ).normalized, force));
+    }
+
+    private System.Collections.IEnumerator KnockbackRoutine(Vector3 dir, float force)
+    {
+        if (Agent != null) Agent.enabled = false;
+
+        float elapsed = 0f;
+        const float duration = 0.4f;
+        CharacterController cc = GetComponent<CharacterController>();
+
+        while (elapsed < duration)
+        {
+            float t = elapsed / duration;
+            Vector3 move = Vector3.Lerp(dir * force, Vector3.zero, t);
+            if (cc != null && cc.enabled)
+                cc.Move(move * Time.deltaTime);
+            else
+                transform.position += move * Time.deltaTime;
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (Agent != null && !IsEliminated && !IsBeingAbsorbed)
+        {
+            Agent.enabled = true;
+            if (Agent.isOnNavMesh)
+                Agent.Warp(transform.position);
+        }
+
+        _knockbackCoroutine = null;
+    }
+
+    // ─────────────────────────────────────────────────────────
     // 디버그
     // ─────────────────────────────────────────────────────────
     private void OnDrawGizmosSelected()

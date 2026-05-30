@@ -529,4 +529,97 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     }
 
     public string PlayerName => photonView.Owner?.NickName ?? "Bot";
+
+    // ─────────────────────────────────────────────────────────
+    // 대쉬 시스템
+    // ─────────────────────────────────────────────────────────
+
+    [PunRPC]
+    public void RPC_PlayDash()
+    {
+        if (playerController != null && playerController.jellyAnimator != null)
+            playerController.jellyAnimator.SetTrigger("Dash");
+    }
+
+    [PunRPC]
+    public void RPC_RequestDashHitPlayer(int victimViewID)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        PhotonView victimPV = PhotonView.Find(victimViewID);
+        if (victimPV == null) return;
+
+        float dasherScale = GetAuthorityScale(photonView);
+        float victimScale = GetAuthorityScale(victimPV);
+        float diff = dasherScale - victimScale;
+        float threshold = DataManager.Instance.PushScaleThreshold;
+
+        if (diff > threshold)
+        {
+            victimPV.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, photonView.ViewID);
+        }
+        else
+        {
+            Vector3 pushDir = (victimPV.transform.position - transform.position).normalized;
+            pushDir.y = 0f;
+            if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
+            pushDir.Normalize();
+
+            float pushForce = DataManager.Instance.dashPushForce;
+
+            victimPV.RPC(nameof(RPC_ApplyKnockback), victimPV.Owner,
+                pushDir.x, pushDir.z, pushForce);
+
+            photonView.RPC(nameof(RPC_ApplyKnockback), photonView.Owner,
+                -pushDir.x, -pushDir.z, pushForce * 0.5f);
+        }
+    }
+
+    [PunRPC]
+    public void RPC_RequestDashHitBot(int botViewID)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+
+        PhotonView botPV = PhotonView.Find(botViewID);
+        if (botPV == null) return;
+
+        AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
+        if (aiBot == null || aiBot.IsEliminated || aiBot.IsBeingAbsorbed) return;
+
+        float dasherScale = GetAuthorityScale(photonView);
+        float botScale = GetBotAuthorityScale(aiBot);
+        float diff = dasherScale - botScale;
+        float threshold = DataManager.Instance.PushScaleThreshold;
+
+        if (diff > threshold)
+        {
+            int bonus = aiBot.CurrentScore;
+            photonView.RPC(nameof(RPC_BotAbsorbConfirmed), photonView.Owner,
+                bonus, botScale, botViewID);
+            aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
+        }
+        else
+        {
+            Vector3 pushDir = (botPV.transform.position - transform.position).normalized;
+            pushDir.y = 0f;
+            if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
+            pushDir.Normalize();
+
+            float pushForce = DataManager.Instance.dashPushForce;
+
+            aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), RpcTarget.All,
+                pushDir.x, pushDir.z, pushForce);
+
+            photonView.RPC(nameof(RPC_ApplyKnockback), photonView.Owner,
+                -pushDir.x, -pushDir.z, pushForce * 0.5f);
+        }
+    }
+
+    [PunRPC]
+    public void RPC_ApplyKnockback(float dirX, float dirZ, float force)
+    {
+        if (playerController == null) return;
+        Vector3 dir = new Vector3(dirX, 0f, dirZ).normalized;
+        playerController.ApplyKnockback(dir, force);
+    }
 }

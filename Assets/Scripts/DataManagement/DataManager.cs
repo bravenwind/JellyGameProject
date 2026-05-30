@@ -49,6 +49,8 @@ public class DataManager : MonoBehaviour
     [Header("Dash / Push Settings")]
     [Tooltip("대쉬 충돌 시 '비슷한 크기'로 판정할 젤리 개수 차이. 이 개수 이내면 서로 밀치고, 초과해서 크면 흡수한다.")]
     public int pushJellyThreshold = 4;
+    [Tooltip("밀치기 힘 (CharacterController.Move 속도 단위)")]
+    public float dashPushForce = 15f;
 
     /// <summary>
     /// '비슷한 크기' 판정용 스케일 차이 임계값.

@@ -14,6 +14,12 @@ public class PlayerMovement : MonoBehaviour
     public float gravity = -20.0f;
     public float terminalVelocity = -53.0f;
 
+    [Header("Dash Settings")]
+    public float dashSpeed = 20f;
+    public float dashDuration = 0.2f;
+    public float dashCooldown = 3f;
+    [HideInInspector] public float dashCooldownTimer = 0f;
+
     [Header("Model Settings")]
     public Animator jellyAnimator;
     public UIManager uiManager;
@@ -41,6 +47,8 @@ public class PlayerMovement : MonoBehaviour
     public PlayerIdleState idleState;
     public PlayerMoveState moveState;
     public PlayerJumpState jumpState;
+    public PlayerDashState dashState;
+    public PlayerKnockbackState knockbackState;
 
     void Start()
     {
@@ -48,10 +56,11 @@ public class PlayerMovement : MonoBehaviour
         jumpForce = originalJumpForce;
         UpdateCameraVectors();
 
-        // 상태들 초기화
         idleState = new PlayerIdleState(this);
         moveState = new PlayerMoveState(this);
         jumpState = new PlayerJumpState(this);
+        dashState = new PlayerDashState(this);
+        knockbackState = new PlayerKnockbackState(this);
 
         // 첫 상태 진입
         ChangeState(idleState);
@@ -63,7 +72,23 @@ public class PlayerMovement : MonoBehaviour
         inputH = Input.GetAxis("Horizontal");
         inputV = Input.GetAxis("Vertical");
 
+        if (dashCooldownTimer > 0f)
+            dashCooldownTimer -= Time.deltaTime;
+
         currentState?.Update();
+    }
+
+    public bool CanDash()
+    {
+        return dashCooldownTimer <= 0f
+            && currentState != dashState
+            && currentState != knockbackState;
+    }
+
+    public void ApplyKnockback(Vector3 direction, float force)
+    {
+        knockbackState.SetKnockback(direction, force);
+        ChangeState(knockbackState);
     }
 
     // 상태 변경 함수

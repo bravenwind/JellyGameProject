@@ -18,6 +18,12 @@ public class PlayerMoveState : PlayerBaseState
         player.CalculateMoveDirection();
         player.ApplyGravity();
 
+        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanDash())
+        {
+            player.ChangeState(player.dashState);
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded)
         {
             player.ChangeState(player.jumpState);

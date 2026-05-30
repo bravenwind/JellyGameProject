@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Playables;
 
 // ==========================================
-// 1. Idle »óÅÂ Å¬·¡½º
+// 1. Idle ï¿½ï¿½ï¿½ï¿½ Å¬ï¿½ï¿½ï¿½ï¿½
 // ==========================================
 public class PlayerIdleState : PlayerBaseState
 {
@@ -10,7 +10,7 @@ public class PlayerIdleState : PlayerBaseState
 
     public override void Enter()
     {
-        Debug.Log("[Player] ´ë±â »óÅÂ ÁøÀÔ.");
+        Debug.Log("[Player] ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½.");
         player.inputDir = Vector3.zero;
         player.verticalVelocity = 0;
     }
@@ -20,15 +20,21 @@ public class PlayerIdleState : PlayerBaseState
         player.ApplyGravity();
         player.controller.Move(new Vector3(0, player.verticalVelocity, 0) * Time.deltaTime);
 
+        if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanDash())
+        {
+            player.ChangeState(player.dashState);
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded)
         {
-            player.ChangeState(player.jumpState); // »óÅÂ º¯°æ
+            player.ChangeState(player.jumpState);
             return;
         }
 
         if (player.IsMoveInputActive())
         {
-            player.ChangeState(player.moveState); // »óÅÂ º¯°æ
+            player.ChangeState(player.moveState);
             return;
         }
     }
