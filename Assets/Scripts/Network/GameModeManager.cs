@@ -123,7 +123,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         GameState.ResetValues();
         _gameRunning = true;
-        _gameTimer = startTime;
+        _gameTimer = (GameState.CurrentGameMode == GameModeType.Push) ? 0f : startTime;
         GameState.Phase = GamePhase.Playing;
 
         if (gameResultPanel != null)
@@ -134,11 +134,21 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         if (!_gameRunning) return;
 
-        _gameTimer -= Time.deltaTime;
-        UpdateGameTimerUI();
-
         if (Time.frameCount % 30 == 0)
             UpdateLeaderboard();
+
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            _gameTimer += Time.deltaTime;
+            UpdateGameTimerUI();
+
+            if (PhotonNetwork.IsMasterClient && Time.frameCount % 60 == 0)
+                CheckLastSurvivor();
+            return;
+        }
+
+        _gameTimer -= Time.deltaTime;
+        UpdateGameTimerUI();
 
         if (_gameTimer <= 3f && !_isEndingSequenceStarted)
         {
@@ -448,7 +458,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         _gameRunning = false;
         GameState.Phase = GamePhase.GameOver;
 
-        float survived = gameDuration - _gameTimer;
+        float survived = (GameState.CurrentGameMode == GameModeType.Push)
+            ? _gameTimer
+            : gameDuration - _gameTimer;
         int min = Mathf.FloorToInt(survived / 60f);
         int sec = Mathf.FloorToInt(survived % 60f);
 
@@ -478,14 +490,21 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private void UpdateGameTimerUI()
     {
         if (gameTimerText == null) return;
-        int min = Mathf.FloorToInt(_gameTimer / 60f);
-        int sec = Mathf.FloorToInt(_gameTimer % 60f);
+
+        float displayTime = _gameTimer;
+        int min = Mathf.FloorToInt(displayTime / 60f);
+        int sec = Mathf.FloorToInt(displayTime % 60f);
         gameTimerText.text = $"{min:00}:{sec:00}";
-        if (min <= 0.0f && sec <= 0.0f)
+
+        if (GameState.CurrentGameMode == GameModeType.Push)
         {
-            gameTimerText.text = "00:00";
+            gameTimerText.color = Color.white;
         }
-        gameTimerText.color = _gameTimer <= endImpendingTime ? Color.red : Color.white;
+        else
+        {
+            if (min <= 0 && sec <= 0) gameTimerText.text = "00:00";
+            gameTimerText.color = _gameTimer <= endImpendingTime ? Color.red : Color.white;
+        }
     }
 
     private void UpdateLeaderboard()
@@ -527,6 +546,87 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         Debug.Log($"[GameMode] {absorbedPlayer.photonView.Owner.NickName} 흡수됨!");
         if (_localPlayer != null && absorbedPlayer == _localPlayer) GameOver();
+    }
+
+    public void OnPlayerFellOff(NetworkPlayerSync player)
+    {
+        if (_localPlayer != null && player == _localPlayer)
+            GameOver();
+    }
+
+    private void CheckLastSurvivor()
+    {
+        if (!_gameRunning || !PhotonNetwork.IsMasterClient) return;
+
+        int aliveCount = 0;
+
+        foreach (Player p in PhotonNetwork.PlayerList)
+        {
+            if (p.CustomProperties.TryGetValue("Eliminated", out object e) && e is bool b && b)
+                continue;
+            aliveCount++;
+        }
+
+        foreach (var bot in EntityRegistry.Bots)
+        {
+            if (bot == null || bot.IsEliminated || bot.IsBeingAbsorbed) continue;
+            aliveCount++;
+        }
+
+        if (aliveCount <= 1)
+        {
+            photonView.RPC(nameof(RPC_PushModeGameEnd), RpcTarget.All);
+        }
+    }
+
+    [PunRPC]
+    private void RPC_PushModeGameEnd()
+    {
+        if (!_gameRunning) return;
+        _gameRunning = false;
+        GameState.Phase = GamePhase.Result;
+
+        SyncAllColorsForResult();
+        StartCoroutine(PushModeEndSequence());
+    }
+
+    private IEnumerator PushModeEndSequence()
+    {
+        if (centerCountdownText != null)
+        {
+            centerCountdownText.gameObject.SetActive(true);
+            centerCountdownText.text = gameEndText;
+            centerCountdownText.transform.localScale = Vector3.one * 2f;
+            Color c = centerCountdownText.color;
+            c.a = 1f;
+            centerCountdownText.color = c;
+        }
+
+        float slowDuration = 1.2f;
+        float elapsed = 0f;
+        while (elapsed < slowDuration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            Time.timeScale = Mathf.Lerp(1f, 0.1f, elapsed / slowDuration);
+            yield return null;
+        }
+
+        Time.timeScale = 0f;
+        yield return new WaitForSecondsRealtime(1.0f);
+
+        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME;
+        LoadingSceneController.AllClientsLoad = true;
+
+        if (PhotonNetwork.IsMasterClient)
+            DestroyAbsorbedBots();
+
+        StartCoroutine(LoadResultSceneAfterSync());
+    }
+
+    [PunRPC]
+    public void RPC_StepTileCollapse(int x, int z)
+    {
+        TileCollapseManager.Instance?.CollapseStepTile(x, z);
     }
 
     public override void OnPlayerLeftRoom(Player otherPlayer) => Debug.Log($"[GameMode] {otherPlayer.NickName} 나감");

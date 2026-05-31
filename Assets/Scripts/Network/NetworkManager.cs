@@ -89,6 +89,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     private int _reconnectAttempts = 0;
     private const int MaxReconnectAttempts = 3;
 
+    public const string ROOM_PROP_GAME_MODE = "GM";
+
+    public static GameModeType SelectedGameMode { get; set; } = GameModeType.Absorb;
+
     // ─────────────────────────────────────────────────────────
     // 싱글톤
     // ─────────────────────────────────────────────────────────
@@ -190,18 +194,32 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     /// </summary>
     private void JoinOrCreateRoom()
     {
-        // RoomOptions: 방의 속성 설정
+        string modeStr = SelectedGameMode.ToString();
+
         RoomOptions options = new RoomOptions
         {
             MaxPlayers = (byte)maxPlayersPerRoom,
-            IsVisible = true,   // 로비에서 보이게
-            IsOpen = true       // 입장 가능하게
+            IsVisible = true,
+            IsOpen = true,
+            CustomRoomProperties = new ExitGames.Client.Photon.Hashtable
+            {
+                { ROOM_PROP_GAME_MODE, modeStr }
+            },
+            CustomRoomPropertiesForLobby = new[] { ROOM_PROP_GAME_MODE }
         };
 
-        // 랜덤 방 입장 (빈 방 없으면 자동으로 새 방 생성됨)
-        PhotonNetwork.JoinRandomOrCreateRoom(roomOptions: options);
+        ExitGames.Client.Photon.Hashtable expectedProps = new ExitGames.Client.Photon.Hashtable
+        {
+            { ROOM_PROP_GAME_MODE, modeStr }
+        };
 
-        Debug.Log("[Network] 방 입장/생성 시도 중...");
+        PhotonNetwork.JoinRandomOrCreateRoom(
+            expectedCustomRoomProperties: expectedProps,
+            expectedMaxPlayers: (byte)maxPlayersPerRoom,
+            roomOptions: options
+        );
+
+        Debug.Log($"[Network] 방 입장/생성 시도 (모드: {modeStr})...");
     }
 
     /// <summary>
@@ -211,7 +229,18 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         _wantsToJoin = false;
-        Debug.Log($"[Network] 방 입장 완료! 현재 인원: {PhotonNetwork.CurrentRoom.PlayerCount}");
+
+        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(ROOM_PROP_GAME_MODE, out object modeObj)
+            && System.Enum.TryParse<GameModeType>(modeObj.ToString(), out var mode))
+        {
+            GameState.CurrentGameMode = mode;
+        }
+        else
+        {
+            GameState.CurrentGameMode = SelectedGameMode;
+        }
+
+        Debug.Log($"[Network] 방 입장 완료! 모드: {GameState.CurrentGameMode}, 인원: {PhotonNetwork.CurrentRoom.PlayerCount}");
         BroadcastPlayerCount();
         CheckAndStartCountdown();
     }

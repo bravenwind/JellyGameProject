@@ -64,7 +64,12 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
 
     private void Start()
     {
-        // MasterClient만 젤리 스폰을 담당
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            Debug.Log("[JellyManager] Push 모드 — 젤리 스폰 비활성화");
+            return;
+        }
+
         if (PhotonNetwork.IsMasterClient)
         {
             StartCoroutine(SpawnRoutine());

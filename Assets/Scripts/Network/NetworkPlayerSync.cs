@@ -153,9 +153,15 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     // Update: 원격 플레이어 보간 처리
     // ─────────────────────────────────────────────────────────
+    private bool _fellOff = false;
+
     private void Update()
     {
-        if (photonView.IsMine) return;
+        if (photonView.IsMine)
+        {
+            CheckFallOff();
+            return;
+        }
         if (_isAbsorbed) return;
 
         // 스케일: CustomProperties에서 읽어 Lerp (권위적 소스)
@@ -179,6 +185,23 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             jellyRenderer.material.SetColor("_BaseColor_01", baseColor);
             jellyRenderer.material.SetColor("_BaseColor_02", baseColor02);
             jellyRenderer.material.SetColor("_FresnelColor", displayColor);
+        }
+    }
+
+    private void CheckFallOff()
+    {
+        if (_fellOff || _isAbsorbed) return;
+        if (GameState.Phase != GamePhase.Playing) return;
+
+        float threshold = DataManager.Instance != null
+            ? DataManager.Instance.fallOffThreshold
+            : -10f;
+
+        if (transform.position.y < threshold)
+        {
+            _fellOff = true;
+            SyncEliminated();
+            GameModeManager.Instance?.OnPlayerFellOff(this);
         }
     }
 
@@ -279,6 +302,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     {
         if (!photonView.IsMine || _isAbsorbed) return;
         if (GameState.Phase != GamePhase.Playing) return;
+        if (GameState.CurrentGameMode != GameModeType.Absorb) return;
 
         NetworkPlayerSync otherPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (otherPlayer != null && otherPlayer != this)
@@ -677,5 +701,80 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (playerController == null) return;
         Vector3 dir = new Vector3(dirX, 0f, dirZ).normalized;
         playerController.ApplyKnockback(dir, force);
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 방망이 공격 시스템 (밀치기 모드 전용)
+    // ─────────────────────────────────────────────────────────
+
+    [PunRPC]
+    public void RPC_PlayAttack()
+    {
+        if (playerController != null && playerController.jellyAnimator != null)
+            playerController.jellyAnimator.SetTrigger("Attack");
+    }
+
+    [PunRPC]
+    public void RPC_RequestBatHitPlayer(int victimViewID)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+        if (GameState.Phase != GamePhase.Playing) return;
+
+        PhotonView victimPV = PhotonView.Find(victimViewID);
+        if (victimPV == null) return;
+
+        float attackerScale = GetAuthorityScale(photonView);
+        float victimScale = GetAuthorityScale(victimPV);
+
+        Vector3 pushDir = (victimPV.transform.position - transform.position).normalized;
+        pushDir.y = 0f;
+        if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
+        pushDir.Normalize();
+
+        var dm = DataManager.Instance;
+        float pushForce = dm.batPushForce * (attackerScale / dm.startingScale);
+
+        victimPV.RPC(nameof(RPC_ApplyKnockback), victimPV.Owner,
+            pushDir.x, pushDir.z, pushForce);
+
+        float growth = dm.batHitGrowth / Mathf.Max(attackerScale, 1f);
+        photonView.RPC(nameof(RPC_BatGrowReward), photonView.Owner, growth);
+    }
+
+    [PunRPC]
+    public void RPC_RequestBatHitBot(int botViewID)
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+        if (GameState.Phase != GamePhase.Playing) return;
+
+        PhotonView botPV = PhotonView.Find(botViewID);
+        if (botPV == null) return;
+
+        AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
+        if (aiBot == null || aiBot.IsEliminated || aiBot.IsBeingAbsorbed) return;
+
+        float attackerScale = GetAuthorityScale(photonView);
+
+        Vector3 pushDir = (botPV.transform.position - transform.position).normalized;
+        pushDir.y = 0f;
+        if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
+        pushDir.Normalize();
+
+        var dm = DataManager.Instance;
+        float pushForce = dm.batPushForce * (attackerScale / dm.startingScale);
+
+        aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), RpcTarget.All,
+            pushDir.x, pushDir.z, pushForce);
+
+        float growth = dm.batHitGrowth / Mathf.Max(attackerScale, 1f);
+        photonView.RPC(nameof(RPC_BatGrowReward), photonView.Owner, growth);
+    }
+
+    [PunRPC]
+    private void RPC_BatGrowReward(float growth)
+    {
+        if (!photonView.IsMine) return;
+        scaleController?.GrowByBatHit(growth);
+        SyncScale();
     }
 }

@@ -19,6 +19,7 @@ public class PlayerMovement : MonoBehaviour
     public float dashDuration = 0.2f;
     public float dashCooldown = 3f;
     [HideInInspector] public float dashCooldownTimer = 0f;
+    [HideInInspector] public float attackCooldownTimer = 0f;
 
     [Header("Model Settings")]
     public Animator jellyAnimator;
@@ -49,6 +50,7 @@ public class PlayerMovement : MonoBehaviour
     public PlayerJumpState jumpState;
     public PlayerDashState dashState;
     public PlayerKnockbackState knockbackState;
+    public PlayerAttackState attackState;
 
     void Start()
     {
@@ -61,6 +63,7 @@ public class PlayerMovement : MonoBehaviour
         jumpState = new PlayerJumpState(this);
         dashState = new PlayerDashState(this);
         knockbackState = new PlayerKnockbackState(this);
+        attackState = new PlayerAttackState(this);
 
         // 첫 상태 진입
         ChangeState(idleState);
@@ -74,6 +77,8 @@ public class PlayerMovement : MonoBehaviour
 
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.deltaTime;
+        if (attackCooldownTimer > 0f)
+            attackCooldownTimer -= Time.deltaTime;
 
         currentState?.Update();
     }
@@ -82,6 +87,14 @@ public class PlayerMovement : MonoBehaviour
     {
         return dashCooldownTimer <= 0f
             && currentState != dashState
+            && currentState != knockbackState;
+    }
+
+    public bool CanAttack()
+    {
+        return GameState.CurrentGameMode == GameModeType.Push
+            && attackCooldownTimer <= 0f
+            && currentState != attackState
             && currentState != knockbackState;
     }
 

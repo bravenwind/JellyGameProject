@@ -3,6 +3,8 @@ using UnityEngine;
 
 public enum GamePhase { None, Loading, Playing, GameOver, Result }
 
+public enum GameModeType { Absorb, Push }
+
 public static class GameState
 {
     // ── Events   ──
@@ -66,6 +68,8 @@ public static class GameState
 
     public static float DetectRadius { get; set; }
 
+    public static GameModeType CurrentGameMode { get; set; } = GameModeType.Absorb;
+
     public static void ResetRYBColor()
     {
         CurrentRYBColor = RYBColor.white;
@@ -81,6 +85,7 @@ public static class GameState
         CurrentRYBColor = RYBColor.white;
         _currentDisplayColor = Color.white;
         DetectRadius = 0f;
+        CurrentGameMode = GameModeType.Absorb;
 
         OnPhaseChanged = null;
         OnScoreChanged = null;

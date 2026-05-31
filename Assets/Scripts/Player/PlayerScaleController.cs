@@ -51,6 +51,12 @@ public class PlayerScaleController : MonoBehaviour
         QueueScaleChange(ScaleTo(target, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
     }
 
+    public void GrowByBatHit(float growth)
+    {
+        float target = Mathf.Min(currentScaleValue + growth, DataManager.Instance.maxScale);
+        QueueScaleChange(ScaleTo(target, 0.3f, growing: true, playEffect: true));
+    }
+
     private int GetScaleTier(float scale)
     {
         float first = DataManager.Instance.cameraZoomFirstThreshold;

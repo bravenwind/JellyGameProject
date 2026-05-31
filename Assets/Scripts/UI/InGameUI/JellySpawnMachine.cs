@@ -28,6 +28,11 @@ public class JellySpawnMachine : MonoBehaviour
 
     void Start()
     {
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            gameObject.SetActive(false);
+            return;
+        }
         StartCoroutine(ContinuousSpawnLoop());
     }
 

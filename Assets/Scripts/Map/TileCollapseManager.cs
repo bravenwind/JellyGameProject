@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using Photon.Pun;
 
 public class TileCollapseManager : MonoBehaviour
 {
@@ -36,6 +37,8 @@ public class TileCollapseManager : MonoBehaviour
     private int _lastShakenRing = -1;
     private Vector3 _gridOrigin;
     private float _stepX, _stepZ;
+
+    private HashSet<int> _steppedTileKeys = new HashSet<int>();
 
     private void Awake()
     {
@@ -121,10 +124,15 @@ public class TileCollapseManager : MonoBehaviour
     {
         if (GameModeManager.Instance == null || !GameModeManager.Instance.IsGameRunning) return;
 
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            UpdateStepCollapse();
+            return;
+        }
+
         float elapsed = GetSyncedElapsed();
         if (elapsed < 0f) return;
 
-        // 다음 차례인 링을 idle shake로 진입 — Fall 시점보다 ringInterval 만큼 일찍
         int nextShakeRing = _lastCollapsedRing + 1;
         if (nextShakeRing < _maxRing && nextShakeRing > _lastShakenRing)
         {
@@ -146,6 +154,61 @@ public class TileCollapseManager : MonoBehaviour
             _lastCollapsedRing++;
             CollapseRingAnimated(_lastCollapsedRing);
         }
+    }
+
+    private void UpdateStepCollapse()
+    {
+        if (!PhotonNetwork.IsMasterClient) return;
+        if (Time.frameCount % 10 != 0) return;
+        if (_stepX == 0f || _stepZ == 0f) return;
+
+        foreach (var player in EntityRegistry.Players)
+        {
+            if (player == null) continue;
+            if (player.photonView.Owner?.CustomProperties != null &&
+                player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out object e) &&
+                e is bool b && b) continue;
+            TryCollapseAt(player.transform.position);
+        }
+
+        foreach (var bot in EntityRegistry.Bots)
+        {
+            if (bot == null || bot.IsEliminated) continue;
+            TryCollapseAt(bot.transform.position);
+        }
+    }
+
+    private void TryCollapseAt(Vector3 worldPos)
+    {
+        int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
+        int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
+
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return;
+        if (_tiles[x, z] == null) return;
+
+        int key = x * 10000 + z;
+        if (_steppedTileKeys.Contains(key)) return;
+        _steppedTileKeys.Add(key);
+
+        var pv = GameModeManager.Instance?.photonView;
+        if (pv != null)
+            pv.RPC(nameof(GameModeManager.RPC_StepTileCollapse), RpcTarget.All, x, z);
+    }
+
+    public void CollapseStepTile(int x, int z)
+    {
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return;
+        if (_tiles[x, z] == null) return;
+
+        var dm = DataManager.Instance;
+        float warn = dm != null ? dm.stepTileWarningDuration : 1.5f;
+        float delay = dm != null ? dm.stepTileCollapseDelay : 2f;
+
+        var ft = _tiles[x, z].GetComponent<FallingTile>();
+        if (ft == null) ft = _tiles[x, z].AddComponent<FallingTile>();
+
+        ft.StartFall(warn, fallDuration, fallDistance, Mathf.Max(0f, delay - warn));
+        _tiles[x, z] = null;
     }
 
     private void StartIdleShakeOnRing(int ring)

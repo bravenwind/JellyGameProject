@@ -13,6 +13,8 @@ public class PlayerAbsorber : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        if (GameState.CurrentGameMode == GameModeType.Push) return;
+
         if (other.CompareTag("Edible"))
         {
             JellyColliderAbsorb jca = other.GetComponentInParent<JellyColliderAbsorb>();

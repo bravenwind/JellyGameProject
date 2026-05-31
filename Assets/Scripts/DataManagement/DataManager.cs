@@ -52,6 +52,28 @@ public class DataManager : MonoBehaviour
     [Tooltip("밀치기 힘 (CharacterController.Move 속도 단위)")]
     public float dashPushForce = 15f;
 
+    [Header("Bat Attack Settings (Push Mode)")]
+    [Tooltip("방망이 공격 쿨다운 (초)")]
+    public float batCooldown = 1.2f;
+    [Tooltip("방망이 공격 지속 시간 (초)")]
+    public float batSwingDuration = 0.35f;
+    [Tooltip("방망이 공격 범위 (플레이어 전방)")]
+    public float batRange = 2.0f;
+    [Tooltip("방망이 밀치기 힘")]
+    public float batPushForce = 18f;
+    [Tooltip("방망이 명중 시 성장량 (크기 1 기준)")]
+    public float batHitGrowth = 0.08f;
+    [Tooltip("방망이 공격 전방 각도 (좌우 합산)")]
+    public float batArcAngle = 120f;
+
+    [Header("Push Mode - Fall & Tile Settings")]
+    [Tooltip("이 Y좌표 아래로 떨어지면 낙사 판정")]
+    public float fallOffThreshold = -10f;
+    [Tooltip("타일을 밟은 후 붕괴까지 딜레이 (초)")]
+    public float stepTileCollapseDelay = 2f;
+    [Tooltip("밟힌 타일 경고 흔들림 시간 (초)")]
+    public float stepTileWarningDuration = 1.5f;
+
     /// <summary>
     /// '비슷한 크기' 판정용 스케일 차이 임계값.
     /// pushJellyThreshold(젤리 개수) × jellyScaleIncrease(젤리당 스케일 증가량)로 환산.

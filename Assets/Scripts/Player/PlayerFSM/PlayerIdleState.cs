@@ -20,6 +20,12 @@ public class PlayerIdleState : PlayerBaseState
         player.ApplyGravity();
         player.controller.Move(new Vector3(0, player.verticalVelocity, 0) * Time.deltaTime);
 
+        if (Input.GetMouseButtonDown(0) && player.CanAttack())
+        {
+            player.ChangeState(player.attackState);
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanDash())
         {
             player.ChangeState(player.dashState);

@@ -18,6 +18,12 @@ public class PlayerMoveState : PlayerBaseState
         player.CalculateMoveDirection();
         player.ApplyGravity();
 
+        if (Input.GetMouseButtonDown(0) && player.CanAttack())
+        {
+            player.ChangeState(player.attackState);
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanDash())
         {
             player.ChangeState(player.dashState);
