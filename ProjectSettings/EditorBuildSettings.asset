@@ -12,8 +12,11 @@ EditorBuildSettings:
     path: Assets/Scenes/Loading.unity
     guid: c556834da431f6444a7bc00092177873
   - enabled: 1
-    path: Assets/Scenes/Game_io.unity
+    path: Assets/Scenes/Game_io_AbsorbMode.unity
     guid: 3121bc2ece319f74f8c501c0447fae3c
+  - enabled: 1
+    path: Assets/Scenes/Game_io_PushMode.unity
+    guid: 82402095e9886a443a76d44ed731c977
   - enabled: 1
     path: Assets/Scenes/GameResult_io.unity
     guid: 0d96c48fbaaff2446b4a45a4715438e1

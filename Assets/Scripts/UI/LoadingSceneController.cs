@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Photon.Pun;
@@ -62,8 +62,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         _elapsed += Time.unscaledDeltaTime;
 
         // minDisplayTime이 지나면 다음 씬 로드 트리거.
-        //   • 게임 씬(메인→인게임): 마스터만 LoadLevel, 나머지는 AutomaticallySyncScene으로 자동 이동
-        //   • 결과 씬(인게임→결과): 모든 클라이언트가 각자 LoadLevel (마스터 탈락 데드락 방지)
+        // 게임 씬(메인→인게임): 마스터만 LoadLevel, 나머지는 AutomaticallySyncScene으로 자동 이동
+        // 결과 씬(인게임→결과): 모든 클라이언트가 각자 LoadLevel (마스터 탈락 데드락 방지)
         if (!_nextSceneTriggered && _elapsed >= minDisplayTime)
         {
             _nextSceneTriggered = true;

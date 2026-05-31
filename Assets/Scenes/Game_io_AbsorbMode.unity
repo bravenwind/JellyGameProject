@@ -57653,6 +57653,7 @@ MonoBehaviour:
   gameTimerText: {fileID: 883871039}
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}
+  gameEndText: "\uAC8C\uC784 \uC885\uB8CC!"
   leaderboardContainer: {fileID: 217354872}
   leaderboardEntryPrefab: {fileID: 585618893292266002, guid: 81c991277264e1742ab43d3bb56cb6c8, type: 3}
   _gameTimer: 0
@@ -67202,7 +67203,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &839208345
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -98727,6 +98728,8 @@ MonoBehaviour:
   scaleIncreaseTime: 1.5
   scaleDecreaseTime: 2
   IncreaseJumpForceValue: 5
+  pushJellyThreshold: 4
+  dashPushForce: 15
   scaleIncreaseDuration: 1.5
   scaleDecreaseDuration: 2
   scaleChangedPlusSize: 7
