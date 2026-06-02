@@ -52,6 +52,12 @@ public class PlayerAttackState : PlayerBaseState
 
     private void DetectBatHit()
     {
+        // 권한 검증: 소유자(IsMine)만 히트 판정을 수행한다.
+        // 원격 플레이어는 PlayerMovement가 비활성화되어 여기까지 오지 않지만,
+        // 권위 경계를 명확히 하고 불필요한 OverlapSphere 연산도 막기 위해 선제 차단한다.
+        NetworkPlayerSync mySync = player.GetComponent<NetworkPlayerSync>();
+        if (mySync == null || !mySync.photonView.IsMine) return;
+
         var dm = DataManager.Instance;
         float scale = player.transform.localScale.x;
         float range = dm.batRange * scale;
@@ -78,12 +84,8 @@ public class PlayerAttackState : PlayerBaseState
             if (otherPlayer != null)
             {
                 _hitDetected = true;
-                NetworkPlayerSync mySync = player.GetComponent<NetworkPlayerSync>();
-                if (mySync != null && mySync.photonView.IsMine)
-                {
-                    mySync.photonView.RPC(nameof(mySync.RPC_RequestBatHitPlayer),
-                        RpcTarget.MasterClient, otherPlayer.photonView.ViewID);
-                }
+                mySync.photonView.RPC(nameof(mySync.RPC_RequestBatHitPlayer),
+                    RpcTarget.MasterClient, otherPlayer.photonView.ViewID);
                 return;
             }
 
@@ -91,12 +93,8 @@ public class PlayerAttackState : PlayerBaseState
             if (aiBot != null && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
             {
                 _hitDetected = true;
-                NetworkPlayerSync mySync = player.GetComponent<NetworkPlayerSync>();
-                if (mySync != null && mySync.photonView.IsMine)
-                {
-                    mySync.photonView.RPC(nameof(mySync.RPC_RequestBatHitBot),
-                        RpcTarget.MasterClient, aiBot.photonView.ViewID);
-                }
+                mySync.photonView.RPC(nameof(mySync.RPC_RequestBatHitBot),
+                    RpcTarget.MasterClient, aiBot.photonView.ViewID);
                 return;
             }
         }

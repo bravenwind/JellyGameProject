@@ -56,6 +56,9 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     // 현재 스폰된 젤리 목록 (MasterClient만 관리)
     private List<GameObject> _spawnedJellies = new List<GameObject>();
 
+    // 스폰 루틴 중복 실행 방지 (MasterClient 교체 시 이중 시작 차단)
+    private bool _spawnRoutineRunning = false;
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
@@ -83,10 +86,18 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
 
     private IEnumerator SpawnRoutine()
     {
-        // 처음에 젤리를 빠르게 채움 (배치 스폰)
+        // 중복 실행 방지: MasterClient 교체 시 OnMasterClientSwitched와 겹쳐 두 번 시작되는 것을 차단
+        if (_spawnRoutineRunning) yield break;
+        _spawnRoutineRunning = true;
+
+        // 처음에 젤리를 빠르게 채움 (배치 스폰).
+        // 단, MasterClient가 교체된 경우 새 마스터의 _spawnedJellies는 비어 있지만
+        // 씬에는 기존 젤리가 그대로 살아있다. 실제 개수(EntityRegistry)를 기준으로
+        // 부족분만 채워야 젤리가 maxJellyCount를 초과해 과다 생성되지 않는다.
         int initialBatch = maxJellyCount / 2;
         for (int i = 0; i < initialBatch; i++)
         {
+            if (CurrentJellyCount() >= maxJellyCount) break;
             SpawnOneJelly();
         }
 
@@ -98,11 +109,22 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             // 삭제된 젤리 참조 정리
             _spawnedJellies.RemoveAll(j => j == null);
 
-            if (_spawnedJellies.Count < maxJellyCount)
+            if (CurrentJellyCount() < maxJellyCount)
             {
                 SpawnOneJelly();
             }
         }
+    }
+
+    /// <summary>
+    /// 현재 씬에 살아있는 네트워크 젤리 수.
+    /// EntityRegistry는 모든 클라이언트에서 JellyObject.OnEnable/OnDisable로 갱신되므로,
+    /// MasterClient가 교체되어 로컬 추적 목록(_spawnedJellies)이 비어 있어도
+    /// 실제 젤리 개수를 정확히 파악할 수 있다.
+    /// </summary>
+    private int CurrentJellyCount()
+    {
+        return EntityRegistry.Jellies.Count;
     }
 
     private void SpawnOneJelly()
@@ -210,7 +232,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         if (!PhotonNetwork.IsMasterClient) return;
 
         _spawnedJellies.RemoveAll(j => j == null);
-        if (_spawnedJellies.Count >= maxJellyCount) return;
+        if (CurrentJellyCount() >= maxJellyCount) return;
 
         GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, position, Quaternion.identity);
         _spawnedJellies.Add(jelly);
