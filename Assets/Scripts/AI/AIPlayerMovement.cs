@@ -500,23 +500,38 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     /// <summary>
     /// 초콜릿 등으로 탈락 처리. 리더보드/이름표 제거, AI/Agent 정지.
     /// 오브젝트는 파괴하지 않고 둥둥 떠다니게 유지.
+    /// 마스터에서 호출되면 RPC로 모든 클라이언트에 전파한다.
     /// </summary>
     public void OnEliminated()
     {
         if (IsEliminated) return;
+
+        if (PhotonNetwork.IsMasterClient && photonView != null)
+            photonView.RPC(nameof(RPC_OnEliminated), RpcTarget.All);
+        else
+            ApplyEliminatedLocally();
+    }
+
+    [PunRPC]
+    private void RPC_OnEliminated()
+    {
+        ApplyEliminatedLocally();
+    }
+
+    private void ApplyEliminatedLocally()
+    {
+        if (IsEliminated) return;
         IsEliminated = true;
 
-        // AI/Agent 정지 (이미 꺼져 있어도 멱등)
         if (Agent != null) Agent.enabled = false;
         _currentState?.Exit();
         _currentState = null;
         enabled = false;
 
-        // 이름표 숨김
         if (nameTagBillboard != null) nameTagBillboard.gameObject.SetActive(false);
 
-        // 리더보드에서 제거 (마스터만 룸 프로퍼티 정리)
-        if (_aiSync != null) _aiSync.ClearBotProperties();
+        if (_aiSync != null && PhotonNetwork.IsMasterClient)
+            _aiSync.ClearBotProperties();
     }
 
     /// <summary>[RPC] 이 봇이 흡수당했을 때 (모든 클라이언트에서 실행)</summary>
