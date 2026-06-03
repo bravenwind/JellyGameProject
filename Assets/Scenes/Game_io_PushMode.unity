@@ -71279,7 +71279,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &888416979
 RectTransform:
   m_ObjectHideFlags: 0
@@ -98730,6 +98730,15 @@ MonoBehaviour:
   IncreaseJumpForceValue: 5
   pushJellyThreshold: 4
   dashPushForce: 15
+  batCooldown: 1.2
+  batSwingDuration: 0.35
+  batRange: 2
+  batPushForce: 18
+  batHitGrowth: 0.08
+  batArcAngle: 120
+  fallOffThreshold: -10
+  stepTileCollapseDelay: 2
+  stepTileWarningDuration: 1.5
   scaleIncreaseDuration: 1.5
   scaleDecreaseDuration: 2
   scaleChangedPlusSize: 7
@@ -180752,7 +180761,8 @@ MonoBehaviour:
   matchBufferSeconds: 6
   maxPlayersPerRoom: 4
   noPlayerConnectTimeSeconds: 10
-  gameSceneName: Game_io
+  gameAbsorbModeSceneName: Game_io_AbsorbMode
+  gamePushModeSceneName: Game_io_PushMode
   loadingSceneName: Loading
   minSpawnDistance: 3
   virtualSpawnRadius: 30

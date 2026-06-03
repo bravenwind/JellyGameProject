@@ -62,7 +62,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public float noPlayerConnectTimeSeconds = 10.0f;
 
     [Tooltip("게임 씬 이름")]
-    public string gameSceneName = "Game_io";
+    public string gameAbsorbModeSceneName = "Game_io_AbsorbMode";
+    public string gamePushModeSceneName = "Game_io_PushMode";
 
     [Tooltip("로딩 씬 이름")]
     public string loadingSceneName = "Loading";
@@ -161,7 +162,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             Debug.Log("[NetworkManager] 이미 방에 입장해 있습니다. 씬 전환을 시도합니다.");
             if (PhotonNetwork.IsMasterClient)
             {
-                PhotonNetwork.LoadLevel(gameSceneName);
+                PhotonNetwork.LoadLevel(gameAbsorbModeSceneName);
             }
         }
         // 4. 통신 중인 상태 (Connecting, Joining 등)
@@ -306,6 +307,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         // 변경
         botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;
+
+        LoadingSceneController.NextSceneName = SelectedGameMode == GameModeType.Absorb ? gameAbsorbModeSceneName : gamePushModeSceneName;
+
         PhotonNetwork.LoadLevel(loadingSceneName); // 로딩씬 먼저
     }
 

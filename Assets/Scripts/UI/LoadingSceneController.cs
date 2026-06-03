@@ -43,7 +43,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
         // 정적 설정값을 인스턴스로 캡처한 뒤 비워둔다 (다음 로딩 진입 시 기본값으로 복귀).
         _targetScene = string.IsNullOrEmpty(NextSceneName)
-            ? NetworkManager.Instance.gameSceneName
+            ? NetworkManager.Instance.gameAbsorbModeSceneName
             : NextSceneName;
         _allClientsLoad = AllClientsLoad;
         NextSceneName = null;

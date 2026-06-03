@@ -12,9 +12,13 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     [Header("입력 패널")]
     public RectTransform inputPanel;
     public TMP_InputField nameInputField;
+    private string playerNickname;
     public int nicknameMaxLength = 10;
     public Button startButton;
     public GameObject warningText;
+
+    [Header("모드 선택 패널")]
+    public GameObject buttonSelectionPanel;
 
     [Header("매칭 UI")]
     public RectTransform matchingPanel;
@@ -222,11 +226,11 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     {
         startButton.interactable = false;
 
-        string playerName = nameInputField != null && !string.IsNullOrEmpty(nameInputField.text)
+        playerNickname = nameInputField != null && !string.IsNullOrEmpty(nameInputField.text)
             ? nameInputField.text
             : "Jelly";
 
-        if (playerName.Length > 10)
+        if (playerNickname.Length > 10)
         {
             warningText?.SetActive(true);
             startButton.interactable = true;
@@ -235,17 +239,24 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
         else
         {
             warningText?.SetActive(false);
+            buttonSelectionPanel.SetActive(true);
         }
+    }
 
-        PlayAnimation(playerName);
+    public void OnClickPushMode()
+    {
+        NetworkManager.SelectedGameMode = GameModeType.Push;
+        PlayAnimation(playerNickname);
+    }
+    public void OnClickAbsorbMode()
+    {
+        NetworkManager.SelectedGameMode = GameModeType.Absorb;
+        PlayAnimation(playerNickname);
     }
 
     private void PlayAnimation(string playerName)
     {
         Sequence seq = DOTween.Sequence().SetUpdate(true);
-
-        if (inputPanel != null)
-            seq.Append(inputPanel.DOAnchorPos(inputPanelLeftPos, slideDuration).SetEase(slideEase));
 
         if (matchingPanel != null)
         {

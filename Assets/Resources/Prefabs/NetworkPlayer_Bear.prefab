@@ -182,6 +182,7 @@ MonoBehaviour:
   dashDuration: 0.2
   dashCooldown: 3
   dashCooldownTimer: 0
+  attackCooldownTimer: 0
   jellyAnimator: {fileID: 365858056229833277}
   uiManager: {fileID: 0}
   controller: {fileID: 0}
