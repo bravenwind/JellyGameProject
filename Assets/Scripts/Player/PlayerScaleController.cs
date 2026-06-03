@@ -15,6 +15,9 @@ public class PlayerScaleController : MonoBehaviour
 
     public float currentScaleValue { get; private set; } = 2f;
 
+    private float _pendingScale = 2f;
+    public float PendingScale => _pendingScale;
+
     private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
     private bool isScaling = false;
     public bool IsScaling => isScaling;
@@ -35,26 +38,27 @@ public class PlayerScaleController : MonoBehaviour
         originalScale = Vector3.one;
         currentScale = transform.localScale;
         currentScaleValue = transform.localScale.x;
+        _pendingScale = currentScaleValue;
         OnScaleInit?.Invoke(currentScaleValue);
     }
 
     public void GrowByJelly()
     {
-        float target = Mathf.Min(currentScaleValue + DataManager.Instance.jellyScaleIncrease, DataManager.Instance.maxScale);
-        QueueScaleChange(ScaleTo(target, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: false));
+        _pendingScale = Mathf.Min(_pendingScale + DataManager.Instance.jellyScaleIncrease, DataManager.Instance.maxScale);
+        QueueScaleChange(ScaleTo(_pendingScale, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: false));
     }
 
     public void GrowByAbsorbing(float absorbedScaleValue)
     {
         float gain = absorbedScaleValue * DataManager.Instance.absorbScalePercent;
-        float target = Mathf.Min(currentScaleValue + gain, DataManager.Instance.maxScale);
-        QueueScaleChange(ScaleTo(target, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
+        _pendingScale = Mathf.Min(_pendingScale + gain, DataManager.Instance.maxScale);
+        QueueScaleChange(ScaleTo(_pendingScale, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
     }
 
     public void GrowByBatHit(float growth)
     {
-        float target = Mathf.Min(currentScaleValue + growth, DataManager.Instance.maxScale);
-        QueueScaleChange(ScaleTo(target, 0.3f, growing: true, playEffect: true));
+        _pendingScale = Mathf.Min(_pendingScale + growth, DataManager.Instance.maxScale);
+        QueueScaleChange(ScaleTo(_pendingScale, 0.3f, growing: true, playEffect: true));
     }
 
     private int GetScaleTier(float scale)
@@ -120,8 +124,8 @@ public class PlayerScaleController : MonoBehaviour
 
     public void DecreaseScale(float decreaseTime)
     {
-        float target = Mathf.Max(currentScaleValue - DataManager.Instance.scaleDecreaseAmount, DataManager.Instance.minScale);
-        QueueScaleChange(ScaleTo(target, decreaseTime, growing: false));
+        _pendingScale = Mathf.Max(_pendingScale - DataManager.Instance.scaleDecreaseAmount, DataManager.Instance.minScale);
+        QueueScaleChange(ScaleTo(_pendingScale, decreaseTime, growing: false));
     }
 
     public void QueueScaleChange(IEnumerator scaleRoutine)
@@ -148,6 +152,7 @@ public class PlayerScaleController : MonoBehaviour
         scaleQueue.Clear();
         isScaling = false;
         currentScaleValue = 1f;
+        _pendingScale = 1f;
         currentScale = originalScale;
         transform.localScale = originalScale;
     }
