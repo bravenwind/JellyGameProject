@@ -101,5 +101,10 @@ public static class GameState
         CurrentRYBColor = RYBColor.white;
         _currentDisplayColor = Color.white;
         DetectRadius = 0f;
+
+        OnPhaseChanged = null;
+        OnScoreChanged = null;
+        OnScaleChanged = null;
+        OnDisplayColorChanged = null;
     }
 }

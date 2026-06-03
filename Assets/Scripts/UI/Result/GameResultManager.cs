@@ -450,15 +450,14 @@ public class GameResultManager : MonoBehaviour
         _overviewCam.Priority = 100;
         SetRankText(finalText);
 
-        if (_brain.IsBlending)
-        {
+        // 블렌딩이 완료될 때까지 대기한 뒤 버튼을 표시한다.
+        // 이전 코드에서는 블렌딩 중일 때 yield return null 1회 후 코루틴이 종료되어
+        // 버튼이 영원히 나타나지 않았다.
+        while (_brain.IsBlending)
             yield return null;
-        }
-        else
-        {
-            buttonRestart.SetActive(true);
-            buttonGameQuit.SetActive(true);
-        }
+
+        if (buttonRestart != null) buttonRestart.SetActive(true);
+        if (buttonGameQuit != null) buttonGameQuit.SetActive(true);
     }
 
     private void DeactivateAllVcams()

@@ -487,6 +487,26 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     }
 
     /// <summary>
+    /// 로컬 플레이어의 슬롯 인덱스를 PlayerList(ActorNumber 오름차순) 내 위치로 계산.
+    /// 모든 클라이언트가 동일한 PlayerList를 공유하므로 각자 고유한 0-based 인덱스를 얻는다.
+    /// ActorNumber-1을 직접 인덱스로 쓰면 입/퇴장 반복으로 번호가 비연속이 되어
+    /// 슬롯 충돌(봇과 겹침)이나 범위 초과가 발생하므로 반드시 정렬 인덱스를 사용한다.
+    /// </summary>
+    private int GetLocalPlayerSlotIndex()
+    {
+        var local = PhotonNetwork.LocalPlayer;
+        if (local == null) return 0;
+
+        var sorted = PhotonNetwork.PlayerList.OrderBy(p => p.ActorNumber).ToArray();
+        for (int i = 0; i < sorted.Length; i++)
+        {
+            if (sorted[i].ActorNumber == local.ActorNumber)
+                return i;
+        }
+        return 0;
+    }
+
+    /// <summary>
     /// 게임 씬이 로드된 후 GameModeManager에서 호출
     /// → 로컬 플레이어 프리팹 생성. ActorNumber로 슬롯 결정.
     /// </summary>
@@ -494,8 +514,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         if (!_slotsPrepared) PrepareSpawnSlots();
 
-        // ActorNumber 기반 고유 슬롯 할당 (1번 플레이어 -> 0번 슬롯)
-        int slotIdx = (PhotonNetwork.LocalPlayer != null) ? PhotonNetwork.LocalPlayer.ActorNumber - 1 : 0;
+        // 슬롯 분배: PlayerList 내 정렬된 인덱스를 사용한다.
+        // ActorNumber-1을 직접 쓰면 입/퇴장이 반복되어 번호가 비연속(예: 1,3,5)이 됐을 때
+        // 슬롯 범위를 벗어나거나 봇 슬롯과 충돌한다.
+        int slotIdx = GetLocalPlayerSlotIndex();
         Vector3 spawnPos = GetSlot(slotIdx);
 
         GameObject player = PhotonNetwork.Instantiate(
@@ -522,13 +544,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         if (!_slotsPrepared) PrepareSpawnSlots();
 
-        // 플레이어들이 사용한 슬롯 다음부터 봇 인덱스 시작
+        // 플레이어들이 슬롯 0..PlayerCount-1을 점유하므로 봇은 그 뒤부터 시작한다.
+        // (SpawnLocalPlayer가 PlayerList 정렬 인덱스로 슬롯을 잡으므로 정확히 PlayerCount개를 점유.
+        //  과거처럼 ActorNumber 최대값을 쓰면 비연속 번호 때문에 슬롯이 건너뛰어져 봇이 멀리 스폰될 수 있다.)
         int botStartIdx = PhotonNetwork.PlayerList.Length;
-        foreach (var p in PhotonNetwork.PlayerList)
-        {
-            if (p.ActorNumber > botStartIdx)
-                botStartIdx = p.ActorNumber;
-        }
 
         // [수정완료] 컴파일 에러를 일으키던 과거의 validPoints 찌꺼기 로직 완전 제거!
         // 깨끗하게 정리된 슬롯 기반 루프로 안전하게 대량 스폰 진행
