@@ -230,7 +230,7 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
             ? nameInputField.text
             : "Jelly";
 
-        if (playerNickname.Length > 10)
+        if (playerNickname.Length > nicknameMaxLength)
         {
             warningText?.SetActive(true);
             startButton.interactable = true;
