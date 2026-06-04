@@ -42,8 +42,14 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         SceneManager.sceneLoaded += OnSceneLoaded;
 
         // 정적 설정값을 인스턴스로 캡처한 뒤 비워둔다 (다음 로딩 진입 시 기본값으로 복귀).
+        // NextSceneName을 못 받은 클라이언트(비마스터)도 룸 권위값(GameState.CurrentGameMode)에서
+        // 올바른 게임 씬을 기본값으로 잡는다. 이렇게 해야 로딩 중 마스터가 끊겨
+        // OnMasterClientSwitched로 새 마스터가 된 비마스터가 잘못된 씬(예: Push인데 Absorb)을
+        // 로드하는 버그를 막을 수 있다.
         _targetScene = string.IsNullOrEmpty(NextSceneName)
-            ? NetworkManager.Instance.gameAbsorbModeSceneName
+            ? (GameState.CurrentGameMode == GameModeType.Push
+                ? NetworkManager.Instance.gamePushModeSceneName
+                : NetworkManager.Instance.gameAbsorbModeSceneName)
             : NextSceneName;
         _allClientsLoad = AllClientsLoad;
         NextSceneName = null;

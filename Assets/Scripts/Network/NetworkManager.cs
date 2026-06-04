@@ -308,7 +308,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // 변경
         botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;
 
-        LoadingSceneController.NextSceneName = SelectedGameMode == GameModeType.Absorb ? gameAbsorbModeSceneName : gamePushModeSceneName;
+        // 씬 결정은 로컬 의도값(SelectedGameMode)이 아니라 룸 권위값(GameState.CurrentGameMode)을 사용한다.
+        // OnJoinedRoom에서 룸 프로퍼티 GM으로부터 채워진 값이라 모든 클라이언트가 동일하게 본다.
+        LoadingSceneController.NextSceneName = GameState.CurrentGameMode == GameModeType.Absorb ? gameAbsorbModeSceneName : gamePushModeSceneName;
 
         PhotonNetwork.LoadLevel(loadingSceneName); // 로딩씬 먼저
     }

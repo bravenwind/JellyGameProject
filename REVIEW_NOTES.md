@@ -55,12 +55,14 @@
 ---
 
 ## 적용 상태
-- [ ] F1  (대기 — 사용자 승인 필요)
-- [ ] F2  (대기 — F1과 함께)
+- [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
+- [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
 - [ ] F3  (대기)
 - [ ] F4  (대기)
 - [ ] F5  (대기)
 
 ## 환경 메모
-- 이 원격 컨테이너에는 `~/.config/gsheet/credentials.json` 와 `gspread` 모듈이 없어
-  `tools/update_sheets.py` 실행 불가 → 이번 루틴은 Google Sheets 자동 기록을 못 함.
+- 원격 컨테이너는 매 세션 새로 클론되므로 `~/.config/gsheet/credentials.json` 와 `gspread`가
+  매번 없어진다. 2026-06-04 루틴에서는 사용자가 credentials를 업로드해주어 수동 설치
+  (`pip install gspread google-auth cffi cryptography`) 후 시트 기록을 정상 수행함.
+- 영구 자동화하려면 환경 SessionStart 훅/시작 스크립트에 위 설치 + credentials 주입을 넣어야 함.
