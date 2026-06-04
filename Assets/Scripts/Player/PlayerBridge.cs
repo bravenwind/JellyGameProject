@@ -142,7 +142,7 @@ public class PlayerBridge : MonoBehaviour
 
         var dm = DataManager.Instance;
         float predictedScale = _scaleCtrl != null
-            ? Mathf.Min(_scaleCtrl.currentScaleValue + dm.jellyScaleIncrease, dm.maxScale)
+            ? _scaleCtrl.PendingScale
             : GameState.PlayerCurrentScale + dm.jellyScaleIncrease;
         GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
         netSync.SyncScore(GameState.CurrentScore);
