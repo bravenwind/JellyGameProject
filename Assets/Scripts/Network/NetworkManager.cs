@@ -61,8 +61,11 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [Tooltip("매칭 타이머")]
     public float noPlayerConnectTimeSeconds = 10.0f;
 
-    [Tooltip("게임 씬 이름")]
+    [Tooltip("게임 씬 이름 (흡수 모드)")]
     public string gameSceneName = "Game_io";
+
+    [Tooltip("게임 씬 이름 (밀치기 모드)")]
+    public string pushGameSceneName = "Game_io_PushMode";
 
     [Tooltip("로딩 씬 이름")]
     public string loadingSceneName = "Loading";
@@ -306,7 +309,13 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         // 변경
         botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;
-        PhotonNetwork.LoadLevel(loadingSceneName); // 로딩씬 먼저
+
+        LoadingSceneController.NextSceneName =
+            (GameState.CurrentGameMode == GameModeType.Push)
+                ? pushGameSceneName
+                : gameSceneName;
+
+        PhotonNetwork.LoadLevel(loadingSceneName);
     }
 
     /// <summary>
