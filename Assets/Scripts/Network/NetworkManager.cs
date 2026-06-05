@@ -61,8 +61,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     [Tooltip("매칭 타이머")]
     public float noPlayerConnectTimeSeconds = 10.0f;
 
-    [Tooltip("게임 씬 이름")]
+    [Tooltip("게임 씬 이름 (흡수 모드)")]
     public string gameAbsorbModeSceneName = "Game_io_AbsorbMode";
+
+    [Tooltip("게임 씬 이름 (밀치기 모드)")]
     public string gamePushModeSceneName = "Game_io_PushMode";
 
     [Tooltip("로딩 씬 이름")]
@@ -308,11 +310,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // 변경
         botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;
 
-        // 씬 결정은 로컬 의도값(SelectedGameMode)이 아니라 룸 권위값(GameState.CurrentGameMode)을 사용한다.
-        // OnJoinedRoom에서 룸 프로퍼티 GM으로부터 채워진 값이라 모든 클라이언트가 동일하게 본다.
-        LoadingSceneController.NextSceneName = GameState.CurrentGameMode == GameModeType.Absorb ? gameAbsorbModeSceneName : gamePushModeSceneName;
+        LoadingSceneController.NextSceneName =
+            (GameState.CurrentGameMode == GameModeType.Push)
+                ? gamePushModeSceneName
+                : gameAbsorbModeSceneName;
 
-        PhotonNetwork.LoadLevel(loadingSceneName); // 로딩씬 먼저
+        PhotonNetwork.LoadLevel(loadingSceneName);
     }
 
     /// <summary>
