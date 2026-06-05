@@ -183,33 +183,45 @@ public class FallingTile : MonoBehaviour
 
         foreach (var col in OverlappedCols)
         {
-            // 나 자신(타일 콜라이더)이 감지되는 것 방지
             if (col == _collider) continue;
 
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
-            if (rb == null) continue;
 
-            // 실제 플레이어는 자체 이동 시스템이 있으므로 건드리지 않음
+            if (rb == null)
+            {
+                AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
+                if (aiBot != null && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
+                {
+                    PhotonView aiPV = aiBot.GetComponent<PhotonView>();
+                    if (aiPV != null && !PhotonNetwork.IsMasterClient) continue;
+
+                    DisableAIOnObject(aiBot.gameObject);
+
+                    CharacterController cc = aiBot.GetComponent<CharacterController>();
+                    if (cc != null) cc.enabled = false;
+
+                    rb = aiBot.gameObject.AddComponent<Rigidbody>();
+                    rb.useGravity = true;
+                    rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+                }
+                else
+                {
+                    continue;
+                }
+            }
+
             if (rb.GetComponent<NetworkPlayerSync>() != null) continue;
 
-            // 네트워크 오브젝트(PhotonView 있음)는 마스터클라이언트만 물리를 활성화한다.
-            // 비마스터에서 로컬 물리를 켜면 PhotonTransformView 위치 동기화와 충돌해
-            // 젤리가 없어진 발판 위에서 떠다니거나 이상하게 움직이는 현상이 발생한다.
-            // 마스터가 물리를 켜서 낙하 → PhotonTransformView가 새 위치를 비마스터에 전파.
             PhotonView netView = rb.GetComponent<PhotonView>();
             if (netView != null && !PhotonNetwork.IsMasterClient) continue;
 
-            // AI 위에 있다면 AI 컴포넌트들을 먼저 꺼서 NavMeshAgent가 물리와 싸우지 않게 함
             DisableAIOnObject(rb.gameObject);
 
             if (rb.isKinematic)
             {
                 rb.isKinematic = false;
                 rb.useGravity = true;
-                // 빠르게 낙하해도 초콜릿 트리거를 통과(tunneling)하지 않도록 연속 충돌 검사
                 rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-
-                // 탕후루 꼬치가 삐딱하게 떨어지는 역동적인 연출
                 rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);
             }
         }

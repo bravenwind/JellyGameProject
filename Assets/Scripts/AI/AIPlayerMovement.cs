@@ -305,6 +305,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         if (!Agent.enabled || !Agent.isOnNavMesh) return;
 
+        if (GameState.CurrentGameMode == GameModeType.Push)
+            CheckGroundBelow();
+
         // 현재 상태 Update (목적지 설정 등)
         _currentState?.Update();
 
@@ -429,6 +432,33 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         destination = transform.position;
         return false;
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // Push 모드: 발 밑 지면 확인 → 없으면 낙하
+    // ─────────────────────────────────────────────────────────
+
+    private void CheckGroundBelow()
+    {
+        if (Time.frameCount % 15 != 0) return;
+        if (IsEliminated || IsBeingAbsorbed) return;
+
+        Vector3 origin = transform.position + Vector3.up * 0.5f;
+        if (Physics.Raycast(origin, Vector3.down, 3f)) return;
+
+        Debug.Log($"[AIBot] {name} 발 밑 지면 없음 → 낙하 전환");
+
+        if (Agent != null) Agent.enabled = false;
+        _currentState?.Exit();
+        _currentState = null;
+
+        CharacterController cc = GetComponent<CharacterController>();
+        if (cc != null) cc.enabled = false;
+
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.useGravity = true;
+        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
     }
 
     // ─────────────────────────────────────────────────────────
