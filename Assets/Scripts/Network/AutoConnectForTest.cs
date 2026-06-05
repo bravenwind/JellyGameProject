@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // AutoConnectForTest.cs
 // ============================================================
 // 역할: 에디터에서 게임 씬을 직접 Play할 때 자동으로 Photon 연결
@@ -14,6 +14,9 @@ public class AutoConnectForTest : MonoBehaviour
     [Tooltip("테스트용 닉네임")]
     public string testPlayerName = "TestPlayer";
 
+    [SerializeField]
+    private GameModeType testGameMode = GameModeType.Push;
+
     private void Start()
     {
         // 이미 방에 있으면 패스 (타이틀 씬에서 정상 흐름으로 들어온 경우)
@@ -24,6 +27,7 @@ public class AutoConnectForTest : MonoBehaviour
         }
 
         Debug.Log("[AutoConnect] 테스트 자동 연결 시작...");
+        GameState.CurrentGameMode = testGameMode;
         NetworkManager.Instance?.StartConnect(testPlayerName);
     }
 }

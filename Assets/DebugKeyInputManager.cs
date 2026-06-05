@@ -3,16 +3,13 @@ using Photon.Pun;
 
 public class DebugKeyInputManager : MonoBehaviour
 {
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
-    }
+    [SerializeField]
+    private KeyCode changeToResultSceneKey = KeyCode.F1;
 
     // Update is called once per frame
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.F1))
+        if (Input.GetKeyDown(changeToResultSceneKey))
         {
             PhotonNetwork.LoadLevel(GameModeManager.RESULT_SCENE_NAME);
         }
