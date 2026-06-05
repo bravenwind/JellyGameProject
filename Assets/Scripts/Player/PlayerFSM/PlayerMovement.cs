@@ -25,6 +25,12 @@ public class PlayerMovement : MonoBehaviour
     public Animator jellyAnimator;
     public UIManager uiManager;
 
+    [Header("Bat (Push Mode)")]
+    [Tooltip("배트 오브젝트의 Transform (플레이어 자식으로 배치)")]
+    public Transform batPivot;
+    [Tooltip("평상시 배트 숨기기")]
+    public bool hideBatWhenIdle = true;
+
     // 상태 클래스들이 접근할 수 있도록 public + HideInInspector 처리
     [HideInInspector] public CharacterController controller;
     [HideInInspector] public Vector3 inputDir;

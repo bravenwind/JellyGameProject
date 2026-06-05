@@ -710,8 +710,39 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     [PunRPC]
     public void RPC_PlayAttack()
     {
-        if (playerController != null && playerController.jellyAnimator != null)
-            playerController.jellyAnimator.SetTrigger("Attack");
+        if (playerController != null)
+        {
+            if (playerController.jellyAnimator != null)
+                playerController.jellyAnimator.SetTrigger("Attack");
+
+            if (playerController.batPivot != null)
+                StartCoroutine(RemoteBatSwing());
+        }
+    }
+
+    private IEnumerator RemoteBatSwing()
+    {
+        var dm = DataManager.Instance;
+        if (dm == null) yield break;
+
+        Transform bat = playerController.batPivot;
+        bat.gameObject.SetActive(true);
+
+        float half = dm.batArcAngle * 0.5f;
+        Quaternion start = Quaternion.Euler(0f, -half, 0f);
+        Quaternion end = Quaternion.Euler(0f, half, 0f);
+
+        float t = 0f;
+        while (t < dm.batSwingDuration)
+        {
+            t += Time.deltaTime;
+            bat.localRotation = Quaternion.Slerp(start, end, t / dm.batSwingDuration);
+            yield return null;
+        }
+
+        bat.localRotation = Quaternion.identity;
+        if (playerController.hideBatWhenIdle)
+            bat.gameObject.SetActive(false);
     }
 
     [PunRPC]
