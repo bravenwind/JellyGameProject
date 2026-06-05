@@ -154,6 +154,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // Update: 원격 플레이어 보간 처리
     // ─────────────────────────────────────────────────────────
     private bool _fellOff = false;
+    private float _fallCheckTimer = 0f;
+    private const float FallCheckGracePeriod = 3f;
 
     private void Update()
     {
@@ -191,7 +193,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void CheckFallOff()
     {
         if (_fellOff || _isAbsorbed) return;
+        if (GameState.CurrentGameMode != GameModeType.Push) return;
         if (GameState.Phase != GamePhase.Playing) return;
+
+        _fallCheckTimer += Time.deltaTime;
+        if (_fallCheckTimer < FallCheckGracePeriod) return;
 
         float threshold = DataManager.Instance != null
             ? DataManager.Instance.fallOffThreshold
@@ -200,6 +206,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (transform.position.y < threshold)
         {
             _fellOff = true;
+            Debug.LogWarning($"[FallOff] 낙사 감지! Y={transform.position.y:F1}, threshold={threshold}");
             SyncEliminated();
             GameModeManager.Instance?.OnPlayerFellOff(this);
         }
