@@ -164,7 +164,10 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             Debug.Log("[NetworkManager] 이미 방에 입장해 있습니다. 씬 전환을 시도합니다.");
             if (PhotonNetwork.IsMasterClient)
             {
-                PhotonNetwork.LoadLevel(gameAbsorbModeSceneName);
+                string sceneName = (GameState.CurrentGameMode == GameModeType.Push)
+                    ? gamePushModeSceneName
+                    : gameAbsorbModeSceneName;
+                PhotonNetwork.LoadLevel(sceneName);
             }
         }
         // 4. 통신 중인 상태 (Connecting, Joining 등)

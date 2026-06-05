@@ -26,8 +26,9 @@ public class AutoConnectForTest : MonoBehaviour
             return;
         }
 
-        Debug.Log("[AutoConnect] 테스트 자동 연결 시작...");
+        Debug.Log($"[AutoConnect] 테스트 자동 연결 시작... 모드={testGameMode}");
         GameState.CurrentGameMode = testGameMode;
+        NetworkManager.SelectedGameMode = testGameMode;
         NetworkManager.Instance?.StartConnect(testPlayerName);
     }
 }
