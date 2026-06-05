@@ -153,17 +153,10 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     // Update: 원격 플레이어 보간 처리
     // ─────────────────────────────────────────────────────────
-    private bool _fellOff = false;
-    private float _fallCheckTimer = 0f;
-    private const float FallCheckGracePeriod = 3f;
-
     private void Update()
     {
         if (photonView.IsMine)
-        {
-            CheckFallOff();
             return;
-        }
         if (_isAbsorbed) return;
 
         // 스케일: CustomProperties에서 읽어 Lerp (권위적 소스)
@@ -187,28 +180,6 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             jellyRenderer.material.SetColor("_BaseColor_01", baseColor);
             jellyRenderer.material.SetColor("_BaseColor_02", baseColor02);
             jellyRenderer.material.SetColor("_FresnelColor", displayColor);
-        }
-    }
-
-    private void CheckFallOff()
-    {
-        if (_fellOff || _isAbsorbed) return;
-        if (GameState.CurrentGameMode != GameModeType.Push) return;
-        if (GameState.Phase != GamePhase.Playing) return;
-
-        _fallCheckTimer += Time.deltaTime;
-        if (_fallCheckTimer < FallCheckGracePeriod) return;
-
-        float threshold = DataManager.Instance != null
-            ? DataManager.Instance.fallOffThreshold
-            : -10f;
-
-        if (transform.position.y < threshold)
-        {
-            _fellOff = true;
-            Debug.LogWarning($"[FallOff] 낙사 감지! Y={transform.position.y:F1}, threshold={threshold}");
-            SyncEliminated();
-            GameModeManager.Instance?.OnPlayerFellOff(this);
         }
     }
 
