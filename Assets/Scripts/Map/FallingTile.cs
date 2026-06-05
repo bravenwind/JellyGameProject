@@ -217,6 +217,9 @@ public class FallingTile : MonoBehaviour
 
             DisableAIOnObject(rb.gameObject);
 
+            CharacterController ccOnRb = rb.GetComponent<CharacterController>();
+            if (ccOnRb != null) ccOnRb.enabled = false;
+
             if (rb.isKinematic)
             {
                 rb.isKinematic = false;

@@ -457,6 +457,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
+        rb.isKinematic = false;
         rb.useGravity = true;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
     }
