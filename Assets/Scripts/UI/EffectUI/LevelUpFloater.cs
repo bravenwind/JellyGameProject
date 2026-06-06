@@ -25,9 +25,23 @@ public class LevelUpFloater : MonoBehaviour
     {
         _parentTf = transform.parent;
         _cam = Camera.main;
+        EnsureTextObject();
+    }
+
+    /// <summary>
+    /// 텍스트 오브젝트를 생성한다. 이미 살아있으면 그대로 둔다.
+    /// 외부 요인으로 파괴된 경우(MissingReference) 재생성하여 안전하게 복구한다.
+    /// 텍스트는 플로터 자신의 자식으로 두어, 플레이어 루트 자식을 정리하는 로직 등에
+    /// 의해 파괴되지 않도록 한다.
+    /// </summary>
+    private void EnsureTextObject()
+    {
+        if (_textTf != null && _tmp != null) return;
+
+        if (_parentTf == null) _parentTf = transform.parent;
 
         var go = new GameObject("LevelUpText");
-        go.transform.SetParent(transform.parent, false);
+        go.transform.SetParent(transform, false);
         _textTf = go.transform;
 
         _tmp = go.AddComponent<TextMeshPro>();
@@ -46,6 +60,10 @@ public class LevelUpFloater : MonoBehaviour
 
     public void Play()
     {
+        // 파괴되었을 수 있으므로 재생성 보장 후 실행
+        EnsureTextObject();
+        if (_textTf == null || _tmp == null) return;
+
         if (_routine != null)
             StopCoroutine(_routine);
         _routine = StartCoroutine(AnimateRoutine());
@@ -53,6 +71,7 @@ public class LevelUpFloater : MonoBehaviour
 
     private IEnumerator AnimateRoutine()
     {
+        if (_textTf == null || _tmp == null) yield break;
         _textTf.gameObject.SetActive(true);
 
         float elapsed = 0f;
@@ -60,6 +79,9 @@ public class LevelUpFloater : MonoBehaviour
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
+
+            // 애니메이션 도중 부모(플레이어)나 텍스트가 파괴되면 즉시 중단
+            if (_textTf == null || _tmp == null) { _routine = null; yield break; }
 
             if (_cam == null) _cam = Camera.main;
 
@@ -96,7 +118,8 @@ public class LevelUpFloater : MonoBehaviour
             yield return null;
         }
 
-        _textTf.gameObject.SetActive(false);
+        if (_textTf != null)
+            _textTf.gameObject.SetActive(false);
         _routine = null;
     }
 
