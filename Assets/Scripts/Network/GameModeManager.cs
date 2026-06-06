@@ -88,11 +88,32 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         SpawnAndStartGame();
     }
 
+    /// <summary>
+    /// 룸 커스텀 프로퍼티에 저장된 게임 모드를 GameState에 복원한다.
+    /// 모든 클라이언트가 동일한 룸 권위값을 읽으므로 호스트/게스트 간 모드 불일치를 막는다.
+    /// </summary>
+    private void RestoreGameModeFromRoom()
+    {
+        if (!PhotonNetwork.InRoom) return;
+        if (PhotonNetwork.CurrentRoom.CustomProperties.TryGetValue(
+                NetworkManager.ROOM_PROP_GAME_MODE, out object modeObj)
+            && System.Enum.TryParse<GameModeType>(modeObj.ToString(), out var mode))
+        {
+            GameState.CurrentGameMode = mode;
+            Debug.Log($"[GameMode] 룸 프로퍼티로부터 게임 모드 복원: {mode}");
+        }
+    }
+
     private void SpawnAndStartGame()
     {
         if (_spawned) return;
         if (GameState.Phase == GamePhase.Playing) return;
         _spawned = true;
+
+        // 게임 씬 진입 시 DataManager.Awake의 GameState.Reset()이 모드를 Absorb로 되돌리므로,
+        // 룸 커스텀 프로퍼티(권위값)로부터 실제 게임 모드를 다시 복원한다.
+        // (이 처리가 없으면 빌드로 접속한 클라이언트는 Push 모드여도 좌클릭 공격이 안 된다.)
+        RestoreGameModeFromRoom();
 
         // 1. 가상 포인트 포함 스폰 슬롯 미리 준비 → 2. 로컬 플레이어 → 3. 봇
         NetworkManager.Instance?.PrepareSpawnSlots();
