@@ -27,7 +27,7 @@ public class AIPushSurviveState : AIBaseState
     public override void Update()
     {
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
-        if (ai.IsDashing) return;
+        if (ai.IsDashing || ai.IsAttacking) return;
 
         _checkTimer += Time.deltaTime;
         if (_checkTimer < CHECK_INTERVAL) return;

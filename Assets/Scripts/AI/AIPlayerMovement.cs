@@ -35,10 +35,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public float baseAgentRadius = 0.5f;
     public float baseAgentHeight = 2.0f;
 
-    [Header("대쉬")]
-    public float dashSpeed = 50f;
-    public float dashDuration = 0.2f;
-    public float dashCooldown = 3f;
+    [Header("Push 모드 (빠따/대쉬)")]
+    public Transform batPivot;
+    public bool hideBatWhenIdle = true;
+    public float dashSpeed = 18f;
+    public float dashDuration = 0.3f;
+    public float dashCooldown = 1.5f;
 
     [Header("이름표")]
     public NameTagBillboard nameTagBillboard;
@@ -81,7 +83,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     private float _dashTimer;
     private float _preDashSpeed;
     private float _attackCooldownTimer;
+    private Coroutine _attackCoroutine;
     public bool IsDashing => _dashTimer > 0f;
+    public bool IsAttacking => _attackCoroutine != null;
 
     private AIPlayerSync _aiSync;
 
@@ -702,67 +706,125 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         if (_anim != null) _anim.SetTrigger("Dash");
         if (PhotonNetwork.InRoom)
-            photonView.RPC(nameof(RPC_PlayDash), RpcTarget.Others);
+            photonView.RPC(nameof(RPC_PlayBotDash), RpcTarget.Others);
         return true;
     }
 
     [PunRPC]
-    private void RPC_PlayDash()
+    private void RPC_PlayBotDash()
     {
         if (_anim != null) _anim.SetTrigger("Dash");
     }
 
     // ─────────────────────────────────────────────────────────
-    // 공격 (Push 모드)
+    // 공격 (Push 모드) — 시각적 빠따 스윙 + 프레임별 히트 판정
     // ─────────────────────────────────────────────────────────
 
-    public bool TryAttack()
+    public void TryAttack()
     {
-        if (_attackCooldownTimer > 0f) return false;
+        if (IsAttacking || _attackCooldownTimer > 0f) return;
+
+        var dm = DataManager.Instance;
+        if (dm == null) return;
+
+        _attackCooldownTimer = dm.batCooldown;
+        _attackCoroutine = StartCoroutine(AttackSwingRoutine());
+
+        if (_anim != null) _anim.SetTrigger("Attack");
+        if (PhotonNetwork.InRoom)
+            photonView.RPC(nameof(RPC_PlayBotAttack), RpcTarget.Others);
+    }
+
+    private IEnumerator AttackSwingRoutine()
+    {
+        var dm = DataManager.Instance;
+        if (dm == null) { _attackCoroutine = null; yield break; }
+
+        float halfArc = dm.batArcAngle * 0.5f;
+        Quaternion swingStart = Quaternion.Euler(0f, -halfArc, 0f);
+        Quaternion swingEnd = Quaternion.Euler(0f, halfArc, 0f);
+
+        if (batPivot != null)
+        {
+            batPivot.gameObject.SetActive(true);
+            batPivot.localRotation = swingStart;
+        }
+
+        bool hitDetected = false;
+        float elapsed = 0f;
+
+        while (elapsed < dm.batSwingDuration)
+        {
+            elapsed += Time.deltaTime;
+            float t = Mathf.Clamp01(elapsed / dm.batSwingDuration);
+
+            if (batPivot != null)
+                batPivot.localRotation = Quaternion.Slerp(swingStart, swingEnd, t);
+
+            if (!hitDetected)
+                hitDetected = DetectBatHit();
+
+            yield return null;
+        }
+
+        if (batPivot != null)
+        {
+            batPivot.localRotation = Quaternion.identity;
+            if (hideBatWhenIdle)
+                batPivot.gameObject.SetActive(false);
+        }
+
+        _attackCoroutine = null;
+    }
+
+    private bool DetectBatHit()
+    {
         if (!PhotonNetwork.IsMasterClient) return false;
-        if (IsEliminated || IsBeingAbsorbed) return false;
-        if (GameState.CurrentGameMode != GameModeType.Push) return false;
 
         var dm = DataManager.Instance;
         if (dm == null) return false;
 
         float scale = transform.localScale.x;
         float range = dm.batRange * scale;
-        float arcAngle = dm.batArcAngle;
-        float pushForce = dm.batPushForce * (scale / dm.startingScale);
+        Vector3 origin = transform.position + Vector3.up * (baseAgentHeight * 0.5f * scale);
+        float halfArc = dm.batArcAngle * 0.5f;
 
-        Vector3 center = transform.position + Vector3.up * scale;
         int mask = LayerMask.GetMask("Player") | LayerMask.GetMask("Edible");
-        Collider[] hits = Physics.OverlapSphere(center, range, mask);
+        Collider[] hits = Physics.OverlapSphere(origin, range, mask);
 
         foreach (var hit in hits)
         {
             if (hit.transform.root == transform.root) continue;
 
-            Vector3 dirToTarget = hit.transform.position - transform.position;
-            dirToTarget.y = 0;
-            if (dirToTarget.sqrMagnitude < 0.01f) continue;
+            Vector3 toTarget = hit.transform.position - transform.position;
+            toTarget.y = 0f;
+            if (toTarget.sqrMagnitude < 0.001f) continue;
 
-            float angle = Vector3.Angle(transform.forward, dirToTarget);
-            if (angle > arcAngle * 0.5f) continue;
+            float angle = Vector3.Angle(transform.forward, toTarget);
+            if (angle > halfArc) continue;
 
-            Vector3 pushDir = dirToTarget.normalized;
+            Vector3 pushDir = toTarget.normalized;
+            float pushForce = dm.batPushForce * (scale / dm.startingScale);
 
-            NetworkPlayerSync playerSync = hit.GetComponentInParent<NetworkPlayerSync>();
-            if (playerSync != null && playerSync.photonView.Owner != null)
+            NetworkPlayerSync otherPlayer = hit.GetComponentInParent<NetworkPlayerSync>();
+            if (otherPlayer != null)
             {
-                playerSync.photonView.RPC(nameof(NetworkPlayerSync.RPC_ApplyKnockback),
-                    playerSync.photonView.Owner, pushDir.x, pushDir.z, pushForce);
-                ApplyAttackReward(dm, scale);
+                otherPlayer.photonView.RPC(nameof(NetworkPlayerSync.RPC_ApplyKnockback),
+                    otherPlayer.photonView.Owner, pushDir.x, pushDir.z, pushForce);
+
+                float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
+                ScaleCtrl?.GrowByBatHit(growth);
                 return true;
             }
 
-            AIPlayerMovement otherBot = hit.GetComponentInParent<AIPlayerMovement>();
-            if (otherBot != null && otherBot != this && !otherBot.IsEliminated && !otherBot.IsBeingAbsorbed)
+            AIPlayerMovement aiBot = hit.GetComponentInParent<AIPlayerMovement>();
+            if (aiBot != null && aiBot != this && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
             {
-                otherBot.photonView.RPC(nameof(RPC_ApplyKnockback), RpcTarget.All,
+                aiBot.photonView.RPC(nameof(RPC_ApplyKnockback), RpcTarget.All,
                     pushDir.x, pushDir.z, pushForce);
-                ApplyAttackReward(dm, scale);
+
+                float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
+                ScaleCtrl?.GrowByBatHit(growth);
                 return true;
             }
         }
@@ -770,20 +832,36 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         return false;
     }
 
-    private void ApplyAttackReward(DataManager dm, float scale)
+    [PunRPC]
+    private void RPC_PlayBotAttack()
     {
-        _attackCooldownTimer = dm.batCooldown;
-        float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
-        if (ScaleCtrl != null) ScaleCtrl.GrowByBatHit(growth);
         if (_anim != null) _anim.SetTrigger("Attack");
-        if (PhotonNetwork.InRoom)
-            photonView.RPC(nameof(RPC_PlayAttack), RpcTarget.Others);
+        if (batPivot != null)
+            StartCoroutine(RemoteBatSwing());
     }
 
-    [PunRPC]
-    private void RPC_PlayAttack()
+    private IEnumerator RemoteBatSwing()
     {
-        if (_anim != null) _anim.SetTrigger("Attack");
+        var dm = DataManager.Instance;
+        if (dm == null) yield break;
+
+        float half = dm.batArcAngle * 0.5f;
+        Quaternion start = Quaternion.Euler(0f, -half, 0f);
+        Quaternion end = Quaternion.Euler(0f, half, 0f);
+
+        batPivot.gameObject.SetActive(true);
+
+        float t = 0f;
+        while (t < dm.batSwingDuration)
+        {
+            t += Time.deltaTime;
+            batPivot.localRotation = Quaternion.Slerp(start, end, t / dm.batSwingDuration);
+            yield return null;
+        }
+
+        batPivot.localRotation = Quaternion.identity;
+        if (hideBatWhenIdle)
+            batPivot.gameObject.SetActive(false);
     }
 
     // ─────────────────────────────────────────────────────────
