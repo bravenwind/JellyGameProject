@@ -314,6 +314,81 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
         }
     }
 
+    // ── 매칭 취소 ─────────────────────────────────────────────
+
+    /// <summary>
+    /// 매칭 중 취소 버튼을 눌렀을 때 호출. 네트워크 연결/방 입장을 정리하고
+    /// 매칭 UI를 닫은 뒤 모드 선택 화면으로 깔끔하게 되돌린다.
+    /// 카운트다운이 시작된 뒤에 눌러도 안전하게 동작한다.
+    /// </summary>
+    public void OnCancelMatchingClicked()
+    {
+        // 1. 네트워크 매칭 취소 (연결 중 / 로비 / 방 입장 모든 단계 처리)
+        NetworkManager.Instance?.CancelMatching();
+
+        // 2. 진행 중인 연출 코루틴 정지
+        if (_fakeCounterCoroutine != null)
+        {
+            StopCoroutine(_fakeCounterCoroutine);
+            _fakeCounterCoroutine = null;
+        }
+        if (_matchingTextCoroutine != null)
+        {
+            StopCoroutine(_matchingTextCoroutine);
+            _matchingTextCoroutine = null;
+        }
+
+        // 3. 내부 상태 초기화
+        _countdownStarted = false;
+        _displayedCount = 0;
+
+        // 4. 카운트다운 / 게임 시작 텍스트 정리
+        if (countdownText != null)
+        {
+            countdownText.transform.DOKill();
+            countdownText.transform.localScale = Vector3.one;
+            countdownText.gameObject.SetActive(false);
+        }
+        if (gameStartText != null)
+        {
+            gameStartText.transform.DOKill();
+            gameStartText.transform.localScale = Vector3.one;
+            gameStartText.gameObject.SetActive(false);
+        }
+
+        // 5. 매칭 상태 텍스트 위치/내용 복원
+        if (matchingStatusText != null)
+        {
+            matchingStatusText.rectTransform.DOKill();
+            matchingStatusText.rectTransform.anchoredPosition = _matchingStatusOriginPos;
+            matchingStatusText.text = "매칭 중...";
+        }
+
+        // 6. 인원 표시 초기화
+        UpdatePlayerCountUI();
+
+        // 7. 매칭 패널 닫기
+        if (matchingPanel != null)
+        {
+            matchingPanel.transform.DOKill();
+            matchingPanel.DOScale(Vector3.zero, 0.25f)
+                .SetEase(Ease.InBack)
+                .SetUpdate(true)
+                .OnComplete(() => matchingPanel.gameObject.SetActive(false));
+        }
+
+        // 8. 모드 선택 화면 복귀 + 시작 버튼 복원
+        if (buttonSelectionPanel != null)
+            buttonSelectionPanel.SetActive(true);
+        if (inputPanel != null)
+        {
+            inputPanel.DOKill();
+            inputPanel.DOAnchorPos(_inputPanelOriginPos, 0.3f).SetEase(slideEase).SetUpdate(true);
+        }
+        if (startButton != null)
+            startButton.interactable = true;
+    }
+
     // ── 실제 인원 변경 이벤트 ─────────────────────────────────
 
     public void UpdatePlayerCount(int realCount)
