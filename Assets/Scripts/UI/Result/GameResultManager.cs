@@ -151,15 +151,10 @@ public class GameResultManager : MonoBehaviour
             return entries;
         }
 
-        foreach (Player p in PhotonNetwork.PlayerList)
-        {
-            if (p.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
-                continue;
-            float scale = ReadFloat(p.CustomProperties, "Scale", defaultScale);
-            Color color = ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
-            entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false, color = color });
-        }
+        // 살아있는(탈락하지 않은) 플레이어
+        AddPlayerEntries(entries, defaultScale, skipEliminated: true);
 
+        // 봇 (룸 프로퍼티 기반; 탈락 봇은 프로퍼티가 정리되어 자동 제외)
         var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
         foreach (var key in roomProps.Keys)
         {
@@ -175,7 +170,25 @@ public class GameResultManager : MonoBehaviour
             entries.Add(new Entry { name = nameVal.ToString(), scale = scale, isBot = true, color = color });
         }
 
+        // 폴백: 동시 탈락 등으로 표시할 엔트리가 하나도 없으면, 탈락 여부와 무관하게
+        // 플레이어를 다시 수집해 결과 씬이 빈 화면(UI만)으로 남지 않도록 한다.
+        if (entries.Count == 0)
+            AddPlayerEntries(entries, defaultScale, skipEliminated: false);
+
         return entries.OrderByDescending(e => e.scale).Take(3).ToList();
+    }
+
+    private void AddPlayerEntries(List<Entry> entries, float defaultScale, bool skipEliminated)
+    {
+        foreach (Player p in PhotonNetwork.PlayerList)
+        {
+            if (skipEliminated
+                && p.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
+                continue;
+            float scale = ReadFloat(p.CustomProperties, "Scale", defaultScale);
+            Color color = ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
+            entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false, color = color });
+        }
     }
 
     private static float ReadFloat(ExitGames.Client.Photon.Hashtable props, string key, float fallback)
