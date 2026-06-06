@@ -164,6 +164,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         FleeState   = new AIFleeState(this);
         PushSurviveState = new AIPushSurviveState(this);
 
+        // 배트는 Push 모드에서만 활성화 (마스터/비마스터 공통)
+        ApplyBatModeVisibility();
+
         if (!PhotonNetwork.IsMasterClient)
         {
             // 비마스터에서 봇의 로컬 흡수 처리 비활성화
@@ -720,8 +723,20 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     // 공격 (Push 모드) — 시각적 빠따 스윙 + 프레임별 히트 판정
     // ─────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// 배트(빠따)는 Push 모드에서만 활성화한다. 그 외 모드에서는 완전히 숨긴다.
+    /// Push 모드에서도 hideBatWhenIdle이면 평상시 숨겨두고 공격 스윙 때만 표시한다.
+    /// </summary>
+    private void ApplyBatModeVisibility()
+    {
+        if (batPivot == null) return;
+        bool pushMode = GameState.CurrentGameMode == GameModeType.Push;
+        batPivot.gameObject.SetActive(pushMode && !hideBatWhenIdle);
+    }
+
     public void TryAttack()
     {
+        if (GameState.CurrentGameMode != GameModeType.Push) return;
         if (IsAttacking || _attackCooldownTimer > 0f) return;
 
         var dm = DataManager.Instance;

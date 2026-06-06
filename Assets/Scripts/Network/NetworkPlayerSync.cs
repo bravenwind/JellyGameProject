@@ -82,6 +82,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             SetupRemotePlayer();
         }
 
+        // 배트는 Push 모드에서만 활성화 (로컬/원격 공통)
+        ApplyBatModeVisibility();
+
         // 이름표 설정
         if (nameTagBillboard != null)
         {
@@ -119,6 +122,17 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void OnLocalScaleChanged(float newScale)
     {
         SyncScale();
+    }
+
+    /// <summary>
+    /// 배트(빠따)는 Push 모드에서만 활성화한다. 그 외 모드에서는 완전히 숨긴다.
+    /// Push 모드에서도 hideBatWhenIdle이면 평상시 숨겨두고 공격 스윙 때만 표시한다.
+    /// </summary>
+    private void ApplyBatModeVisibility()
+    {
+        if (playerController == null || playerController.batPivot == null) return;
+        bool pushMode = GameState.CurrentGameMode == GameModeType.Push;
+        playerController.batPivot.gameObject.SetActive(pushMode && !playerController.hideBatWhenIdle);
     }
 
     private void OnDestroy()
