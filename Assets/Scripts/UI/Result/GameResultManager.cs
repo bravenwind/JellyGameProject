@@ -243,6 +243,23 @@ public class GameResultManager : MonoBehaviour
             GameObject prefab = entry.isBot && botJellyPrefab != null ? botJellyPrefab : playerJellyPrefab;
             if (prefab == null) continue;
 
+            if (GameState.CurrentGameMode == GameModeType.Absorb)
+            {
+                PlayerMovement playerMovement = prefab.GetComponent<PlayerMovement>();
+
+                if (playerMovement != null)
+                {
+                    playerMovement.batPivot.gameObject.SetActive(false);
+                }
+
+                AIPlayerMovement aiPlayerMovement = prefab.GetComponent<AIPlayerMovement>();
+
+                if (aiPlayerMovement != null)
+                {
+                    aiPlayerMovement.batPivot.gameObject.SetActive(false);
+                }
+            }
+
             // 여기서 pos는 X, Z 위치만 중요해지고, Y는 바닥 보정에 쓰임
             GameObject go = InstantiateDisplayOnly(prefab, positions[i], Quaternion.identity);
             go.transform.Rotate(new Vector3(0, 180, 0)); // 카메라 정면을 보도록 180도 회전
@@ -482,6 +499,11 @@ public class GameResultManager : MonoBehaviour
 
     private string GetRankString(int rank)
     {
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            firstPlaceText = "우승!";
+        }
+
         switch (rank)
         {
             case 1: return firstPlaceText;
