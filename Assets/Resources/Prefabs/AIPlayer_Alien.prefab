@@ -6792,6 +6792,8 @@ MonoBehaviour:
   stateEvalRate: 0.4
   baseAgentRadius: 0.77
   baseAgentHeight: 1.51
+  batPivot: {fileID: 5842226387178783975}
+  hideBatWhenIdle: 1
   dashSpeed: 50
   dashDuration: 0.2
   dashCooldown: 3
@@ -6940,6 +6942,12 @@ MonoBehaviour:
   - Type: 9
     SynchronizeType: 0
     Name: GameFail
+  - Type: 9
+    SynchronizeType: 0
+    Name: Attack
+  - Type: 9
+    SynchronizeType: 0
+    Name: Dash
   m_SynchronizeLayers:
   - SynchronizeType: 0
     LayerIndex: 0

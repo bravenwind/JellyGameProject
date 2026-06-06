@@ -179,7 +179,7 @@ MonoBehaviour:
   stateEvalRate: 0.4
   baseAgentRadius: 0.77
   baseAgentHeight: 1.51
-  batPivot: {fileID: 0}
+  batPivot: {fileID: 5781355599537278488}
   hideBatWhenIdle: 1
   dashSpeed: 50
   dashDuration: 0.2

@@ -1,12 +1,4 @@
-﻿// ============================================================
-// AutoConnectForTest.cs
-// ============================================================
-// 역할: 에디터에서 게임 씬을 직접 Play할 때 자동으로 Photon 연결
-//       타이틀 씬 없이 바로 테스트할 때만 사용
-//       실제 빌드/배포 시에는 이 컴포넌트 비활성화 또는 제거
-// ============================================================
-
-using UnityEngine;
+﻿using UnityEngine;
 using Photon.Pun;
 
 [DefaultExecutionOrder(-10)]
@@ -20,6 +12,8 @@ public class AutoConnectForTest : MonoBehaviour
 
     private void Start()
     {
+        // 빌드 시에는 Start 내부 로직만 텅 비게 됨
+#if UNITY_EDITOR
         // 이미 방에 있으면 패스 (타이틀 씬에서 정상 흐름으로 들어온 경우)
         if (PhotonNetwork.InRoom)
         {
@@ -31,5 +25,6 @@ public class AutoConnectForTest : MonoBehaviour
         GameState.CurrentGameMode = testGameMode;
         NetworkManager.SelectedGameMode = testGameMode;
         NetworkManager.Instance?.StartConnect(testPlayerName);
+#endif
     }
 }
