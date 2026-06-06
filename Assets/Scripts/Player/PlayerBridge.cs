@@ -79,7 +79,7 @@ public class PlayerBridge : MonoBehaviour
         if (playEffect)
         {
             if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
-            UIPoolManager.Instance?.SpawnUI(UIType.ScaleIncrease);
+            LevelUpFloater.Spawn(transform);
         }
     }
 
