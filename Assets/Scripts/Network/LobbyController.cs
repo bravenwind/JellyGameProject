@@ -207,7 +207,6 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     public override void OnDisconnected(DisconnectCause cause)
     {
         _countdownStarted = false;
-        startButton.interactable = true;
 
         if (matchingPanel != null)
         {
@@ -224,8 +223,6 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
     private void OnStartButtonClicked()
     {
-        startButton.interactable = false;
-
         playerNickname = nameInputField != null && !string.IsNullOrEmpty(nameInputField.text)
             ? nameInputField.text
             : "Jelly";
@@ -233,7 +230,6 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
         if (playerNickname.Length > nicknameMaxLength)
         {
             warningText?.SetActive(true);
-            startButton.interactable = true;
             return;
         }
         else
@@ -245,11 +241,13 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
     public void OnClickPushMode()
     {
+        startButton.interactable = false;
         NetworkManager.SelectedGameMode = GameModeType.Push;
         PlayAnimation(playerNickname);
     }
     public void OnClickAbsorbMode()
     {
+        startButton.interactable = false;
         NetworkManager.SelectedGameMode = GameModeType.Absorb;
         PlayAnimation(playerNickname);
     }
