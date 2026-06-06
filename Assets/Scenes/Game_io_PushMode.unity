@@ -91920,12 +91920,13 @@ MonoBehaviour:
   batSwingDuration: 0.35
   batRange: 2
   batPushForce: 50
-  batHitGrowth: 0.08
+  batHitGrowth: 0.5
   batArcAngle: 120
   fallOffThreshold: -10
   stepTileCollapseDelay: 2
   stepTileWarningDuration: 1.5
   stepTileStepsToCollapse: 3
+  stepTileIdleWearSeconds: 2
   scaleIncreaseDuration: 1.5
   scaleDecreaseDuration: 2
   scaleChangedPlusSize: 7
