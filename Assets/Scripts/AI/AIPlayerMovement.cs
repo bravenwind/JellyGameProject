@@ -66,6 +66,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public AIWanderState WanderState { get; private set; }
     public AIChaseState  ChaseState  { get; private set; }
     public AIFleeState   FleeState   { get; private set; }
+    public AIPushSurviveState PushSurviveState { get; private set; }
 
     private float _lastUrgentThreatCheck;
     public bool IsBeingAbsorbed { get; set; } = false;
@@ -146,6 +147,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         WanderState = new AIWanderState(this);
         ChaseState  = new AIChaseState(this);
         FleeState   = new AIFleeState(this);
+        PushSurviveState = new AIPushSurviveState(this);
 
         if (!PhotonNetwork.IsMasterClient)
         {
@@ -239,7 +241,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         Agent.avoidancePriority = Random.Range(20, 80);
 
         // 첫 상태 진입
-        ChangeState(WanderState);
+        if (GameState.CurrentGameMode == GameModeType.Push)
+            ChangeState(PushSurviveState);
+        else
+            ChangeState(WanderState);
         StartCoroutine(StateEvalLoop());
     }
 
@@ -269,6 +274,13 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
             if (!Agent.enabled || !Agent.isOnNavMesh) continue;
 
+            if (GameState.CurrentGameMode == GameModeType.Push)
+            {
+                if (FindThreat() != null) { ChangeState(FleeState); continue; }
+                ChangeState(PushSurviveState);
+                continue;
+            }
+
             // 위험 타일 위면 다른 판단보다 우선적으로 안전한 곳으로 도망
             var collapse = TileCollapseManager.Instance;
             if (collapse != null && collapse.IsPositionDangerous(transform.position))
@@ -286,8 +298,14 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     /// <summary>현재 상황을 평가하여 적절한 상태로 전환</summary>
     public void EvaluateAndTransition()
     {
-        // 우선순위: Flee > Chase > Wander
         if (FindThreat() != null) { ChangeState(FleeState); return; }
+
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            ChangeState(PushSurviveState);
+            return;
+        }
+
         if (FindTargetToChase() != null) { ChangeState(ChaseState); return; }
         ChangeState(WanderState);
     }
@@ -331,7 +349,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         // 플레이어의 finalMove = inputDir * moveSpeed; 공식과 완벽 동기화
         // NavMeshAgent가 직접 움직이는 속도를 제어하기 위해 agent.velocity를 강제 세팅하거나 수동 이동
-        Agent.velocity = wishDir * moveSpeed;
+        Agent.velocity = wishDir * Agent.speed;
 
         // 회전 공식도 플레이어와 완벽히 일치 (wishDir 기반으로 변경)
         if (wishDir.sqrMagnitude > 0.001f)

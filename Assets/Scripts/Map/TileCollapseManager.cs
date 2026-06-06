@@ -266,8 +266,60 @@ public class TileCollapseManager : MonoBehaviour
 
         if (x < 0 || x >= _width || z < 0 || z >= _height) return true;
 
+        if (GameState.CurrentGameMode == GameModeType.Push)
+            return _tiles[x, z] == null;
+
         int ring = GetRing(x, z);
         return ring <= _lastShakenRing;
+    }
+
+    public bool FindNearestSafeTile(Vector3 worldPos, out Vector3 safePos)
+    {
+        safePos = Vector3.zero;
+        if (_stepX == 0f || _stepZ == 0f) return false;
+
+        int cx = Mathf.Clamp(Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX), 0, _width - 1);
+        int cz = Mathf.Clamp(Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ), 0, _height - 1);
+
+        int maxRadius = Mathf.Max(_width, _height);
+        for (int r = 1; r <= maxRadius; r++)
+        {
+            float bestDist = float.MaxValue;
+            bool found = false;
+
+            for (int dx = -r; dx <= r; dx++)
+            {
+                for (int dz = -r; dz <= r; dz++)
+                {
+                    if (Mathf.Abs(dx) != r && Mathf.Abs(dz) != r) continue;
+
+                    int tx = cx + dx;
+                    int tz = cz + dz;
+                    if (tx < 0 || tx >= _width || tz < 0 || tz >= _height) continue;
+                    if (_tiles[tx, tz] == null) continue;
+
+                    Vector3 tilePos = _gridOrigin + new Vector3(tx * _stepX, 0f, tz * _stepZ);
+                    float dist = (tilePos - worldPos).sqrMagnitude;
+                    if (dist < bestDist)
+                    {
+                        bestDist = dist;
+                        safePos = tilePos;
+                        found = true;
+                    }
+                }
+            }
+            if (found) return true;
+        }
+        return false;
+    }
+
+    public int CountSafeTiles()
+    {
+        int count = 0;
+        for (int x = 0; x < _width; x++)
+            for (int z = 0; z < _height; z++)
+                if (_tiles[x, z] != null) count++;
+        return count;
     }
 
     /// <summary>
