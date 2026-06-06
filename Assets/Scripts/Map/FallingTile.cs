@@ -247,9 +247,6 @@ public class FallingTile : MonoBehaviour
 
         var wandering = obj.GetComponent<WanderingAI>();
         if (wandering != null) wandering.enabled = false;
-
-        var aiPlayer = obj.GetComponent<AIPlayerMovement>();
-        if (aiPlayer != null) aiPlayer.enabled = false;
     }
 
     // ─────────────────────────────────────────────────────────
