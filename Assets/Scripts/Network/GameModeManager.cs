@@ -214,7 +214,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             centerCountdownText.text = gameEndText;
             // 게임 종료 텍스트는 사라지지 않고 화면에 유지
-            centerCountdownText.transform.localScale = Vector3.one * 2f;
+            centerCountdownText.transform.localScale = Vector3.one * 1.5f;
             Color c = centerCountdownText.color;
             c.a = 1f;
             centerCountdownText.color = c;
@@ -640,7 +640,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             centerCountdownText.gameObject.SetActive(true);
             centerCountdownText.text = gameEndText;
-            centerCountdownText.transform.localScale = Vector3.one * 2f;
+            centerCountdownText.transform.localScale = Vector3.one * 1.5f;
             Color c = centerCountdownText.color;
             c.a = 1f;
             centerCountdownText.color = c;
