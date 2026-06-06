@@ -106,8 +106,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     private void SpawnAndStartGame()
     {
+        // 중복 스폰 방지는 _spawned(씬마다 Awake에서 리셋)로만 한다.
+        // 주의: 예전엔 GameState.Phase == Playing 가드가 있었으나, 비동기 씬 로드 직후
+        // 마스터의 RPC_StartGame(Phase=Playing)이 이 클라이언트의 SpawnAndStartGame보다
+        // 먼저 처리되면 SpawnLocalPlayer가 통째로 스킵되어, 해당 플레이어가 네트워크에
+        // 인스턴스화되지 않고 다른 클라이언트에게 보이지 않게 되는 레이스가 있었다. (제거)
         if (_spawned) return;
-        if (GameState.Phase == GamePhase.Playing) return;
         _spawned = true;
 
         // 게임 씬 진입 시 DataManager.Awake의 GameState.Reset()이 모드를 Absorb로 되돌리므로,
