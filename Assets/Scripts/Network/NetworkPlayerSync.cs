@@ -106,6 +106,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
         GameModeManager.Instance?.RegisterLocalPlayer(this);
 
+        // 이전 게임의 stale 탈락 플래그 제거 (리더보드 누락 / 라스트맨 조기 종료 방지)
+        ClearEliminatedFlag();
+
         foreach (var uiFollow in FindObjectsByType<UIFollowTarget>(FindObjectsSortMode.None))
         {
             uiFollow.SetTarget(transform);
@@ -278,6 +281,21 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
         {
             { "Eliminated", true }
+        };
+        PhotonNetwork.LocalPlayer.SetCustomProperties(props);
+    }
+
+    /// <summary>
+    /// 탈락 상태 플래그를 해제(false)한다. 게임 스폰 / 리스폰 시 호출해
+    /// 이전 게임의 stale "Eliminated"=true가 남아 리더보드에서 빠지거나
+    /// 생존자 카운트에서 누락(라스트 맨 스탠딩 조기 종료)되는 것을 막는다.
+    /// </summary>
+    public void ClearEliminatedFlag()
+    {
+        if (!photonView.IsMine) return;
+        ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
+        {
+            { "Eliminated", false }
         };
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
     }
@@ -547,6 +565,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     {
         _isAbsorbed = false;
         _absorbedBotIds.Clear();
+
+        // 리스폰 시 탈락 플래그 해제 (리더보드에서 다시 보이도록 + 생존자 카운트 복구)
+        ClearEliminatedFlag();
 
         // 스폰 포인트 중 랜덤 위치로 이동
         if (NetworkManager.Instance?.spawnPoints?.Length > 0)

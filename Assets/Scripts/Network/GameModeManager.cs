@@ -537,15 +537,30 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         _leaderboardPool.ReturnAll(_leaderboardEntries);
 
         int displayCount = Mathf.Min(entries.Count, 5);
+
+        // 로컬 플레이어가 상위 displayCount 밖에 있으면 마지막 칸을 본인 행으로 대체해
+        // 자신의 이름/순위가 항상 보이도록 한다. (탈락 상태면 entries에 없으니 표시 안 됨)
+        int localRank = -1;
+        for (int i = 0; i < entries.Count; i++)
+        {
+            if (!entries[i].isBot && entries[i].name == PhotonNetwork.NickName)
+            {
+                localRank = i;
+                break;
+            }
+        }
+        bool localOutside = localRank >= displayCount;
+
         for (int i = 0; i < displayCount; i++)
         {
-            var (name, score, scale, isBot) = entries[i];
+            int srcIndex = (localOutside && i == displayCount - 1) ? localRank : i;
+            var (name, score, scale, isBot) = entries[srcIndex];
             LeaderboardEntry entryComp = _leaderboardPool.Get();
             entryComp.transform.SetAsLastSibling();
             _leaderboardEntries.Add(entryComp);
 
             bool isMe = !isBot && name == PhotonNetwork.NickName;
-            entryComp.Setup(i + 1, name, score, isMe);
+            entryComp.Setup(srcIndex + 1, name, score, isMe);
         }
     }
 
@@ -578,6 +593,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private void CheckLastSurvivor()
     {
         if (!_gameRunning || !PhotonNetwork.IsMasterClient) return;
+
+        // 게임 시작 직후엔 봇 등록 및 "Eliminated"=false 프로퍼티 전파가 끝나지 않아
+        // 생존자 수가 과소 집계되어 게임이 조기 종료될 수 있으므로 잠깐 유예한다.
+        if (_gameTimer < 3f) return;
 
         int aliveCount = 0;
 
