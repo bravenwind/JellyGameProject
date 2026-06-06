@@ -332,6 +332,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
 
+        if (GameState.CurrentGameMode == GameModeType.Push)
+            CheckGroundBelow();
+
         if (!Agent.enabled || !Agent.isOnNavMesh) return;
 
         if (_dashCooldownTimer > 0f) _dashCooldownTimer -= Time.deltaTime;
@@ -342,9 +345,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             if (_dashTimer <= 0f)
                 Agent.speed = _preDashSpeed;
         }
-
-        if (GameState.CurrentGameMode == GameModeType.Push)
-            CheckGroundBelow();
 
         // 현재 상태 Update (목적지 설정 등)
         _currentState?.Update();
@@ -476,22 +476,17 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     // Push 모드: 발 밑 지면 확인 → 없으면 낙하
     // ─────────────────────────────────────────────────────────
 
-    private void CheckGroundBelow()
+    private void CheckGroundBelow(bool immediate = false)
     {
-        if (Time.frameCount % 15 != 0) return;
+        if (!immediate && Time.frameCount % 15 != 0) return;
         if (IsEliminated || IsBeingAbsorbed) return;
 
         Vector3 origin = transform.position + Vector3.up * 0.5f;
         if (Physics.Raycast(origin, Vector3.down, 3f)) return;
 
-        Debug.Log($"[AIBot] {name} 발 밑 지면 없음 → 낙하 전환");
-
         if (Agent != null) Agent.enabled = false;
         _currentState?.Exit();
         _currentState = null;
-
-        CharacterController cc = GetComponent<CharacterController>();
-        if (cc != null) cc.enabled = false;
 
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb == null) rb = gameObject.AddComponent<Rigidbody>();
@@ -827,28 +822,32 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         float elapsed = 0f;
         const float duration = 0.4f;
-        CharacterController cc = GetComponent<CharacterController>();
 
         while (elapsed < duration)
         {
+            if (IsEliminated || IsBeingAbsorbed) break;
             float t = elapsed / duration;
             Vector3 move = Vector3.Lerp(dir * force, Vector3.zero, t);
-            if (cc != null && cc.enabled)
-                cc.Move(move * Time.deltaTime);
-            else
-                transform.position += move * Time.deltaTime;
+            transform.position += move * Time.deltaTime;
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        if (Agent != null && !IsEliminated && !IsBeingAbsorbed)
-        {
-            Agent.enabled = true;
-            if (Agent.isOnNavMesh)
-                Agent.Warp(transform.position);
-        }
-
         _knockbackCoroutine = null;
+
+        if (IsEliminated || IsBeingAbsorbed) yield break;
+        if (Agent == null) yield break;
+
+        Agent.enabled = true;
+        if (Agent.isOnNavMesh)
+        {
+            Agent.Warp(transform.position);
+        }
+        else
+        {
+            Agent.enabled = false;
+            CheckGroundBelow(true);
+        }
     }
 
     // ─────────────────────────────────────────────────────────
