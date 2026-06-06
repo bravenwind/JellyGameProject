@@ -6,6 +6,7 @@ public class PlayerBridge : MonoBehaviour
     private PlayerColorVisual _colorVisual;
     private PlayerAbsorber _absorber;
     private PlayerMovement _playerController;
+    private LevelUpFloater _levelUpFloater;
 
     private void Awake()
     {
@@ -13,6 +14,14 @@ public class PlayerBridge : MonoBehaviour
         _colorVisual = GetComponentInChildren<PlayerColorVisual>();
         _absorber = GetComponentInChildren<PlayerAbsorber>();
         _playerController = GetComponentInChildren<PlayerMovement>();
+
+        _levelUpFloater = GetComponentInChildren<LevelUpFloater>();
+        if (_levelUpFloater == null)
+        {
+            var go = new GameObject("LevelUpFloater");
+            go.transform.SetParent(transform, false);
+            _levelUpFloater = go.AddComponent<LevelUpFloater>();
+        }
     }
 
     private void OnEnable()
@@ -79,7 +88,7 @@ public class PlayerBridge : MonoBehaviour
         if (playEffect)
         {
             if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
-            LevelUpFloater.Spawn(transform);
+            if (_levelUpFloater != null) _levelUpFloater.Play();
         }
     }
 
