@@ -541,6 +541,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     {
         if (!PhotonNetwork.IsMasterClient) return;
 
+        // Push 모드에서는 흡수(먹기)가 없다. 밀치기/낙사로만 승부.
+        if (GameState.CurrentGameMode != GameModeType.Absorb) return;
+
         // ── 더 작은 플레이어 흡수 ──
         NetworkPlayerSync player = other.GetComponentInParent<NetworkPlayerSync>();
         if (player != null)
@@ -598,6 +601,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         _currentState?.Exit();
         _currentState = null;
         enabled = false;
+
+        // 탈락 시 이동 애니메이션 정지 (Update가 멈춰 IsMoving이 true로 남는 것 방지).
+        // 모든 클라이언트에서 실행되므로 각자 자기 애니메이터를 끈다.
+        if (_anim != null) _anim.SetBool("IsMoving", false);
 
         if (nameTagBillboard != null) nameTagBillboard.gameObject.SetActive(false);
 
@@ -931,16 +938,22 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (IsEliminated || IsBeingAbsorbed) yield break;
         if (Agent == null) yield break;
 
+        // 넉백 종료 지점 아래에 땅이 있는지 먼저 확인한다.
+        // Agent.enabled = true 는 근처 NavMesh로 자동 스냅시키므로, 맵 외곽으로
+        // 밀려났어도 Agent를 다시 켜면 땅으로 복귀해버린다. 그래서 Agent를 켜기 전에
+        // 레이캐스트로 발밑 땅을 검사해, 땅이 없으면 그대로 낙하시킨다.
+        Vector3 origin = transform.position + Vector3.up * 0.5f;
+        bool groundBelow = Physics.Raycast(origin, Vector3.down, 3f);
+
+        if (!groundBelow)
+        {
+            CheckGroundBelow(true); // 낙하 처리 (Rigidbody 부착)
+            yield break;
+        }
+
         Agent.enabled = true;
         if (Agent.isOnNavMesh)
-        {
             Agent.Warp(transform.position);
-        }
-        else
-        {
-            Agent.enabled = false;
-            CheckGroundBelow(true);
-        }
     }
 
     // ─────────────────────────────────────────────────────────

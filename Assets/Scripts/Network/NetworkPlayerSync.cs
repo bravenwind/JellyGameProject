@@ -329,12 +329,19 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         // 모든 클라이언트: 입력/이동 FSM 정지
         if (playerController != null) playerController.enabled = false;
 
-        Animator playerAnimator = GetComponent<Animator>();
-        if (playerAnimator != null)
-            playerAnimator.SetBool("isMoving", false);
+        // 이동 애니메이션 정지 (실제 모델 Animator + 올바른 파라미터명 "IsMoving").
+        // FSM을 비활성화하면 현재 상태(Move)의 Exit()가 호출되지 않아 IsMoving이 true로
+        // 남아 계속 걷는 애니메이션이 재생되므로 여기서 수동으로 꺼준다.
+        Animator jellyAnim = playerController != null ? playerController.jellyAnimator : null;
+        if (jellyAnim == null) jellyAnim = GetComponentInChildren<Animator>();
+        if (jellyAnim != null) jellyAnim.SetBool("IsMoving", false);
 
         if (photonView.IsMine)
         {
+            // 걷기 루프 사운드 정지 (걷기 사운드는 소유자 로컬에서만 재생되므로 소유자에서만 정지).
+            // FSM Exit()가 호출되지 않아 StopWalking()이 누락되면 발소리가 계속 재생된다.
+            PlaySFXAudio.Instance?.StopWalking();
+
             // 소유자만 물리 바디로 전환 → 초콜릿 강의 부력/유동으로 둥둥 떠다님.
             // PhotonTransformView가 이 위치를 원격 클라이언트로 전파한다.
             ConvertToFloatingBody();
@@ -625,7 +632,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         float diff = dasherScale - victimScale;
         float threshold = DataManager.Instance.PushScaleThreshold;
 
-        if (diff > threshold)
+        // Push 모드에서는 크기 차가 커도 흡수하지 않고 항상 밀치기만.
+        if (diff > threshold && GameState.CurrentGameMode == GameModeType.Absorb)
         {
             victimPV.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, photonView.ViewID);
         }
@@ -663,7 +671,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         float diff = dasherScale - botScale;
         float threshold = DataManager.Instance.PushScaleThreshold;
 
-        if (diff > threshold)
+        // Push 모드에서는 크기 차가 커도 흡수하지 않고 항상 밀치기만.
+        if (diff > threshold && GameState.CurrentGameMode == GameModeType.Absorb)
         {
             int bonus = aiBot.CurrentScore;
             photonView.RPC(nameof(RPC_BotAbsorbConfirmed), photonView.Owner,
