@@ -89,6 +89,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     private bool _isCountingDown = false;
     private bool _wantsToJoin = false;
+    private bool _isCancellingMatch = false;
     private int _reconnectAttempts = 0;
     private const int MaxReconnectAttempts = 3;
 
@@ -337,6 +338,16 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     {
         Debug.LogWarning($"[Network] 접속 끊김: {cause}");
 
+        // 매칭 취소로 직접 끊은 경우엔 재연결/씬 전환 없이 Main 씬에 머무른다.
+        if (_isCancellingMatch)
+        {
+            _isCancellingMatch = false;
+            _reconnectAttempts = 0;
+            _isCountingDown = false;
+            Debug.Log("[NetworkManager] 매칭 취소로 연결을 종료했습니다. Main 씬 유지.");
+            return;
+        }
+
         bool isTransient = cause == DisconnectCause.ClientTimeout
                         || cause == DisconnectCause.ServerTimeout
                         || cause == DisconnectCause.Exception
@@ -368,8 +379,17 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
     public override void OnLeftRoom()
     {
-        Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 메인 씬으로 돌아갑니다.");
         _isCountingDown = false;
+
+        // 매칭 취소로 나간 경우엔 이미 Main 씬에 있으므로 씬을 다시 로드하지 않는다.
+        if (_isCancellingMatch)
+        {
+            _isCancellingMatch = false;
+            Debug.Log("[NetworkManager] 매칭 취소로 방에서 나갔습니다. Main 씬 유지.");
+            return;
+        }
+
+        Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 메인 씬으로 돌아갑니다.");
         SceneManager.LoadScene("Main");
     }
 
@@ -586,6 +606,38 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         _spawnSlots.Clear();
         _slotsPrepared = false;
         PhotonNetwork.LeaveRoom();
+    }
+
+    /// <summary>
+    /// 매칭 취소. 서버 연결 중 / 로비 대기 / 방 입장 후 어느 단계에서 눌러도 깔끔하게 정리한다.
+    /// Main 씬에 머무르므로 OnLeftRoom의 자동 씬 전환은 _isCancellingMatch 플래그로 억제한다.
+    /// </summary>
+    public void CancelMatching()
+    {
+        // 자동 입장/재연결/카운트다운을 모두 중단
+        _wantsToJoin = false;
+        _reconnectAttempts = 0;
+        StopAllCoroutines();
+        _isCountingDown = false;
+
+        _spawnSlots.Clear();
+        _slotsPrepared = false;
+
+        if (PhotonNetwork.InRoom)
+        {
+            // 방에 들어가 있었다면 나간다 (OnLeftRoom에서 씬 전환 억제)
+            _isCancellingMatch = true;
+            PhotonNetwork.LeaveRoom();
+        }
+        else if (PhotonNetwork.NetworkClientState != ClientState.PeerCreated
+                 && PhotonNetwork.NetworkClientState != ClientState.Disconnected)
+        {
+            // 서버 연결 중 / 연결 완료 / 로비 대기 등 어떤 진행 상태든 끊어서 매칭 흐름을 완전히 종료
+            // (OnDisconnected에서 재연결/씬 전환 억제)
+            _isCancellingMatch = true;
+            PhotonNetwork.Disconnect();
+        }
+        // 아직 연결 자체가 시작되지 않았다면(PeerCreated/Disconnected) 정리할 네트워크 상태가 없다.
     }
 
     /// <summary>
