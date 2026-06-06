@@ -467,6 +467,25 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         if (!_gameRunning && !_isEndingSequenceStarted) return;
 
+        // ── Push 모드(라스트 맨 스탠딩): 로컬 플레이어 사망은 '관전 전환'일 뿐 ──
+        // 권위 시뮬레이션(_gameRunning / GameState.Phase)을 절대 끄지 않는다.
+        // 마스터에서 이걸 끄면 타일 붕괴(UpdateStepCollapse)·전투 검증(RPC_RequestBatHit*)·
+        // 생존자 판정(CheckLastSurvivor)이 전부 멈춰, 살아남은 플레이어의 발판이 얼어붙고
+        // 게임도 끝나지 않는다. 실제 종료는 CheckLastSurvivor → RPC_PushModeGameEnd가 담당.
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            if (_localPlayer != null)
+            {
+                _localPlayer.SyncColor();
+                _localPlayer.SyncScale();
+                if (_localPlayer.playerController != null)
+                    _localPlayer.playerController.enabled = false; // 입력만 차단(관전)
+            }
+            ShowResultUI("탈락!\n관전 중...");
+            Debug.Log("[GameMode] Push 모드 로컬 플레이어 탈락 — 관전 전환(권위 시뮬레이션 유지)");
+            return;
+        }
+
         // 엔딩 시퀀스(3→2→1→게임 종료!)가 이미 진행 중이면
         // 어차피 곧 결과 씬으로 넘어가므로, 시퀀스를 끊지 않고 사망만 기록한다.
         // StopAllCoroutines로 시퀀스를 죽이면 결과 씬 전환이 영영 일어나지 않는다.

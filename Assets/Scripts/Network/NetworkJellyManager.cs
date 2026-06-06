@@ -282,6 +282,15 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     /// </summary>
     public override void OnMasterClientSwitched(Player newMasterClient)
     {
+        // Push 모드는 수집용 젤리를 스폰하지 않는다. Start()에는 이 가드가 있었지만
+        // 마스터 교체 콜백에는 빠져 있어, 살아남은 비마스터가 새 마스터가 되면 Push
+        // 모드인데도 젤리가 소환되던 버그가 있었다.
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            Debug.Log("[JellyManager] Push 모드 — 마스터 교체 시에도 젤리 스폰 안 함");
+            return;
+        }
+
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("[JellyManager] 새 MasterClient가 됨 → 스폰 루틴 이어받기");
