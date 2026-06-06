@@ -38,7 +38,9 @@ public class TileCollapseManager : MonoBehaviour
     private Vector3 _gridOrigin;
     private float _stepX, _stepZ;
 
-    private HashSet<int> _steppedTileKeys = new HashSet<int>();
+    private Dictionary<int, int> _tileStepCounts = new Dictionary<int, int>();
+    private Dictionary<int, int> _entityCurrentTile = new Dictionary<int, int>();
+    private Dictionary<int, Color> _tileOriginalColors = new Dictionary<int, Color>();
 
     private void Awake()
     {
@@ -168,17 +170,17 @@ public class TileCollapseManager : MonoBehaviour
             if (player.photonView.Owner?.CustomProperties != null &&
                 player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out object e) &&
                 e is bool b && b) continue;
-            TryCollapseAt(player.transform.position);
+            TryStepAt(player.transform.position, player.photonView.ViewID);
         }
 
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot.IsEliminated) continue;
-            TryCollapseAt(bot.transform.position);
+            TryStepAt(bot.transform.position, bot.photonView.ViewID);
         }
     }
 
-    private void TryCollapseAt(Vector3 worldPos)
+    private void TryStepAt(Vector3 worldPos, int entityID)
     {
         int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
         int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
@@ -186,13 +188,48 @@ public class TileCollapseManager : MonoBehaviour
         if (x < 0 || x >= _width || z < 0 || z >= _height) return;
         if (_tiles[x, z] == null) return;
 
-        int key = x * 10000 + z;
-        if (_steppedTileKeys.Contains(key)) return;
-        _steppedTileKeys.Add(key);
+        int tileKey = x * 10000 + z;
+
+        if (_entityCurrentTile.TryGetValue(entityID, out int lastTile) && lastTile == tileKey)
+            return;
+        _entityCurrentTile[entityID] = tileKey;
+
+        _tileStepCounts.TryGetValue(tileKey, out int count);
+        count++;
+        _tileStepCounts[tileKey] = count;
+
+        var dm = DataManager.Instance;
+        int maxSteps = dm != null ? dm.stepTileStepsToCollapse : 3;
 
         var pv = GameModeManager.Instance?.photonView;
-        if (pv != null)
+        if (pv == null) return;
+
+        if (count >= maxSteps)
+        {
             pv.RPC(nameof(GameModeManager.RPC_StepTileCollapse), RpcTarget.All, x, z);
+        }
+        else
+        {
+            pv.RPC(nameof(GameModeManager.RPC_StepTileDarken), RpcTarget.All, x, z, count, maxSteps);
+        }
+    }
+
+    public void DarkenStepTile(int x, int z, int stepCount, int maxSteps)
+    {
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return;
+        if (_tiles[x, z] == null) return;
+
+        int tileKey = x * 10000 + z;
+        Renderer rend = _tiles[x, z].GetComponentInChildren<Renderer>();
+        if (rend == null) return;
+
+        if (!_tileOriginalColors.ContainsKey(tileKey))
+            _tileOriginalColors[tileKey] = rend.material.color;
+
+        float t = (float)stepCount / maxSteps;
+        Color original = _tileOriginalColors[tileKey];
+        Color danger = new Color(original.r * 0.3f, original.g * 0.15f, original.b * 0.1f);
+        rend.material.color = Color.Lerp(original, danger, t);
     }
 
     public void CollapseStepTile(int x, int z)
@@ -267,7 +304,17 @@ public class TileCollapseManager : MonoBehaviour
         if (x < 0 || x >= _width || z < 0 || z >= _height) return true;
 
         if (GameState.CurrentGameMode == GameModeType.Push)
-            return _tiles[x, z] == null;
+        {
+            if (_tiles[x, z] == null) return true;
+            int tileKey = x * 10000 + z;
+            if (_tileStepCounts.TryGetValue(tileKey, out int count))
+            {
+                var dm = DataManager.Instance;
+                int maxSteps = dm != null ? dm.stepTileStepsToCollapse : 3;
+                if (count >= maxSteps - 1) return true;
+            }
+            return false;
+        }
 
         int ring = GetRing(x, z);
         return ring <= _lastShakenRing;

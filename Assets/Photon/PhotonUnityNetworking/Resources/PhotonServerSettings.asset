@@ -61,6 +61,7 @@ MonoBehaviour:
   - RPC_PushModeGameEnd
   - RPC_RequestBatHitBot
   - RPC_RequestBatHitPlayer
+  - RPC_StepTileDarken
   - RPC_StepTileCollapse
   - RPC_OnEliminated
   DisableAutoOpenWizard: 1

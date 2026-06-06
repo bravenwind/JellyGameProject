@@ -73,6 +73,8 @@ public class DataManager : MonoBehaviour
     public float stepTileCollapseDelay = 2f;
     [Tooltip("밟힌 타일 경고 흔들림 시간 (초)")]
     public float stepTileWarningDuration = 1.5f;
+    [Tooltip("타일이 붕괴되기까지 필요한 밟은 횟수")]
+    public int stepTileStepsToCollapse = 3;
 
     /// <summary>
     /// '비슷한 크기' 판정용 스케일 차이 임계값.

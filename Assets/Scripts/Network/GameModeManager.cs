@@ -624,6 +624,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     }
 
     [PunRPC]
+    public void RPC_StepTileDarken(int x, int z, int stepCount, int maxSteps)
+    {
+        TileCollapseManager.Instance?.DarkenStepTile(x, z, stepCount, maxSteps);
+    }
+
+    [PunRPC]
     public void RPC_StepTileCollapse(int x, int z)
     {
         TileCollapseManager.Instance?.CollapseStepTile(x, z);
