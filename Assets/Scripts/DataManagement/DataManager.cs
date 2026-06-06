@@ -75,6 +75,8 @@ public class DataManager : MonoBehaviour
     public float stepTileWarningDuration = 1.5f;
     [Tooltip("타일이 붕괴되기까지 필요한 밟은 횟수")]
     public int stepTileStepsToCollapse = 3;
+    [Tooltip("한 타일 위에 가만히 머물 때 견디는 횟수가 1 감소하기까지의 시간 (초). 0 이하면 제자리 마모 비활성")]
+    public float stepTileIdleWearSeconds = 2f;
 
     /// <summary>
     /// '비슷한 크기' 판정용 스케일 차이 임계값.

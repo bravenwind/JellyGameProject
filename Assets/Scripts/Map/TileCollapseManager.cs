@@ -40,7 +40,11 @@ public class TileCollapseManager : MonoBehaviour
 
     private Dictionary<int, int> _tileStepCounts = new Dictionary<int, int>();
     private Dictionary<int, int> _entityCurrentTile = new Dictionary<int, int>();
+    private Dictionary<int, float> _entityDwellTime = new Dictionary<int, float>();
     private Dictionary<int, Color> _tileOriginalColors = new Dictionary<int, Color>();
+
+    private float _stepProcessTimer;
+    private const float STEP_PROCESS_INTERVAL = 0.15f;
 
     private void Awake()
     {
@@ -161,8 +165,12 @@ public class TileCollapseManager : MonoBehaviour
     private void UpdateStepCollapse()
     {
         if (!PhotonNetwork.IsMasterClient) return;
-        if (Time.frameCount % 10 != 0) return;
         if (_stepX == 0f || _stepZ == 0f) return;
+
+        _stepProcessTimer += Time.deltaTime;
+        if (_stepProcessTimer < STEP_PROCESS_INTERVAL) return;
+        float dt = _stepProcessTimer;
+        _stepProcessTimer = 0f;
 
         foreach (var player in EntityRegistry.Players)
         {
@@ -170,17 +178,17 @@ public class TileCollapseManager : MonoBehaviour
             if (player.photonView.Owner?.CustomProperties != null &&
                 player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out object e) &&
                 e is bool b && b) continue;
-            TryStepAt(player.transform.position, player.photonView.ViewID);
+            TryStepAt(player.transform.position, player.photonView.ViewID, dt);
         }
 
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot.IsEliminated) continue;
-            TryStepAt(bot.transform.position, bot.photonView.ViewID);
+            TryStepAt(bot.transform.position, bot.photonView.ViewID, dt);
         }
     }
 
-    private void TryStepAt(Vector3 worldPos, int entityID)
+    private void TryStepAt(Vector3 worldPos, int entityID, float dt)
     {
         int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
         int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
@@ -190,9 +198,34 @@ public class TileCollapseManager : MonoBehaviour
 
         int tileKey = x * 10000 + z;
 
-        if (_entityCurrentTile.TryGetValue(entityID, out int lastTile) && lastTile == tileKey)
+        // 새 타일로 이동: 해당 타일을 1회 마모시키고 체류 타이머 초기화
+        if (!_entityCurrentTile.TryGetValue(entityID, out int lastTile) || lastTile != tileKey)
+        {
+            _entityCurrentTile[entityID] = tileKey;
+            _entityDwellTime[entityID] = 0f;
+            WearTile(x, z, tileKey);
             return;
-        _entityCurrentTile[entityID] = tileKey;
+        }
+
+        // 같은 타일에 계속 머무름: 일정 시간 이상 머물면 추가로 마모(견디는 횟수 감소)
+        var dm = DataManager.Instance;
+        float idleWear = dm != null ? dm.stepTileIdleWearSeconds : 0f;
+        if (idleWear <= 0f) return;
+
+        _entityDwellTime.TryGetValue(entityID, out float dwell);
+        dwell += dt;
+        if (dwell >= idleWear)
+        {
+            dwell -= idleWear; // 초과분 보존 → 이후에도 idleWear마다 계속 마모
+            WearTile(x, z, tileKey);
+        }
+        _entityDwellTime[entityID] = dwell;
+    }
+
+    /// <summary>타일 견디는 횟수를 1 소모시키고, 한계 도달 시 붕괴/아니면 색 어둡게 RPC 전파.</summary>
+    private void WearTile(int x, int z, int tileKey)
+    {
+        if (_tiles[x, z] == null) return;
 
         _tileStepCounts.TryGetValue(tileKey, out int count);
         count++;
