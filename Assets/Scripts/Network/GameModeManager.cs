@@ -587,8 +587,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         _spawned = false;
         GameState.ResetValues();
-        if (PhotonNetwork.InRoom) NetworkManager.Instance.LeaveRoom();
-        else SceneManager.LoadScene("Main");
+        // 재시작은 콜드 스타트로 통일(완전 Disconnect 후 재연결)해 PUN 씬/큐 상태가
+        // 더럽게 남아 다음 게임이 desync되는 것을 막는다.
+        if (NetworkManager.Instance != null)
+            NetworkManager.Instance.GoToMainMenu();
+        else
+            SceneManager.LoadScene("Main");
     }
 
     public void RegisterLocalPlayer(NetworkPlayerSync player) => _localPlayer = player;

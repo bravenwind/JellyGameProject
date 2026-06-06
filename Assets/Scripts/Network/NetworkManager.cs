@@ -658,9 +658,24 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public void GoToMainMenu()
     {
         _isCountingDown = false;
-        if (PhotonNetwork.InRoom)
-            LeaveRoom(); // OnLeftRoom 콜백에서 씬 전환
+        _wantsToJoin = false;
+        _spawnSlots.Clear();
+        _slotsPrepared = false;
+
+        // [중요] 재시작/메인복귀 시 방만 나가고(LeaveRoom) 연결을 유지한 채 재매칭하면,
+        // PUN의 씬 동기화(AutomaticallySyncScene)/메시지 큐 상태가 더럽게 남아 다음 게임에서
+        // 큐가 멈춘 채 시작되어 모든 동기화가 깨진다(서로 안 보임/타일 desync/젤리 늦게 소환).
+        // 완전히 Disconnect 했다가 다음 게임에서 새로 연결하면, 첫 게임과 동일한 콜드 스타트가
+        // 되어 항상 깨끗한 상태로 시작된다. → 재시작 경로를 콜드 스타트로 통일한다.
+        if (PhotonNetwork.IsConnected)
+        {
+            // 멈춰 있을 수 있는 큐를 풀어 끊김 처리가 정상 진행되게 한다.
+            PhotonNetwork.IsMessageQueueRunning = true;
+            PhotonNetwork.Disconnect(); // OnDisconnected → SceneManager.LoadScene("Main")
+        }
         else
+        {
             SceneManager.LoadScene("Main");
+        }
     }
 }
