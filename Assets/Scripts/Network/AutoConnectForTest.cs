@@ -9,6 +9,7 @@
 using UnityEngine;
 using Photon.Pun;
 
+[DefaultExecutionOrder(-10)]
 public class AutoConnectForTest : MonoBehaviour
 {
     [Tooltip("테스트용 닉네임")]
