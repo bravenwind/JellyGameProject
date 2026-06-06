@@ -134,6 +134,17 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         spawnPoints = null;
         // 게임 오버/일시정지 상태에서 씬을 넘어가도 시간이 멈추지 않도록 복구
         Time.timeScale = 1f;
+
+        // AutomaticallySyncScene으로 게임 씬에 들어왔는데 PUN 메시지 큐가 멈춘 채로
+        // 남아 있으면 플레이어 생성/타일 RPC 등 네트워크 이벤트가 게임 내내 버퍼링되어
+        // 서로 안 보이거나 타일이 desync된다. 씬 로드가 끝난 시점이므로 안전하게 재개한다.
+        if (PhotonNetwork.InRoom
+            && (scene.name == gamePushModeSceneName || scene.name == gameAbsorbModeSceneName)
+            && !PhotonNetwork.IsMessageQueueRunning)
+        {
+            Debug.LogWarning($"[NetworkManager] 게임 씬({scene.name}) 진입 시 멈춰 있던 메시지 큐를 재개합니다.");
+            PhotonNetwork.IsMessageQueueRunning = true;
+        }
     }
 
     // ─────────────────────────────────────────────────────────

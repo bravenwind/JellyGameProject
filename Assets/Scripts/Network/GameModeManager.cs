@@ -114,6 +114,17 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (_spawned) return;
         _spawned = true;
 
+        // [중요] AutomaticallySyncScene으로 씬 전환 시 PUN이 메시지 큐를 멈추는데,
+        // 클라이언트에서 이게 재개되지 않은 채 남으면 플레이어 생성(Instantiate)·타일
+        // 붕괴 RPC 등 모든 네트워크 이벤트가 게임 내내 버퍼링되다 결과 씬 전환 때
+        // 한꺼번에 처리된다(서로 안 보임 / 타일 desync / "젤리가 게임 끝에 소환").
+        // 게임 씬 로드가 끝난 시점(이 Start 시점)이므로 큐를 재개해도 안전하다.
+        if (PhotonNetwork.InRoom && !PhotonNetwork.IsMessageQueueRunning)
+        {
+            Debug.LogWarning("[GameMode] 메시지 큐가 멈춰 있어 강제 재개합니다 (씬 동기화 desync 방지).");
+            PhotonNetwork.IsMessageQueueRunning = true;
+        }
+
         // 게임 씬 진입 시 DataManager.Awake의 GameState.Reset()이 모드를 Absorb로 되돌리므로,
         // 룸 커스텀 프로퍼티(권위값)로부터 실제 게임 모드를 다시 복원한다.
         // (이 처리가 없으면 빌드로 접속한 클라이언트는 Push 모드여도 좌클릭 공격이 안 된다.)
