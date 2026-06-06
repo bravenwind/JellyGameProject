@@ -76,6 +76,8 @@ public class AIFleeState : AIBaseState
         if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, 10f, ai.NavFilter)
             && TrySetSafePath(hit.position))
         {
+            if (GameState.CurrentGameMode == GameModeType.Push)
+                ai.TryDash();
             return; // 정방향 도주 성공
         }
 

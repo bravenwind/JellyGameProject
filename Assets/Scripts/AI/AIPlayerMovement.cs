@@ -35,6 +35,11 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public float baseAgentRadius = 0.5f;
     public float baseAgentHeight = 2.0f;
 
+    [Header("대쉬")]
+    public float dashSpeed = 50f;
+    public float dashDuration = 0.2f;
+    public float dashCooldown = 3f;
+
     [Header("이름표")]
     public NameTagBillboard nameTagBillboard;
 
@@ -71,6 +76,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     private float _lastUrgentThreatCheck;
     public bool IsBeingAbsorbed { get; set; } = false;
     public bool IsEliminated { get; private set; } = false;
+
+    private float _dashCooldownTimer;
+    private float _dashTimer;
+    private float _preDashSpeed;
+    private float _attackCooldownTimer;
+    public bool IsDashing => _dashTimer > 0f;
 
     private AIPlayerSync _aiSync;
 
@@ -322,6 +333,15 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         }
 
         if (!Agent.enabled || !Agent.isOnNavMesh) return;
+
+        if (_dashCooldownTimer > 0f) _dashCooldownTimer -= Time.deltaTime;
+        if (_attackCooldownTimer > 0f) _attackCooldownTimer -= Time.deltaTime;
+        if (_dashTimer > 0f)
+        {
+            _dashTimer -= Time.deltaTime;
+            if (_dashTimer <= 0f)
+                Agent.speed = _preDashSpeed;
+        }
 
         if (GameState.CurrentGameMode == GameModeType.Push)
             CheckGroundBelow();
@@ -668,6 +688,107 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         {
             _networkScale = (float)stream.ReceiveNext();
         }
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 대쉬 (Push 모드)
+    // ─────────────────────────────────────────────────────────
+
+    public bool TryDash()
+    {
+        if (_dashCooldownTimer > 0f || _dashTimer > 0f) return false;
+        if (!Agent.enabled || !Agent.isOnNavMesh) return false;
+        if (IsEliminated || IsBeingAbsorbed) return false;
+
+        _dashCooldownTimer = dashCooldown;
+        _dashTimer = dashDuration;
+        _preDashSpeed = Agent.speed;
+        Agent.speed = dashSpeed;
+
+        if (_anim != null) _anim.SetTrigger("Dash");
+        if (PhotonNetwork.InRoom)
+            photonView.RPC(nameof(RPC_PlayDash), RpcTarget.Others);
+        return true;
+    }
+
+    [PunRPC]
+    private void RPC_PlayDash()
+    {
+        if (_anim != null) _anim.SetTrigger("Dash");
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // 공격 (Push 모드)
+    // ─────────────────────────────────────────────────────────
+
+    public bool TryAttack()
+    {
+        if (_attackCooldownTimer > 0f) return false;
+        if (!PhotonNetwork.IsMasterClient) return false;
+        if (IsEliminated || IsBeingAbsorbed) return false;
+        if (GameState.CurrentGameMode != GameModeType.Push) return false;
+
+        var dm = DataManager.Instance;
+        if (dm == null) return false;
+
+        float scale = transform.localScale.x;
+        float range = dm.batRange * scale;
+        float arcAngle = dm.batArcAngle;
+        float pushForce = dm.batPushForce * (scale / dm.startingScale);
+
+        Vector3 center = transform.position + Vector3.up * scale;
+        int mask = LayerMask.GetMask("Player") | LayerMask.GetMask("Edible");
+        Collider[] hits = Physics.OverlapSphere(center, range, mask);
+
+        foreach (var hit in hits)
+        {
+            if (hit.transform.root == transform.root) continue;
+
+            Vector3 dirToTarget = hit.transform.position - transform.position;
+            dirToTarget.y = 0;
+            if (dirToTarget.sqrMagnitude < 0.01f) continue;
+
+            float angle = Vector3.Angle(transform.forward, dirToTarget);
+            if (angle > arcAngle * 0.5f) continue;
+
+            Vector3 pushDir = dirToTarget.normalized;
+
+            NetworkPlayerSync playerSync = hit.GetComponentInParent<NetworkPlayerSync>();
+            if (playerSync != null && playerSync.photonView.Owner != null)
+            {
+                playerSync.photonView.RPC(nameof(NetworkPlayerSync.RPC_ApplyKnockback),
+                    playerSync.photonView.Owner, pushDir.x, pushDir.z, pushForce);
+                ApplyAttackReward(dm, scale);
+                return true;
+            }
+
+            AIPlayerMovement otherBot = hit.GetComponentInParent<AIPlayerMovement>();
+            if (otherBot != null && otherBot != this && !otherBot.IsEliminated && !otherBot.IsBeingAbsorbed)
+            {
+                otherBot.photonView.RPC(nameof(RPC_ApplyKnockback), RpcTarget.All,
+                    pushDir.x, pushDir.z, pushForce);
+                ApplyAttackReward(dm, scale);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void ApplyAttackReward(DataManager dm, float scale)
+    {
+        _attackCooldownTimer = dm.batCooldown;
+        float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
+        if (ScaleCtrl != null) ScaleCtrl.GrowByBatHit(growth);
+        if (_anim != null) _anim.SetTrigger("Attack");
+        if (PhotonNetwork.InRoom)
+            photonView.RPC(nameof(RPC_PlayAttack), RpcTarget.Others);
+    }
+
+    [PunRPC]
+    private void RPC_PlayAttack()
+    {
+        if (_anim != null) _anim.SetTrigger("Attack");
     }
 
     // ─────────────────────────────────────────────────────────
