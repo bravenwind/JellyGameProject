@@ -296,10 +296,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     /// 현재 방의 모든 플레이어와 봇의 (이름, 점수, 크기, 봇여부)를 가져와
     /// 크기 내림차순으로 정렬하여 반환. 점수는 크기에서 자동 산출.
     /// </summary>
-    private List<(string name, int score, float scale, bool isBot)> GetSortedScores()
+    private List<(string name, int score, float scale, bool isBot, Color color)> GetSortedScores()
     {
         var dm = DataManager.Instance;
-        var entries = new List<(string name, int score, float scale, bool isBot)>();
+        var entries = new List<(string name, int score, float scale, bool isBot, Color color)>();
 
         foreach (Player player in PhotonNetwork.PlayerList)
         {
@@ -307,7 +307,18 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 continue;
             float scale = player.CustomProperties.TryGetValue("Scale", out object sc) ? (float)sc : dm.startingScale;
             int score = dm.ScoreFromScale(scale);
-            entries.Add((player.NickName, score, scale, false));
+
+            Color playerColor = Color.white;
+            foreach (var nps in EntityRegistry.Players)
+            {
+                if (nps != null && nps.photonView.Owner?.ActorNumber == player.ActorNumber)
+                {
+                    playerColor = nps.DisplayColor;
+                    break;
+                }
+            }
+
+            entries.Add((player.NickName, score, scale, false, playerColor));
         }
 
         var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
@@ -320,8 +331,6 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 object nameVal = roomProps[keyStr];
                 if (nameVal == null) continue;
 
-                // 룸 프로퍼티 전파 지연(비마스터)으로 아직 null이 안 된 경우를 대비해
-                // EntityRegistry에서 해당 봇이 탈락했는지 로컬로 확인한다.
                 if (prefix.StartsWith("Bot") && int.TryParse(prefix.Substring(3), out int vid))
                 {
                     bool eliminated = false;
@@ -340,14 +349,30 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 float scale = roomProps.TryGetValue($"{prefix}_Scale", out object sv) && sv != null
                     ? (float)sv : dm.startingScale;
                 int score = dm.ScoreFromScale(scale);
-                entries.Add((botName, score, scale, true));
+
+                Color botColor = Color.white;
+                if (prefix.StartsWith("Bot") && int.TryParse(prefix.Substring(3), out int botVid))
+                {
+                    foreach (var bot in EntityRegistry.Bots)
+                    {
+                        if (bot != null && bot.photonView != null && bot.photonView.ViewID == botVid)
+                        {
+                            var rend = bot.GetComponentInChildren<Renderer>();
+                            if (rend != null && rend.material.HasProperty("_FresnelColor"))
+                                botColor = rend.material.GetColor("_FresnelColor");
+                            break;
+                        }
+                    }
+                }
+
+                entries.Add((botName, score, scale, true, botColor));
             }
         }
 
         return entries.OrderByDescending(e => e.scale).ToList();
     }
 
-    private int GetLocalPlayerRank(List<(string name, int score, float scale, bool isBot)> sortedEntries)
+    private int GetLocalPlayerRank(List<(string name, int score, float scale, bool isBot, Color color)> sortedEntries)
     {
         for (int i = 0; i < sortedEntries.Count; i++)
         {
@@ -620,14 +645,13 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         for (int i = 0; i < displayCount; i++)
         {
-            int srcIndex = (localOutside && i == displayCount - 1) ? localRank : i;
-            var (name, score, scale, isBot) = entries[srcIndex];
+            var (name, score, scale, isBot, color) = entries[i];
             LeaderboardEntry entryComp = _leaderboardPool.Get();
             entryComp.transform.SetAsLastSibling();
             _leaderboardEntries.Add(entryComp);
 
             bool isMe = !isBot && name == PhotonNetwork.NickName;
-            entryComp.Setup(srcIndex + 1, name, score, isMe);
+            entryComp.Setup(i + 1, name, score, isMe, color);
         }
     }
 

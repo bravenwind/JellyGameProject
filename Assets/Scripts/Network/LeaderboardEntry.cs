@@ -24,10 +24,14 @@ public class LeaderboardEntry : MonoBehaviour
     /// <summary>
     /// GameModeManager에서 호출해서 항목 초기화
     /// </summary>
-    public void Setup(int rank, string playerName, int score, bool isMe)
+    public void Setup(int rank, string playerName, int score, bool isMe, Color playerColor = default)
     {
         if (rankText != null) rankText.text = rank.ToString();
-        if (nameText != null) nameText.text = playerName;
+        if (nameText != null)
+        {
+            nameText.text = playerName;
+            nameText.color = playerColor.a > 0.01f ? playerColor : Color.white;
+        }
         if (scoreText != null) scoreText.text = score.ToString("N0"); // 1,500 형식
 
         // 내 항목이면 하이라이트

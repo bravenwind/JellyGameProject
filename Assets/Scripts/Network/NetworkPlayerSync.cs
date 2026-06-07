@@ -39,6 +39,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // 원격 플레이어 보간용 변수
     // ─────────────────────────────────────────────────────────
     private Color _networkColor = Color.white;
+    public Color DisplayColor => photonView.IsMine ? GameState.CurrentDisplayColor : _networkColor;
 
     private const float LerpSpeed = 10f;
     private const float ColorDarkenFactor = 0.85f;
