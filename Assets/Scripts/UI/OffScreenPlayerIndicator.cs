@@ -154,10 +154,25 @@ public class OffScreenPlayerIndicator : MonoBehaviour
 
         bool behind = sp.z < 0f;
         Vector2 center = new Vector2(Screen.width, Screen.height) * 0.5f;
-        Vector2 sp2 = new Vector2(sp.x, sp.y);
+        Vector2 sp2;
 
-        // 카메라 뒤면 화면 중심 기준으로 반대편에 투영(테두리 처리용)
-        if (behind) sp2 = center - (sp2 - center);
+        if (behind)
+        {
+            // 카메라 뒤에 있는 대상은 WorldToScreenPoint가 돌려주는 화면 좌표가
+            // 상하/좌우로 뒤집힌다. 단순히 중심 기준으로 미러링하면 방향이 틀어져
+            // (예: 카메라 아래쪽 대상이 화면 위 테두리에 뜨는 버그) 발생한다.
+            // → 월드 오프셋을 카메라의 right/up 축에 투영해 화면상의 실제 방향을 직접 구한다.
+            Vector3 dirWorld = headWorld - _cam.transform.position;
+            float rx = Vector3.Dot(dirWorld, _cam.transform.right);
+            float ry = Vector3.Dot(dirWorld, _cam.transform.up);
+            Vector2 d = new Vector2(rx, ry);
+            if (d.sqrMagnitude < 1e-4f) d = Vector2.down;
+            sp2 = center + d.normalized * Mathf.Max(Screen.width, Screen.height);
+        }
+        else
+        {
+            sp2 = new Vector2(sp.x, sp.y);
+        }
 
         bool onScreen = !behind
             && sp.x >= edgeMargin && sp.x <= Screen.width - edgeMargin

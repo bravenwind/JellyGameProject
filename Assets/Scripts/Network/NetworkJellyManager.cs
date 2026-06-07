@@ -44,6 +44,9 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     [Tooltip("젤리 스폰 간격 (초)")]
     public float spawnInterval = 2f;
 
+    [Tooltip("초기 스폰 이후, spawnInterval마다 한 번에 보충할 젤리 수")]
+    public int spawnPerInterval = 1;
+
     [Header("스폰 범위")]
     public float spawnRangeX = 30f;
     public float spawnRangeZ = 30f;
@@ -101,7 +104,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             SpawnOneJelly();
         }
 
-        // 이후 spawnInterval마다 하나씩 보충
+        // 이후 spawnInterval마다 spawnPerInterval개씩 보충
         while (true)
         {
             yield return new WaitForSeconds(spawnInterval);
@@ -109,8 +112,10 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             // 삭제된 젤리 참조 정리
             _spawnedJellies.RemoveAll(j => j == null);
 
-            if (CurrentJellyCount() < maxJellyCount)
+            int perTick = Mathf.Max(1, spawnPerInterval);
+            for (int i = 0; i < perTick; i++)
             {
+                if (CurrentJellyCount() >= maxJellyCount) break;
                 SpawnOneJelly();
             }
         }
