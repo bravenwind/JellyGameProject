@@ -507,17 +507,42 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             return;
         }
 
+        // ── Push 모드: 관전 전환만, 시뮬레이션 유지 ──
+        // _gameRunning을 true로 유지 →
+        //  1) 마스터가 죽어도 CheckLastSurvivor 계속 동작
+        //  2) RPC_PushModeGameEnd 정상 수신 → 결과 씬 전환 올바르게 진행
+        if (GameState.CurrentGameMode == GameModeType.Push)
+        {
+            GameState.Phase = GamePhase.GameOver;
+
+            float survived = _gameTimer;
+            int min = Mathf.FloorToInt(survived / 60f);
+            int sec = Mathf.FloorToInt(survived % 60f);
+
+            if (_localPlayer != null)
+            {
+                _localPlayer.SyncColor();
+                _localPlayer.SyncScale();
+            }
+
+            if (_localPlayer != null && _localPlayer.playerController != null)
+                _localPlayer.playerController.enabled = false;
+
+            ShowResultUI($"탈락!\n{min}분 {sec}초 생존");
+            Debug.Log($"[GameMode] Push모드 탈락 — 시뮬레이션 유지, 생존시간={min}분 {sec}초");
+            return;
+        }
+
+        // ── 일반 모드: 완전 정지 ──
         StopAllCoroutines();
         Time.timeScale = 1f;
 
         _gameRunning = false;
         GameState.Phase = GamePhase.GameOver;
 
-        float survived = (GameState.CurrentGameMode == GameModeType.Push)
-            ? _gameTimer
-            : gameDuration - _gameTimer;
-        int min = Mathf.FloorToInt(survived / 60f);
-        int sec = Mathf.FloorToInt(survived % 60f);
+        float survivedTime = gameDuration - _gameTimer;
+        int minTime = Mathf.FloorToInt(survivedTime / 60f);
+        int secTime = Mathf.FloorToInt(survivedTime % 60f);
 
         if (centerCountdownText != null) centerCountdownText.text = "";
 
@@ -527,8 +552,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             _localPlayer.SyncScale();
         }
 
-        ShowResultUI($"탈락!\n{min}분 {sec}초 생존");
-        Debug.Log($"[GameMode] 로컬 플레이어 탈락! 생존시간={min}분 {sec}초");
+        ShowResultUI($"탈락!\n{minTime}분 {secTime}초 생존");
+        Debug.Log($"[GameMode] 로컬 플레이어 탈락! 생존시간={minTime}분 {secTime}초");
     }
 
     // 💡 중복 제거: 게임 결과 UI 출력 공통화

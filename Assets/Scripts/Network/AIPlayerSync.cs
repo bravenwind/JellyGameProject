@@ -136,6 +136,7 @@ public class AIPlayerSync : MonoBehaviourPun, IPunInstantiateMagicCallback
 
     private void OnDestroy()
     {
+        if (GameState.Phase == GamePhase.Result) return;
         ClearBotProperties();
     }
 }
