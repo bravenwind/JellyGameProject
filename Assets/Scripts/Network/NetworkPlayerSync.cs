@@ -55,6 +55,8 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private bool _isAbsorbed = false;   // 현재 흡수된 상태인지
     private System.Collections.Generic.HashSet<int> _absorbedBotIds = new System.Collections.Generic.HashSet<int>();
 
+    public bool IsAbsorbed => _isAbsorbed;
+
     // ─────────────────────────────────────────────────────────
     // 레지스트리 등록
     // ─────────────────────────────────────────────────────────

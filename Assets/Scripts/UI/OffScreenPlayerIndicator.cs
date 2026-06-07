@@ -212,6 +212,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
 
     private bool IsPlayerEliminated(NetworkPlayerSync p)
     {
+        if (p.IsAbsorbed) return true;
         var owner = p.photonView != null ? p.photonView.Owner : null;
         if (owner == null) return false;
         return owner.CustomProperties != null
