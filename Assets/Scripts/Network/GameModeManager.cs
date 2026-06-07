@@ -47,6 +47,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     // 결과 씬 진입 전, 룸 프로퍼티(봇 색상 등) 동기화 완료를 확인하기 위한 토큰 키
     private const string RESULT_SYNC_TOKEN_KEY = "ResultSyncToken";
 
+    // Push 모드 종료 시 마스터가 기록하는 '권위적 생존 플레이어 ActorNumber 목록' 키.
+    // 결과 씬은 각 클라이언트의 자기-보고("Eliminated")가 아닌 이 마스터 권위값을 신뢰한다.
+    // (탈락 당사자 클라이언트가 자신의 "Eliminated"=true를 자기 화면에서 제때 못 읽어
+    //  결과 씬에 자기 자신이 잘못 표시되는 PUN 로컬 캐시 타이밍 버그를 막는다.)
+    public const string PUSH_SURVIVOR_ACTORS_KEY = "PushSurvivorActors";
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetStatics()
     {
@@ -663,10 +669,13 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         int aliveCount = 0;
 
+        // 마스터의 신뢰할 수 있는 시야로 '생존 플레이어' ActorNumber를 수집한다.
+        var survivorActors = new List<int>();
         foreach (Player p in PhotonNetwork.PlayerList)
         {
             if (p.CustomProperties.TryGetValue("Eliminated", out object e) && e is bool b && b)
                 continue;
+            survivorActors.Add(p.ActorNumber);
             aliveCount++;
         }
 
@@ -678,6 +687,11 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         if (aliveCount <= 1)
         {
+            // 결과 씬이 신뢰할 권위적 생존자 목록을 룸 프로퍼티에 기록(마스터만).
+            // RPC_PushModeGameEnd 전에 보내므로 결과 동기화 토큰보다 먼저 전파된다.
+            PhotonNetwork.CurrentRoom.SetCustomProperties(
+                new Hashtable { { PUSH_SURVIVOR_ACTORS_KEY, survivorActors.ToArray() } });
+
             photonView.RPC(nameof(RPC_PushModeGameEnd), RpcTarget.All);
         }
     }

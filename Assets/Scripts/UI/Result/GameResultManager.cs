@@ -151,11 +151,19 @@ public class GameResultManager : MonoBehaviour
             return entries;
         }
 
+        var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
+
+        // Push 모드: 마스터가 기록한 권위적 생존자 목록을 우선 사용한다.
+        // 각 클라이언트의 자기-보고("Eliminated")는 탈락 당사자 화면에서 제때 갱신되지
+        // 않을 수 있어(PUN 로컬 캐시 타이밍), 모든 클라이언트가 동일하게 읽는 룸 프로퍼티를 신뢰한다.
+        HashSet<int> survivorActors = null;
+        if (roomProps.TryGetValue(GameModeManager.PUSH_SURVIVOR_ACTORS_KEY, out object sv) && sv is int[] arr)
+            survivorActors = new HashSet<int>(arr);
+
         // 살아있는(탈락하지 않은) 플레이어
-        AddPlayerEntries(entries, defaultScale, skipEliminated: true);
+        AddPlayerEntries(entries, defaultScale, survivorActors);
 
         // 봇 (룸 프로퍼티 기반; 탈락 봇은 프로퍼티가 정리되어 자동 제외)
-        var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
         foreach (var key in roomProps.Keys)
         {
             string keyStr = key.ToString();
@@ -173,18 +181,33 @@ public class GameResultManager : MonoBehaviour
         // 폴백: 동시 탈락 등으로 표시할 엔트리가 하나도 없으면, 탈락 여부와 무관하게
         // 플레이어를 다시 수집해 결과 씬이 빈 화면(UI만)으로 남지 않도록 한다.
         if (entries.Count == 0)
-            AddPlayerEntries(entries, defaultScale, skipEliminated: false);
+            AddPlayerEntries(entries, defaultScale, survivorActors: null, forceAll: true);
 
         return entries.OrderByDescending(e => e.scale).Take(3).ToList();
     }
 
-    private void AddPlayerEntries(List<Entry> entries, float defaultScale, bool skipEliminated)
+    /// <summary>
+    /// 플레이어 엔트리를 수집한다.
+    ///  • survivorActors != null : 마스터 권위 생존자 목록에 포함된 ActorNumber만 추가(Push 모드).
+    ///  • survivorActors == null : 각 플레이어의 "Eliminated" 자기-보고 플래그로 필터(Absorb 모드).
+    ///  • forceAll == true       : 필터 없이 전원 추가(빈 결과 방지 폴백).
+    /// </summary>
+    private void AddPlayerEntries(List<Entry> entries, float defaultScale,
+                                  HashSet<int> survivorActors, bool forceAll = false)
     {
         foreach (Player p in PhotonNetwork.PlayerList)
         {
-            if (skipEliminated
-                && p.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
-                continue;
+            if (!forceAll)
+            {
+                if (survivorActors != null)
+                {
+                    if (!survivorActors.Contains(p.ActorNumber)) continue;
+                }
+                else if (p.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
+                {
+                    continue;
+                }
+            }
             float scale = ReadFloat(p.CustomProperties, "Scale", defaultScale);
             Color color = ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
             entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false, color = color });
