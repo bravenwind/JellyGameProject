@@ -232,11 +232,27 @@ public class FallingTile : MonoBehaviour
 
     private void CarveNavMesh(Vector3 colliderSize)
     {
-        _navObstacle = gameObject.AddComponent<NavMeshObstacle>();
+        // [중요] NavMeshObstacle을 '낙하하는 타일 자신'에 붙이면, 타일이 아래로 떨어질 때
+        //        carving 장애물도 함께 내려가 NavMesh 표면에서 멀어진다. 그러면 뚫었던 구멍이
+        //        다시 닫혀, 바닥은 없는데 NavMesh 표면만 되살아나는 '유령 NavMesh'가 생긴다.
+        //        → AI가 무너진 타일 위(허공)를 걸어다니거나, 그 위로 튕겨 올라가 제자리에서
+        //          빙빙 도는 현상, 맵 꼭짓점에 박혀 살아남는 현상의 근본 원인.
+        //
+        //        해결: 타일과 분리된 '고정' 오브젝트에 carving 장애물을 부착해 구멍을 영구 유지한다.
+        //        colliderSize는 월드 단위(bounds.size)이므로, 부모 스케일에 왜곡되지 않도록
+        //        부모 없이(루트) 배치해 lossyScale=1을 보장한다. (씬 전환 시 자동 정리)
+        GameObject carveObj = new GameObject($"NavCarve_{name}");
+        carveObj.transform.position = transform.position;
+        carveObj.transform.rotation = transform.rotation;
+
+        _navObstacle = carveObj.AddComponent<NavMeshObstacle>();
         _navObstacle.shape = NavMeshObstacleShape.Box;
         _navObstacle.size = new Vector3(colliderSize.x, colliderSize.y + 1f, colliderSize.z);
         _navObstacle.center = Vector3.up * (colliderSize.y * 0.5f);
         _navObstacle.carving = true;
+        // 고정 오브젝트라 한 번만 carving되고 이후 재계산 비용이 없다.
+        // false로 두면 stationary 타이머(~0.5초)를 기다리지 않고 즉시 구멍을 뚫어,
+        // 그 사이 AI가 허공으로 튕기는 타이밍 공백을 없앤다.
         _navObstacle.carveOnlyStationary = false;
     }
 
