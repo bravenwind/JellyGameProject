@@ -225,6 +225,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         // 게임 시간 정지 — 이 시점부터 흡수/대쉬 등 전투 행동을 차단한다.
         _gameRunning = false;
         _gameTimer = 0f;
+        PlaySFXAudio.Instance?.StopWalking();
         GameState.Phase = GamePhase.Result;
 
         if (centerCountdownText != null)
