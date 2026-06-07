@@ -23,14 +23,17 @@ public class LevelUpFloater : MonoBehaviour
 
     private void Awake()
     {
-        _parentTf = transform;
+        // 부모는 '플레이어 루트'여야 한다. transform(플로터 자신)은 localScale이 항상 1이라
+        // 스케일 상쇄(parentScale)가 무력화되어 텍스트가 젤리 크기만큼 커지고 위치도 어긋난다.
+        // (NameTagBillboard와 동일하게 transform.parent를 기준 스케일로 사용)
+        _parentTf = transform.parent;
         _cam = Camera.main;
         EnsureTextObject();
     }
 
     /// <summary>
-    /// 텍스트 오브젝트를 생성한다. 이미 살아있으면 그대로 둔다.
-    /// 외부 요인으로 파괴된 경우(MissingReference) 재생성하여 안전하게 복구한다.
+    /// 텍스트 오브젝트를 '찾거나 생성'한다(find-or-create). 참조가 끊겨도 이미 만들어둔
+    /// "LevelUpText" 자식이 있으면 재사용하여 비활성 텍스트가 중복 누적되는 것을 막는다.
     /// 텍스트는 플로터 자신의 자식으로 두어, 플레이어 루트 자식을 정리하는 로직 등에
     /// 의해 파괴되지 않도록 한다.
     /// </summary>
@@ -38,13 +41,18 @@ public class LevelUpFloater : MonoBehaviour
     {
         if (_textTf != null && _tmp != null) return;
 
-        if (_parentTf == null) _parentTf = transform;
+        if (_parentTf == null) _parentTf = transform.parent;
 
-        var go = new GameObject("LevelUpText");
-        go.transform.SetParent(transform, false);
+        // 참조만 잃고 자식 오브젝트는 살아있는 경우 → 새로 만들지 않고 재사용
+        Transform existing = transform.Find("LevelUpText");
+        GameObject go = existing != null ? existing.gameObject : new GameObject("LevelUpText");
+        if (existing == null)
+            go.transform.SetParent(transform, false);
+
         _textTf = go.transform;
 
-        _tmp = go.AddComponent<TextMeshPro>();
+        _tmp = go.GetComponent<TextMeshPro>();
+        if (_tmp == null) _tmp = go.AddComponent<TextMeshPro>();
         _tmp.text = displayText;
         _tmp.fontSize = fontSize;
         _tmp.alignment = TextAlignmentOptions.Center;
@@ -88,8 +96,10 @@ public class LevelUpFloater : MonoBehaviour
             float parentScale = _parentTf != null
                 ? Mathf.Max(_parentTf.localScale.x, 0.01f) : 1f;
 
-            float worldY = startHeight * parentScale + floatHeight * EaseOutCubic(t);
-            _textTf.localPosition = new Vector3(0f, worldY, 0f);
+            // 위치 오프셋은 부모(루트) 로컬 기준 원시값으로 둔다(NameTagBillboard와 동일).
+            // parentScale을 곱하면 큰 젤리에서 위치가 제곱으로 어긋난다.
+            float localY = startHeight + floatHeight * EaseOutCubic(t);
+            _textTf.localPosition = new Vector3(0f, localY, 0f);
 
             if (_cam != null)
                 _textTf.rotation = Quaternion.LookRotation(
