@@ -28,7 +28,7 @@ public class GameResultManager : MonoBehaviour
 
     [Header("배치 설정")]
     [Tooltip("3위가 놓일 우측 끝 기준점 (월드 좌표)")]
-    public Vector3 rightAnchor = new Vector3(3f, 0f, 0f);
+    public Vector3 rightAnchor = new Vector3(30f, 0f, 0f);
     [Tooltip("젤리 사이 기본 여유 공간 (월드 단위)")]
     public float padding = 1.0f;
     [Tooltip("scale=1일 때 젤리의 기준 반지름")]
