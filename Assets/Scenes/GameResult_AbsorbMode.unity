@@ -74658,7 +74658,7 @@ MonoBehaviour:
   botJellyPrefab: {fileID: 1177273754728550086, guid: b1819b7e9bcac3e41927d859b19f03a0, type: 3}
   playerPrefabResourcePath: Prefabs/NetworkPlayer_Bear
   botPrefabResourcePath: Prefabs/AIPlayer_Bear
-  rightAnchor: {x: 30, y: 0.5, z: 0}
+  rightAnchor: {x: 30, y: 0.3, z: 0}
   padding: 30
   baseRadius: 0.5
   resultCamera: {fileID: 1707815816}

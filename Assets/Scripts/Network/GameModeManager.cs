@@ -30,7 +30,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     public GameObject gameResultPanel;
     public TextMeshProUGUI resultTitleText;
     public string gameEndText = "게임 종료!";
-    public const string RESULT_SCENE_NAME = "GameResult_io";
+    public const string RESULT_SCENE_NAME_ABSORB = "GameResult_AbsorbMode";
+    public const string RESULT_SCENE_NAME_PUSH = "GameResult_PushMode";
 
     [Header("UI 연결 — 순위표")]
     public Transform leaderboardContainer;
@@ -368,7 +369,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         // 결과 씬으로 넘어갈 때도 메인→인게임처럼 로딩 화면을 거치도록 설정.
         // GameWin은 모든 클라이언트에서 실행되므로 각 클라이언트가 자신의 로딩 타겟을 직접 지정한다.
-        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME;
+        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME_ABSORB;
         LoadingSceneController.AllClientsLoad = true;
 
         // 흡수 애니메이션 진행 중인 봇들을 즉시 정리한다.
@@ -710,6 +711,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     private IEnumerator PushModeEndSequence()
     {
+        PlaySFXAudio.Instance.StopWalking();
         if (centerCountdownText != null)
         {
             centerCountdownText.gameObject.SetActive(true);
@@ -732,7 +734,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         Time.timeScale = 0f;
         yield return new WaitForSecondsRealtime(1.0f);
 
-        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME;
+        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME_PUSH;
         LoadingSceneController.AllClientsLoad = true;
 
         if (PhotonNetwork.IsMasterClient)

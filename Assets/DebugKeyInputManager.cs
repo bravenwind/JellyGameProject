@@ -11,7 +11,16 @@ public class DebugKeyInputManager : MonoBehaviour
     {
         if (Input.GetKeyDown(changeToResultSceneKey))
         {
-            PhotonNetwork.LoadLevel(GameModeManager.RESULT_SCENE_NAME);
+            switch (GameState.CurrentGameMode)
+            {
+                case GameModeType.Absorb:
+                    PhotonNetwork.LoadLevel(GameModeManager.RESULT_SCENE_NAME_ABSORB);
+                    break;
+                case GameModeType.Push:
+                    PhotonNetwork.LoadLevel(GameModeManager.RESULT_SCENE_NAME_PUSH);
+                    break;
+            }
+            ;
         }
     }
 }

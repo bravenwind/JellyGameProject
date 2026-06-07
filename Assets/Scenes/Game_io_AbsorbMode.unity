@@ -67203,7 +67203,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &839208345
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -67217,6 +67217,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   testPlayerName: TestPlayer
+  testGameMode: 0
 --- !u!4 &839208346
 Transform:
   m_ObjectHideFlags: 0
@@ -89342,6 +89343,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c6823eb481cd8541ab2a43f77ae871f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  changeToResultSceneKey: 282
 --- !u!4 &1085073998
 Transform:
   m_ObjectHideFlags: 0
@@ -98739,6 +98741,8 @@ MonoBehaviour:
   fallOffThreshold: -10
   stepTileCollapseDelay: 2
   stepTileWarningDuration: 1.5
+  stepTileStepsToCollapse: 3
+  stepTileIdleWearSeconds: 2
   scaleIncreaseDuration: 1.5
   scaleDecreaseDuration: 2
   scaleChangedPlusSize: 7

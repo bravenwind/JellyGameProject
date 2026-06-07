@@ -18,8 +18,11 @@ EditorBuildSettings:
     path: Assets/Scenes/Game_io_PushMode.unity
     guid: 82402095e9886a443a76d44ed731c977
   - enabled: 1
-    path: Assets/Scenes/GameResult_io.unity
-    guid: 0d96c48fbaaff2446b4a45a4715438e1
+    path: Assets/Scenes/GameResult_AbsorbMode.unity
+    guid: ec1bfac601879d846a10888f041cf001
+  - enabled: 1
+    path: Assets/Scenes/GameResult_PushMode.unity
+    guid: c7b79af97b71a5547bda367daa7a1806
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
