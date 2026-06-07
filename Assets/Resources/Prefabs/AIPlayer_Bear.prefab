@@ -1164,6 +1164,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 236d43c5febb57b4fba1f71b2e88545d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  tmp: {fileID: 0}
   displayText: Level Up!
   fontSize: 6
   textColor: {r: 1, g: 0.9, b: 0.15, a: 1}
@@ -1171,6 +1172,7 @@ MonoBehaviour:
   duration: 1.2
   floatHeight: 2
   startHeight: 2
+  spreadX: 0.6
 --- !u!1 &5979714396672895507
 GameObject:
   m_ObjectHideFlags: 0
