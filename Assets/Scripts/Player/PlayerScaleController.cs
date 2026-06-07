@@ -22,6 +22,8 @@ public class PlayerScaleController : MonoBehaviour
     private bool isScaling = false;
     public bool IsScaling => isScaling;
 
+    private Coroutine _jellyBatchCoroutine;
+
     // ── Scale Lifecycle Events ──
     public event Action<float> OnScaleInit;
     public event Action<float> OnScaleValueChanged;
@@ -45,7 +47,15 @@ public class PlayerScaleController : MonoBehaviour
     public void GrowByJelly()
     {
         _pendingScale = Mathf.Min(_pendingScale + DataManager.Instance.jellyScaleIncrease, DataManager.Instance.maxScale);
-        QueueScaleChange(ScaleTo(_pendingScale, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
+        if (_jellyBatchCoroutine == null)
+            _jellyBatchCoroutine = StartCoroutine(BatchedJellyGrow());
+    }
+
+    private IEnumerator BatchedJellyGrow()
+    {
+        yield return null;
+        _jellyBatchCoroutine = null;
+        QueueScaleChange(ScaleTo(_pendingScale, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: false));
     }
 
     public void GrowByAbsorbing(float absorbedScaleValue)

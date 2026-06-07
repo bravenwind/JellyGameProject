@@ -88,7 +88,12 @@ public class PlayerBridge : MonoBehaviour
     {
         if (playEffect)
         {
-            if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
+            if (PlaySFXAudio.Instance != null)
+            {
+                PlaySFXAudio.Instance.PlayScaleUpSound();
+                if (GameState.CurrentGameMode == GameModeType.Absorb)
+                    PlaySFXAudio.Instance.PlayColorMixSound();
+            }
             if (_levelUpPool != null) _levelUpPool.Play();
         }
     }
@@ -158,6 +163,7 @@ public class PlayerBridge : MonoBehaviour
         netSync.SyncScore(GameState.CurrentScore);
         UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
+        if (_levelUpPool != null) _levelUpPool.Play();
         if (GameState.CurrentScore >= dm.targetScore)
             dm.missions[1].missionCleared = true;
     }
