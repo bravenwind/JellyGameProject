@@ -840,7 +840,7 @@ GameObject:
   - component: {fileID: 785506583776545882}
   - component: {fileID: 7824415549860110575}
   m_Layer: 6
-  m_Name: LevelUpFloater
+  m_Name: LevelUpFloaterPool
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -870,16 +870,11 @@ MonoBehaviour:
   m_GameObject: {fileID: 2779040705166710519}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 236d43c5febb57b4fba1f71b2e88545d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  displayText: Level Up!
-  fontSize: 6
-  textColor: {r: 1, g: 0.9, b: 0.15, a: 1}
-  outlineColor: {r: 0.55, g: 0.25, b: 0, a: 1}
-  duration: 1.2
-  floatHeight: 2
-  startHeight: 2
+  m_Script: {fileID: 11500000, guid: 7e3c1a9b8d2f4e6a9c5b1d0f3a8e2c4d, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  floaterPrefab: {fileID: 7300000000000000012, guid: c4d8e2f6a1b3c5d7e9f1a2b4c6d8e0f2, type: 3}
+  prewarm: 3
 --- !u!1 &2865217169571521878
 GameObject:
   m_ObjectHideFlags: 0

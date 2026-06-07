@@ -6,7 +6,7 @@ public class PlayerBridge : MonoBehaviour
     private PlayerColorVisual _colorVisual;
     private PlayerAbsorber _absorber;
     private PlayerMovement _playerController;
-    private LevelUpFloater _levelUpFloater;
+    private LevelUpFloaterPool _levelUpPool;
 
     private void Awake()
     {
@@ -15,12 +15,13 @@ public class PlayerBridge : MonoBehaviour
         _absorber = GetComponentInChildren<PlayerAbsorber>();
         _playerController = GetComponentInChildren<PlayerMovement>();
 
-        _levelUpFloater = GetComponentInChildren<LevelUpFloater>();
-        if (_levelUpFloater == null)
+        // 풀(컨테이너)이 프리팹에 있으면 사용, 없으면 동적 생성
+        _levelUpPool = GetComponentInChildren<LevelUpFloaterPool>();
+        if (_levelUpPool == null)
         {
-            var go = new GameObject("LevelUpFloater");
+            var go = new GameObject("LevelUpFloaterPool");
             go.transform.SetParent(transform, false);
-            _levelUpFloater = go.AddComponent<LevelUpFloater>();
+            _levelUpPool = go.AddComponent<LevelUpFloaterPool>();
         }
     }
 
@@ -88,7 +89,7 @@ public class PlayerBridge : MonoBehaviour
         if (playEffect)
         {
             if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayScaleUpSound();
-            if (_levelUpFloater != null) _levelUpFloater.Play();
+            if (_levelUpPool != null) _levelUpPool.Play();
         }
     }
 
