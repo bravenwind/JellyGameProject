@@ -45,7 +45,7 @@ public class PlayerScaleController : MonoBehaviour
     public void GrowByJelly()
     {
         _pendingScale = Mathf.Min(_pendingScale + DataManager.Instance.jellyScaleIncrease, DataManager.Instance.maxScale);
-        QueueScaleChange(ScaleTo(_pendingScale, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: false));
+        QueueScaleChange(ScaleTo(_pendingScale, DataManager.Instance.scaleIncreaseTime, growing: true, playEffect: true));
     }
 
     public void GrowByAbsorbing(float absorbedScaleValue)
@@ -84,7 +84,7 @@ public class PlayerScaleController : MonoBehaviour
         return GetScaleTier(newScale) < GetScaleTier(prevScale);
     }
 
-    private IEnumerator ScaleTo(float targetValue, float duration, bool growing, bool playEffect = false)
+    private IEnumerator ScaleTo(float targetValue, float duration, bool growing, bool playEffect = true)
     {
         targetValue = Mathf.Clamp(targetValue, DataManager.Instance.minScale, DataManager.Instance.maxScale);
         if (Mathf.Approximately(targetValue, currentScaleValue)) yield break;
@@ -125,7 +125,7 @@ public class PlayerScaleController : MonoBehaviour
     public void DecreaseScale(float decreaseTime)
     {
         _pendingScale = Mathf.Max(_pendingScale - DataManager.Instance.scaleDecreaseAmount, DataManager.Instance.minScale);
-        QueueScaleChange(ScaleTo(_pendingScale, decreaseTime, growing: false));
+        QueueScaleChange(ScaleTo(_pendingScale, decreaseTime, growing: false, playEffect: false));
     }
 
     public void QueueScaleChange(IEnumerator scaleRoutine)

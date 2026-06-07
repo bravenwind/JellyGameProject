@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using TMPro;
 using System.Collections;
 
@@ -23,7 +23,7 @@ public class LevelUpFloater : MonoBehaviour
 
     private void Awake()
     {
-        _parentTf = transform.parent;
+        _parentTf = transform;
         _cam = Camera.main;
         EnsureTextObject();
     }
@@ -38,7 +38,7 @@ public class LevelUpFloater : MonoBehaviour
     {
         if (_textTf != null && _tmp != null) return;
 
-        if (_parentTf == null) _parentTf = transform.parent;
+        if (_parentTf == null) _parentTf = transform;
 
         var go = new GameObject("LevelUpText");
         go.transform.SetParent(transform, false);
