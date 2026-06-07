@@ -292,6 +292,25 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
             if (!Agent.enabled || !Agent.isOnNavMesh) continue;
 
+            // 발판이 없는 허공(붕괴된 타일 자리의 잔존 NavMesh 등) 위에 떠 있으면
+            // 가장 가까운 안전 타일로 즉시 복귀시킨다. 이렇게 해야 AI가 공중에서
+            // 도달 불가능한 목적지를 못 찾아 WanderState로 Idle 박제되는 현상이 사라진다.
+            // (정상적으로 추락 중인 봇은 AwakePhysicsOnTile이 Agent를 꺼두므로 위 가드에서 걸러진다.)
+            var collapse = TileCollapseManager.Instance;
+            if (collapse != null && collapse.IsOverVoid(transform.position))
+            {
+                if (collapse.FindNearestSafeTile(transform.position, out Vector3 safeTile)
+                    && (NavMesh.SamplePosition(safeTile, out NavMeshHit voidHit, 10f, NavFilter)
+                        || NavMesh.SamplePosition(safeTile, out voidHit, 10f, NavMesh.AllAreas)))
+                {
+                    Agent.Warp(voidHit.position);
+                    // 복귀 직후엔 허공을 향하던 기존 경로가 무효이므로 비우고, 다음 평가 때
+                    // 모드에 맞는 상태(Wander/PushSurvive 등)가 새 목적지를 잡게 한다.
+                    if (Agent.isOnNavMesh && Agent.hasPath) Agent.ResetPath();
+                }
+                continue;
+            }
+
             if (GameState.CurrentGameMode == GameModeType.Push)
             {
                 if (FindThreat() != null) { ChangeState(FleeState); continue; }
@@ -300,7 +319,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             }
 
             // 위험 타일 위면 다른 판단보다 우선적으로 안전한 곳으로 도망
-            var collapse = TileCollapseManager.Instance;
             if (collapse != null && collapse.IsPositionDangerous(transform.position))
             {
                 if (TryGetWanderDestination(out Vector3 safe))

@@ -38,6 +38,9 @@ public class TileCollapseManager : MonoBehaviour
     private Vector3 _gridOrigin;
     private float _stepX, _stepZ;
 
+    // 실제로 붕괴(carve)가 끝나 발판이 사라진 칸들. IsOverVoid 판정용.
+    private HashSet<int> _collapsedCells = new HashSet<int>();
+
     private Dictionary<int, int> _tileStepCounts = new Dictionary<int, int>();
     private Dictionary<int, int> _entityCurrentTile = new Dictionary<int, int>();
     private Dictionary<int, float> _entityDwellTime = new Dictionary<int, float>();
@@ -277,6 +280,7 @@ public class TileCollapseManager : MonoBehaviour
         var ft = _tiles[x, z].GetComponent<FallingTile>();
         if (ft == null) ft = _tiles[x, z].AddComponent<FallingTile>();
 
+        ft.GridX = x; ft.GridZ = z;
         ft.StartFall(warn, fallDuration, fallDistance, Mathf.Max(0f, delay - warn));
         _tiles[x, z] = null;
     }
@@ -308,6 +312,7 @@ public class TileCollapseManager : MonoBehaviour
                 {
                     var ft = _tiles[x, z].GetComponent<FallingTile>();
                     if (ft == null) ft = _tiles[x, z].AddComponent<FallingTile>();
+                    ft.GridX = x; ft.GridZ = z;
                     ft.StartFall(warningDuration, fallDuration, fallDistance, delay);
                     _tiles[x, z] = null;
                     if (tileDelay > 0f) delay += tileDelay;
@@ -351,6 +356,33 @@ public class TileCollapseManager : MonoBehaviour
 
         int ring = GetRing(x, z);
         return ring <= _lastShakenRing;
+    }
+
+    /// <summary>
+    /// 타일이 실제로 붕괴(carve)된 시점에 FallingTile이 호출. 해당 칸을 '허공'으로 표시한다.
+    /// 주의: _tiles[x,z]=null은 붕괴 '예약' 시점에 설정되지만 타일은 경고 흔들림 동안
+    ///       물리적으로 남아 있으므로, 진짜 사라진 시점(carve)을 따로 기록해야 오탐이 없다.
+    /// </summary>
+    public void MarkCellCollapsed(int x, int z)
+    {
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return;
+        _collapsedCells.Add(x * 10000 + z);
+    }
+
+    /// <summary>
+    /// 월드 좌표 아래에 실제 발판이 없는지(=허공) 판정.
+    /// 그리드 밖이거나 이미 붕괴 완료(carve)된 칸이면 true.
+    /// NavMesh가 잔존하거나 타일 밖으로 베이크돼 AI가 허공에 떠 있는 상황을 잡는 데 쓴다.
+    /// </summary>
+    public bool IsOverVoid(Vector3 worldPos)
+    {
+        if (_stepX == 0f || _stepZ == 0f) return false;
+
+        int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
+        int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
+
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return true;
+        return _collapsedCells.Contains(x * 10000 + z);
     }
 
     public bool FindNearestSafeTile(Vector3 worldPos, out Vector3 safePos)

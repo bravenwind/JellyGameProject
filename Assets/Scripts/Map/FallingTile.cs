@@ -12,6 +12,10 @@ public class FallingTile : MonoBehaviour
     [Tooltip("OverlapBox 높이 (타일 위로 몇 미터까지 검사할지)")]
     public float overlapBoxHeight = 20f;
 
+    // TileCollapseManager가 붕괴 예약 시 채워주는 그리드 좌표. carve 시점에 '허공'으로 마킹할 때 사용.
+    [HideInInspector] public int GridX = -1;
+    [HideInInspector] public int GridZ = -1;
+
     private Coroutine _idleCoroutine;
     private Vector3 _originalPos;
     private float _phase;
@@ -129,6 +133,11 @@ public class FallingTile : MonoBehaviour
             //    NavMesh는 게임 시작 시 한 번만 베이크되므로, 타일이 사라져도 NavMesh 표면은 그대로 남아
             //    AI가 빈 공간을 걸어다니는 원인이 된다. Carving은 런타임에 NavMesh를 동적으로 잘라준다.
             CarveNavMesh(_collider.bounds.size);
+
+            // 2-1. 발판이 실제로 사라지는 시점이므로 이 칸을 '허공'으로 표시한다.
+            //      AI가 잔존 NavMesh 위에 떠 있게 되는 경우를 감지/복구하는 데 쓰인다.
+            if (GridX >= 0 && GridZ >= 0)
+                TileCollapseManager.Instance?.MarkCellCollapsed(GridX, GridZ);
 
             // 3. 낙하하는 타일 콜라이더 비활성화 (플레이어 밀림/끼임 버그 방지)
             _collider.enabled = false;
