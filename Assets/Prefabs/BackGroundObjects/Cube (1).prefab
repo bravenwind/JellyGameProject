@@ -31341,10 +31341,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buoyancyForce: 3.5
   chocolateViscosity: 6
-  changeDirectionInterval: 3
+  flowChangeSpeed: 0.5
   flowForce: 10
   waveSpeed: 2
   waveForce: 3
+  changeDirectionInterval: 3
+  floatingLifetime: 5
+  debugLogTriggers: 1
 --- !u!33 &3187781373099550690
 MeshFilter:
   m_ObjectHideFlags: 0

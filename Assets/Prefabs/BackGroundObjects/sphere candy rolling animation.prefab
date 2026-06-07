@@ -13,6 +13,7 @@ GameObject:
   - component: {fileID: 6779676612750225706}
   - component: {fileID: 363339223063704922}
   - component: {fileID: -6128451571784631237}
+  - component: {fileID: -1102991075918947794}
   m_Layer: 12
   m_Name: sphere candy rolling animation
   m_TagString: BackGroundObject
@@ -124,6 +125,26 @@ MonoBehaviour:
   m_SynchronizeRotation: 1
   m_SynchronizeScale: 0
   m_UseLocal: 1
+--- !u!114 &-1102991075918947794
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 982802577469632659}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_SerializedVersion: 0
+  m_OverrideArea: 1
+  m_Area: 1
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!1 &2983740928086729670
 GameObject:
   m_ObjectHideFlags: 0

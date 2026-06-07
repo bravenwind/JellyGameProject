@@ -83718,6 +83718,7 @@ MonoBehaviour:
   - Jelly_White_Wandering
   maxJellyCount: 100
   spawnInterval: 2
+  spawnPerInterval: 5
   spawnRangeX: 100
   spawnRangeZ: 100
   spawnHeight: 0.5
@@ -155128,7 +155129,7 @@ MonoBehaviour:
   m_Center: {x: 0, y: 2, z: 0}
   m_LayerMask:
     serializedVersion: 2
-    m_Bits: 2935
+    m_Bits: 7031
   m_UseGeometry: 1
   m_DefaultArea: 0
   m_GenerateLinks: 0
@@ -155160,7 +155161,7 @@ MonoBehaviour:
   m_Center: {x: 0, y: 2, z: 0}
   m_LayerMask:
     serializedVersion: 2
-    m_Bits: 2935
+    m_Bits: 7031
   m_UseGeometry: 1
   m_DefaultArea: 0
   m_GenerateLinks: 0
@@ -179538,6 +179539,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6740253497566026384}
   - component: {fileID: 6698410646694811720}
+  - component: {fileID: 6740253497566026385}
   m_Layer: 0
   m_Name: NetworkManager
   m_TagString: Untagged
@@ -180785,6 +180787,24 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6740253497566026385
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 188052513894048797}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 517dcfd699c14a3cb0d36951d40feb62, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  includeBots: 1
+  edgeMargin: 60
+  onScreenHeadOffset: 42
+  indicatorSize: 46
+  worldHeadHeight: 1.2
+  sortingOrder: 50
 --- !u!4 &8706261591152271068 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 117311414681150118, guid: b1c916de8cef12848abc305b555d1528, type: 3}
