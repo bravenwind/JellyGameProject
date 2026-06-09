@@ -712,7 +712,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
             float pushForce = DataManager.Instance.dashPushForce;
 
-            aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), RpcTarget.All,
+            // 봇 위치는 소유자(마스터)가 PhotonTransformView로 권위 동기화하므로, 넉백도
+            // 소유자에게만 보내 transform을 움직이게 한다(All로 보내면 비마스터에서 지터 발생).
+            aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), aiBot.photonView.Owner,
                 pushDir.x, pushDir.z, pushForce);
 
             photonView.RPC(nameof(RPC_ApplyKnockback), photonView.Owner,

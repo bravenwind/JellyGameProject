@@ -159,6 +159,11 @@ public class PlayerScaleController : MonoBehaviour
         OnScaleReset?.Invoke();
 
         StopAllCoroutines();
+        // StopAllCoroutines는 BatchedJellyGrow를 첫 yield 대기 중에 끊어버릴 수 있는데,
+        // 그러면 코루틴 본문이 _jellyBatchCoroutine을 null로 비우는 줄에 도달하지 못한다.
+        // 핸들이 죽은 채 남으면 이후 GrowByJelly의 (== null) 가드가 영영 false가 되어
+        // 젤리 성장이 다시 시작되지 않으므로, 여기서 직접 비워준다.
+        _jellyBatchCoroutine = null;
         scaleQueue.Clear();
         isScaling = false;
         currentScaleValue = 1f;

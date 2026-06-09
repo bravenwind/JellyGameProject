@@ -860,7 +860,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             AIPlayerMovement aiBot = hit.GetComponentInParent<AIPlayerMovement>();
             if (aiBot != null && aiBot != this && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
             {
-                aiBot.photonView.RPC(nameof(RPC_ApplyKnockback), RpcTarget.All,
+                // 봇 위치는 소유자(마스터)가 PhotonTransformView로 권위 동기화한다.
+                // RpcTarget.All로 보내면 비마스터도 로컬에서 transform을 밀어 수신 동기화 값과
+                // 충돌(지터/되감김)하므로, 플레이어 넉백과 동일하게 소유자에게만 보낸다.
+                aiBot.photonView.RPC(nameof(RPC_ApplyKnockback), aiBot.photonView.Owner,
                     pushDir.x, pushDir.z, pushForce);
 
                 float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
