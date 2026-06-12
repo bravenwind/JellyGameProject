@@ -101,3 +101,4 @@ InitTestScene*.unity*
 # Google Sheets credentials
 credentials.json
 *.json.bak
+.claude/settings.local.json
