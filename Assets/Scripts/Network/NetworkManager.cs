@@ -295,6 +295,35 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         }
     }
 
+    /// <summary>
+    /// [H2] 매칭 카운트다운은 마스터에서만 도는 코루틴이라, 카운트다운 중 마스터가 이탈하면
+    /// 코루틴이 같이 죽는다. 새 마스터는 _isCountingDown=false지만 CheckAndStartCountdown은
+    /// 입장 콜백에서만 호출되므로 아무도 카운트다운을 재개하지 않아 매칭이 영구 대기에 빠진다.
+    /// → 마스터 승계 시 새 마스터가 카운트다운을 이어받는다.
+    ///   (인원이 최소 미달로 줄었다면, 이전 마스터가 닫아둔 방을 다시 열어 모집을 재개한다)
+    /// </summary>
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        if (!PhotonNetwork.IsMasterClient || !PhotonNetwork.InRoom) return;
+
+        // 매칭 단계(Main 씬)에서만 처리. 인게임/로딩의 마스터 승계는
+        // GameModeManager/LoadingSceneController가 각자 책임진다.
+        if (SceneManager.GetActiveScene().name != "Main") return;
+
+        if (PhotonNetwork.CurrentRoom.PlayerCount < minPlayersPerRoom)
+        {
+            if (!PhotonNetwork.CurrentRoom.IsOpen)
+            {
+                Debug.Log("[Network] 마스터 승계 — 인원 부족으로 방을 다시 열어 모집 재개");
+                PhotonNetwork.CurrentRoom.IsOpen = true;
+            }
+            return; // 이후 OnPlayerEnteredRoom이 카운트다운을 다시 트리거한다.
+        }
+
+        Debug.Log("[Network] 마스터 승계 — 끊긴 매칭 카운트다운을 새 마스터가 재시작");
+        CheckAndStartCountdown();
+    }
+
     private IEnumerator CountdownCoroutine()
     {
         // 최소 인원은 채워졌지만, 바로 시작하면 어색하므로 잠깐 더 대기

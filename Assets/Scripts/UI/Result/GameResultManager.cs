@@ -131,24 +131,17 @@ public class GameResultManager : MonoBehaviour
     // 데이터 수집
     // ──────────────────────────────────────────────
 
-    private struct Entry
-    {
-        public string name;
-        public float scale;
-        public bool isBot;
-        public Color color;
-    }
-
-    private List<Entry> GatherTopEntries()
+    // [H6] 수집·탈락 필터·정렬은 ScoreboardSnapshot으로 통일 (인게임 리더보드와 동일 기준).
+    // 결과 씬은 게임 오브젝트가 이미 파괴된 뒤이므로 색은 커스텀 프로퍼티에서 읽는다.
+    private List<ScoreboardSnapshot.Entry> GatherTopEntries()
     {
         var dm = DataManager.Instance;
         float defaultScale = dm != null ? dm.startingScale : 2f;
-        var entries = new List<Entry>();
 
         if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
         {
             Debug.LogWarning("[GameResult] 룸 정보 없음 — 빈 상태로 종료");
-            return entries;
+            return new List<ScoreboardSnapshot.Entry>();
         }
 
         var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
@@ -160,64 +153,20 @@ public class GameResultManager : MonoBehaviour
         if (roomProps.TryGetValue(GameModeManager.PUSH_SURVIVOR_ACTORS_KEY, out object sv) && sv is int[] arr)
             survivorActors = new HashSet<int>(arr);
 
-        // 살아있는(탈락하지 않은) 플레이어
-        AddPlayerEntries(entries, defaultScale, survivorActors);
+        Color PlayerColor(Player p) =>
+            ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
+        Color BotColor(string prefix, int viewId) =>
+            ReadColor(roomProps, $"{prefix}_Color_R", $"{prefix}_Color_G", $"{prefix}_Color_B", fallbackColor);
 
-        // 봇 (룸 프로퍼티 기반; 탈락 봇은 프로퍼티가 정리되어 자동 제외)
-        foreach (var key in roomProps.Keys)
-        {
-            string keyStr = key.ToString();
-            if (!keyStr.EndsWith("_Name")) continue;
-
-            object nameVal = roomProps[keyStr];
-            if (nameVal == null) continue;
-
-            string prefix = keyStr.Replace("_Name", "");
-            float scale = ReadFloat(roomProps, $"{prefix}_Scale", defaultScale);
-            Color color = ReadColor(roomProps, $"{prefix}_Color_R", $"{prefix}_Color_G", $"{prefix}_Color_B", fallbackColor);
-            entries.Add(new Entry { name = nameVal.ToString(), scale = scale, isBot = true, color = color });
-        }
+        var entries = ScoreboardSnapshot.Collect(defaultScale, PlayerColor, BotColor, survivorActors);
 
         // 폴백: 동시 탈락 등으로 표시할 엔트리가 하나도 없으면, 탈락 여부와 무관하게
         // 플레이어를 다시 수집해 결과 씬이 빈 화면(UI만)으로 남지 않도록 한다.
         if (entries.Count == 0)
-            AddPlayerEntries(entries, defaultScale, survivorActors: null, forceAll: true);
+            entries = ScoreboardSnapshot.Collect(defaultScale, PlayerColor, BotColor,
+                                                 survivorActors: null, includeEliminatedPlayers: true);
 
-        return entries.OrderByDescending(e => e.scale).Take(3).ToList();
-    }
-
-    /// <summary>
-    /// 플레이어 엔트리를 수집한다.
-    ///  • survivorActors != null : 마스터 권위 생존자 목록에 포함된 ActorNumber만 추가(Push 모드).
-    ///  • survivorActors == null : 각 플레이어의 "Eliminated" 자기-보고 플래그로 필터(Absorb 모드).
-    ///  • forceAll == true       : 필터 없이 전원 추가(빈 결과 방지 폴백).
-    /// </summary>
-    private void AddPlayerEntries(List<Entry> entries, float defaultScale,
-                                  HashSet<int> survivorActors, bool forceAll = false)
-    {
-        foreach (Player p in PhotonNetwork.PlayerList)
-        {
-            if (!forceAll)
-            {
-                if (survivorActors != null)
-                {
-                    if (!survivorActors.Contains(p.ActorNumber)) continue;
-                }
-                else if (p.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
-                {
-                    continue;
-                }
-            }
-            float scale = ReadFloat(p.CustomProperties, "Scale", defaultScale);
-            Color color = ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
-            entries.Add(new Entry { name = p.NickName, scale = scale, isBot = false, color = color });
-        }
-    }
-
-    private static float ReadFloat(ExitGames.Client.Photon.Hashtable props, string key, float fallback)
-    {
-        if (props != null && props.TryGetValue(key, out object v) && v != null) return (float)v;
-        return fallback;
+        return entries.Take(3).ToList();
     }
 
     private static Color ReadColor(ExitGames.Client.Photon.Hashtable props,
@@ -234,7 +183,7 @@ public class GameResultManager : MonoBehaviour
     // 배치
     // ──────────────────────────────────────────────
 
-    private void SpawnPodium(List<Entry> top)
+    private void SpawnPodium(List<ScoreboardSnapshot.Entry> top)
     {
         int count = top.Count;
         float[] radii = new float[count];

@@ -102,9 +102,10 @@ public static class GameState
         _currentDisplayColor = Color.white;
         DetectRadius = 0f;
 
-        OnPhaseChanged = null;
-        OnScoreChanged = null;
-        OnScaleChanged = null;
-        OnDisplayColorChanged = null;
+        // [H1] 여기서 이벤트를 null로 비우면 안 된다.
+        // 씬 UI(LevelUI/ScoreUI 등)는 OnEnable(씬 활성화)에서 구독하는데, 게임 시작 RPC가
+        // 이 함수를 그 뒤에 호출하므로 구독이 통째로 끊겨 UI 갱신이 멈춘다.
+        // 구독 해제는 각 구독자의 OnDisable 책임이고, 전체 정리는 도메인 리로드 대비용인
+        // Reset()(SubsystemRegistration)에서만 수행한다.
     }
 }

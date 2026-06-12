@@ -293,86 +293,47 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 현재 방의 모든 플레이어와 봇의 (이름, 점수, 크기, 봇여부)를 가져와
-    /// 크기 내림차순으로 정렬하여 반환. 점수는 크기에서 자동 산출.
+    /// 현재 방의 모든 생존 플레이어/봇을 크기 내림차순으로 반환.
+    /// [H6] 수집·필터·정렬은 ScoreboardSnapshot으로 통일했고, 여기는 '살아있는
+    /// 오브젝트에서 색을 읽는' 인게임 전용 리졸버만 제공한다. (결과 씬은 프로퍼티에서 읽음)
     /// </summary>
-    private List<(string name, int score, float scale, bool isBot, Color color)> GetSortedScores()
+    private List<ScoreboardSnapshot.Entry> GetSortedScores()
     {
-        var dm = DataManager.Instance;
-        var entries = new List<(string name, int score, float scale, bool isBot, Color color)>();
-
-        foreach (Player player in PhotonNetwork.PlayerList)
-        {
-            if (player.CustomProperties.TryGetValue("Eliminated", out object elim) && elim is bool b && b)
-                continue;
-            float scale = player.CustomProperties.TryGetValue("Scale", out object sc) ? (float)sc : dm.startingScale;
-            int score = dm.ScoreFromScale(scale);
-
-            Color playerColor = Color.white;
-            foreach (var nps in EntityRegistry.Players)
-            {
-                if (nps != null && nps.photonView.Owner?.ActorNumber == player.ActorNumber)
-                {
-                    playerColor = nps.DisplayColor;
-                    break;
-                }
-            }
-
-            entries.Add((player.NickName, score, scale, false, playerColor));
-        }
-
-        var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
-        foreach (var key in roomProps.Keys)
-        {
-            string keyStr = key.ToString();
-            if (keyStr.EndsWith("_Name"))
-            {
-                string prefix = keyStr.Replace("_Name", "");
-                object nameVal = roomProps[keyStr];
-                if (nameVal == null) continue;
-
-                if (prefix.StartsWith("Bot") && int.TryParse(prefix.Substring(3), out int vid))
-                {
-                    bool eliminated = false;
-                    foreach (var b in EntityRegistry.Bots)
-                    {
-                        if (b != null && b.photonView != null && b.photonView.ViewID == vid && b.IsEliminated)
-                        {
-                            eliminated = true;
-                            break;
-                        }
-                    }
-                    if (eliminated) continue;
-                }
-
-                string botName = nameVal.ToString();
-                float scale = roomProps.TryGetValue($"{prefix}_Scale", out object sv) && sv != null
-                    ? (float)sv : dm.startingScale;
-                int score = dm.ScoreFromScale(scale);
-
-                Color botColor = Color.white;
-                if (prefix.StartsWith("Bot") && int.TryParse(prefix.Substring(3), out int botVid))
-                {
-                    foreach (var bot in EntityRegistry.Bots)
-                    {
-                        if (bot != null && bot.photonView != null && bot.photonView.ViewID == botVid)
-                        {
-                            var rend = bot.GetComponentInChildren<Renderer>();
-                            if (rend != null && rend.material.HasProperty("_FresnelColor"))
-                                botColor = rend.material.GetColor("_FresnelColor");
-                            break;
-                        }
-                    }
-                }
-
-                entries.Add((botName, score, scale, true, botColor));
-            }
-        }
-
-        return entries.OrderByDescending(e => e.scale).ToList();
+        return ScoreboardSnapshot.Collect(
+            DataManager.Instance.startingScale,
+            ResolveLivePlayerColor,
+            ResolveLiveBotColor);
     }
 
-    private int GetLocalPlayerRank(List<(string name, int score, float scale, bool isBot, Color color)> sortedEntries)
+    private static Color ResolveLivePlayerColor(Player player)
+    {
+        foreach (var nps in EntityRegistry.Players)
+        {
+            if (nps != null && nps.photonView.Owner?.ActorNumber == player.ActorNumber)
+                return nps.DisplayColor;
+        }
+        return Color.white;
+    }
+
+    private static Color ResolveLiveBotColor(string prefix, int viewId)
+    {
+        foreach (var bot in EntityRegistry.Bots)
+        {
+            if (bot != null && bot.photonView != null && bot.photonView.ViewID == viewId)
+            {
+                // 읽기 전용 조회이므로 sharedMaterial 사용 — .material은 봇마다
+                // 머티리얼 인스턴스를 복제해 배칭을 깨뜨린다(G4와 동일한 학습 포인트).
+                var rend = bot.GetComponentInChildren<Renderer>();
+                if (rend != null && rend.sharedMaterial != null
+                    && rend.sharedMaterial.HasProperty("_FresnelColor"))
+                    return rend.sharedMaterial.GetColor("_FresnelColor");
+                break;
+            }
+        }
+        return Color.white;
+    }
+
+    private int GetLocalPlayerRank(List<ScoreboardSnapshot.Entry> sortedEntries)
     {
         for (int i = 0; i < sortedEntries.Count; i++)
         {
@@ -645,13 +606,14 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         for (int i = 0; i < displayCount; i++)
         {
-            var (name, score, scale, isBot, color) = entries[i];
+            var entry = entries[i];
             LeaderboardEntry entryComp = _leaderboardPool.Get();
             entryComp.transform.SetAsLastSibling();
             _leaderboardEntries.Add(entryComp);
 
-            bool isMe = !isBot && name == PhotonNetwork.NickName;
-            entryComp.Setup(i + 1, name, score, isMe, color);
+            bool isMe = !entry.isBot && entry.name == PhotonNetwork.NickName;
+            int score = DataManager.Instance.ScoreFromScale(entry.scale);
+            entryComp.Setup(i + 1, entry.name, score, isMe, entry.color);
         }
     }
 
