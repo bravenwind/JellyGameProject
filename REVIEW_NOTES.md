@@ -133,6 +133,81 @@
 
 ---
 
+## 2026-06-12 루틴 — 게임 시퀀스 심층 리뷰 (신규 커밋 없음 / 미리뷰 영역 분석)
+
+06-09 이후 새 커밋이 없어, 아직 깊게 리뷰하지 않았던 시퀀스 핵심부를 분석.
+리뷰 파일: `GameModeManager.cs`, `GameState.cs`, `GameResultManager.cs`,
+`NetworkManager.cs`(매칭 흐름), `LoadingSceneController.cs`
+
+### [H1] (버그 / 중) GameState.ResetValues()가 정적 이벤트 구독을 전부 끊어버림
+- 위치: `GameState.cs:96-109 (ResetValues)`, 호출처 `GameModeManager.cs:167 (StartGameInternal)`
+- 내용: 씬 UI(`LevelUI`/`ScoreUI`/`CurrentStatusUI`)는 **OnEnable(씬 활성화 시점)**에서
+  `GameState.OnScaleChanged += ...`로 구독한다. 그런데 게임 시작 RPC(`RPC_StartGame` →
+  `StartGameInternal` → `GameState.ResetValues()`)가 그 **뒤에** 실행되며
+  `OnScaleChanged = null` 등으로 이벤트를 통째로 비운다. → 씬 로드 때 구독한 UI가
+  게임 시작 순간 전부 **무음으로 구독 해제**되어 이후 스케일/점수 변화가 UI에 반영되지 않을 수 있다.
+  (Unity 라이프사이클: 모든 OnEnable은 모든 Start보다 먼저 → 구독이 항상 먼저, 와이프가 항상 나중)
+- 제안: `ResetValues()`에서 이벤트 null 대입 4줄 제거. 이벤트 정리는 도메인 리로드 대비용인
+  `Reset()`(SubsystemRegistration)에만 남긴다. 구독 해제는 각 구독자의 OnDisable 책임.
+- 학습 포인트: **static event는 씬을 넘어 살아남는 전역 상태**다. "값 리셋" 함수가 구독까지
+  끊으면, 구독자는 끊긴 사실을 알 길이 없다(이벤트는 silent fail). 구독의 수명 관리는
+  구독자 자신(OnEnable/OnDisable 짝)에게 맡기는 것이 원칙.
+
+### [H2] (네트워크 / 중) 매칭 카운트다운 중 마스터 이탈 시 매칭 데드락
+- 위치: `NetworkManager.cs:288-334 (CheckAndStartCountdown/CountdownCoroutine)`
+- 내용: 카운트다운 코루틴은 **마스터에서만** 돈다. 매칭 버퍼(6초)+카운트다운(3초) 동안
+  마스터가 이탈하면 코루틴이 같이 죽는다. 새 마스터는 `_isCountingDown=false`지만
+  `CheckAndStartCountdown()`은 `OnJoinedRoom`/`OnPlayerEnteredRoom`에서만 호출되므로
+  **아무도 카운트다운을 다시 시작하지 않는다** → 남은 인원은 매칭 화면에 영구 대기.
+  심지어 `IsOpen=false`가 이미 설정된 뒤라면 새 인원 입장으로 트리거될 수도 없다.
+- 제안: `OnMasterClientSwitched` 오버라이드 추가 → 내가 새 마스터면 `IsOpen` 복구 여부를
+  판단하고 `CheckAndStartCountdown()` 재호출. (LoadingSceneController는 같은 문제를
+  이미 `OnMasterClientSwitched`로 처리하고 있음 — 같은 패턴을 매칭 단계에도 적용)
+- 학습 포인트: "마스터만 수행하는 일"에는 항상 **마스터 승계 시나리오**를 짝으로 설계해야 한다.
+  PUN은 마스터를 자동 승계해주지만, 죽은 코루틴/타이머는 아무도 이어받지 않는다.
+
+### [H3] (버그 / 중) PushModeEndSequence 첫 줄 NRE 시 결과 씬 전환 소프트락
+- 위치: `GameModeManager.cs:738 (PushModeEndSequence)`
+- 내용: `PlaySFXAudio.Instance.StopWalking();` — 같은 파일의 Absorb 경로(229행)는
+  `PlaySFXAudio.Instance?.StopWalking()`으로 널 가드하는데 여기만 직접 호출.
+  Instance가 null이면 코루틴이 첫 줄에서 NRE로 죽고, **그 뒤의 슬로우모션·결과 씬 전환이
+  전부 실행되지 않는다.** 이미 `_gameRunning=false`가 된 뒤라 `RPC_PushModeGameEnd`도
+  재발화하지 않음 → 해당 클라이언트는 게임 화면에 영구 정지(소프트락).
+- 제안: `?.` 널 가드로 통일. (G8과 같은 주제지만, 여기는 실패 시 비용이 '씬 전환 중단'이라 더 큼)
+- 학습 포인트: 코루틴 안의 예외는 **그 지점에서 코루틴을 통째로 끝낸다.** 씬 전환처럼
+  반드시 도달해야 하는 코드 앞에는 죽을 수 있는 호출을 두지 않거나 방어해야 한다.
+
+### [H4] (버그 / 중하) 순위·본인 판정을 닉네임 문자열로 비교 — 중복 닉네임 시 오동작
+- 위치: `GameModeManager.cs:379, 638, 653 (GetLocalPlayerRank/UpdateLeaderboard)`
+- 내용: `entries[i].name == PhotonNetwork.NickName`으로 '나'를 식별한다. 닉네임은
+  사용자가 자유 입력하므로 **두 플레이어가 같은 닉네임이면** 순위/하이라이트가 먼저
+  발견된 쪽으로 잘못 표시된다. 봇 색 조회는 이미 ActorNumber를 쓰고 있어(314행) 불일치.
+- 제안: 엔트리 튜플에 `actorNumber`(봇은 -viewID 등)를 포함시키고 비교는 항상 번호로.
+- 학습 포인트: **표시용 이름(display name)과 식별자(identity)를 분리**하라. 네트워크
+  게임에서 유일성이 보장되는 건 서버가 부여한 ActorNumber뿐이다.
+
+### [H5] (아키텍처·데드코드 / 하) GameOver()의 두 번째 Push 분기는 도달 불가능
+- 위치: `GameModeManager.cs:508-519 (1차 Push 분기)` vs `543-567 (2차 Push 분기)`
+- 내용: 메서드 초입의 1차 Push 분기가 항상 먼저 return하므로 2차 Push 분기(생존 시간
+  표시 버전)는 **죽은 코드**다. 두 분기의 UI 문구도 달라("관전 중..." vs "n분 n초 생존")
+  어느 쪽이 의도인지 코드만으로 알 수 없게 만든다. 덤: `GameWin()`(397행)이
+  `RESULT_SCENE_NAME_ABSORB`를 하드코딩 — 현재는 Absorb 전용 경로라 무해하지만,
+  이름과 달리 모드 의존적이라는 사실이 드러나지 않는다.
+- 제안: 2차 분기 삭제(원하는 문구는 1차 분기로 통합). GameWin은 모드에 따라 씬을 고르거나
+  이름을 `LoadAbsorbResult`처럼 정직하게.
+- 학습 포인트: 죽은 코드는 "언젠가 쓸지도"가 아니라 **읽는 사람에게 거짓 정보**다.
+  리팩터링 시 분기 순서가 바뀌며 갑자기 살아나는 사고도 일으킨다(git이 기억하니 지워도 된다).
+
+### [H6] (아키텍처 / 하) 점수 집계 로직이 리더보드/결과 씬에 이중 구현
+- 위치: `GameModeManager.GetSortedScores()`(299-373) vs `GameResultManager.GatherTopEntries()`(142-187)
+- 내용: "플레이어+봇의 (이름, 스케일, 색, 탈락여부) 수집·정렬"이 두 곳에 따로 구현돼 있고,
+  **탈락 필터 기준도 다르다**(리더보드: EntityRegistry의 IsEliminated / 결과 씬: 룸 프로퍼티
+  정리 + PUSH_SURVIVOR_ACTORS). 한쪽만 수정하면 인게임 순위와 최종 결과가 어긋난다.
+- 제안: `ScoreboardSnapshot` 같은 정적 헬퍼로 수집 로직을 한 곳에 모으고, 양쪽은
+  필터 옵션만 다르게 호출. (G6 '권위 출처 단일화'와 같은 주제의 상위 과제)
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -148,9 +223,17 @@
 - [ ] G6  (대기)
 - [ ] G7  (대기)
 - [ ] G8  (대기)
+- [ ] H1  (대기 — 2026-06-12 도출)
+- [ ] H2  (대기 — 2026-06-12 도출)
+- [ ] H3  (대기 — 2026-06-12 도출)
+- [ ] H4  (대기 — 2026-06-12 도출)
+- [ ] H5  (대기 — 2026-06-12 도출)
+- [ ] H6  (대기 — 2026-06-12 도출)
 
 ## 환경 메모
 - 원격 컨테이너는 매 세션 새로 클론되므로 `~/.config/gsheet/credentials.json` 와 `gspread`가
   매번 없어진다. 2026-06-04 루틴에서는 사용자가 credentials를 업로드해주어 수동 설치
   (`pip install gspread google-auth cffi cryptography`) 후 시트 기록을 정상 수행함.
 - 영구 자동화하려면 환경 SessionStart 훅/시작 스크립트에 위 설치 + credentials 주입을 넣어야 함.
+- 2026-06-12 루틴: credentials/gspread 부재로 시트 기록 보류. H1~H6 승인 시 plan/bug 기록과
+  함께 일괄 반영 필요(기록 대기 항목: "2026-06-12 코드리뷰 — H1~H6 도출").
