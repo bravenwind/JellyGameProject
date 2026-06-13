@@ -151,10 +151,16 @@ public class AIPushSurviveState : AIBaseState
         return true;
     }
 
+    // 자기보다 '작은' 먹잇감만 추격 대상으로 본다.
+    // 예전엔 크기 무관 최근접 엔티티(같은 크기의 다른 봇 포함)를 쫓아서, 봇끼리 서로를 추격하며
+    // 한 타일로 눈덩이처럼 뭉쳤다 → 그 타일이 step 마모로 '무너지기 직전'이 되어 다 같이 추락했다.
+    // 더 큰 상대는 어차피 FindThreat→FleeState가 처리(도주)하므로, 여기서 동급/대형을 빼면
+    // 봇끼리 서로 끌어당겨 뭉치는 일이 사라진다(포식자-피식자 관계만 남아 자연히 분산).
     private Transform FindNearestTarget()
     {
         float bestDist = float.MaxValue;
         Transform best = null;
+        float myScale = ai.GetMyAuthorityScale();
 
         foreach (var player in EntityRegistry.Players)
         {
@@ -162,6 +168,7 @@ public class AIPushSurviveState : AIBaseState
             if (player.photonView.Owner?.CustomProperties != null &&
                 player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out object e) &&
                 e is bool b && b) continue;
+            if (player.ScaleValue >= myScale) continue; // 나보다 크거나 같으면 추격 안 함
             float d = Vector3.Distance(ai.transform.position, player.transform.position);
             if (d < bestDist)
             {
@@ -173,6 +180,7 @@ public class AIPushSurviveState : AIBaseState
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot == ai || bot.IsEliminated || bot.IsBeingAbsorbed) continue;
+            if (bot.GetMyAuthorityScale() >= myScale) continue; // 동급/대형 봇은 추격 안 함(상호 추격 차단)
             float d = Vector3.Distance(ai.transform.position, bot.transform.position);
             if (d < bestDist)
             {
