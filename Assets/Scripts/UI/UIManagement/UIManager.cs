@@ -138,7 +138,6 @@ public class UIManager : MonoBehaviour
                 GUI.enabled = true;
                 break;
             case UIState.Settings:
-                Time.timeScale = 0f; // ���� �Ͻ� ����
                 GUI.enabled = false;
                 break;
             case UIState.Pause:
