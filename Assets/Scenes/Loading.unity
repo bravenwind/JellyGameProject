@@ -2055,6 +2055,8 @@ RectTransform:
   - {fileID: 733130074}
   - {fileID: 1716943145}
   - {fileID: 1233116311}
+  - {fileID: 1607942939}
+  - {fileID: 1666091534}
   m_Father: {fileID: 2114752599}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -2649,7 +2651,7 @@ RectTransform:
   - {fileID: 277389705}
   - {fileID: 656781477}
   - {fileID: 1727793398}
-  m_Father: {fileID: 2114752599}
+  m_Father: {fileID: 1230933021}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -2828,7 +2830,7 @@ RectTransform:
   - {fileID: 227278540}
   - {fileID: 412519583}
   - {fileID: 1801704351}
-  m_Father: {fileID: 2114752599}
+  m_Father: {fileID: 1230933021}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -4222,8 +4224,6 @@ RectTransform:
   m_Children:
   - {fileID: 1230933021}
   - {fileID: 590189160}
-  - {fileID: 1607942939}
-  - {fileID: 1666091534}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -4248,7 +4248,7 @@ MonoBehaviour:
   pushModeTipPanel: {fileID: 1666091533}
   absorbModeTipPanel: {fileID: 1607942938}
   toGamePanel: {fileID: 1230933017}
-  toMainPanel: {fileID: 590189159}
+  toMainOrResultPanel: {fileID: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

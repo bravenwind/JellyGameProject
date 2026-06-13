@@ -22,7 +22,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Tooltip("메인→게임(게임 씬으로 입장)일 때 켤 패널. 슬라이드만 들어간 패널을 연결.")]
     [SerializeField] private GameObject toGamePanel;
     [Tooltip("게임에서 빠져나올 때(결과/메인 복귀)일 때 켤 패널. 슬라이드+페이드가 들어간 패널을 연결.")]
-    [SerializeField] private GameObject toMainPanel;
+    [SerializeField] private GameObject toMainOrResultPanel;
 
     // ─────────────────────────────────────────────────────────
     // 다음 씬 지정 (Loading 씬 진입 전에 설정)
@@ -83,7 +83,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
             _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
 
         if (toGamePanel != null) toGamePanel.SetActive(enteringGame);
-        if (toMainPanel != null) toMainPanel.SetActive(!enteringGame);
+        if (toMainOrResultPanel != null) toMainOrResultPanel.SetActive(!enteringGame);
     }
 
     // 게임 씬으로 입장하는 로딩일 때만 모드별 조작 팁을 띄운다.
