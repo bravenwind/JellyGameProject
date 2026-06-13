@@ -235,7 +235,7 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
         else
         {
             warningText?.SetActive(false);
-            buttonSelectionPanel.SetActive(true);
+            buttonSelectionPanel?.SetActive(true);
         }
     }
 
@@ -377,7 +377,7 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
         // 8. 모드 선택 화면 복귀 + 시작 버튼 복원
         if (buttonSelectionPanel != null)
-            buttonSelectionPanel.SetActive(true);
+            buttonSelectionPanel?.SetActive(true);
         if (inputPanel != null)
         {
             inputPanel.DOKill();
