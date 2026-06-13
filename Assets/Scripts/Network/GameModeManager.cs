@@ -604,7 +604,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (NetworkManager.Instance != null)
             NetworkManager.Instance.GoToMainMenu();
         else
-            SceneManager.LoadScene("Main");
+            LoadingSceneController.LoadMainViaLoading();
     }
 
     public void RegisterLocalPlayer(NetworkPlayerSync player) => _localPlayer = player;

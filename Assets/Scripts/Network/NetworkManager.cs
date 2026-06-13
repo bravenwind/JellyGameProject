@@ -403,7 +403,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         {
             _reconnectAttempts = 0;
             _isCountingDown = false;
-            SceneManager.LoadScene("Main");
+            LoadingSceneController.LoadMainViaLoading();
         }
     }
 
@@ -430,7 +430,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         }
 
         Debug.Log("[NetworkManager] 방에서 성공적으로 나갔습니다. 메인 씬으로 돌아갑니다.");
-        SceneManager.LoadScene("Main");
+        LoadingSceneController.LoadMainViaLoading();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -700,11 +700,11 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         {
             // 멈춰 있을 수 있는 큐를 풀어 끊김 처리가 정상 진행되게 한다.
             PhotonNetwork.IsMessageQueueRunning = true;
-            PhotonNetwork.Disconnect(); // OnDisconnected → SceneManager.LoadScene("Main")
+            PhotonNetwork.Disconnect(); // OnDisconnected → LoadingSceneController.LoadMainViaLoading()
         }
         else
         {
-            SceneManager.LoadScene("Main");
+            LoadingSceneController.LoadMainViaLoading();
         }
     }
 }

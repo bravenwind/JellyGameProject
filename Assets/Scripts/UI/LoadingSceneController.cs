@@ -32,9 +32,14 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     // ─────────────────────────────────────────────────────────
     public static string NextSceneName;
     public static bool AllClientsLoad;
+    // true면 Photon 룸 동기화(LoadLevel)가 아니라 로컬 SceneManager.LoadScene으로 전환한다.
+    // 룸을 떠난 뒤(메인 복귀 등) 로딩 씬을 거칠 때 사용. (네트워크 게임 진입/결과는 false)
+    public static bool LocalLoad;
 
     private string _targetScene;
     private bool _allClientsLoad;
+    private bool _localLoad;
+    private GameObject _activePanel;
 
     private static LoadingSceneController _instance;
     private bool _targetSceneLoaded;
@@ -64,16 +69,37 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
                 : NetworkManager.Instance.gameAbsorbModeSceneName)
             : NextSceneName;
         _allClientsLoad = AllClientsLoad;
+        _localLoad = LocalLoad;
         NextSceneName = null;
         AllClientsLoad = false;
+        LocalLoad = false;
 
         ApplyTransitionPanels();
         ApplyModeTipPanels();
     }
 
+    /// <summary>
+    /// 인게임(게임/결과 씬)에서 메인으로 돌아갈 때 로딩 씬을 거쳐 'toMainOrResultPanel'을 보여준다.
+    /// 메인 복귀는 룸을 떠난(또는 Disconnect한) 뒤이므로 로컬 로드(LocalLoad)로 처리한다.
+    /// 이미 메인/로딩 씬이면 불필요한 로딩을 피해 바로 메인으로 간다(매칭 취소·로비 등).
+    /// </summary>
+    public static void LoadMainViaLoading()
+    {
+        string cur = SceneManager.GetActiveScene().name;
+        if (cur == "Main" || cur == "Loading")
+        {
+            SceneManager.LoadScene("Main");
+            return;
+        }
+
+        NextSceneName = "Main";
+        LocalLoad = true;
+        SceneManager.LoadScene("Loading");
+    }
+
     // 전환 방향에 맞는 로딩 패널을 켠다(로딩 씬은 하나로 유지하고 패널만 바꿔 끼우는 방식).
     //   • 목적지가 게임 씬(Push/Absorb)  → 메인→게임 상황 → toGamePanel (슬라이드만)
-    //   • 그 외(결과 씬·메인 복귀 등)     → 게임에서 빠져나옴 → toMainPanel (슬라이드+페이드)
+    //   • 그 외(결과 씬·메인 복귀 등)     → 게임에서 빠져나옴 → toMainOrResultPanel (슬라이드+페이드)
     // 각 패널의 애니메이션(LoadingBGSlideAni / LoadingCenterMultiAni)은 패널이 켜질 때
     // 자기 OnEnable에서 스스로 재생되므로, 여기서는 올바른 패널을 SetActive만 하면 된다.
     private void ApplyTransitionPanels()
@@ -81,6 +107,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         bool enteringGame =
             _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
             _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
+
+        _activePanel = enteringGame ? toGamePanel : toMainOrResultPanel;
 
         if (toGamePanel != null) toGamePanel.SetActive(enteringGame);
         if (toMainOrResultPanel != null) toMainOrResultPanel.SetActive(!enteringGame);
@@ -122,7 +150,9 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         if (!_nextSceneTriggered && _elapsed >= minDisplayTime)
         {
             _nextSceneTriggered = true;
-            if (_allClientsLoad || PhotonNetwork.IsMasterClient)
+            if (_localLoad)
+                SceneManager.LoadScene(_targetScene);       // 룸과 무관한 로컬 전환(메인 복귀 등)
+            else if (_allClientsLoad || PhotonNetwork.IsMasterClient)
                 PhotonNetwork.LoadLevel(_targetScene);
         }
 
@@ -135,20 +165,29 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
     private IEnumerator ExitRoutine()
     {
-        // 로딩 화면을 '부분적으로' 빼지 않는다.
-        // 예전엔 배경(bgSlide)만 화면 밖으로 슬라이드(SkipHoldAndExit)시켰는데, 슬라이드 대상이
-        // 아닌 키 팁 패널은 그대로 남아 다음 씬 위에 떠 보였다(컨트롤러가 Canvas 루트라
-        // DontDestroyOnLoad로 캔버스 전체가 살아남기 때문). 게임 씬 로드가 끝나면 배경을 빼지 않고
-        // 로딩 캔버스 전체를 유지하다가 한 번에 정리해 깔끔하게 컷 전환한다.
-        yield return new WaitForSecondsRealtime(0.2f);
+        // 활성 패널을 통째로 오른쪽으로 밀어내며 나간다.
+        // 패널 컨테이너 자체를 LoadingBGSlideAni의 슬라이드 대상(target)으로 두면, 패널 안 모든
+        // UI(키 팁 등)가 함께 빠져 '일부만 남는' 문제가 없다. 슬라이드가 끝난 뒤 캔버스를 정리한다.
+        LoadingBGSlideAni slide = null;
+        if (_activePanel != null) slide = _activePanel.GetComponentInChildren<LoadingBGSlideAni>(true);
+        if (slide == null) slide = bgSlide;
+
+        float wait = 0.2f;
+        if (slide != null)
+        {
+            slide.SkipHoldAndExit();
+            wait = slide.OutDuration + 0.05f;
+        }
+
+        yield return new WaitForSecondsRealtime(wait);
 
         Destroy(gameObject);
     }
 
     public override void OnMasterClientSwitched(Photon.Realtime.Player newMasterClient)
     {
-        // 모든 클라이언트가 직접 로드하는 모드면 마스터 교체와 무관하게 각자 넘어가므로 무시
-        if (_allClientsLoad) return;
+        // 로컬 로드(메인 복귀)거나 모든 클라이언트 직접 로드 모드면 마스터 교체와 무관하므로 무시
+        if (_localLoad || _allClientsLoad) return;
         if (!_nextSceneTriggered || _targetSceneLoaded || _exiting) return;
 
         if (PhotonNetwork.IsMasterClient)

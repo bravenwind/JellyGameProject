@@ -26,6 +26,9 @@ public class LoadingBGSlideAni : MonoBehaviour
 
     private Sequence seq;
 
+    // 외부(LoadingSceneController)가 슬라이드아웃 종료 타이밍을 알 수 있도록 노출
+    public float OutDuration => outDuration;
+
     private void Reset()
     {
         target = GetComponent<RectTransform>();
