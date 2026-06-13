@@ -18,11 +18,17 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Tooltip("Absorb 모드로 입장할 때 활성화할 키 설명 패널")]
     [SerializeField] private GameObject absorbModeTipPanel;
 
+<<<<<<< Updated upstream
     [Header("전환 방향별 로딩 패널")]
     [Tooltip("메인→게임(게임 씬으로 입장)일 때 켤 패널. 슬라이드만 들어간 패널을 연결.")]
     [SerializeField] private GameObject toGamePanel;
     [Tooltip("게임에서 빠져나올 때(결과/메인 복귀)일 때 켤 패널. 슬라이드+페이드가 들어간 패널을 연결.")]
     [SerializeField] private GameObject toMainPanel;
+=======
+    [Header("로딩 화면 패널")]
+    [SerializeField] private GameObject mainToGamePanel;
+    [SerializeField] private GameObject gameToMainPanel;
+>>>>>>> Stashed changes
 
     // ─────────────────────────────────────────────────────────
     // 다음 씬 지정 (Loading 씬 진입 전에 설정)
