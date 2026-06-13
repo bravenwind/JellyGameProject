@@ -208,6 +208,44 @@
 
 ---
 
+## 2026-06-13 루틴 — 어제(06-12) 사용자 직접 수정분(커밋 fec8329) 검증
+
+지난 루틴(06-12) 작업 이후, 사용자가 06-12 21:43에 `GameModeManager.cs`를 직접 수정
+(`fec8329`)했다. IO 브랜치 기준 그 외 새 커밋은 없어, 이 변경 1건을 검증 대상으로 삼았다.
+
+### 사용자 변경 내역과 판정 — H3·H5를 직접 적용함 (회귀 없음)
+- `PushModeEndSequence` 첫 줄 `PlaySFXAudio.Instance.StopWalking()` → `?.StopWalking()`
+  : **H3(결과 씬 전환 소프트락 방지) 정확히 적용.**
+- `GameOver()`에서 두 번째 Push 분기(`탈락!\n{n}분 {n}초 생존` 버전) 블록 삭제
+  : 이 블록은 첫 번째 Push 분기(469–481, `관전 중...`)가 항상 먼저 `return`하므로 **도달
+    불가능한 죽은 코드**였다(= **H5**). 살아있는 첫 분기는 그대로 유지돼
+    "관전 전환·권위 시뮬레이션 유지" 동작은 보존된다 → **last-survivor 판정/결과 씬 전환
+    회귀 없음.** 삭제된 블록의 지역변수(survived/min/sec)는 블록 내부 한정이라 잔여 참조 없음.
+- 결론: 두 변경 모두 안전. 06-12 루틴이 도출한 H3·H5를 사용자가 손수 반영한 것.
+
+### 검증 과정에서 함께 확인한 인접 흐름 (모두 정상)
+- Push `timeScale=0`(694) 후 결과 씬 진입 → 동결 우려 있었으나 `NetworkManager.OnSceneLoaded`가
+  씬 로드 시 `timeScale=1`로 중앙 복구(코드 257–259 주석 일치). 정상.
+- 봇이 최후 생존자인 경우 → 결과 씬은 `Bot####_Name` 룸 프로퍼티 잔존으로 봇 엔트리를 만들고,
+  사람은 빈 survivorActors로 모두 제외되어 시상대에 봇만 표시됨. 의도대로 동작.
+
+### [I1] (네트워크·결과 / 하·관찰) 결과 씬의 봇 생존 판정이 룸 프로퍼티 정리 순서에 의존
+- 위치: `ScoreboardSnapshot.cs:86 (IsBotEliminated)`, `GameResultManager.GatherTopEntries:147-167`
+- 내용: 결과 씬에서는 봇 오브젝트가 이미 파괴돼 `IsBotEliminated(viewId)`가 항상 false다.
+  그래서 봇의 시상대 표시 여부가 전적으로 `Bot####_Name` 룸 프로퍼티가 정리됐는지에 달려 있고,
+  탈락 봇의 프로퍼티 정리는 비동기다(코드 주석 83–85도 "잠깐 남아 있을 수 있음"으로 인정).
+  → 결과 씬 진입 시점에 정리가 안 끝나 있으면 **죽은 봇이 시상대에 오르거나**, 반대로 생존 봇
+  프로퍼티가 먼저 사라지면 **최후 생존 봇이 누락**될 수 있는 잠재 레이스.
+- 영향: 사람 생존자는 마스터 권위 `PUSH_SURVIVOR_ACTORS`로 보호되지만 **봇은 동급 보호가 없다.**
+  동시·근접 타이밍 탈락에서만 드러나므로 평소엔 무해(관찰 항목 우선순위 하).
+- 제안: 사람처럼 봇도 마스터가 "생존 봇 viewId" 권위 목록을 룸 프로퍼티에 함께 기록하고,
+  결과 씬은 그 목록만 신뢰. (H4 'identity는 번호로'·G6 '권위 출처 단일화'의 연장선)
+- 학습 포인트: "오브젝트가 살아있을 때의 판정"과 "오브젝트가 사라진 뒤의 판정"을 한 함수가
+  겸하면 후자는 결국 *프로퍼티 정리 순서*라는 암묵적 타이밍에 기댄다. 결과처럼 한 번만 읽는
+  스냅샷은 마스터가 만든 **명시적 생존자 목록**을 신뢰하는 편이 안전하다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -223,12 +261,18 @@
 - [ ] G6  (대기)
 - [ ] G7  (대기)
 - [ ] G8  (대기)
-- [ ] H1  (대기 — 2026-06-12 도출)
-- [ ] H2  (대기 — 2026-06-12 도출)
-- [ ] H3  (대기 — 2026-06-12 도출)
-- [ ] H4  (대기 — 2026-06-12 도출)
-- [ ] H5  (대기 — 2026-06-12 도출)
-- [ ] H6  (대기 — 2026-06-12 도출)
+- [x] H1  (2026-06-12 적용, 커밋 fbcd419) — GameState.ResetValues에서 이벤트 null 대입 제거,
+        정리는 Reset()(SubsystemRegistration)에만 유지. 코드 확인됨(GameState.cs:96-110).
+- [x] H2  (2026-06-12 적용, 커밋 fbcd419) — NetworkManager.OnMasterClientSwitched 추가 →
+        새 마스터가 CheckAndStartCountdown 재호출(NetworkManager.cs:305-324). 코드 확인됨.
+- [x] H3  (2026-06-12 적용, **사용자** 커밋 fec8329) — PushModeEndSequence StopWalking에 ?. 가드.
+- [ ] H4  (대기 — 닉네임 문자열 식별. UpdateLeaderboard:573 등 여전히 NickName 비교)
+- [x] H5  (2026-06-12 적용, **사용자** 커밋 fec8329) — GameOver 두 번째(도달 불가능) Push 분기 삭제.
+- [x] H6  (2026-06-12 적용, 커밋 fbcd419) — ScoreboardSnapshot.cs로 점수 집계 단일화. 코드 확인됨.
+- [ ] I1  (대기 — 2026-06-13 도출, 결과 씬 봇 생존 판정의 프로퍼티 정리 레이스)
+
+> ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
+> 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
 
 ## 환경 메모
 - 원격 컨테이너는 매 세션 새로 클론되므로 `~/.config/gsheet/credentials.json` 와 `gspread`가
@@ -237,3 +281,10 @@
 - 영구 자동화하려면 환경 SessionStart 훅/시작 스크립트에 위 설치 + credentials 주입을 넣어야 함.
 - 2026-06-12 루틴: credentials/gspread 부재로 시트 기록 보류. H1~H6 승인 시 plan/bug 기록과
   함께 일괄 반영 필요(기록 대기 항목: "2026-06-12 코드리뷰 — H1~H6 도출").
+- 2026-06-13 루틴: SessionStart 훅은 실행됨(CLAUDE_CODE_REMOTE=true)이나 **환경 변수
+  `GSHEET_CREDENTIALS_JSON`이 미등록(빈 값)** 이라 credentials.json이 주입되지 않음 → 시트 기록
+  또 보류. **사용자 조치 필요**: claude.ai/code 환경 설정에서 서비스 계정 JSON 전체를
+  `GSHEET_CREDENTIALS_JSON`으로 1회 등록하면 이후 자동화됨(훅이 두 경로에 써줌).
+  추가로 cffi 네이티브(_cffi_backend) 빌드 의존성 때문에 gspread 임포트가 실패할 수 있어,
+  훅의 pip 설치 목록에 cffi/cryptography가 포함돼 있으나 네이티브 빌드 환경이 없으면 실패 가능.
+  시트 기록 대기 항목(누적): "2026-06-12 H1~H6 도출/적용", "2026-06-13 H3·H5 사용자 적용 검증 + I1 도출".
