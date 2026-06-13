@@ -113,6 +113,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
     private IEnumerator ExitRoutine()
     {
+        // 로딩 UI(bgSlide)는 화면 밖으로 슬라이드되어 빠지지만, 모드 팁 패널은 그 슬라이드
+        // 대상의 자식이 아니라 따로 떠 있다. 같이 정리하지 않으면 배경만 사라지고 팁 패널만
+        // 다음 씬 위에 남는다(로딩 캔버스가 DontDestroyOnLoad라 더 오래 보임). 함께 숨긴다.
+        if (pushModeTipPanel != null) pushModeTipPanel.SetActive(false);
+        if (absorbModeTipPanel != null) absorbModeTipPanel.SetActive(false);
+
         if (bgSlide != null)
             bgSlide.SkipHoldAndExit();
 

@@ -385,7 +385,10 @@ public class TileCollapseManager : MonoBehaviour
         return _collapsedCells.Contains(x * 10000 + z);
     }
 
-    public bool FindNearestSafeTile(Vector3 worldPos, out Vector3 safePos)
+    /// <param name="avoidDangerous">true면 물리적으로 남아 있어도 곧 붕괴할(IsPositionDangerous)
+    /// 타일은 후보에서 제외한다. Push 모드 도피처럼 '진짜 안전한' 칸이 필요할 때 사용.
+    /// 허공 탈출처럼 일단 발판 있는 칸이면 되는 경우엔 false(기본).</param>
+    public bool FindNearestSafeTile(Vector3 worldPos, out Vector3 safePos, bool avoidDangerous = false)
     {
         safePos = Vector3.zero;
         if (_stepX == 0f || _stepZ == 0f) return false;
@@ -411,6 +414,12 @@ public class TileCollapseManager : MonoBehaviour
                     if (_tiles[tx, tz] == null) continue;
 
                     Vector3 tilePos = _gridOrigin + new Vector3(tx * _stepX, 0f, tz * _stepZ);
+
+                    // 발판은 남아 있어도 마모가 한계 직전(곧 붕괴)인 타일은 '안전'이 아니다.
+                    // 이 검사가 없으면 봇들이 닳은 타일로 우르르 도피→서로의 step 마모를 가속해
+                    // 한곳에 모여 동시에 무너지는 현상이 생긴다(IsPositionDangerous와 기준 통일).
+                    if (avoidDangerous && IsPositionDangerous(tilePos)) continue;
+
                     float dist = (tilePos - worldPos).sqrMagnitude;
                     if (dist < bestDist)
                     {

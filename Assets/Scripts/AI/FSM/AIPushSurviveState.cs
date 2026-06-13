@@ -40,7 +40,9 @@ public class AIPushSurviveState : AIBaseState
 
         if (onDanger)
         {
-            if (!collapse.FindNearestSafeTile(ai.transform.position, out Vector3 safePos))
+            // avoidDangerous: 마모가 한계 직전인 타일은 도피처에서 제외 → 닳은 타일로 몰려가
+            // 서로의 step 마모를 가속하다 한곳에서 동시 붕괴하는 현상을 막는다.
+            if (!collapse.FindNearestSafeTile(ai.transform.position, out Vector3 safePos, avoidDangerous: true))
                 return;
 
             ai.Agent.speed = ai.moveSpeed * FLEE_SPEED_MULT;
