@@ -12,6 +12,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Tooltip("로딩 화면이 최소한 보여지는 시간 (너무 빨리 사라지는 것 방지)")]
     [SerializeField] private float minDisplayTime = 2f;
 
+    [Header("모드별 조작 팁")]
+    [Tooltip("Push 모드로 입장할 때 활성화할 키 설명 패널")]
+    [SerializeField] private GameObject pushModeTipPanel;
+    [Tooltip("Absorb 모드로 입장할 때 활성화할 키 설명 패널")]
+    [SerializeField] private GameObject absorbModeTipPanel;
+
     // ─────────────────────────────────────────────────────────
     // 다음 씬 지정 (Loading 씬 진입 전에 설정)
     //   • NextSceneName  : 비우면 기본값(NetworkManager.gameSceneName) — 메인→인게임용
@@ -54,6 +60,27 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         _allClientsLoad = AllClientsLoad;
         NextSceneName = null;
         AllClientsLoad = false;
+
+        ApplyModeTipPanels();
+    }
+
+    // 게임 씬으로 입장하는 로딩일 때만 모드별 조작 팁을 띄운다.
+    // 결과 씬 전환(인게임→결과)도 같은 Loading 씬을 거치므로(_targetScene이 결과 씬),
+    // 그 경우엔 조작 팁이 뜨면 어색하다 → 타겟이 게임 씬일 때로 한정한다.
+    // 모드 판정은 로컬 의도(SelectedGameMode)가 아니라 룸 권위값(GameState.CurrentGameMode)을
+    // 쓴다 — 위 _targetScene 결정과 동일한 기준이라 표시 팁과 실제 입장 씬이 항상 일치한다.
+    private void ApplyModeTipPanels()
+    {
+        bool enteringGame =
+            _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
+            _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
+
+        bool isPush = GameState.CurrentGameMode == GameModeType.Push;
+
+        if (pushModeTipPanel != null)
+            pushModeTipPanel.SetActive(enteringGame && isPush);
+        if (absorbModeTipPanel != null)
+            absorbModeTipPanel.SetActive(enteringGame && !isPush);
     }
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
