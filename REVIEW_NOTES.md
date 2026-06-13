@@ -249,9 +249,13 @@
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
-- [ ] F3  (대기)
-- [ ] F4  (대기)
-- [ ] F5  (대기)
+- [x] F3  (**사용자** 직접 적용, 2026-06-13 확인) — OnStartButtonClicked 길이 검사가
+        하드코딩 10 대신 `nicknameMaxLength` 필드 사용(LobbyController.cs:230).
+- [x] F4  (**사용자** 직접 적용, 2026-06-13 확인, 커밋 5f08a78) — buttonSelectionPanel.SetActive
+        호출 2곳을 `?.SetActive(true)` null-조건 가드로 변경(LobbyController.cs:238, 380).
+- [x] F5  (**사용자** 직접 적용, 2026-06-13 확인) — OnCancelMatchingClicked(322-388)가 매칭
+        취소 시 모드 선택 화면 복귀 + 입력 패널 복원 + startButton.interactable=true 복원
+        → 취소/뒤로가기 경로 제공으로 F5 의도 충족.
 - [x] G1  (2026-06-09 적용) — ResetScale에서 _jellyBatchCoroutine = null 초기화
 - [x] G2  (2026-06-09 적용) — 봇 넉백 RPC를 RpcTarget.All → 봇 소유자(마스터)로 변경 (3곳)
         ※ 봇 프리팹에 PhotonTransformView 존재 확인 → 비마스터 로컬 이동/동기화 충돌 제거
