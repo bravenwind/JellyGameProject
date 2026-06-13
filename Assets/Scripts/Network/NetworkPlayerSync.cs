@@ -109,6 +109,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
         GameModeManager.Instance?.RegisterLocalPlayer(this);
 
+        // HUD(대쉬 쿨타임 UI 등)가 내 캐릭터의 쿨타임을 읽을 수 있게 로컬 플레이어로 표시
+        if (playerController != null) playerController.MarkAsLocal();
+
         // 이전 게임의 stale 탈락 플래그 제거 (리더보드 누락 / 라스트맨 조기 종료 방지)
         ClearEliminatedFlag();
 

@@ -21,6 +21,16 @@ public class PlayerMovement : MonoBehaviour
     [HideInInspector] public float dashCooldownTimer = 0f;
     [HideInInspector] public float attackCooldownTimer = 0f;
 
+    // ── 로컬 플레이어(내 캐릭터) 전역 접근점 — HUD(대쉬 쿨타임 UI 등)에서 사용 ──
+    // NetworkPlayerSync.SetupLocalPlayer(photonView.IsMine)에서 MarkAsLocal()로 지정한다.
+    public static PlayerMovement Local { get; private set; }
+    public void MarkAsLocal() => Local = this;
+
+    /// <summary>0 = 대쉬 준비 완료, 1 = 방금 써서 풀 쿨다운. (UI 채움 비율용)</summary>
+    public float DashCooldownRatio => dashCooldown > 0f ? Mathf.Clamp01(dashCooldownTimer / dashCooldown) : 0f;
+    /// <summary>쿨타임이 끝난 상태(상태머신 제약까지 보려면 CanDash() 사용).</summary>
+    public bool DashReady => dashCooldownTimer <= 0f;
+
     [Header("Model Settings")]
     public Animator jellyAnimator;
     public UIManager uiManager;
@@ -87,6 +97,11 @@ public class PlayerMovement : MonoBehaviour
             attackCooldownTimer -= Time.deltaTime;
 
         currentState?.Update();
+    }
+
+    private void OnDestroy()
+    {
+        if (Local == this) Local = null;
     }
 
     public bool CanDash()
