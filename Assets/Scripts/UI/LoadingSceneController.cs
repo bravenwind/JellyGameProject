@@ -113,16 +113,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
     private IEnumerator ExitRoutine()
     {
-        // 로딩 UI(bgSlide)는 화면 밖으로 슬라이드되어 빠지지만, 모드 팁 패널은 그 슬라이드
-        // 대상의 자식이 아니라 따로 떠 있다. 같이 정리하지 않으면 배경만 사라지고 팁 패널만
-        // 다음 씬 위에 남는다(로딩 캔버스가 DontDestroyOnLoad라 더 오래 보임). 함께 숨긴다.
-        if (pushModeTipPanel != null) pushModeTipPanel.SetActive(false);
-        if (absorbModeTipPanel != null) absorbModeTipPanel.SetActive(false);
-
-        if (bgSlide != null)
-            bgSlide.SkipHoldAndExit();
-
-        yield return new WaitForSecondsRealtime(0.5f);
+        // 로딩 화면을 '부분적으로' 빼지 않는다.
+        // 예전엔 배경(bgSlide)만 화면 밖으로 슬라이드(SkipHoldAndExit)시켰는데, 슬라이드 대상이
+        // 아닌 키 팁 패널은 그대로 남아 다음 씬 위에 떠 보였다(컨트롤러가 Canvas 루트라
+        // DontDestroyOnLoad로 캔버스 전체가 살아남기 때문). 게임 씬 로드가 끝나면 배경을 빼지 않고
+        // 로딩 캔버스 전체를 유지하다가 한 번에 정리해 깔끔하게 컷 전환한다.
+        yield return new WaitForSecondsRealtime(0.2f);
 
         Destroy(gameObject);
     }
