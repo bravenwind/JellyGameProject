@@ -116,17 +116,19 @@ public class AIFleeState : AIBaseState
 
     /// <summary>
     /// 모든 직선 도주 방향이 위험할 때(보통 위협이 맵 중심 쪽에 있어 도주 방향이
-    /// 가장자리=붕괴 구역을 향할 때) 떨어지지 않도록 안전 영역 중심으로 도주한다.
+    /// 가장자리=붕괴 구역을 향할 때) 떨어지지 않도록 안전한 곳으로 도주한다.
+    /// 주의: 예전엔 GetSafeBounds의 '중심 한 점'으로 보냈는데, Push 모드에선 _lastShakenRing이
+    /// 갱신되지 않아(=링 붕괴 미사용) 그 중심이 '맵 정중앙 고정점'이 된다. 그러면 도주하는
+    /// 모든 봇이 같은 한 점에 뭉쳐 step 마모로 바닥이 동시에 무너지며 떼죽음한다.
+    /// → 각 봇을 자기 위치 기준 가장 가까운 '곧 붕괴하지 않을' 타일로 분산 도주시킨다.
     /// </summary>
     private void TryFleeToSafeZone()
     {
         var collapse = TileCollapseManager.Instance;
-        if (collapse == null || !collapse.GetSafeBounds(out Vector3 min, out Vector3 max))
-            return;
+        if (collapse == null) return;
 
-        Vector3 center = (min + max) * 0.5f;
-        if (NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, ai.NavFilter))
-            TrySetSafePath(hit.position);
+        if (collapse.FindNearestSafeTile(ai.transform.position, out Vector3 safe, avoidDangerous: true))
+            TrySetSafePath(safe);
     }
 
     public override void Exit()
