@@ -18,6 +18,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Tooltip("Absorb 모드로 입장할 때 활성화할 키 설명 패널")]
     [SerializeField] private GameObject absorbModeTipPanel;
 
+    [Header("전환 방향별 로딩 패널")]
+    [Tooltip("메인→게임(게임 씬으로 입장)일 때 켤 패널. 슬라이드만 들어간 패널을 연결.")]
+    [SerializeField] private GameObject toGamePanel;
+    [Tooltip("게임에서 빠져나올 때(결과/메인 복귀)일 때 켤 패널. 슬라이드+페이드가 들어간 패널을 연결.")]
+    [SerializeField] private GameObject toMainPanel;
+
     // ─────────────────────────────────────────────────────────
     // 다음 씬 지정 (Loading 씬 진입 전에 설정)
     //   • NextSceneName  : 비우면 기본값(NetworkManager.gameSceneName) — 메인→인게임용
@@ -61,7 +67,23 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         NextSceneName = null;
         AllClientsLoad = false;
 
+        ApplyTransitionPanels();
         ApplyModeTipPanels();
+    }
+
+    // 전환 방향에 맞는 로딩 패널을 켠다(로딩 씬은 하나로 유지하고 패널만 바꿔 끼우는 방식).
+    //   • 목적지가 게임 씬(Push/Absorb)  → 메인→게임 상황 → toGamePanel (슬라이드만)
+    //   • 그 외(결과 씬·메인 복귀 등)     → 게임에서 빠져나옴 → toMainPanel (슬라이드+페이드)
+    // 각 패널의 애니메이션(LoadingBGSlideAni / LoadingCenterMultiAni)은 패널이 켜질 때
+    // 자기 OnEnable에서 스스로 재생되므로, 여기서는 올바른 패널을 SetActive만 하면 된다.
+    private void ApplyTransitionPanels()
+    {
+        bool enteringGame =
+            _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
+            _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
+
+        if (toGamePanel != null) toGamePanel.SetActive(enteringGame);
+        if (toMainPanel != null) toMainPanel.SetActive(!enteringGame);
     }
 
     // 게임 씬으로 입장하는 로딩일 때만 모드별 조작 팁을 띄운다.
