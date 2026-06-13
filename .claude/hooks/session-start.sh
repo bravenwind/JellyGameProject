@@ -33,12 +33,15 @@ fi
 # 2) Google Sheets 라이브러리 설치 (이미 있으면 스킵 — 컨테이너 캐시 활용)
 #    네트워크가 느린 환경 대비 타임아웃/재시도를 넉넉히 주고,
 #    실패해도 세션 시작은 막지 않는다 (루틴에서 수동 설치로 복구 가능).
+#    ※ cffi/cryptography(네이티브 C 빌드 필요)는 빌드 도구가 없는 컨테이너에서 _cffi_backend
+#      부재로 실패할 수 있다. google-auth는 cryptography가 없으면 순수 파이썬 rsa 백엔드로
+#      서비스 계정 서명을 처리하므로, rsa/pyasn1-modules만 보장하면 네이티브 빌드 없이 동작한다.
 if ! python3 -c "import gspread, google.oauth2.service_account" >/dev/null 2>&1; then
   echo "[session-start] gspread/google-auth 설치 중..."
-  if pip install --quiet --timeout 120 --retries 5 gspread google-auth cffi cryptography; then
+  if pip install --quiet --timeout 120 --retries 5 gspread google-auth rsa pyasn1-modules; then
     echo "[session-start] gspread/google-auth 설치 완료"
   else
-    echo "[session-start] 경고: gspread 설치 실패 — 루틴에서 수동 설치(pip install gspread google-auth cffi cryptography) 필요"
+    echo "[session-start] 경고: gspread 설치 실패 — 루틴에서 수동 설치(pip install gspread google-auth rsa pyasn1-modules) 필요"
   fi
 fi
 
