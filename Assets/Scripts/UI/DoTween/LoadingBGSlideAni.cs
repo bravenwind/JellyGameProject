@@ -1,4 +1,4 @@
-using DG.Tweening;
+ï»¿using DG.Tweening;
 using UnityEngine;
 
 public class LoadingBGSlideAni : MonoBehaviour
@@ -12,9 +12,9 @@ public class LoadingBGSlideAni : MonoBehaviour
     [SerializeField] private Vector2 rightPos = new Vector2(1200f, 0f);
 
     [Header("Timings")]
-    [SerializeField] private float inDuration = 0.35f;     // ¿Ş->¼¾ÅÍ ÀÌµ¿ ½Ã°£
-    [SerializeField] private float holdSeconds = 2.5f;     // ¼¾ÅÍ¿¡¼­ ·Îµù ´ë±â ½Ã°£
-    [SerializeField] private float outDuration = 0.35f;    // ¼¾ÅÍ->¿À¸¥ÂÊ ÀÌµ¿ ½Ã°£
+    [SerializeField] private float inDuration = 0.35f;     // ì™¼->ì„¼í„° ì´ë™ ì‹œê°„
+    public float holdSeconds = 2.5f;     // ì„¼í„°ì—ì„œ ë¡œë”© ëŒ€ê¸° ì‹œê°„
+    [SerializeField] private float outDuration = 0.35f;    // ì„¼í„°->ì˜¤ë¥¸ìª½ ì´ë™ ì‹œê°„
 
     [Header("Ease")]
     [SerializeField] private Ease inEase = Ease.OutCubic;
@@ -22,7 +22,7 @@ public class LoadingBGSlideAni : MonoBehaviour
 
     [Header("Options")]
     [SerializeField] private bool ignoreTimeScale = true;
-    [SerializeField] private bool deactivateAfterOut = false; // ³ª°¡°í ºñÈ°¼ºÈ­ÇÒÁö
+    [SerializeField] private bool deactivateAfterOut = false; // ë‚˜ê°€ê³  ë¹„í™œì„±í™”í• ì§€
 
     private Sequence seq;
 
@@ -53,19 +53,19 @@ public class LoadingBGSlideAni : MonoBehaviour
 
         Kill();
 
-        // ½ÃÀÛ À§Ä¡ ¼¼ÆÃ
+        // ì‹œì‘ ìœ„ì¹˜ ì„¸íŒ…
         target.anchoredPosition = leftPos;
 
         seq = DOTween.Sequence();
         if (ignoreTimeScale) seq.SetUpdate(true);
 
-        // ¿Ş->¼¾ÅÍ
+        // ì™¼->ì„¼í„°
         seq.Append(target.DOAnchorPos(centerPos, inDuration).SetEase(inEase));
 
-        // ¼¾ÅÍ¿¡¼­ ´ë±â(·Îµù)
+        // ì„¼í„°ì—ì„œ ëŒ€ê¸°(ë¡œë”©)
         seq.AppendInterval(holdSeconds);
 
-        // ¼¾ÅÍ->¿À¸¥ÂÊ
+        // ì„¼í„°->ì˜¤ë¥¸ìª½
         seq.Append(target.DOAnchorPos(rightPos, outDuration).SetEase(outEase));
 
         if (deactivateAfterOut)
@@ -85,7 +85,7 @@ public class LoadingBGSlideAni : MonoBehaviour
         seq = null;
     }
 
-    // ¿ÜºÎ¿¡¼­ ·Îµù ½Ã°£ÀÌ ³¡³µÀ» ¶§ ¹Ù·Î »©°í ½ÍÀ¸¸é È£Ãâ
+    // ì™¸ë¶€ì—ì„œ ë¡œë”© ì‹œê°„ì´ ëë‚¬ì„ ë•Œ ë°”ë¡œ ë¹¼ê³  ì‹¶ìœ¼ë©´ í˜¸ì¶œ
     public void SkipHoldAndExit(float customOutDuration = -1f)
     {
         if (target == null) return;
@@ -97,7 +97,7 @@ public class LoadingBGSlideAni : MonoBehaviour
         seq = DOTween.Sequence();
         if (ignoreTimeScale) seq.SetUpdate(true);
 
-        // ÇöÀç À§Ä¡¿¡¼­ ¿À¸¥ÂÊÀ¸·Î ¹Ù·Î ³ª°¡±â
+        // í˜„ì¬ ìœ„ì¹˜ì—ì„œ ì˜¤ë¥¸ìª½ìœ¼ë¡œ ë°”ë¡œ ë‚˜ê°€ê¸°
         seq.Append(target.DOAnchorPos(rightPos, d).SetEase(outEase));
 
         if (deactivateAfterOut)
