@@ -76939,6 +76939,7 @@ MonoBehaviour:
   - Jelly_White_Wandering
   maxJellyCount: 100
   spawnInterval: 2
+  spawnPerInterval: 1
   spawnRangeX: 100
   spawnRangeZ: 100
   spawnHeight: 0.5
@@ -144628,7 +144629,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.33333334
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 85726da438ab84e45b2d8f66d8821268, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: bbbf64d465295a54cb5827b34e9bdf1e, type: 2}
   m_BuildHeightMesh: 0
 --- !u!114 &1891791349
 MonoBehaviour:
@@ -144660,7 +144661,7 @@ MonoBehaviour:
   m_OverrideVoxelSize: 0
   m_VoxelSize: 0.25666666
   m_MinRegionArea: 2
-  m_NavMeshData: {fileID: 23800000, guid: 5d196171664f80549bcaa409b2e19bd5, type: 2}
+  m_NavMeshData: {fileID: 23800000, guid: bea4106c504fef04eab1cfe8f69a8e5f, type: 2}
   m_BuildHeightMesh: 0
 --- !u!114 &1891791350
 MonoBehaviour:
