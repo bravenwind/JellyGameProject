@@ -4247,8 +4247,8 @@ MonoBehaviour:
   minDisplayTime: 5
   pushModeTipPanel: {fileID: 1666091533}
   absorbModeTipPanel: {fileID: 1607942938}
-  mainToGamePanel: {fileID: 0}
-  gameToMainPanel: {fileID: 0}
+  toGamePanel: {fileID: 1230933017}
+  toMainPanel: {fileID: 590189159}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
