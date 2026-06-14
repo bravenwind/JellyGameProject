@@ -856,7 +856,7 @@ GameObject:
   - component: {fileID: 590189162}
   - component: {fileID: 590189161}
   m_Layer: 5
-  m_Name: Panel_Loading_GameToMain
+  m_Name: Panel_Loading_GameToMainOrResult
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -4248,7 +4248,7 @@ MonoBehaviour:
   pushModeTipPanel: {fileID: 1666091533}
   absorbModeTipPanel: {fileID: 1607942938}
   toGamePanel: {fileID: 1230933017}
-  toMainOrResultPanel: {fileID: 0}
+  toMainOrResultPanel: {fileID: 590189159}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
