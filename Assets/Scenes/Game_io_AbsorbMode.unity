@@ -128219,9 +128219,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1659390263}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4c0c03f43041fbe4aba4008216e2ed39, type: 3}
+  m_Script: {fileID: 11500000, guid: f121e38d4f740074cacde9b93d312acb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  type: 0
   fillRing: {fileID: 210465711}
   cooldownColor: {r: 0.21, g: 0.82, b: 0.88, a: 1}
   readyColor: {r: 0.4, g: 1, b: 0.55, a: 1}
