@@ -30,7 +30,7 @@ public class PlayerMoveState : PlayerBaseState
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded)
+        if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded && !PlayerMovement.InputLocked)
         {
             player.ChangeState(player.jumpState);
             return;

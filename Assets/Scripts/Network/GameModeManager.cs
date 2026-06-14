@@ -30,6 +30,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     public GameObject gameResultPanel;
     public TextMeshProUGUI resultTitleText;
     public string gameEndText = "게임 종료!";
+    public string gameStartText = "시작!";
     public const string RESULT_SCENE_NAME_ABSORB = "GameResult_AbsorbMode";
     public const string RESULT_SCENE_NAME_PUSH = "GameResult_PushMode";
 
@@ -44,6 +45,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private static bool _spawned = false;
 
     private bool _isEndingSequenceStarted = false;
+    private bool _countdownRunning = false;
 
     // 결과 씬 진입 전, 룸 프로퍼티(봇 색상 등) 동기화 완료를 확인하기 위한 토큰 키
     private const string RESULT_SYNC_TOKEN_KEY = "ResultSyncToken";
@@ -152,25 +154,71 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private void RPC_StartGame()
     {
         StartGameInternal(gameDuration);
+    }
 
+    // 💡 게임 시작 공통 초기화 + 3-2-1 카운트다운 시작.
+    // 카운트다운 동안엔 아직 '시작 전' 상태로 둔다(_gameRunning=false / Phase!=Playing):
+    //  - 타일 붕괴·게임 타이머 정지(_gameRunning)
+    //  - 흡수/공격/동기화 차단(Phase!=Playing 가드는 NetworkPlayerSync 전반에 이미 존재)
+    //  - 로컬 입력 잠금(PlayerMovement.InputLocked) — Idle 애니는 그대로 재생
+    private void StartGameInternal(float startTime)
+    {
+        GameState.ResetValues();              // Phase=None
+        _gameRunning = false;
+        _gameTimer = (GameState.CurrentGameMode == GameModeType.Push) ? 0f : startTime;
+
+        if (gameResultPanel != null)
+            gameResultPanel.SetActive(false);
+
+        if (!_countdownRunning)
+            StartCoroutine(StartCountdownRoutine());
+    }
+
+    /// <summary>3-2-1 카운트다운 → "시작!" 표시와 동시에 게임을 개시한다.</summary>
+    private IEnumerator StartCountdownRoutine()
+    {
+        _countdownRunning = true;
+        PlayerMovement.InputLocked = true;    // 이동/대쉬/공격/점프 차단(로컬). Idle 애니는 유지.
+
+        if (centerCountdownText != null)
+            centerCountdownText.gameObject.SetActive(true);
+
+        for (int n = 3; n >= 1; n--)
+        {
+            if (centerCountdownText != null)
+            {
+                centerCountdownText.text = n.ToString();
+                StartCoroutine(AnimateCenterText(centerCountdownText));
+            }
+            yield return new WaitForSecondsRealtime(1f);
+        }
+
+        // "시작!" 표시와 동시에 실제 게임 시작
+        if (centerCountdownText != null)
+        {
+            centerCountdownText.text = gameStartText;
+            StartCoroutine(AnimateCenterText(centerCountdownText));
+        }
+
+        _gameRunning = true;
+        GameState.Phase = GamePhase.Playing;
+        PlayerMovement.InputLocked = false;
+
+        // 붕괴 타이밍 기준점은 카운트다운을 제외한 '실제 시작' 시점으로 기록한다(마스터만).
         if (PhotonNetwork.IsMasterClient)
         {
             Hashtable props = new Hashtable { { "GameStartTime", PhotonNetwork.ServerTimestamp } };
             PhotonNetwork.CurrentRoom.SetCustomProperties(props);
         }
+
         Debug.Log($"[GameMode] 게임 시작! 전체시간={gameDuration}s");
-    }
 
-    // 💡 중복 제거: 게임 시작 시 공통 초기화 로직 분리
-    private void StartGameInternal(float startTime)
-    {
-        GameState.ResetValues();
-        _gameRunning = true;
-        _gameTimer = (GameState.CurrentGameMode == GameModeType.Push) ? 0f : startTime;
-        GameState.Phase = GamePhase.Playing;
+        // 시작 텍스트 잠깐 보여주고 정리
+        yield return new WaitForSecondsRealtime(0.7f);
+        if (centerCountdownText != null)
+            centerCountdownText.gameObject.SetActive(false);
 
-        if (gameResultPanel != null)
-            gameResultPanel.SetActive(false);
+        _countdownRunning = false;
     }
 
     private void Update()

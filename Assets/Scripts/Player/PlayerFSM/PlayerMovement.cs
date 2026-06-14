@@ -26,6 +26,12 @@ public class PlayerMovement : MonoBehaviour
     public static PlayerMovement Local { get; private set; }
     public void MarkAsLocal() => Local = this;
 
+    // 게임 시작 카운트다운(3-2-1) 동안 로컬 입력을 잠근다(이동/대쉬/공격/점프 차단).
+    // 플레이어는 Idle 상태로 살아있어 Idle 애니메이션은 계속 재생된다. 로컬만 입력을 읽으므로 static로 충분.
+    public static bool InputLocked = false;
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void ResetInputLocked() => InputLocked = false;
+
     /// <summary>0 = 대쉬 준비 완료, 1 = 방금 써서 풀 쿨다운. (UI 채움 비율용)</summary>
     public float DashCooldownRatio => dashCooldown > 0f ? Mathf.Clamp01(dashCooldownTimer / dashCooldown) : 0f;
     /// <summary>쿨타임이 끝난 상태(상태머신 제약까지 보려면 CanDash() 사용).</summary>
@@ -101,8 +107,16 @@ public class PlayerMovement : MonoBehaviour
     void Update()
     {
         UpdateCameraVectors();
-        inputH = Input.GetAxis("Horizontal");
-        inputV = Input.GetAxis("Vertical");
+        if (InputLocked)
+        {
+            inputH = 0f;
+            inputV = 0f;
+        }
+        else
+        {
+            inputH = Input.GetAxis("Horizontal");
+            inputV = Input.GetAxis("Vertical");
+        }
 
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.deltaTime;
@@ -119,14 +133,16 @@ public class PlayerMovement : MonoBehaviour
 
     public bool CanDash()
     {
-        return dashCooldownTimer <= 0f
+        return !InputLocked
+            && dashCooldownTimer <= 0f
             && currentState != dashState
             && currentState != knockbackState;
     }
 
     public bool CanAttack()
     {
-        return GameState.CurrentGameMode == GameModeType.Push
+        return !InputLocked
+            && GameState.CurrentGameMode == GameModeType.Push
             && attackCooldownTimer <= 0f
             && currentState != attackState
             && currentState != knockbackState;
