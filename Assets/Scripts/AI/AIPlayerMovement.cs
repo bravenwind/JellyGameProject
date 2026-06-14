@@ -38,9 +38,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     [Header("Push 모드 (빠따/대쉬)")]
     public Transform batPivot;
     public bool hideBatWhenIdle = true;
-    public float dashSpeed = 18f;
-    public float dashDuration = 0.3f;
-    public float dashCooldown = 1.5f;
+    public float dashSpeed = 80f;
+    public float dashDuration = 0.2f;
+    public float dashCooldown = 3f;
 
     [Header("이름표")]
     public NameTagBillboard nameTagBillboard;

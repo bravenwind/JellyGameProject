@@ -181,7 +181,7 @@ MonoBehaviour:
   baseAgentHeight: 1.51
   batPivot: {fileID: 5781355599537278488}
   hideBatWhenIdle: 1
-  dashSpeed: 50
+  dashSpeed: 80
   dashDuration: 0.2
   dashCooldown: 3
   nameTagBillboard: {fileID: 8149866080057182332}
