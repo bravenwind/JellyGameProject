@@ -31,6 +31,19 @@ public class PlayerMovement : MonoBehaviour
     /// <summary>쿨타임이 끝난 상태(상태머신 제약까지 보려면 CanDash() 사용).</summary>
     public bool DashReady => dashCooldownTimer <= 0f;
 
+    /// <summary>0 = 공격 준비 완료, 1 = 방금 써서 풀 쿨다운. 최댓값은 DataManager.batCooldown(Push 전용).</summary>
+    public float AttackCooldownRatio
+    {
+        get
+        {
+            var dm = DataManager.Instance;
+            float max = dm != null ? dm.batCooldown : 0f;
+            return max > 0f ? Mathf.Clamp01(attackCooldownTimer / max) : 0f;
+        }
+    }
+    /// <summary>공격 쿨타임이 끝난 상태(모드/상태머신 제약까지 보려면 CanAttack() 사용).</summary>
+    public bool AttackReady => attackCooldownTimer <= 0f;
+
     [Header("Model Settings")]
     public Animator jellyAnimator;
     public UIManager uiManager;
