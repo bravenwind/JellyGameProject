@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
@@ -72,8 +72,7 @@ public class DashCooldownUI : MonoBehaviour
         if (pulseOnReady && p.DashReady && !_wasReady)
         {
             transform.DOKill();
-            transform.localScale = Vector3.one;
-            transform.DOPunchScale(Vector3.one * 0.18f, 0.3f, 6, 0.7f).SetUpdate(true);
+            transform.DOPunchScale(transform.localScale * 0.18f, 0.3f, 6, 0.7f).SetUpdate(true);
         }
         _wasReady = p.DashReady;
     }
