@@ -14,14 +14,14 @@ public class AIFleeState : AIBaseState
     private float _stuckTimer = 0f;
 
     private const float FLEE_PATH_RATE = 0.2f;
-    private const float FLEE_SPEED_MULT = 1.5f;
     private const float FLEE_DISTANCE = 15f;
 
     public AIFleeState(AIPlayerMovement ai) : base(ai) { }
 
     public override void Enter()
     {
-        ai.Agent.speed = ai.moveSpeed * FLEE_SPEED_MULT;
+        // 속도는 플레이어와 동일(moveSpeed) 유지(부스트 제거). 급한 회피는 대쉬로 처리한다.
+        ai.Agent.speed = ai.moveSpeed;
         ai.Agent.stoppingDistance = 0f;
         _pathTimer = FLEE_PATH_RATE; // 진입 즉시 경로 계산
         _stuckTimer = 0f;

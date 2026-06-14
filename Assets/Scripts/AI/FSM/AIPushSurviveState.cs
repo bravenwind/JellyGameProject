@@ -8,7 +8,6 @@ public class AIPushSurviveState : AIBaseState
     private float _attackScanTimer;
 
     private const float CHECK_INTERVAL = 0.15f;
-    private const float FLEE_SPEED_MULT = 1.5f;
     private const float ATTACK_SCAN_INTERVAL = 0.3f;
 
     public AIPushSurviveState(AIPlayerMovement ai) : base(ai) { }
@@ -45,8 +44,8 @@ public class AIPushSurviveState : AIBaseState
             if (!collapse.FindNearestSafeTile(ai.transform.position, out Vector3 safePos, avoidDangerous: true))
                 return;
 
-            ai.Agent.speed = ai.moveSpeed * FLEE_SPEED_MULT;
-
+            // 속도는 플레이어와 동일(moveSpeed)하게 유지한다. 위험(무너지는 발판) 회피는
+            // 속도 부스트가 아니라 아래 TryDash(짧은 대쉬 버스트)로 처리한다.
             if (NavMesh.SamplePosition(safePos, out NavMeshHit hit, 5f, ai.NavFilter))
             {
                 ai.CachedPath.ClearCorners();

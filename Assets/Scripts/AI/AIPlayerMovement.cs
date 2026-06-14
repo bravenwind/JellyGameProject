@@ -318,12 +318,14 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
                 continue;
             }
 
-            // 위험 타일 위면 다른 판단보다 우선적으로 안전한 곳으로 도망
+            // 위험 타일 위면 다른 판단보다 우선적으로 안전한 곳으로 도망.
+            // 속도는 플레이어와 동일하게 두고, 급한 회피는 대쉬(짧은 버스트)로 처리한다.
             if (collapse != null && collapse.IsPositionDangerous(transform.position))
             {
                 if (TryGetWanderDestination(out Vector3 safe))
                     Agent.SetDestination(safe);
                 ChangeState(WanderState);
+                TryDash();
                 continue;
             }
 
