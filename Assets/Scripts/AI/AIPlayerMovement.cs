@@ -359,6 +359,21 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
 
+        // 시작 카운트다운(3-2-1) 동안엔 봇도 멈춘다. 이동/상태 갱신을 건너뛰고 정지 + Idle 유지
+        // → 플레이어와 함께 '다 같이 대기 후 시작'.
+        // 주의: GameState.Phase가 아니라 카운트다운 전용 플래그를 본다. Phase는 '로컬 플레이어 상태'라,
+        //       Absorb에서 마스터 플레이어가 죽으면(Phase=GameOver) 봇이 전부 멈춰 생존자 게임이 깨진다.
+        if (GameModeManager.CountdownActive)
+        {
+            if (Agent.enabled && Agent.isOnNavMesh)
+            {
+                if (Agent.hasPath) Agent.ResetPath();
+                Agent.velocity = Vector3.zero;
+            }
+            if (_anim != null) _anim.SetBool("IsMoving", false);
+            return;
+        }
+
         if (GameState.CurrentGameMode == GameModeType.Push)
             CheckGroundBelow();
 

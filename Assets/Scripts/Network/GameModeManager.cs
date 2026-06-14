@@ -47,6 +47,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private bool _isEndingSequenceStarted = false;
     private bool _countdownRunning = false;
 
+    // 시작 카운트다운(3-2-1)이 진행 중인지. AI/입력 정지에 쓰인다.
+    // GameState.Phase와 달리 '로컬 플레이어 사망'에 영향받지 않아, 카운트다운만 정확히 가린다.
+    public static bool CountdownActive = false;
+
     // 결과 씬 진입 전, 룸 프로퍼티(봇 색상 등) 동기화 완료를 확인하기 위한 토큰 키
     private const string RESULT_SYNC_TOKEN_KEY = "ResultSyncToken";
 
@@ -60,6 +64,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private static void ResetStatics()
     {
         _spawned = false;
+        CountdownActive = false;
     }
 
     private NetworkPlayerSync _localPlayer;
@@ -165,6 +170,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         GameState.ResetValues();              // Phase=None
         _gameRunning = false;
+        CountdownActive = true;               // 카운트다운 시작 — 봇/입력 정지(RPC 도착 즉시)
         _gameTimer = (GameState.CurrentGameMode == GameModeType.Push) ? 0f : startTime;
 
         if (gameResultPanel != null)
@@ -202,6 +208,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
         _gameRunning = true;
         GameState.Phase = GamePhase.Playing;
+        CountdownActive = false;
         PlayerMovement.InputLocked = false;
 
         // 붕괴 타이밍 기준점은 카운트다운을 제외한 '실제 시작' 시점으로 기록한다(마스터만).
