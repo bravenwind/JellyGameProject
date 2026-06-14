@@ -101,7 +101,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         for (int i = 0; i < initialBatch; i++)
         {
             if (CurrentJellyCount() >= maxJellyCount) break;
-            SpawnOneJelly();
+            SpawnJelly();
         }
 
         // 이후 spawnInterval마다 spawnPerInterval개씩 보충
@@ -116,7 +116,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             for (int i = 0; i < perTick; i++)
             {
                 if (CurrentJellyCount() >= maxJellyCount) break;
-                SpawnOneJelly();
+                SpawnJelly();
             }
         }
     }
@@ -132,7 +132,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         return EntityRegistry.Jellies.Count;
     }
 
-    private void SpawnOneJelly()
+    private void SpawnJelly()
     {
         if (jellyPrefabNames == null || jellyPrefabNames.Length == 0) return;
 
@@ -165,15 +165,6 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     private float GetNavMeshBaseY()
     {
         if (_navMeshBaseY != float.MinValue) return _navMeshBaseY;
-
-        // SpawnPoint 태그로 기준 Y 가져오기
-        GameObject[] spawnPts = GameObject.FindGameObjectsWithTag("SpawnPoint");
-        if (spawnPts.Length > 0)
-        {
-            _navMeshBaseY = spawnPts[0].transform.position.y;
-            Debug.Log($"[JellyManager] NavMesh 기준 Y = {_navMeshBaseY} (SpawnPoint 기준)");
-            return _navMeshBaseY;
-        }
 
         // SpawnPoint 없으면 넓은 반경으로 탐색
         UnityEngine.AI.NavMeshHit hit;
@@ -211,7 +202,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             Vector3 candidate = new Vector3(x, baseY + 5f, z);
 
             UnityEngine.AI.NavMeshHit hit;
-            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 20f, UnityEngine.AI.NavMesh.AllAreas))
+            if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 3f, UnityEngine.AI.NavMesh.AllAreas))
             {
                 if (collapse != null && collapse.IsPositionDangerous(hit.position))
                     continue;

@@ -7,6 +7,8 @@ public class Milk : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private float respawnTime = 5.0f; // 다시 나타날 시간
 
+    private float speedSlowMultiplier = 0.5f;
+
     private void OnTriggerEnter(Collider other)
     {
         if (!other.CompareTag("PlayerMesh")) return;
@@ -15,21 +17,22 @@ public class Milk : MonoBehaviour
         NetworkPlayerSync nps = other.GetComponentInParent<NetworkPlayerSync>();
         if (nps != null && !nps.photonView.IsMine) return;
 
-        PlayerScaleController sc = other.GetComponentInParent<PlayerScaleController>();
-        if (sc == null) return;
+        PlayerMovement movement = other.GetComponentInParent<PlayerMovement>();
+        AIPlayerMovement aiMovement = other.GetComponentInParent<AIPlayerMovement>();
+
+        if (movement != null)
+        {
+            movement.moveSpeed *= speedSlowMultiplier;
+        }
+
+        if (aiMovement != null) 
+        {
+            aiMovement.moveSpeed *= speedSlowMultiplier;
+        }
 
         bool isLocalPlayer = nps != null && nps.photonView.IsMine;
         if (isLocalPlayer && PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.isSteppingMilk = true;
-
-        float currentScale = sc.currentScaleValue;
-
-        if (currentScale > DataManager.Instance.minScale)
-        {
-            sc.DecreaseScale(DataManager.Instance.scaleDecreaseTime);
-
-            StartCoroutine(RespawnRoutine());
-        }
     }
 
     private void OnTriggerExit(Collider other)
@@ -38,6 +41,20 @@ public class Milk : MonoBehaviour
 
         NetworkPlayerSync nps = other.GetComponentInParent<NetworkPlayerSync>();
         bool isLocalPlayer = nps != null && nps.photonView.IsMine;
+
+        PlayerMovement movement = other.GetComponentInParent<PlayerMovement>();
+        AIPlayerMovement aiMovement = other.GetComponentInParent<AIPlayerMovement>();
+
+        if (movement != null)
+        {
+            movement.moveSpeed *= 1 / speedSlowMultiplier;
+        }
+
+        if (aiMovement != null)
+        {
+            aiMovement.moveSpeed *= 1 / speedSlowMultiplier;
+        }
+
         if (isLocalPlayer && PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.isSteppingMilk = false;
     }

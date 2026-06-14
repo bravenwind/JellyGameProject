@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
 
@@ -8,7 +8,7 @@ public class LoadingCenterMultiAni : MonoBehaviour
     public class TargetUI
     {
         public RectTransform rect;
-        public CanvasGroup group;     // ºñ¿öµµ µÊ(ÀÚµ¿ »ı¼º)
+        public CanvasGroup group;     // ë¹„ì›Œë„ ë¨(ìë™ ìƒì„±)
         public float delay;
 
         [Header("Per-Target Toggles")]
@@ -67,6 +67,8 @@ public class LoadingCenterMultiAni : MonoBehaviour
         PrepareTargets();
         KillAll();
 
+        phase2Duration = GetComponentInParent<LoadingBGSlideAni>().holdSeconds;
+
         for (int i = 0; i < targets.Count; i++)
         {
             TargetUI t = targets[i];
@@ -78,8 +80,8 @@ public class LoadingCenterMultiAni : MonoBehaviour
             if (t.delay > 0f)
                 seq.AppendInterval(t.delay);
 
-            // Init »óÅÂ: Phase1À» ÇÒ °Å¸é startAlpha/scale·Î ¼¼ÆÃ
-            // Phase1À» ¾È ÇÏ¸é ÇöÀç »óÅÂ¸¦ À¯ÁöÇÏ°í, phase2/3°¡ ÄÑÁ® ÀÖÀ¸¸é ±×¶§¸¸ Á¶ÀÛ
+            // Init ìƒíƒœ: Phase1ì„ í•  ê±°ë©´ startAlpha/scaleë¡œ ì„¸íŒ…
+            // Phase1ì„ ì•ˆ í•˜ë©´ í˜„ì¬ ìƒíƒœë¥¼ ìœ ì§€í•˜ê³ , phase2/3ê°€ ì¼œì ¸ ìˆìœ¼ë©´ ê·¸ë•Œë§Œ ì¡°ì‘
             if (t.doPhase1)
             {
                 if (t.group != null) t.group.alpha = phase1StartAlpha;
@@ -94,8 +96,8 @@ public class LoadingCenterMultiAni : MonoBehaviour
                 seq.Join(t.rect.DOScale(t.baseScale * phase1EndScaleMul, phase1Duration).SetEase(phase1Ease));
             }
 
-            // Phase 2 ½Ã°£ ±¸°£Àº ÀüÃ¼ ¿¬Ãâ ±æÀÌ ¸ÂÃß±â À§ÇØ Ç×»ó È®º¸
-            // ´Ü, doPhase2°¡ false¸é ±×³É °¡¸¸È÷ À¯Áö
+            // Phase 2 ì‹œê°„ êµ¬ê°„ì€ ì „ì²´ ì—°ì¶œ ê¸¸ì´ ë§ì¶”ê¸° ìœ„í•´ í•­ìƒ í™•ë³´
+            // ë‹¨, doPhase2ê°€ falseë©´ ê·¸ëƒ¥ ê°€ë§Œíˆ ìœ ì§€
             if (t.doPhase2)
             {
                 seq.AppendCallback(() =>
