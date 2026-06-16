@@ -246,6 +246,94 @@
 
 ---
 
+## 2026-06-16 루틴 — 06-13~06-14 신규 커밋(시작 카운트다운/봇 정지/Milk·젤리 스폰) 리뷰
+
+마지막 루틴(06-13) 이후 06-13 저녁~06-14에 들어온 미리뷰 커밋군을 분석.
+대상 커밋: `2ad3279`→`1073166` (로딩 씬 전환, 대쉬 HUD→CooldownRingUI 범용화,
+3-2-1 시작 카운트다운, 카운트다운 중 AI 봇 Idle 정지, Milk 슬로우 존 전환,
+젤리 스폰 NavMesh 샘플 파라미터 변경).
+
+리뷰 파일: `GameModeManager.cs`(카운트다운), `AIPlayerMovement.cs`/`AIFleeState`/
+`AIPushSurviveState`(봇 정지·속도), `PlayerMovement.cs`/`PlayerIdleState`/`PlayerMoveState`
+(InputLocked), `Milk.cs`, `NetworkJellyManager.cs`, `LoadingCenterImageAni.cs`.
+
+### 좋았던 점(설계 관찰)
+- 카운트다운 동안 `_gameRunning=false` & `Phase!=Playing` 유지로 타일 붕괴·타이머·흡수·공격을
+  기존 가드 그대로 막고, **입력만 `InputLocked`로 별도 차단**(Idle 애니는 유지) — 책임 분리 깔끔.
+- 봇 정지에 `GameState.Phase`가 아니라 **전용 플래그 `CountdownActive`**를 쓴 점(주석에 이유 명시:
+  Phase는 '로컬 플레이어 사망'에 오염되어 Absorb에서 마스터 사망 시 전 봇 정지 버그). 정확한 판단.
+- `GameStartTime`(붕괴 타이밍 기준)을 카운트다운 종료 후 '실제 시작' 시점에 기록 → 카운트다운만큼
+  붕괴가 밀리도록 한 점 일관적. `TileCollapseManager.Update`도 `IsGameRunning` 가드라 충돌 없음.
+
+### [J1] (버그 / 높음·확인필요) 젤리 스폰 NavMesh 샘플 반경(3f)이 수직 오프셋(5f)보다 작아 스폰 실패 가능
+- 위치: `NetworkJellyManager.cs:202-205 (TryGetNavMeshSpawnPosition)`
+- 내용: 후보 위치 `candidate = (x, baseY + 5f, z)`를 만든 뒤 `NavMesh.SamplePosition(candidate, 3f)`로
+  스냅한다. `baseY`는 navmesh 기준 Y(origin 근방 샘플값). **평평한 바닥에서 후보점은 navmesh보다
+  5만큼 위**이고, SamplePosition은 후보점에서 반경 3 이내의 navmesh만 찾으므로 5 > 3 → **30회 시도
+  전부 실패** → `TryGetNavMeshSpawnPosition`이 false 반환 → 젤리가 거의/전혀 스폰되지 않을 수 있다.
+  (이전 값 20f는 5f 수직 갭을 충분히 덮었음. 이번 커밋에서 20f→3f로 줄이며 깨진 것으로 보임.)
+- 영향: Absorb 모드 핵심 자원(젤리)이 안 깔리면 게임 자체가 성립 안 됨. 맵 navmesh 기복에 따라
+  일부만 잡힐 수도 있어 '가끔 적게 스폰'으로도 나타날 수 있음.
+- 제안(택1): (a) 수직 오프셋을 줄이기(`baseY + 1f` 등), (b) 반경을 다시 키우기(`>= 6f`),
+  (c) 후보점에서 아래로 Raycast/높이 보정 후 SamplePosition. **맵에서 실제 스폰 수 확인 필요**.
+- 학습: `NavMesh.SamplePosition(point, maxDistance)`의 maxDistance는 3D 유클리드 거리다. 공중에
+  띄운 후보를 바닥 navmesh에 스냅하려면 maxDistance ≥ 수직 높이여야 한다.
+
+### [J2] (버그 / 중) Milk OnTriggerExit에 IsMine 가드 누락 — Enter/Exit 비대칭으로 원격 사본 속도 증식
+- 위치: `Milk.cs:18 (Enter 가드)` vs `38-56 (Exit, 가드 없음)`
+- 내용: `OnTriggerEnter`는 `if (nps != null && !nps.photonView.IsMine) return;`로 원격 플레이어를
+  건너뛰지만(속도 ×0.5 안 함), `OnTriggerExit`는 그 가드 없이 **누구에게나 ×2 복원**을 적용한다.
+  → 원격 클라가 보는 플레이어 사본은 enter는 스킵·exit는 ×2 → 밀크를 나갈 때마다 `moveSpeed`가
+  **짝 없는 ×2로 누적**. 봇은 `nps==null`이라 모든 클라가 enter/exit를 처리해 마스터 외 사본까지 변형.
+- 영향: 원격 사본 `moveSpeed`가 실제 이동(동기화 위치)에 직접 쓰이지 않으면 무해하지만, 로컬 예측·
+  애니·이펙트가 참조하면 점점 빨라지는 값으로 드러남. 명백한 논리 비대칭.
+- 제안: Exit도 Enter와 동일한 IsMine(봇은 master 권위) 가드를 적용.
+
+### [J3] (버그 / 중) Milk가 공유 `moveSpeed`를 곱셈으로 파괴적 변형 — 불균형 시 영구 손상
+- 위치: `Milk.cs:23-31 (×0.5)`, `48-56 (×2)`
+- 내용: 직렬화 필드 `moveSpeed`를 직접 곱/나눈다. enter와 exit가 항상 짝지어 실행되면 0.5↔2는
+  2의 거듭제곱이라 정확히 복원되지만, **짝이 깨지는 경로가 많다**: (1) 밀크 위에서 사망/흡수로
+  PlayerMesh 콜라이더 파괴 시 OnTriggerExit가 보장되지 않음 → 리스폰 후에도 ×0.5 영구 잔존,
+  (2) 겹친 밀크 동시 진입, (3) 씬 전환 중 콜라이더 토글. 어느 경우든 base 속도가 영구 오염되고
+  복구 수단이 없다(원본 미저장).
+- 제안: 공유 `moveSpeed`를 직접 건드리지 말고 **baseSpeed + 상태(밀크 위 bool/카운트)**로 매 프레임
+  계산하거나(`effectiveSpeed = base * (onMilk?0.5:1)`), 진입 시 원본을 저장해 이탈 시 그 값으로 복원.
+- 학습: 외부 효과가 '원본을 모르는 채' 상태값을 가감/곱제하면, 효과 적용/해제가 한 번이라도 어긋나면
+  되돌릴 기준이 사라진다. 가역 효과는 *기준값 + 토글*로 모델링한다(G1·H1 '상태 복원' 주제의 변형).
+
+### [J4] (설계·데드코드 / 하·확인) Milk의 스케일 감소 + 5초 리스폰 기능이 통째로 사라짐
+- 위치: `Milk.cs` 전체 — `RespawnRoutine`/`respawnTime`/`SetAppearance`/DataManager 스케일 호출이
+  더 이상 호출되지 않는 데드 코드. 기존 'milk=스케일 감소 후 리스폰'이 'milk=슬로우 존'으로 교체됨.
+- 내용: 의도된 게임플레이 리디자인이면 데드 멤버를 정리하는 게 맞고, 의도치 않은 누락이면 스케일
+  감소 효과가 사라진 회귀다. **설계 의도 확인 필요**.
+
+### [J5] (안정성 / 중) 카운트다운 중단 시 `PlayerMovement.InputLocked`/`CountdownActive` 미복구 → 입력 영구 잠금 위험
+- 위치: `GameModeManager.StartCountdownRoutine:184-228`, `PlayerMovement.cs:31-34 (ResetInputLocked)`
+- 내용: 카운트다운(약 3.7초) 진행 중 GameModeManager가 파괴되거나 씬이 리로드되면 코루틴이 중도에
+  끊긴다. `CountdownActive`는 `ResetStatics()`(Awake)에서 리셋되지만, `PlayerMovement.InputLocked`는
+  **`SubsystemRegistration`(도메인 리로드)에서만** 리셋된다. 빌드에서 씬 리로드는 보통 도메인 리로드를
+  동반하지 않으므로, 중단된 채 다음 씬으로 넘어가면 **로컬 입력이 영구 잠금**될 수 있다.
+- 제안: `ResetStatics()`에 `PlayerMovement.InputLocked = false;`도 함께 넣어 카운트다운 전용 두 플래그를
+  같은 지점에서 짝으로 해제. 또는 코루틴 종료를 try/finally·OnDisable로 보장.
+- 학습: 코루틴이 켠 **전역 플래그는 모든 중단 경로(정상 종료/StopAllCoroutines/오브젝트 파괴)에서
+  반드시 해제**해야 한다(G1과 동일 교훈, 이번엔 입력 잠금이라 비용이 큼).
+
+### [J6] (견고성 / 하·관찰) `StartGameInternal`이 비멱등 — RPC 재수신 시 진행 중 게임 리셋
+- 위치: `GameModeManager.cs:169-181`, `RPC_StartGame:158-162`
+- 내용: `StartGameInternal`은 매 호출마다 `GameState.ResetValues()` + `_gameRunning=false` +
+  `CountdownActive=true`를 다시 실행한다. 만약 `RPC_StartGame`이 어떤 이유로 두 번 도착하면 진행 중
+  게임의 스코어/스케일이 초기화되고, `if(!_countdownRunning)` 가드 때문에 코루틴은 재시작되지 않아
+  `_gameRunning`이 영구 false로 남는 소프트락이 가능. 현재는 `_spawned` + `RpcTarget.All`(비버퍼)로
+  1회만 발화돼 실질 위험은 낮음(관찰 항목).
+- 제안: 이미 시작/카운트다운 중이면 조기 return하는 멱등 가드(`if (_countdownRunning || _gameRunning) return;`).
+
+### [J7] (견고성 / 하) `LoadingCenterMultiAni`의 부모 컴포넌트 조회 null 미가드
+- 위치: `LoadingCenterImageAni.cs:73 (phase2Duration = GetComponentInParent<LoadingBGSlideAni>().holdSeconds)`
+- 내용: 부모에 `LoadingBGSlideAni`가 없으면 NRE로 로딩 연출이 죽는다. 같은 파일 다른 참조는 null 가드가
+  있는데 이 한 줄만 직접 접근. 제안: 변수에 받아 null 체크 후 기본값 유지.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -274,6 +362,13 @@
 - [x] H5  (2026-06-12 적용, **사용자** 커밋 fec8329) — GameOver 두 번째(도달 불가능) Push 분기 삭제.
 - [x] H6  (2026-06-12 적용, 커밋 fbcd419) — ScoreboardSnapshot.cs로 점수 집계 단일화. 코드 확인됨.
 - [ ] I1  (대기 — 2026-06-13 도출, 결과 씬 봇 생존 판정의 프로퍼티 정리 레이스)
+- [ ] J1  (대기 — 2026-06-16 도출, 젤리 스폰 SamplePosition 반경 3f < 오프셋 5f, **확인 필요**)
+- [ ] J2  (대기 — 2026-06-16 도출, Milk OnTriggerExit IsMine 가드 누락)
+- [ ] J3  (대기 — 2026-06-16 도출, Milk moveSpeed 파괴적 곱셈 변형)
+- [ ] J4  (대기 — 2026-06-16 도출, Milk 스케일 감소/리스폰 제거 — **설계 의도 확인**)
+- [ ] J5  (대기 — 2026-06-16 도출, 카운트다운 중단 시 InputLocked 영구 잠금 위험)
+- [ ] J6  (대기 — 2026-06-16 도출, StartGameInternal 비멱등)
+- [ ] J7  (대기 — 2026-06-16 도출, LoadingCenterMultiAni 부모 조회 null 미가드)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
@@ -294,3 +389,8 @@
   시트 기록 대기 항목(누적): "2026-06-12 H1~H6 도출/적용", "2026-06-13 H3·H5 사용자 적용 검증 + I1 도출",
   "2026-06-13 F3·F4·F5 사용자 직접 적용 확인/완료 처리",
   "2026-06-13 feat 로딩 씬 모드별 조작 팁 패널 추가(LoadingSceneController) — 사용자 요청".
+- 2026-06-16 루틴: **환경변수 `GSHEET_CREDENTIALS_JSON`이 드디어 등록됨**(len≈2348). 다만 컨테이너에
+  gspread 미설치 + cffi 네이티브(`_cffi_backend`) 부재로 임포트 실패 → `pip install --only-binary :all:
+  --force-reinstall cffi cryptography`로 cffi 바이너리 휠 설치 후 정상화(cryptography는 debian판이라
+  uninstall 실패하나 cffi 백엔드만 채워지면 import 됨). 이후 `update_sheets.py status` 정상 동작 확인.
+  → SessionStart 훅의 pip 목록에 `--only-binary :all:` 옵션을 cffi에 적용하면 매 세션 자동화 가능.
