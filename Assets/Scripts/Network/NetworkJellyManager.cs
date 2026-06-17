@@ -199,7 +199,11 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         {
             float x = Random.Range(minX, maxX);
             float z = Random.Range(minZ, maxZ);
-            Vector3 candidate = new Vector3(x, baseY + 5f, z);
+            // 후보점의 수직 오프셋은 반드시 SamplePosition 반경(아래 3f)보다 작아야 한다.
+            // SamplePosition의 maxDistance는 3D 유클리드 거리라, 지면 위로 5f 띄운 점을 반경 3f로
+            // 스냅하려 하면 5>3이라 평지에서 한 번도 못 잡고 스폰이 통째로 실패한다. (J1)
+            // 살짝(1f)만 띄워 바로 아래 navmesh가 반경 안에 들도록 한다.
+            Vector3 candidate = new Vector3(x, baseY + 1f, z);
 
             UnityEngine.AI.NavMeshHit hit;
             if (UnityEngine.AI.NavMesh.SamplePosition(candidate, out hit, 3f, UnityEngine.AI.NavMesh.AllAreas))

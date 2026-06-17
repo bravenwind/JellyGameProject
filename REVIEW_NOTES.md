@@ -362,11 +362,15 @@
 - [x] H5  (2026-06-12 적용, **사용자** 커밋 fec8329) — GameOver 두 번째(도달 불가능) Push 분기 삭제.
 - [x] H6  (2026-06-12 적용, 커밋 fbcd419) — ScoreboardSnapshot.cs로 점수 집계 단일화. 코드 확인됨.
 - [ ] I1  (대기 — 2026-06-13 도출, 결과 씬 봇 생존 판정의 프로퍼티 정리 레이스)
-- [ ] J1  (대기 — 2026-06-16 도출, 젤리 스폰 SamplePosition 반경 3f < 오프셋 5f, **확인 필요**)
-- [ ] J2  (대기 — 2026-06-16 도출, Milk OnTriggerExit IsMine 가드 누락)
-- [ ] J3  (대기 — 2026-06-16 도출, Milk moveSpeed 파괴적 곱셈 변형)
-- [ ] J4  (대기 — 2026-06-16 도출, Milk 스케일 감소/리스폰 제거 — **설계 의도 확인**)
-- [ ] J5  (대기 — 2026-06-16 도출, 카운트다운 중단 시 InputLocked 영구 잠금 위험)
+- [x] J1  (2026-06-16 적용) — 젤리 스폰 후보 오프셋 baseY+5f → +1f(반경 3f 안에 들도록). SamplePosition
+        maxDistance(3D 거리) < 수직 오프셋이면 평지에서 스폰 전부 실패하던 문제 해소(NetworkJellyManager.cs:202).
+- [x] J2  (2026-06-16 적용) — Milk를 PhotonView 소유권(사람=본인/봇=마스터) 기준으로 통일, Exit도 추적된
+        대상만 대칭 복원 → 원격 사본 moveSpeed 비대칭 증식 제거(Milk.cs).
+- [x] J3  (2026-06-16 적용) — Milk가 밀크별 _slowed 딕셔너리로 중복 적용 방지 + OnDisable에서 잔여 대상
+        복원 → moveSpeed 파괴적 누적/영구 손상 제거(Milk.cs). ※ moveSpeed는 곱셈 합성 유지(겹친 밀크 정합).
+- [ ] J4  (대기 — 2026-06-16 도출, Milk 스케일 감소/리스폰 제거 — **설계 의도 확인**, 미승인)
+- [x] J5  (2026-06-16 적용) — GameModeManager Awake/OnDestroy에서 CountdownActive·PlayerMovement.InputLocked
+        해제 → 카운트다운 도중 씬 전환 시 입력 영구 잠금 방지(GameModeManager.cs:86, 89).
 - [ ] J6  (대기 — 2026-06-16 도출, StartGameInternal 비멱등)
 - [ ] J7  (대기 — 2026-06-16 도출, LoadingCenterMultiAni 부모 조회 null 미가드)
 

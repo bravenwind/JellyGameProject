@@ -84,12 +84,23 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         }
 
         Time.timeScale = 1f;
+
+        // 새 게임 씬은 항상 '입력 잠금 해제' 상태로 시작한다. (StartCountdownRoutine이 다시 잠근다.)
+        // CountdownActive/InputLocked는 SubsystemRegistration에서만 리셋되므로, 도메인 리로드 없는
+        // 씬 리로드만으로는 안 풀린다 → 카운트다운 도중 씬이 바뀌면 다음 씬에 잠금이 새어 들어올 수 있어
+        // 씬 진입 시점에 한 번 더 확실히 푼다. (J5)
+        CountdownActive = false;
+        PlayerMovement.InputLocked = false;
     }
 
     private void OnDestroy()
     {
         _spawned = false;
         Time.timeScale = 1f;
+
+        // 카운트다운 코루틴이 도중에 끊겨도(씬 전환·파괴) 전역 잠금 플래그가 남지 않도록 정리한다. (J5)
+        CountdownActive = false;
+        PlayerMovement.InputLocked = false;
     }
 
     private void Start()
