@@ -347,11 +347,20 @@
 - [x] G1  (2026-06-09 적용) — ResetScale에서 _jellyBatchCoroutine = null 초기화
 - [x] G2  (2026-06-09 적용) — 봇 넉백 RPC를 RpcTarget.All → 봇 소유자(마스터)로 변경 (3곳)
         ※ 봇 프리팹에 PhotonTransformView 존재 확인 → 비마스터 로컬 이동/동기화 충돌 제거
-- [ ] G3  (대기)
-- [ ] G4  (대기)
+- [x] G3  (2026-06-17 적용) — FallingTile: drawOverlapGizmo 기본값 false + Debug.Log를 #if UNITY_EDITOR로
+        가드(빌드 로그 스파이크 제거), 경고 색 변경을 .material→MaterialPropertyBlock(+읽기 sharedMaterial)으로
+        전환해 붕괴 타일별 머티리얼 인스턴스 복제/배칭 깨짐 제거(FallingTile.cs).
+- [x] G4  (2026-06-17 적용) — OffScreenPlayerIndicator.GetColor 봇 색 조회를 .material→sharedMaterial로
+        변경(읽기 전용 인스턴스 복제 제거). 리더보드 GameModeManager.GetBotColor와 동일 패턴으로 정합.
 - [ ] G5  (대기)
-- [ ] G6  (대기)
-- [ ] G7  (대기)
+- [x] G6  (2026-06-17 적용) — 탈락/흡수 판정을 IsOutOfPlay 단일 헬퍼로 통일:
+        AIPlayerMovement.IsOutOfPlay(=IsEliminated||IsBeingAbsorbed), NetworkPlayerSync.IsOutOfPlay
+        (=IsAbsorbed || owner "Eliminated" 룸프롭, ELIMINATED_KEY 상수화). 인디케이터(사람/봇)·FallingTile·
+        NetworkPlayerSync 봇 콤보 호출부가 모두 이 값을 사용. ※ 결과 씬 ScoreboardSnapshot은 오브젝트
+        파괴 후 룸프롭 생존자 목록(I1/H6) 기반이라 의도적으로 별개 유지.
+- [x] G7  (2026-06-17 적용) — TileCollapseManager가 NavCarve_* 오브젝트를 _carveObjects 목록으로 소유,
+        RegisterCarveObject/ClearCarveObjects 추가 + OnDestroy에서 명시적 정리. FallingTile.CarveNavMesh가
+        생성 즉시 매니저에 등록(FallingTile.cs, TileCollapseManager.cs).
 - [ ] G8  (대기)
 - [x] H1  (2026-06-12 적용, 커밋 fbcd419) — GameState.ResetValues에서 이벤트 null 대입 제거,
         정리는 Reset()(SubsystemRegistration)에만 유지. 코드 확인됨(GameState.cs:96-110).
@@ -398,3 +407,8 @@
   --force-reinstall cffi cryptography`로 cffi 바이너리 휠 설치 후 정상화(cryptography는 debian판이라
   uninstall 실패하나 cffi 백엔드만 채워지면 import 됨). 이후 `update_sheets.py status` 정상 동작 확인.
   → SessionStart 훅의 pip 목록에 `--only-binary :all:` 옵션을 cffi에 적용하면 매 세션 자동화 가능.
+- 2026-06-17 루틴: `tools/update_sheets.py`가 **현재 시트 컬럼과 불일치**해 데이터 오정렬을 유발함.
+  실제 시트 규약(헤더 기준): 트러블슈팅 = `카테고리|심각도|날짜|이슈명|원인|해결방법|관련파일`,
+  개발계획서 = `카테고리|작업명|세부내용|우선순위|난이도|예상(일)|상태|시작 날짜|종료 날짜|메모`(종료 날짜 컬럼
+  추가됨). 구 스크립트는 bug 인자순서가 `날짜 심각도 카테고리…`였고 plan은 종료 날짜 컬럼이 없어 메모가
+  한 칸 밀렸음. → 스크립트 인자순서/플랜 10필드로 수정 완료. (이번에 잘못 들어간 #67~70, plan #22는 API로 교정함)

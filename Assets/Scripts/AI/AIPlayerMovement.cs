@@ -79,6 +79,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public bool IsBeingAbsorbed { get; set; } = false;
     public bool IsEliminated { get; private set; } = false;
 
+    /// <summary>봇이 게임에서 빠졌는지(탈락 또는 흡수 진행 중). "이 엔티티가 게임에서 빠졌나?"
+    /// 판정의 단일 출처 — 인디케이터/충돌/리더보드가 모두 이 값을 본다. (G6)</summary>
+    public bool IsOutOfPlay => IsEliminated || IsBeingAbsorbed;
+
     private float _dashCooldownTimer;
     private float _dashTimer;
     private float _preDashSpeed;

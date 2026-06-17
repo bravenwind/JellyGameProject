@@ -111,7 +111,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
             var p = players[i];
             if (p == null) continue;
             if (p.photonView != null && p.photonView.IsMine) continue; // 내 자신 제외
-            if (IsPlayerEliminated(p)) continue;
+            if (p.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6)
 
             var ind = GetOrCreate(p.transform);
             ind.player = p;
@@ -128,7 +128,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
             for (int i = 0; i < bots.Count; i++)
             {
                 var b = bots[i];
-                if (b == null || b.IsEliminated || b.IsBeingAbsorbed) continue;
+                if (b == null || b.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6)
 
                 var ind = GetOrCreate(b.transform);
                 ind.bot = b;
@@ -220,19 +220,12 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     private Color GetColor(Indicator ind)
     {
         if (ind.player != null) return ind.player.DisplayColor;
-        if (ind.botRenderer != null && ind.botRenderer.material.HasProperty("_FresnelColor"))
-            return ind.botRenderer.material.GetColor("_FresnelColor");
+        // 읽기 전용 조회이므로 sharedMaterial 사용 — .material은 봇마다 머티리얼 인스턴스를 복제해
+        // 배칭을 깨뜨린다(리더보드 GameModeManager.GetBotColor와 동일 패턴). (G4)
+        if (ind.botRenderer != null && ind.botRenderer.sharedMaterial != null
+            && ind.botRenderer.sharedMaterial.HasProperty("_FresnelColor"))
+            return ind.botRenderer.sharedMaterial.GetColor("_FresnelColor");
         return Color.white;
-    }
-
-    private bool IsPlayerEliminated(NetworkPlayerSync p)
-    {
-        if (p.IsAbsorbed) return true;
-        var owner = p.photonView != null ? p.photonView.Owner : null;
-        if (owner == null) return false;
-        return owner.CustomProperties != null
-            && owner.CustomProperties.TryGetValue("Eliminated", out object e)
-            && e is bool b && b;
     }
 
     // ─────────────────────────────────────────────────────────

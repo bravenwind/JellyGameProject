@@ -57,6 +57,25 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
     public bool IsAbsorbed => _isAbsorbed;
 
+    // 탈락 여부를 owner 룸 프로퍼티에 기록하는 키. 권위 출처라 마스터/결과 씬이 신뢰한다.
+    public const string ELIMINATED_KEY = "Eliminated";
+
+    /// <summary>이 플레이어가 게임에서 빠졌는지(흡수됨 또는 owner의 "Eliminated" 권위 플래그).
+    /// "이 엔티티가 게임에서 빠졌나?" 판정의 단일 출처 — 인디케이터/리더보드/결과가 모두 이 값을 본다.
+    /// 흡수 당사자 클라가 자기 "Eliminated"를 제때 못 읽는 경우를 대비해 로컬 _isAbsorbed도 함께 본다. (G6)</summary>
+    public bool IsOutOfPlay
+    {
+        get
+        {
+            if (_isAbsorbed) return true;
+            var owner = photonView != null ? photonView.Owner : null;
+            return owner != null
+                && owner.CustomProperties != null
+                && owner.CustomProperties.TryGetValue(ELIMINATED_KEY, out object e)
+                && e is bool b && b;
+        }
+    }
+
     // ─────────────────────────────────────────────────────────
     // 레지스트리 등록
     // ─────────────────────────────────────────────────────────
@@ -286,7 +305,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (!photonView.IsMine) return;
         ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
         {
-            { "Eliminated", true }
+            { ELIMINATED_KEY, true }
         };
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
     }
@@ -301,7 +320,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (!photonView.IsMine) return;
         ExitGames.Client.Photon.Hashtable props = new ExitGames.Client.Photon.Hashtable
         {
-            { "Eliminated", false }
+            { ELIMINATED_KEY, false }
         };
         PhotonNetwork.LocalPlayer.SetCustomProperties(props);
     }
@@ -691,7 +710,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (botPV == null) return;
 
         AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
-        if (aiBot == null || aiBot.IsEliminated || aiBot.IsBeingAbsorbed) return;
+        if (aiBot == null || aiBot.IsOutOfPlay) return; // 탈락/흡수 판정 단일 출처 (G6)
 
         float dasherScale = GetAuthorityScale(photonView);
         float botScale = GetBotAuthorityScale(aiBot);
@@ -812,7 +831,7 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (botPV == null) return;
 
         AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
-        if (aiBot == null || aiBot.IsEliminated || aiBot.IsBeingAbsorbed) return;
+        if (aiBot == null || aiBot.IsOutOfPlay) return; // 탈락/흡수 판정 단일 출처 (G6)
 
         float attackerScale = GetAuthorityScale(photonView);
 

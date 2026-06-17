@@ -7,10 +7,15 @@ public class FallingTile : MonoBehaviour
 {
     [Header("디버그")]
     [Tooltip("AwakePhysicsOnTile이 사용하는 OverlapBox 범위를 Scene 뷰에 시각화")]
-    public bool drawOverlapGizmo = true;
+    public bool drawOverlapGizmo = false;   // 빌드에서 붕괴 때마다 Debug.Log가 쏟아지지 않도록 기본 off (G3)
 
     [Tooltip("OverlapBox 높이 (타일 위로 몇 미터까지 검사할지)")]
     public float overlapBoxHeight = 20f;
+
+    // 경고 단계 색 변경용 셰이더 프로퍼티(URP=_BaseColor / 빌트인=_Color). MaterialPropertyBlock으로
+    // 칠하면 .material처럼 인스턴스를 복제하지 않아 배칭이 유지된다. (G3)
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     // TileCollapseManager가 붕괴 예약 시 채워주는 그리드 좌표. carve 시점에 '허공'으로 마킹할 때 사용.
     [HideInInspector] public int GridX = -1;
@@ -96,10 +101,19 @@ public class FallingTile : MonoBehaviour
             transform.localPosition = _originalPos;
         }
 
+        // 색 변경은 .material(인스턴스 복제) 대신 MaterialPropertyBlock으로 → 붕괴 타일마다 머티리얼
+        // 사본이 생겨 배칭이 깨지고 메모리가 늘던 문제를 막는다. 읽기도 sharedMaterial로 한다. (G3)
         Renderer rend = GetComponentInChildren<Renderer>();
         Color originalColor = Color.white;
-        if (rend != null)
-            originalColor = rend.material.color;
+        int colorPropId = ColorId;
+        MaterialPropertyBlock mpb = null;
+        if (rend != null && rend.sharedMaterial != null)
+        {
+            colorPropId = rend.sharedMaterial.HasProperty(BaseColorId) ? BaseColorId : ColorId;
+            if (rend.sharedMaterial.HasProperty(colorPropId))
+                originalColor = rend.sharedMaterial.GetColor(colorPropId);
+            mpb = new MaterialPropertyBlock();
+        }
 
         // 경고 단계: 빨갛게 변하면서 더 격하게 흔들림 (시각만)
         float elapsed = 0f;
@@ -114,8 +128,12 @@ public class FallingTile : MonoBehaviour
             );
             _shakeTransform.localPosition = _shakeOrigin + shake;
 
-            if (rend != null)
-                rend.material.color = Color.Lerp(originalColor, new Color(1f, 0.25f, 0.15f), t);
+            if (mpb != null)
+            {
+                rend.GetPropertyBlock(mpb);
+                mpb.SetColor(colorPropId, Color.Lerp(originalColor, new Color(1f, 0.25f, 0.15f), t));
+                rend.SetPropertyBlock(mpb);
+            }
 
             elapsed += Time.deltaTime;
             yield return null;
@@ -181,6 +199,8 @@ public class FallingTile : MonoBehaviour
         if (drawOverlapGizmo)
         {
             DebugDrawOverlapBox(boxCenter, halfExtents, transform.rotation, Color.red, 5f);
+#if UNITY_EDITOR
+            // 로그는 에디터에서만. 빌드에선 컴파일 자체가 빠져 프레임 스파이크/오버헤드 없음. (G3)
             Debug.Log($"[FallingTile] {name} AwakePhysicsOnTile: {OverlappedCols.Length}개 콜라이더 감지");
             foreach (var c in OverlappedCols)
             {
@@ -188,6 +208,7 @@ public class FallingTile : MonoBehaviour
                 Rigidbody r = c.GetComponentInParent<Rigidbody>();
                 Debug.Log($"  └ {c.name} layer={LayerMask.LayerToName(c.gameObject.layer)} tag={c.tag} rb={(r != null ? r.name + "(kin=" + r.isKinematic + ")" : "없음")}");
             }
+#endif
         }
 
         foreach (var col in OverlappedCols)
@@ -199,7 +220,7 @@ public class FallingTile : MonoBehaviour
             if (rb == null)
             {
                 AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
-                if (aiBot != null && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
+                if (aiBot != null && !aiBot.IsOutOfPlay) // 탈락/흡수 판정 단일 출처 (G6)
                 {
                     PhotonView aiPV = aiBot.GetComponent<PhotonView>();
                     if (aiPV != null && !PhotonNetwork.IsMasterClient) continue;
@@ -263,6 +284,9 @@ public class FallingTile : MonoBehaviour
         // false로 두면 stationary 타이머(~0.5초)를 기다리지 않고 즉시 구멍을 뚫어,
         // 그 사이 AI가 허공으로 튕기는 타이밍 공백을 없앤다.
         _navObstacle.carveOnlyStationary = false;
+
+        // 한 판 동안 무한 누적되는 carve 오브젝트를 매니저가 소유해 라운드 종료 시 일괄 정리한다. (G7)
+        TileCollapseManager.Instance?.RegisterCarveObject(carveObj);
     }
 
     private static void DisableAIOnObject(GameObject obj)

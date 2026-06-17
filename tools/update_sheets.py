@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
 Google Sheets 업데이트 스크립트 — 일일 코드 리뷰 루틴용
+
+※ 인자 순서는 실제 시트 컬럼 순서와 일치한다(헤더 기준).
+   - 개발계획서: 카테고리 | 작업명 | 세부내용 | 우선순위 | 난이도 | 예상(일) | 상태 | 시작 날짜 | 종료 날짜 | 메모
+   - 트러블슈팅: 카테고리 | 심각도 | 날짜 | 이슈명 | 원인 | 해결방법 | 관련파일
+
 사용법:
-    python3 tools/update_sheets.py plan "카테고리" "작업명" "세부내용" "우선순위" "난이도" "예상일" "상태" "날짜" "메모"
-    python3 tools/update_sheets.py bug "날짜" "심각도" "카테고리" "이슈명" "원인" "해결방법" "관련파일"
+    python3 tools/update_sheets.py plan "카테고리" "작업명" "세부내용" "우선순위" "난이도" "예상일" "상태" "시작날짜" "종료날짜" "메모"
+    python3 tools/update_sheets.py bug "카테고리" "심각도" "날짜" "이슈명" "원인" "해결방법" "관련파일"
     python3 tools/update_sheets.py status          # 현재 시트 상태 출력
 """
 import sys
@@ -33,9 +38,11 @@ def get_client():
 
 
 def add_plan_entry(args):
-    """개발계획서 '일일 코드 리뷰 루틴' 시트에 행 추가"""
+    """개발계획서 '일일 코드 리뷰 루틴' 시트에 행 추가
+    컬럼: # | 카테고리 | 작업명 | 세부내용 | 우선순위 | 난이도 | 예상(일) | 상태 | 시작 날짜 | 종료 날짜 | 메모
+    """
     if len(args) < 9:
-        print("사용법: plan 카테고리 작업명 세부내용 우선순위 난이도 예상일 상태 날짜 [메모]")
+        print("사용법: plan 카테고리 작업명 세부내용 우선순위 난이도 예상일 상태 시작날짜 종료날짜 [메모]")
         sys.exit(1)
 
     gc = get_client()
@@ -46,17 +53,19 @@ def add_plan_entry(args):
     data_rows = [r for r in all_rows if r[0] and r[0].isdigit()]
     next_num = max((int(r[0]) for r in data_rows), default=0) + 1
 
-    memo = args[8] if len(args) > 8 else ""
-    new_row = [str(next_num)] + list(args[:8]) + [memo]
+    # 카테고리~메모까지 최대 10개 필드(메모 생략 가능). 시트 컬럼 순서와 1:1.
+    new_row = [str(next_num)] + list(args[:10])
 
     ws.append_row(new_row, value_input_option="USER_ENTERED")
     print(f"[개발계획서] #{next_num} 추가 완료: {args[1]}")
 
 
 def add_bug_entry(args):
-    """트러블슈팅 시트에 행 추가"""
+    """트러블슈팅 시트에 행 추가
+    컬럼: # | 카테고리 | 심각도 | 날짜 | 이슈명 | 원인 | 해결방법 | 관련파일
+    """
     if len(args) < 7:
-        print("사용법: bug 날짜 심각도 카테고리 이슈명 원인 해결방법 관련파일")
+        print("사용법: bug 카테고리 심각도 날짜 이슈명 원인 해결방법 관련파일")
         sys.exit(1)
 
     gc = get_client()

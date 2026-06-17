@@ -49,12 +49,38 @@ public class TileCollapseManager : MonoBehaviour
     private float _stepProcessTimer;
     private const float STEP_PROCESS_INTERVAL = 0.15f;
 
+    // FallingTile이 붕괴 시 루트에 생성하는 NavCarve_* 장애물들. 구멍을 유지하기 위해 한 판 동안은
+    // 살려 두지만, 매니저가 소유 목록으로 들고 있다가 라운드/씬 종료 시 일괄 정리한다. (G7)
+    private readonly List<GameObject> _carveObjects = new List<GameObject>();
+
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else { Destroy(this); return; }
 
         if (gridParent == null) gridParent = transform;
+    }
+
+    /// <summary>FallingTile이 만든 carve 장애물을 매니저 소유로 등록한다. (G7)</summary>
+    public void RegisterCarveObject(GameObject carveObj)
+    {
+        if (carveObj != null) _carveObjects.Add(carveObj);
+    }
+
+    /// <summary>등록된 carve 장애물을 모두 파괴하고 목록을 비운다(라운드 종료/씬 정리용). (G7)</summary>
+    public void ClearCarveObjects()
+    {
+        for (int i = 0; i < _carveObjects.Count; i++)
+            if (_carveObjects[i] != null) Destroy(_carveObjects[i]);
+        _carveObjects.Clear();
+    }
+
+    private void OnDestroy()
+    {
+        // 씬이 carve 오브젝트를 자동 정리하긴 하지만, 매니저가 소유한 만큼 명시적으로 정리해
+        // 누수/잔존(추가 씬 구성 등)을 차단한다. (G7)
+        if (Instance == this) Instance = null;
+        ClearCarveObjects();
     }
 
     private void Start()
