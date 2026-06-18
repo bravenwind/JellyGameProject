@@ -334,6 +334,66 @@
 
 ---
 
+## 2026-06-18 루틴 — 신규 커밋 없음 / 인게임 코어(타일 붕괴·흡수·타이머) 신규 심층 리뷰
+
+06-17 루틴(G3·G4·G6·G7 적용) 이후 IO 브랜치에 새 커밋이 없어, 지금까지 깊게 보지 않았던
+**인게임 진행 코어**를 새 리뷰 대상으로 삼았다. 시퀀스 상류(로비→매칭→로딩→결과)와 시작
+카운트다운은 이미 다뤘으므로, 이번엔 라운드 도중 매 프레임 도는 핵심부를 본다.
+리뷰 파일: `TileCollapseManager.cs`(붕괴/마모), `JellyColliderAbsorb.cs`/`PlayerAbsorber.cs`/
+`PlayerAbsorbingManager.cs`(흡수 체인), `GameTimer.cs`/`ClearJudge.cs`(레거시 단판 진행부).
+
+### [K1] (성능 / 중) Push 모드 타일 어둡게(DarkenStepTile)가 타일마다 머티리얼 인스턴스 복제 — G3가 못 덮은 경로
+- 위치: `TileCollapseManager.cs:289 (_tileOriginalColors[tileKey] = rend.material.color)`, `294 (rend.material.color = ...)`
+- 내용: G3(06-17)는 `FallingTile`의 색 변경을 `MaterialPropertyBlock`으로 바꿔 붕괴 타일별
+  머티리얼 인스턴스 복제/배칭 깨짐을 제거했다. 그런데 **Push 모드에서 밟을 때마다 타일을 점점
+  어둡게 하는 경로**는 여전히 `rend.material`을 쓴다. `.material`은 읽기(289)·쓰기(294) 양쪽 모두
+  공유 머티리얼을 **인스턴스 복제**하므로, 밟힌 Push 타일 수만큼 머티리얼 사본이 생겨 드로우콜
+  배칭이 깨지고 메모리가 늘어난다. Push 맵은 거의 모든 칸이 마모되므로 G3와 동일한 비용이
+  고스란히 남아 있는 셈(G3가 FallingTile만 손대고 이 매니저 경로는 누락).
+- 제안: G3와 동일하게 처리 — 원본 색은 `sharedMaterial`로 읽어 캐시하고, 색 적용은
+  `MaterialPropertyBlock(rend.SetPropertyBlock)`으로. (FallingTile.cs:16/104의 패턴 그대로 재사용)
+- 학습: `.material`은 *읽기만 해도* 인스턴스를 만든다. 같은 머티리얼을 공유하는 다수 오브젝트의
+  색을 개별 변경할 때는 `MaterialPropertyBlock`이 배칭을 유지하는 정석이다(G3·G4와 같은 주제).
+
+### [K2] (아키텍처·일관성 / 중하) G6 '탈락판정 단일화'가 Push 경로 두 곳을 누락 — raw "Eliminated" 매직스트링 직접 조회 잔존
+- 위치: `TileCollapseManager.cs:207-209 (UpdateStepCollapse)`, `AIPushSurviveState.cs:167-169 (FindNearestTarget)`
+- 내용: G6(06-17)는 사람/봇 탈락 판정을 `NetworkPlayerSync.IsOutOfPlay`/`AIPlayerMovement.IsOutOfPlay`
+  단일 헬퍼로 통일했다고 기록돼 있으나, 위 두 곳은 여전히
+  `player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out ...)`로 **룸 프로퍼티를
+  직접·문자열로** 읽는다. 두 루프 모두 `EntityRegistry.Players`(= `IReadOnlyList<NetworkPlayerSync>`)를
+  순회하므로 `player.IsOutOfPlay` 한 줄로 대체 가능하다.
+  - 단순 정합성 문제만이 아니다: `IsOutOfPlay`는 `_isAbsorbed || owner "Eliminated"`라 **방금
+    흡수됐지만 룸 프로퍼티 전파가 아직 안 끝난 순간**도 잡는다. 현재 raw 조회는 이 순간을 놓쳐,
+    이미 흡수된 플레이어를 Push 밟기 마모 대상/봇 추격 대상으로 한 틱 더 본다(미세 오동작).
+  - 또한 `"Eliminated"` 문자열이 코드 전반에 6+곳 하드코딩(G5 미해결). `NetworkPlayerSync.ELIMINATED_KEY`
+    상수는 이미 있으나 대부분 호출부가 안 쓴다.
+- 제안: 위 두 루프의 raw 조회를 `if (player == null || player.IsOutOfPlay) continue;`로 교체.
+  (G6의 적용 범위를 Push 스텝붕괴/봇 타겟팅까지 확장 — G5 매직스트링 제거도 일부 진전)
+- 학습: '단일 출처로 통일' 리팩터링은 *모든 호출부를 빠짐없이* 옮겨야 의미가 있다. 한두 곳이라도
+  옛 경로(raw 조회)가 남으면 "단일화했다"는 기록과 실제가 어긋나고, 미묘한 타이밍 차로만 드러나는
+  불일치가 잠복한다.
+
+### [K3] (성능·로그 / 하·관찰·레거시) ClearJudge.Update가 매 프레임 Debug.Log + 클리어 로직은 주석처리됨
+- 위치: `ClearJudge.cs:93 (Debug.Log("저울 눌림"))`, `98-115 (JudgeClear 통째 주석)`, `118-155 (ClearSequence 미호출)`
+- 내용: 저울이 눌린 상태로 머무는 동안 `Debug.Log("저울 눌림")`이 매 프레임 출력된다(빌드 로그
+  스파이크 — G3a와 동일 주제). 다만 정작 `JudgeClear()`가 통째 주석 처리돼 `ClearSequence`도
+  호출되지 않으므로 이 컴포넌트의 클리어 연출은 **현재 비활성(레거시)** 로 보인다.
+- 제안: 활성 씬에서 쓰이지 않으면 컴포넌트/씬 참조 제거, 쓰인다면 로그를 `#if UNITY_EDITOR`로 감싸기.
+  **먼저 현재 게임 씬에 ClearJudge가 붙어 있는지 확인 필요**(네트워크 진행은 GameModeManager 전담이라
+  단판 클리어 판정과 무관해 보임).
+
+### [K4] (안정성 / 하·관찰·레거시) GameTimer.GameFail이 timeScale=0 설정 후 널가드 없는 호출들로 중단될 위험
+- 위치: `GameTimer.cs:68 (Time.timeScale=0f)` 직후 `70 StopWalking()`, `72 playerController`, `75 softBody3D`,
+  `78/83 playerAnimController`, `80 mainCamera_Action`, `84 PlayFailSound()` — 모두 직접 접근(널가드 없음)
+- 내용: `GameFail()`은 먼저 `Time.timeScale=0`으로 게임을 얼린 뒤, 인스펙터 참조들을 줄줄이 직접
+  호출한다. 그중 하나라도 null이면(예: `PlaySFXAudio.Instance`) 그 지점에서 메서드가 NRE로 끊겨
+  **timeScale=0인 채 결과 연출/복구가 실행되지 않는 소프트프리즈**가 된다(H3·G8과 동일 주제).
+  단, 이 타이머는 `Time.timeScale=0`을 전역으로 거는 **단판(싱글) 진행용**으로 보이며, 네트워크
+  시퀀스는 `GameModeManager`가 전담하므로 현재 사용 여부 확인이 선행돼야 한다.
+- 제안: 사용 중이면 H3 패턴대로 `?.`/널가드로 통일하고 timeScale 설정을 안전 호출 뒤로. 미사용이면 정리.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -382,6 +442,10 @@
         해제 → 카운트다운 도중 씬 전환 시 입력 영구 잠금 방지(GameModeManager.cs:86, 89).
 - [ ] J6  (대기 — 2026-06-16 도출, StartGameInternal 비멱등)
 - [ ] J7  (대기 — 2026-06-16 도출, LoadingCenterMultiAni 부모 조회 null 미가드)
+- [ ] K1  (대기 — 2026-06-18 도출, TileCollapseManager.DarkenStepTile 머티리얼 인스턴스 복제 — G3 누락 경로)
+- [ ] K2  (대기 — 2026-06-18 도출, Push 스텝붕괴/봇 타겟팅 2곳이 raw "Eliminated" 직접 조회 — G6 누락 경로)
+- [ ] K3  (대기 — 2026-06-18 도출, ClearJudge 매 프레임 Debug.Log + 클리어 로직 주석처리(레거시) — 사용 여부 확인)
+- [ ] K4  (대기 — 2026-06-18 도출, GameTimer.GameFail timeScale=0 후 널가드 없는 호출 소프트프리즈(레거시) — 사용 여부 확인)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
