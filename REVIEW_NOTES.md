@@ -442,8 +442,12 @@
         해제 → 카운트다운 도중 씬 전환 시 입력 영구 잠금 방지(GameModeManager.cs:86, 89).
 - [ ] J6  (대기 — 2026-06-16 도출, StartGameInternal 비멱등)
 - [ ] J7  (대기 — 2026-06-16 도출, LoadingCenterMultiAni 부모 조회 null 미가드)
-- [ ] K1  (대기 — 2026-06-18 도출, TileCollapseManager.DarkenStepTile 머티리얼 인스턴스 복제 — G3 누락 경로)
-- [ ] K2  (대기 — 2026-06-18 도출, Push 스텝붕괴/봇 타겟팅 2곳이 raw "Eliminated" 직접 조회 — G6 누락 경로)
+- [x] K1  (2026-06-18 적용) — TileCollapseManager.DarkenStepTile을 sharedMaterial 읽기 + MaterialPropertyBlock
+        쓰기로 전환(셰이더 프로퍼티 _BaseColor/_Color 자동 선택). Push 타일 어둡게 처리가 타일마다
+        머티리얼 인스턴스를 복제하던 배칭 깨짐/메모리 증가 제거(FallingTile G3와 동일 패턴, 누락 경로 보강).
+- [x] K2  (2026-06-18 적용) — Push 스텝붕괴(TileCollapseManager.UpdateStepCollapse:212)/봇 타겟팅
+        (AIPushSurviveState.FindNearestTarget:166)의 raw "Eliminated" 룸프롭 직접 조회를 player.IsOutOfPlay로
+        교체. G6 탈락판정 단일화 범위를 두 누락 경로까지 확장(흡수 직후 _isAbsorbed도 함께 판정 → 더 정확).
 - [ ] K3  (대기 — 2026-06-18 도출, ClearJudge 매 프레임 Debug.Log + 클리어 로직 주석처리(레거시) — 사용 여부 확인)
 - [ ] K4  (대기 — 2026-06-18 도출, GameTimer.GameFail timeScale=0 후 널가드 없는 호출 소프트프리즈(레거시) — 사용 여부 확인)
 

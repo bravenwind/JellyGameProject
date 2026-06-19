@@ -163,10 +163,7 @@ public class AIPushSurviveState : AIBaseState
 
         foreach (var player in EntityRegistry.Players)
         {
-            if (player == null) continue;
-            if (player.photonView.Owner?.CustomProperties != null &&
-                player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out object e) &&
-                e is bool b && b) continue;
+            if (player == null || player.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6/K2)
             if (player.ScaleValue >= myScale) continue; // 나보다 크거나 같으면 추격 안 함
             float d = Vector3.Distance(ai.transform.position, player.transform.position);
             if (d < bestDist)

@@ -37,6 +37,24 @@ def get_client():
     return gspread.authorize(creds)
 
 
+def safe_append(ws, new_row):
+    """기존 행 바로 다음 행에 명시적으로 기록한다.
+
+    ws.append_row(table_range 기본값)은 워크시트 상태에 따라 기존 데이터를 덮어쓰는
+    사고가 있었다(2026-06-18 개발계획서 행 유실). 여기서는 현재 값 개수로 대상 행을
+    직접 계산하고, 그리드가 부족하면 확장한 뒤 A열부터 update 한다 → 덮어쓰기 불가능."""
+    existing = ws.get_all_values()
+    target_row = len(existing) + 1
+    if ws.row_count < target_row:
+        ws.add_rows(target_row - ws.row_count)
+    end_col = chr(ord("A") + len(new_row) - 1)
+    ws.update(
+        range_name=f"A{target_row}:{end_col}{target_row}",
+        values=[new_row],
+        value_input_option="USER_ENTERED",
+    )
+
+
 def add_plan_entry(args):
     """개발계획서 '일일 코드 리뷰 루틴' 시트에 행 추가
     컬럼: # | 카테고리 | 작업명 | 세부내용 | 우선순위 | 난이도 | 예상(일) | 상태 | 시작 날짜 | 종료 날짜 | 메모
@@ -56,7 +74,7 @@ def add_plan_entry(args):
     # 카테고리~메모까지 최대 10개 필드(메모 생략 가능). 시트 컬럼 순서와 1:1.
     new_row = [str(next_num)] + list(args[:10])
 
-    ws.append_row(new_row, value_input_option="USER_ENTERED")
+    safe_append(ws, new_row)
     print(f"[개발계획서] #{next_num} 추가 완료: {args[1]}")
 
 
@@ -77,7 +95,7 @@ def add_bug_entry(args):
     next_num = max((int(r[0]) for r in data_rows), default=0) + 1
 
     new_row = [str(next_num)] + list(args[:7])
-    ws.append_row(new_row, value_input_option="USER_ENTERED")
+    safe_append(ws, new_row)
     print(f"[트러블슈팅] #{next_num} 추가 완료: {args[3]}")
 
 

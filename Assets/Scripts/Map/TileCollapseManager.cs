@@ -46,6 +46,12 @@ public class TileCollapseManager : MonoBehaviour
     private Dictionary<int, float> _entityDwellTime = new Dictionary<int, float>();
     private Dictionary<int, Color> _tileOriginalColors = new Dictionary<int, Color>();
 
+    // 경고 색 변경용 셰이더 프로퍼티(URP=_BaseColor / 빌트인=_Color). MaterialPropertyBlock으로
+    // 칠하면 .material처럼 인스턴스를 복제하지 않아 배칭이 유지된다. (K1 — FallingTile G3와 동일 패턴)
+    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorId = Shader.PropertyToID("_Color");
+    private MaterialPropertyBlock _mpb;
+
     private float _stepProcessTimer;
     private const float STEP_PROCESS_INTERVAL = 0.15f;
 
@@ -203,10 +209,7 @@ public class TileCollapseManager : MonoBehaviour
 
         foreach (var player in EntityRegistry.Players)
         {
-            if (player == null) continue;
-            if (player.photonView.Owner?.CustomProperties != null &&
-                player.photonView.Owner.CustomProperties.TryGetValue("Eliminated", out object e) &&
-                e is bool b && b) continue;
+            if (player == null || player.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6/K2)
             TryStepAt(player.transform.position, player.photonView.ViewID, dt);
         }
 
@@ -283,15 +286,26 @@ public class TileCollapseManager : MonoBehaviour
 
         int tileKey = x * 10000 + z;
         Renderer rend = _tiles[x, z].GetComponentInChildren<Renderer>();
-        if (rend == null) return;
+        if (rend == null || rend.sharedMaterial == null) return;
 
-        if (!_tileOriginalColors.ContainsKey(tileKey))
-            _tileOriginalColors[tileKey] = rend.material.color;
+        // 색은 sharedMaterial로 읽고(인스턴스 복제 없음) MaterialPropertyBlock으로 칠한다 → 밟힌
+        // Push 타일마다 머티리얼 사본이 생겨 배칭이 깨지던 문제를 막는다. (K1 — FallingTile G3와 동일)
+        int colorPropId = rend.sharedMaterial.HasProperty(BaseColorId) ? BaseColorId : ColorId;
+        if (!rend.sharedMaterial.HasProperty(colorPropId)) return;
+
+        if (!_tileOriginalColors.TryGetValue(tileKey, out Color original))
+        {
+            original = rend.sharedMaterial.GetColor(colorPropId);
+            _tileOriginalColors[tileKey] = original;
+        }
 
         float t = (float)stepCount / maxSteps;
-        Color original = _tileOriginalColors[tileKey];
         Color danger = new Color(original.r * 0.3f, original.g * 0.15f, original.b * 0.1f);
-        rend.material.color = Color.Lerp(original, danger, t);
+
+        if (_mpb == null) _mpb = new MaterialPropertyBlock();
+        rend.GetPropertyBlock(_mpb);
+        _mpb.SetColor(colorPropId, Color.Lerp(original, danger, t));
+        rend.SetPropertyBlock(_mpb);
     }
 
     public void CollapseStepTile(int x, int z)
