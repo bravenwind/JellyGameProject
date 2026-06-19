@@ -102,3 +102,7 @@ InitTestScene*.unity*
 credentials.json
 *.json.bak
 .claude/settings.local.json
+
+# Python (tools/) cache
+__pycache__/
+*.pyc
