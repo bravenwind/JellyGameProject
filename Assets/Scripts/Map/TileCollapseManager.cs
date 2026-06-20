@@ -230,12 +230,15 @@ public class TileCollapseManager : MonoBehaviour
 
         int tileKey = x * 10000 + z;
 
-        // 새 타일로 이동: 해당 타일을 1회 마모시키고 체류 타이머 초기화
+        // 새 타일로 이동: 마지막 타일에서 현재 타일까지의 경로상 칸들을 마모시키고 체류 타이머 초기화.
+        // (현재 위치만 0.15초마다 샘플링하므로, 대쉬 등으로 빠르게 지나가면 중간 칸이 통째로 건너뛰어져
+        //  '밟아도 안 떨어지는' 현상이 생긴다. 마지막→현재 칸을 라인으로 훑어 건너뛴 칸도 마모한다.)
         if (!_entityCurrentTile.TryGetValue(entityID, out int lastTile) || lastTile != tileKey)
         {
+            if (!_entityCurrentTile.ContainsKey(entityID)) lastTile = -1;
+            WearTilePath(lastTile, x, z, tileKey);
             _entityCurrentTile[entityID] = tileKey;
             _entityDwellTime[entityID] = 0f;
-            WearTile(x, z, tileKey);
             return;
         }
 
@@ -252,6 +255,43 @@ public class TileCollapseManager : MonoBehaviour
             WearTile(x, z, tileKey);
         }
         _entityDwellTime[entityID] = dwell;
+    }
+
+    /// <summary>마지막으로 밟힌 칸(lastTile)에서 현재 칸(x1,z1)까지 그리드 라인을 따라 각 칸을 마모시킨다.
+    /// 빠른 이동(대쉬)으로 샘플 간 여러 칸을 건너뛰어도 지나간 칸이 모두 마모되도록 보강한다.
+    /// 시작 칸(lastTile)은 이미 진입 때 마모됐으므로 제외하고, 비정상적으로 먼 이동(리스폰/Warp 추정)은
+    /// 라인 마모를 생략해 텔레포트가 칸 한 줄을 통째로 깎지 않도록 한다.</summary>
+    private void WearTilePath(int lastTile, int x1, int z1, int tileKey1)
+    {
+        if (lastTile < 0)
+        {
+            WearTile(x1, z1, tileKey1); // 최초 등록(이전 칸 없음) — 현재 칸만
+            return;
+        }
+
+        int x0 = lastTile / 10000;
+        int z0 = lastTile % 10000;
+        int dxAbs = Mathf.Abs(x1 - x0);
+        int dzAbs = Mathf.Abs(z1 - z0);
+
+        // 인접(또는 같은) 칸이면 목적지 1칸만. 너무 멀면(리스폰/Warp 등 순간이동) 라인 생략, 목적지만.
+        const int MAX_SWEEP = 8;
+        if (dxAbs + dzAbs <= 1 || dxAbs + dzAbs > MAX_SWEEP)
+        {
+            WearTile(x1, z1, tileKey1);
+            return;
+        }
+
+        int steps = Mathf.Max(dxAbs, dzAbs);
+        for (int i = 1; i <= steps; i++) // i=0(시작 칸)은 이미 마모됨 → 제외
+        {
+            float t = (float)i / steps;
+            int xi = Mathf.RoundToInt(Mathf.Lerp(x0, x1, t));
+            int zi = Mathf.RoundToInt(Mathf.Lerp(z0, z1, t));
+            if (xi < 0 || xi >= _width || zi < 0 || zi >= _height) continue;
+            if (_tiles[xi, zi] == null) continue;
+            WearTile(xi, zi, xi * 10000 + zi);
+        }
     }
 
     /// <summary>타일 견디는 횟수를 1 소모시키고, 한계 도달 시 붕괴/아니면 색 어둡게 RPC 전파.</summary>

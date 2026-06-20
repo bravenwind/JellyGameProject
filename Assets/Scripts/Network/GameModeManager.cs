@@ -567,12 +567,21 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // ── 일반 모드: 완전 정지 ──
+        // ── 일반 모드(Absorb): 사망 → 관전 전환 ──
         StopAllCoroutines();
         Time.timeScale = 1f;
 
         _gameRunning = false;
         GameState.Phase = GamePhase.GameOver;
+
+        // [중요] 사망한 클라는 _gameRunning=false라 Update가 멈춰, 게임 종료 시 GameEndingSequence
+        // /GameWin을 실행하지 못한다. 그러면 LoadingSceneController.NextSceneName이 설정되지 않은 채
+        // AutomaticallySyncScene으로 로딩 씬에 끌려와, NextSceneName=null → 게임 씬으로 폴백되어
+        // 결과용 로딩 화면(toMainOrResultPanel) 대신 잘못된 패널/빈 화면이 뜬다.
+        // → 관전 전환 시점에 결과 씬을 로딩 타겟으로 미리 지정해, 종료 시 올바른 로딩 화면을 거쳐
+        //   결과 씬으로 가도록 한다. (Push는 RPC_PushModeGameEnd(All)로 사망자도 실행돼 이 문제가 없다.)
+        LoadingSceneController.NextSceneName = RESULT_SCENE_NAME_ABSORB;
+        LoadingSceneController.AllClientsLoad = true;
 
         float survivedTime = gameDuration - _gameTimer;
         int minTime = Mathf.FloorToInt(survivedTime / 60f);

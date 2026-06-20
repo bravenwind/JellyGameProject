@@ -561,6 +561,42 @@
 
 ---
 
+## 2026-06-20 버그 제보 수정 (2차 — Push 발판 미붕괴 / 사망 시 로딩 회색)
+
+### [BUG-E] (Push / 중) 가끔 밟아도 발판이 안 떨어짐 — 빠른 이동 시 타일 샘플 누락
+- 위치: `TileCollapseManager.UpdateStepCollapse:200`(STEP_PROCESS_INTERVAL=0.15s 샘플), `TryStepAt:223`
+- 원인: 스텝 마모는 마스터가 **0.15초마다 엔티티의 '현재 위치 한 점'만** 샘플링하고, 타일이 바뀌는
+  순간에만 1회 마모한다. 대쉬 등으로 빠르게 이동하면 한 샘플 간격(0.15s) 동안 **여러 칸을 건너뛰어**,
+  그 중간 칸들은 한 번도 마모되지 않는다 → 분명 밟고 지나갔는데 마모 카운트가 안 올라 안 떨어진다.
+  ("가끔씩"="빠르게/대쉬로 지날 때". 이산 샘플링의 전형적 빈틈.)
+- 수정: `WearTilePath(lastTile→현재)` 추가 — 마지막 밟은 칸에서 현재 칸까지 **그리드 라인을 훑어**
+  건너뛴 칸도 각각 마모. 시작 칸은 이미 마모됐으니 제외, 인접 1칸은 기존과 동일, 비정상적으로 먼
+  이동(맨해튼 거리 > 8 = 리스폰/Warp 추정)은 라인 생략(텔레포트가 칸 한 줄을 깎지 않게).
+- 학습: 연속 이동을 '주기적 점 샘플'로 처리하면 샘플 사이를 건너뛴다. 경로 의존 효과(밟기 마모)는
+  마지막 샘플과 현재 샘플 사이를 **스윕**해야 빠른 이동에서도 누락이 없다.
+
+### [BUG-F] (흡수 / 중) 사망(관전) 상태로 결과 전환 시 로딩 화면 대신 회색 배경
+- 위치: `GameModeManager.GameOver` Absorb 사망 분기(:570~), `GameEndingSequenceRoutine`(Update에서 시작),
+  `GameWin:416`(여기서만 `LoadingSceneController.NextSceneName` 지정), `LoadingSceneController.Awake:66`
+- 원인: 흡수 모드 종료는 `Update`의 타이머가 `GameEndingSequenceRoutine→GameWin`을 부르는데, 이는
+  `_gameRunning=true`(생존) 클라에서만 돈다. **사망한 클라는 GameOver에서 `_gameRunning=false`라
+  Update가 일찍 return → GameWin을 실행하지 못하고**, 따라서 `LoadingSceneController.NextSceneName`
+  /`AllClientsLoad`를 설정하지 못한다. 그 상태로 `AutomaticallySyncScene`(생존자/마스터의 LoadLevel)에
+  끌려 로딩 씬에 들어오면, `NextSceneName=null` → Awake가 **게임 씬으로 폴백**(`toGamePanel`/조작팁
+  활성) → 결과용 로딩 패널(`toMainOrResultPanel`)이 안 떠 잘못된/빈 화면(회색)이 된다.
+  (Push는 `RPC_PushModeGameEnd`(RpcTarget.All)로 사망자도 종료 시퀀스를 실행해 이 문제가 없다.)
+- 수정: Absorb 사망(관전 전환) 시점(GameOver:570 분기)에 `NextSceneName=RESULT_SCENE_NAME_ABSORB`,
+  `AllClientsLoad=true`를 **미리 지정**. 이후 씬 동기화로 로딩 씬에 들어와도 결과 타겟·결과 패널로
+  올바르게 진입하고 결과 씬까지 따라간다.
+- 학습: "특정 조건(생존)에서만 도는 코드"가 전역 전환 설정을 책임지면, 그 조건을 못 만족하는 경로
+  (사망)는 설정 누락으로 깨진다. 모드/생존 여부와 무관하게 모두 거치는 전환은 그 설정도 모든 경로에서
+  보장돼야 한다(H2 '마스터 승계'·BUG-C 'Push 전용 처리'와 같은 주제).
+
+> ※ BUG-E는 빠른 이동 재현이 필요(맵에서 대쉬로 가로지르며 확인). BUG-F는 흡수 모드에서 일찍 흡수당해
+>   관전하다 타임오버를 맞는 시나리오로 확인. 둘 다 네트워크/타이밍 의존이라 인게임 검증 권장.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
