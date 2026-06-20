@@ -394,6 +394,69 @@
 
 ---
 
+## 2026-06-20 루틴 — 06-19 K1/K2 적용 커밋 검증 + 흡수 체인 신규 리뷰
+
+지난 루틴(06-18)에서 도출한 K1/K2가 06-19 커밋 `532d3da`로 적용됐다. IO 브랜치 기준
+그 외 새 커밋은 없어, (1) 이 적용 1건을 코드 대조로 검증하고, (2) 06-18 리뷰 파일로
+이름만 올랐던 **흡수 체인**(JellyColliderAbsorb/PlayerAbsorber/PlayerAbsorbingManager)을
+아직 도출 항목이 없던 새 영역으로 골라 심층 분석했다.
+
+### 06-19 커밋(532d3da) 검증 — K1·K2 모두 회귀 없음
+- **K1** `TileCollapseManager.DarkenStepTile`(282-309): `rend.material.color` 읽기/쓰기를
+  `sharedMaterial` 읽기 + `MaterialPropertyBlock` 쓰기로 전환. `_BaseColor`(URP)/`_Color`(빌트인)를
+  `HasProperty`로 자동 선택, 둘 다 없으면 조기 return. `_mpb`는 `GetPropertyBlock`로 렌더러 현재
+  블록을 읽어 색만 덮어 적용 → **정석 MPB 패턴**(G3와 동일). `_tileOriginalColors`는 이 메서드
+  외에 복원 경로가 없고(어두워진 타일은 `CollapseStepTile`로 교체) `.material` 잔존 경로 0건 확인.
+  → 밟힌 Push 타일마다 머티리얼 사본이 생기던 배칭 깨짐 제거. **깨끗하게 적용됨.**
+- **K2** `TileCollapseManager.UpdateStepCollapse:212` / `AIPushSurviveState.FindNearestTarget:166`:
+  raw `Owner.CustomProperties["Eliminated"]` 직접 조회 → `player.IsOutOfPlay`로 교체.
+  `NetworkPlayerSync.IsOutOfPlay`(66-77)는 `_isAbsorbed || (owner "Eliminated")`이며 photonView/Owner
+  null 가드가 견고. 교체는 기존 raw 체크와 동등하면서 **흡수 직후(_isAbsorbed) 한 틱을 추가로 포착**해
+  더 정확하다(미세 오동작 제거). 회귀 없음.
+- **tools/update_sheets.py** `safe_append`: `append_row`가 개발계획서 행을 덮어쓰던 사고(06-18 행 유실)
+  방지용으로 현재 값 개수 +1 행을 직접 계산해 `update`로 기록. 컬럼 폭(plan 11/bug 8)이 26 이내라
+  `end_col = chr('A'+n-1)` 단일 문자 계산도 안전. 타당.
+- 결론: 06-18 루틴이 도출한 K1·K2를 정확히 반영. 적용 상태표 K1·K2를 [x]로 정합화.
+
+### 흡수 체인 구조 관찰 — 설계 의도 확인 (모두 정상)
+- 원격 플레이어는 `NetworkPlayerSync.SetupRemotePlayer:179-182`에서 `PlayerAbsorber`/
+  `PlayerAbsorbingManager`를 `enabled=false`로 끈다. 비활성 MonoBehaviour는 `OnTriggerEnter`를
+  받지 않으므로 **젤리 흡수는 로컬(IsMine) 플레이어만 수행**한다 → 원격 사본이 GrowByJelly로
+  스케일을 이중 적용하던 충돌은 이미 차단됨(주석 178도 동일 이유 명시). 설계 일관적.
+- 젤리 **파괴**는 `NetworkJellyManager.RequestDestroyJelly`→`RPC_DestroyJelly`(RpcTarget.MasterClient,
+  마스터만 `PhotonNetwork.Destroy`)로 **마스터 권위**. 두 번째 파괴 요청은 `PhotonView.Find`가
+  null이라 무해. 파괴 경로는 견고.
+
+### [L1] (네트워크·아키텍처 / 하·관찰·확인필요) 젤리 흡수 *점수/성장*은 로컬 무검증 — 경합 시 중복 흡수(double-eat) 가능
+- 위치: `JellyColliderAbsorb.OnAbsorbed:114-135`(로컬 성장 호출 + RequestDestroyJelly) vs
+  플레이어-플레이어 흡수 `NetworkPlayerSync.RPC_RequestAbsorbValidation:457-470`(마스터가 스케일
+  비교로 흡수 정당성 검증)
+- 내용: 젤리 *파괴*는 마스터 권위지만, "누가 먹어서 성장하는가"는 각 클라가 로컬에서 즉시 처리하고
+  **마스터 검증이 없다.** 같은 젤리가 두 플레이어에 근접한 경합 상황에서 양쪽 클라가 각자 자기
+  로컬 플레이어로 흡수를 완료하면, 젤리는 마스터에서 1회만 파괴되지만 **점수/스케일은 양쪽에 적용**
+  (double-eat)될 수 있다. 플레이어 간 흡수는 권위 스케일 비교(RPC_RequestAbsorbValidation)로
+  한쪽만 인정하는 것과 대조적인 비대칭.
+- 영향: 젤리는 분산 스폰이라 경합이 드물어 평소 무해. 군집 스폰/좁은 구역에서만 드러날 수 있는
+  점수 불일치(관찰 우선순위 하).
+- **확인 필요**: 비소유 클라에서 젤리 PhotonView의 `OnTriggerEnter`/`StartAbsorb`가 실제로 트리거되어
+  로컬 흡수를 완료하는지(동기화 위치 vs 로컬 rb 이동 충돌 여부). 소유자 클라에서만 실질 흡수가
+  완료되는 구조라면 위험은 더 낮다.
+- 학습: '파괴(소멸)의 권위'와 '효과(점수·성장)의 권위'는 별개다. 소멸만 마스터가 쥐고 효과는 각자
+  로컬에서 처리하면, 한 자원을 둘이 동시에 소비하는 경합에서 효과가 중복 적용된다. (H4 identity·
+  G6 권위 단일화의 연장 — '한 번만 일어나야 하는 효과'는 권위자가 1회만 승인해야 한다.)
+
+### [L2] (안정성 / 하) JellyColliderAbsorb null 미가드 — NRE 시 흡수된 젤리가 파괴/숨김되지 않음(H3·G8 테마)
+- 위치: `JellyColliderAbsorb.Awake:32,42`(jellyRenderer), `OnAbsorbed:120`(GetComponent<JellyObject>())
+- 내용: (a) `jellyRenderer = GetComponentInChildren<Renderer>()` 직후 `jellyRenderer.gameObject.tag="Edible"`
+  를 null 가드 없이 접근 — 렌더러 없는 프리팹 구성이면 Awake가 NRE. (b) `OnAbsorbed`의
+  `GetComponent<JellyObject>().jellyType`도 null 미가드. **(b)가 터지면 그 아래 `RequestDestroyJelly`(129)가
+  실행되지 않아**, 흡수는 완료(absorbing=false) 처리됐는데 젤리 오브젝트는 렌더러 끄기/파괴가 안 돼
+  화면에 '먹힌 젤리'가 남는 소프트 누수가 된다(코루틴/메서드 중단이 정리 코드를 건너뛰는 H3·G8과 동일 주제).
+- 제안: JellyObject를 변수로 받아 null 분기, jellyRenderer null 가드 추가. 프리팹 구성이 항상
+  일관되면 실질 위험은 낮으므로 우선순위 하(관찰).
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -450,6 +513,8 @@
         교체. G6 탈락판정 단일화 범위를 두 누락 경로까지 확장(흡수 직후 _isAbsorbed도 함께 판정 → 더 정확).
 - [ ] K3  (대기 — 2026-06-18 도출, ClearJudge 매 프레임 Debug.Log + 클리어 로직 주석처리(레거시) — 사용 여부 확인)
 - [ ] K4  (대기 — 2026-06-18 도출, GameTimer.GameFail timeScale=0 후 널가드 없는 호출 소프트프리즈(레거시) — 사용 여부 확인)
+- [ ] L1  (대기 — 2026-06-20 도출, 젤리 흡수 점수/성장 로컬 무검증 — 경합 시 중복 흡수 double-eat, **확인 필요**)
+- [ ] L2  (대기 — 2026-06-20 도출, JellyColliderAbsorb null 미가드 — NRE 시 흡수 젤리 미파괴 소프트 누수)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
