@@ -148,23 +148,29 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         }
 
         GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, pos, Quaternion.identity);
-        ApplyAgentBaseOffset(jelly, pos);
+        PlaceJellyOnNavMesh(jelly, pos);
         _spawnedJellies.Add(jelly);
     }
 
     /// <summary>
-    /// 스폰 위치 pos는 NavMesh 표면 Y다. 젤리 NavMeshAgent는 baseOffset(예: 1.84)만큼 위로 떠 있어야
-    /// 바닥에 박히지 않는데, 표면 Y로만 스폰하면 그만큼 땅에 박혀 보인다. 특히 원격 클라이언트는
-    /// 이 젤리의 NavMeshAgent를 비활성화(JellyColliderAbsorb)하고 동기화된 위치만 따르므로,
-    /// 오너가 baseOffset을 반영한 위치를 초기값으로 보내줘야 모든 클라에서 바닥에 박히지 않는다.
-    /// (오너의 활성 agent도 같은 높이를 유지하므로 이중 보정 없이 일관적.)
+    /// 스폰한 젤리의 NavMeshAgent를 NavMesh에 확실히 안착시킨다.
+    ///
+    /// 주의: 활성 NavMeshAgent는 transform.position 직접 대입으로 옮기면 안 된다. 그러면 agent의
+    /// 내부 위치와 transform이 어긋나 NavMesh 밖으로 떨어지고, 그 젤리는 '바닥에 박힌 채 전혀
+    /// 움직이지 않는' 상태가 된다(WanderingAI는 isOnNavMesh가 false면 이동을 멈춘다). 반드시
+    /// Warp을 써야 한다 — Warp은 agent를 navMeshPos(방금 SamplePosition으로 확보한 유효 지점)에
+    /// 올바로 안착시키고, 이후 agent가 baseOffset(예: 1.84)만큼 transform을 들어올려 바닥에 박히지
+    /// 않게 한다(이 값이 동기화돼 원격 클라에서도 박히지 않음).
+    ///
+    /// 원격 사본/중력 젤리는 agent가 비활성(JellyColliderAbsorb)이므로 건너뛴다(원격은 동기화 위치를
+    /// 따르고, 중력 젤리는 물리로 바닥에 안착).
     /// </summary>
-    private static void ApplyAgentBaseOffset(GameObject jelly, Vector3 navMeshPos)
+    private static void PlaceJellyOnNavMesh(GameObject jelly, Vector3 navMeshPos)
     {
         if (jelly == null) return;
         var agent = jelly.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
-        if (agent != null && agent.baseOffset > 0f)
-            jelly.transform.position = navMeshPos + Vector3.up * agent.baseOffset;
+        if (agent != null && agent.enabled)
+            agent.Warp(navMeshPos);
     }
 
     /// <summary>
@@ -251,6 +257,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         if (CurrentJellyCount() >= maxJellyCount) return;
 
         GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, position, Quaternion.identity);
+        PlaceJellyOnNavMesh(jelly, position);
         _spawnedJellies.Add(jelly);
     }
 

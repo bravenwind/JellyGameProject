@@ -56,7 +56,16 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
         if (jellyAnimController != null)
             jellyAnimController.SetBool("IsMoving", isActuallyMoving);
 
-        if (!agent.isOnNavMesh) return;
+        // NavMesh 밖에 있으면(스폰 안착 실패 / 발판 붕괴로 발 밑 NavMesh가 carve됨 등) 가장 가까운
+        // NavMesh 지점으로 Warp 복구한다. 이 복구가 없으면 한 번 NavMesh를 벗어난 젤리는 바닥에 박힌
+        // 채 영영 멈춰 있다(아래 이동 로직이 전부 isOnNavMesh를 전제로 하기 때문). 근처에 NavMesh가
+        // 없으면 복구하지 못하므로 그대로 둔다.
+        if (!agent.isOnNavMesh)
+        {
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit snap, 5f, NavMesh.AllAreas))
+                agent.Warp(snap.position);
+            return;
+        }
 
         // 위험 타일 위거나 위험한 곳을 향하면 즉시 새 목적지로 도망
         if (Time.time >= _nextDangerCheck)

@@ -475,17 +475,29 @@
   이벤트(상태 전환)에 묶이면, base만 바꾸는 외부 효과는 캐시에 반영되지 않는다. 둘을 같은 연산으로
   함께 갱신해야 한다(G1/H1 '상태 복원'·J3 '가역 효과' 주제의 변형).
 
-### [BUG-B] 젤리(WanderingAI)가 땅에 박혀서 소환됨 — 높음
-- 위치: `NetworkJellyManager.SpawnRandomJelly:150` (스폰 위치 = `hit.position` = NavMesh 표면 Y),
-  젤리 프리팹 NavMeshAgent `m_BaseOffset: 1.84`
-- 원인: NavMeshAgent는 `baseOffset`만큼 transform을 NavMesh 위로 띄워야 바닥에 안 박히는데, 스폰을
-  표면 Y로만 했다. 특히 **원격 클라는 이 젤리의 agent를 비활성화**(JellyColliderAbsorb.Awake:47-51)하고
-  동기화 위치만 따르므로, 오너가 baseOffset 반영 위치를 초기값으로 보내지 않으면 `baseOffset`만큼 박혀 보인다.
-- 수정: `ApplyAgentBaseOffset(jelly, pos)` — 스폰 직후 agent가 있고 `baseOffset>0`이면
-  `pos + up*baseOffset`로 보정(오너의 활성 agent도 같은 높이를 유지하므로 이중 보정 없음).
-  agent 없는 중력 젤리는 미적용(자연 낙하).
-- 학습: NavMeshAgent의 `baseOffset`은 '논리 위치(navmesh) → 표시 위치'의 수직 보정값이다. 원격에서
-  agent를 끄면 이 보정이 사라지므로, 동기화로 보내는 위치에는 보정이 이미 포함돼 있어야 한다.
+### [BUG-B] 젤리(WanderingAI)가 땅에 박혀서 소환됨 + (후속) 박힌 채 못 움직임 — 높음
+- 위치: `NetworkJellyManager.SpawnRandomJelly:150`/`SpawnJellyAt:259`, 젤리 프리팹 NavMeshAgent
+  `m_BaseOffset:1.84`(+`m_IsKinematic:1`, 커스텀 agentType), `WanderingAI.Update:59`
+- 1차 수정(오판·되돌림): `ApplyAgentBaseOffset`로 스폰 직후 `transform.position = pos + up*baseOffset`
+  를 직접 대입했다. **이게 오히려 회귀를 만들었다** — 활성 NavMeshAgent의 transform을 Warp이 아니라
+  직접 대입하면 agent 내부 위치와 어긋나 NavMesh 밖으로 떨어지고, 그 젤리는 '바닥에 박힌 채 전혀
+  안 움직이는' 상태가 된다(WanderingAI는 `isOnNavMesh==false`면 이동을 멈춤). 사용자가 "여전히 몇몇은
+  박혀서 못 움직인다"고 제보.
+- 정정 원인: (a) 활성 agent는 위치를 **Warp으로** 옮겨야 NavMesh에 안착한다(봇 초기화도 동일 패턴 —
+  AIPlayerMovement:243·261은 *비활성 상태로 위치 잡고→enable→Warp*). (b) baseOffset은 agent가
+  **자동으로** 적용하므로 수동으로 더하면 안 된다(봇도 `hit.position`만 쓰고 offset을 더하지 않음).
+  (c) 스폰뿐 아니라 **게임 중 발판이 붕괴(carve)돼 발 밑 NavMesh가 사라지면** 젤리가 NavMesh 밖으로
+  떨어지는데, WanderingAI에 복구 경로가 없어 영영 멈춘다(이게 "여전히"의 본질 — 1차 수정과 무관한
+  기존 버그).
+- 최종 수정:
+  - `PlaceJellyOnNavMesh(jelly, navMeshPos)` — 스폰 직후 agent가 활성이면 `agent.Warp(navMeshPos)`.
+    Warp이 유효 NavMesh 지점에 안착시키고 이후 agent가 baseOffset만큼 들어올린다(직접 대입·수동 offset
+    제거). 두 스폰 경로(SpawnRandomJelly/SpawnJellyAt)에 적용.
+  - `WanderingAI.Update`: `if(!agent.isOnNavMesh) return;`을 **자가 복구**로 교체 — 근처(5f) NavMesh로
+    Warp 복귀. 붕괴/안착 실패로 NavMesh를 벗어난 젤리가 박힌 채 멈추지 않게 한다(봇의 허공 복구와 동형).
+- 학습: NavMeshAgent를 옮길 땐 **항상 Warp**(transform.position 직접 대입 금지). baseOffset은 agent가
+  관리하므로 수동 보정 금지. 그리고 "한 번 NavMesh를 벗어나면 멈추는" 엔티티는 반드시 복귀 경로를
+  함께 둬야 한다(붕괴 맵에선 carve로 언제든 발 밑이 사라질 수 있다).
 
 ### [BUG-C] 봇이 발판 없는 곳(허공) 위에 떠 있음 — 중(흡수 모드 한정)
 - 위치: `AIPlayerMovement.StateEvalLoop:297` 가드, `CheckGroundBelow` 호출부 `:392-393`(Push 전용)
