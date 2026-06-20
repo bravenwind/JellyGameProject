@@ -38,7 +38,9 @@ public class Milk : MonoBehaviour
         if (movement == null && aiMovement == null) return;
 
         if (movement != null) movement.moveSpeed *= speedSlowMultiplier;
-        if (aiMovement != null) aiMovement.moveSpeed *= speedSlowMultiplier;
+        // 봇은 moveSpeed만 바꾸면 Agent.speed(실제 이동 속도)에 즉시 반영되지 않으므로
+        // ApplySpeedMultiplier로 Agent.speed까지 함께 곱한다. (밀크 이탈 후 슬로우 잔존 방지)
+        if (aiMovement != null) aiMovement.ApplySpeedMultiplier(speedSlowMultiplier);
 
         // 봇은 AIPlayerMovement만 가지므로, PlayerMovement가 있으면 (로컬) 사람 플레이어다.
         bool isHuman = movement != null;
@@ -86,7 +88,8 @@ public class Milk : MonoBehaviour
         if (speedSlowMultiplier <= 0f) return;
         float restore = 1f / speedSlowMultiplier;
         if (entity.player != null) entity.player.moveSpeed *= restore;
-        if (entity.ai != null) entity.ai.moveSpeed *= restore;
+        // 봇은 진입 때와 대칭으로 Agent.speed까지 함께 복원해야 슬로우가 즉시 풀린다.
+        if (entity.ai != null) entity.ai.ApplySpeedMultiplier(restore);
     }
 
     private IEnumerator RespawnRoutine()

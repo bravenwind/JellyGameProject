@@ -148,7 +148,23 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         }
 
         GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, pos, Quaternion.identity);
+        ApplyAgentBaseOffset(jelly, pos);
         _spawnedJellies.Add(jelly);
+    }
+
+    /// <summary>
+    /// 스폰 위치 pos는 NavMesh 표면 Y다. 젤리 NavMeshAgent는 baseOffset(예: 1.84)만큼 위로 떠 있어야
+    /// 바닥에 박히지 않는데, 표면 Y로만 스폰하면 그만큼 땅에 박혀 보인다. 특히 원격 클라이언트는
+    /// 이 젤리의 NavMeshAgent를 비활성화(JellyColliderAbsorb)하고 동기화된 위치만 따르므로,
+    /// 오너가 baseOffset을 반영한 위치를 초기값으로 보내줘야 모든 클라에서 바닥에 박히지 않는다.
+    /// (오너의 활성 agent도 같은 높이를 유지하므로 이중 보정 없이 일관적.)
+    /// </summary>
+    private static void ApplyAgentBaseOffset(GameObject jelly, Vector3 navMeshPos)
+    {
+        if (jelly == null) return;
+        var agent = jelly.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
+        if (agent != null && agent.baseOffset > 0f)
+            jelly.transform.position = navMeshPos + Vector3.up * agent.baseOffset;
     }
 
     /// <summary>

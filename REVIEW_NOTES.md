@@ -457,6 +457,56 @@
 
 ---
 
+## 2026-06-20 버그 제보 수정 (사용자 제보 — 흡수 모드 3건, 즉시 수정)
+
+사용자가 흡수 모드에서 3가지 문제를 제보했고, 코드 분석으로 원인을 특정해 즉시 수정했다.
+
+### [BUG-A] 봇이 밀크로 느려진 뒤 원래 속도로 안 돌아옴 — **확실**
+- 위치: `Milk.cs:40-41,88-89` ↔ `AIPlayerMovement` 이동(`Update:418 Agent.velocity = wishDir * Agent.speed`),
+  FSM 상태 Enter들(`AIChaseState:22`, `AIFleeState:24`, `AIWanderState:28` 등 `Agent.speed = ai.moveSpeed`)
+- 원인: 봇의 **실제 이동 속도는 `Agent.speed`**인데, 이 값은 **FSM 상태 Enter에서만** `moveSpeed`로부터
+  복사된다. Milk는 `moveSpeed` *필드*만 곱/나눴으므로, 밀크에서 나와 `moveSpeed`가 복원돼도
+  `Agent.speed`는 다음 상태 전환이 일어나기 전까지 슬로우 값으로 남는다 → "느려진 뒤 안 돌아옴".
+  (반대로 진입 직후에도 상태 전환 전엔 슬로우가 즉시 안 먹는 비결정적 동작도 동반)
+- 수정: `AIPlayerMovement.ApplySpeedMultiplier(m)` 추가 — `moveSpeed`와 `Agent.speed`를 **같은 비율로
+  함께** 곱한다(상태별 계수 0.9 등 보존). Milk 진입/복원이 봇에 대해 이 헬퍼를 호출하도록 변경.
+  사람 플레이어는 `moveSpeed`를 매 프레임 직접 읽으므로(PlayerMovement:197) 기존 로직 유지.
+- 학습: "설정값(base) 필드"와 "엔진이 실제로 쓰는 캐시값(Agent.speed)"이 분리돼 있고 갱신 시점이
+  이벤트(상태 전환)에 묶이면, base만 바꾸는 외부 효과는 캐시에 반영되지 않는다. 둘을 같은 연산으로
+  함께 갱신해야 한다(G1/H1 '상태 복원'·J3 '가역 효과' 주제의 변형).
+
+### [BUG-B] 젤리(WanderingAI)가 땅에 박혀서 소환됨 — 높음
+- 위치: `NetworkJellyManager.SpawnRandomJelly:150` (스폰 위치 = `hit.position` = NavMesh 표면 Y),
+  젤리 프리팹 NavMeshAgent `m_BaseOffset: 1.84`
+- 원인: NavMeshAgent는 `baseOffset`만큼 transform을 NavMesh 위로 띄워야 바닥에 안 박히는데, 스폰을
+  표면 Y로만 했다. 특히 **원격 클라는 이 젤리의 agent를 비활성화**(JellyColliderAbsorb.Awake:47-51)하고
+  동기화 위치만 따르므로, 오너가 baseOffset 반영 위치를 초기값으로 보내지 않으면 `baseOffset`만큼 박혀 보인다.
+- 수정: `ApplyAgentBaseOffset(jelly, pos)` — 스폰 직후 agent가 있고 `baseOffset>0`이면
+  `pos + up*baseOffset`로 보정(오너의 활성 agent도 같은 높이를 유지하므로 이중 보정 없음).
+  agent 없는 중력 젤리는 미적용(자연 낙하).
+- 학습: NavMeshAgent의 `baseOffset`은 '논리 위치(navmesh) → 표시 위치'의 수직 보정값이다. 원격에서
+  agent를 끄면 이 보정이 사라지므로, 동기화로 보내는 위치에는 보정이 이미 포함돼 있어야 한다.
+
+### [BUG-C] 봇이 발판 없는 곳(허공) 위에 떠 있음 — 중(흡수 모드 한정)
+- 위치: `AIPlayerMovement.StateEvalLoop:297` 가드, `CheckGroundBelow` 호출부 `:392-393`(Push 전용)
+- 원인: (1) 발 밑 지면이 없으면 낙하시키는 `CheckGroundBelow()`가 **Push 모드에서만** 호출된다.
+  (2) 흡수 모드엔 허공탈출(`IsOverVoid`→안전 타일 Warp)이 있지만, 그 앞의 가드
+  `if (!Agent.enabled || !Agent.isOnNavMesh) continue;`가 **NavMesh 밖 봇을 먼저 걸러내** 복구를 건너뛴다.
+  → 흡수 모드에서 봇이 넉백/타일 붕괴로 NavMesh 밖 허공에 박제되면 낙하도 복구도 안 돼 **영구 floating**.
+- 수정: 가드를 둘로 분리. `!Agent.enabled`(정상 추락 중 — CheckGroundBelow가 Agent를 끔)면 그대로 두고,
+  `Agent 켜짐 + !isOnNavMesh`(허공 박제)면 흡수 모드에서 가장 가까운 안전 타일로 `Agent.Warp` 복구.
+  Push 모드는 자체 낙하 로직이 있으므로 비-Push로 게이팅(추락 봇을 되살리지 않음).
+- 안전성 근거: 추락 봇은 `CheckGroundBelow`/`AwakePhysicsOnTile`이 `Agent.enabled=false`로 꺼두므로,
+  'Agent 켜짐 + NavMesh 밖'은 추락이 아닌 박제 상태로 깔끔히 구분된다.
+- 학습: "마스터만/특정 모드만 하는 처리"는 짝이 되는 시나리오(다른 모드·승계)를 함께 설계해야 한다
+  (H2와 같은 주제). 낙하 회복이 Push에만 있으면 흡수 모드의 같은 상황은 무방비로 남는다.
+
+> ※ BUG-A/B/C는 사용자 제보로 즉시 수정(루틴 작업흐름 4). BUG-B·C는 NavMesh 런타임 동작이라
+>   실제 인게임에서 박힘/floating이 사라지는지 **맵 확인 권장**. 회복 동작(BUG-C)이 게임 느낌과
+>   안 맞으면 '낙하'로 바꾸는 대안도 가능(CheckGroundBelow를 흡수 모드에도 호출).
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일

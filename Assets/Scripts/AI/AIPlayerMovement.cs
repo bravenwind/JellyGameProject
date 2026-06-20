@@ -294,12 +294,33 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         {
             yield return new WaitForSeconds(stateEvalRate);
 
-            if (!Agent.enabled || !Agent.isOnNavMesh) continue;
+            // 정상적으로 추락 중인 봇은 Agent가 꺼져 있다(CheckGroundBelow/AwakePhysicsOnTile).
+            // 그런 봇은 물리로 떨어지게 그대로 둔다.
+            if (!Agent.enabled) continue;
+
+            // Agent는 켜져 있는데 NavMesh 밖에 있는 봇 = 넉백/붕괴로 발판 없는 허공에 박제된 경우.
+            // Push 모드는 CheckGroundBelow가 별도로 낙하시키므로, 낙하가 아닌 '안전 타일 복귀'를
+            // 설계로 쓰는 흡수 모드에서만 가장 가까운 안전 타일로 Warp해 floating을 해소한다.
+            // (이 분기가 없으면 흡수 모드에서 허공에 뜬 봇이 낙하도 복구도 안 돼 영구히 떠 있다.)
+            if (!Agent.isOnNavMesh)
+            {
+                if (GameState.CurrentGameMode != GameModeType.Push)
+                {
+                    var c = TileCollapseManager.Instance;
+                    if (c != null && c.FindNearestSafeTile(transform.position, out Vector3 offSafe)
+                        && (NavMesh.SamplePosition(offSafe, out NavMeshHit offHit, 10f, NavFilter)
+                            || NavMesh.SamplePosition(offSafe, out offHit, 10f, NavMesh.AllAreas)))
+                    {
+                        Agent.Warp(offHit.position);
+                        if (Agent.isOnNavMesh && Agent.hasPath) Agent.ResetPath();
+                    }
+                }
+                continue;
+            }
 
             // 발판이 없는 허공(붕괴된 타일 자리의 잔존 NavMesh 등) 위에 떠 있으면
             // 가장 가까운 안전 타일로 즉시 복귀시킨다. 이렇게 해야 AI가 공중에서
             // 도달 불가능한 목적지를 못 찾아 WanderState로 Idle 박제되는 현상이 사라진다.
-            // (정상적으로 추락 중인 봇은 AwakePhysicsOnTile이 Agent를 꺼두므로 위 가드에서 걸러진다.)
             var collapse = TileCollapseManager.Instance;
             if (collapse != null && collapse.IsOverVoid(transform.position))
             {
@@ -350,6 +371,17 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         if (FindTargetToChase() != null) { ChangeState(ChaseState); return; }
         ChangeState(WanderState);
+    }
+
+    /// <summary>밀크 등 외부 감속/복원 효과용. 봇의 실제 이동 속도는 Agent.speed인데, 이 값은
+    /// FSM 상태 Enter에서만 moveSpeed로부터 갱신된다. 따라서 moveSpeed만 바꾸면 상태 전환이
+    /// 일어나기 전까지 이동에 반영되지 않고, 밀크에서 나와도 슬로우가 남는다. 여기서 moveSpeed와
+    /// Agent.speed를 같은 비율로 함께 곱해, 상태별 속도 계수(예: Wander 0.9)는 보존하면서 즉시
+    /// 반영한다. (이후 상태 Enter가 Agent.speed = moveSpeed로 덮어써도 비율이 일관돼 안전)</summary>
+    public void ApplySpeedMultiplier(float multiplier)
+    {
+        moveSpeed *= multiplier;
+        if (Agent != null) Agent.speed *= multiplier;
     }
 
     // ─────────────────────────────────────────────────────────
