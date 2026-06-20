@@ -40,6 +40,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private bool _allClientsLoad;
     private bool _localLoad;
     private GameObject _activePanel;
+    private bool _enteringGame; // 타겟이 게임 씬(입장)인지. 결과/메인(퇴장) 전환과 로드 타이밍을 구분.
 
     private static LoadingSceneController _instance;
     private bool _targetSceneLoaded;
@@ -108,6 +109,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
             _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
             _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
 
+        _enteringGame = enteringGame;
         _activePanel = enteringGame ? toGamePanel : toMainOrResultPanel;
 
         if (toGamePanel != null) toGamePanel.SetActive(enteringGame);
@@ -144,10 +146,19 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         if (_exiting) return;
         _elapsed += Time.unscaledDeltaTime;
 
-        // minDisplayTime이 지나면 다음 씬 로드 트리거.
+        // 다음 씬 로드 트리거.
         // 게임 씬(메인→인게임): 마스터만 LoadLevel, 나머지는 AutomaticallySyncScene으로 자동 이동
         // 결과 씬(인게임→결과): 모든 클라이언트가 각자 LoadLevel (마스터 탈락 데드락 방지)
-        if (!_nextSceneTriggered && _elapsed >= minDisplayTime)
+        //
+        // [중요] 결과/메인(게임에서 퇴장) 전환은 로드를 minDisplayTime까지 미루지 않고 '즉시' 시작한다.
+        // 그래야 결과 씬이 로딩 커튼 뒤에서 미리 준비(Start/카메라 시퀀스)돼, 커튼이 사라질 때 곧바로
+        // 보인다. 미루면 결과 씬 로드가 LoadingCenterMultiAni의 고정 fade-out보다 늦어질 때(특히 사망
+        // 비마스터 클라의 지연 로드) 커튼은 사라졌는데 결과는 아직 안 떠 '유니티 기본 빈 배경(회색)'이
+        // 보인다. 게임 입장(카운트다운) 전환은 기존대로 minDisplayTime 뒤 로드한다 — 일찍 로드하면
+        // 3-2-1 카운트다운이 커튼 뒤에서 시작돼 일부를 놓치기 때문. 커튼 자체는 두 경우 모두
+        // minDisplayTime + 타겟 로드 완료까지 유지된다(아래 ExitRoutine 조건).
+        float loadAfter = _enteringGame ? minDisplayTime : 0f;
+        if (!_nextSceneTriggered && _elapsed >= loadAfter)
         {
             _nextSceneTriggered = true;
             if (_localLoad)

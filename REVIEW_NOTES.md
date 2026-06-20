@@ -597,6 +597,36 @@
 
 ---
 
+## 2026-06-20 버그 제보 수정 (3차 — Push 사망 관전 시 결과 로딩 회색)
+
+> 사용자 추가 제보: "푸쉬모드인데 죽고 관전 중 결과로 넘어갈 때 로딩 UI가 잠깐 떴다가 사라지고
+> 유니티 기본 빈 배경(회색)이 나온다." → BUG-F(흡수, NextSceneName 미설정)와는 다른 Push 경로.
+
+### [BUG-G] (Push·시퀀스 / 중) 사망 관전 → 결과 전환 시 로딩 커튼이 결과 씬보다 먼저 사라져 회색 공백
+- 위치: `LoadingSceneController.Update`(로드 트리거가 `_elapsed >= minDisplayTime`), `LoadingCenterMultiAni`
+  (OnEnable에서 고정 타임라인 fade-in→hold(holdSeconds)→**fade-out**), `LoadResultSceneAfterSync`+
+  `AllClientsLoad`/`AutomaticallySyncScene`
+- 원인: 결과 씬 **로드를 `minDisplayTime`(2s)이 지나서야 *시작***하는데, 로딩 커튼(center)은 그와
+  무관하게 **고정 타임라인으로 fade-out**한다. Push 사망(비마스터) 클라는 `AllClientsLoad`+씬 동기화
+  상호작용으로 결과 씬 로드가 더 지연돼, **커튼이 fade-out으로 사라진 뒤에도 결과 씬이 아직 로드되지
+  않아** 그 사이 유니티 기본 빈 배경(회색)이 보였다. 결과 씬 데이터(룸 프로퍼티)·카메라는 정상이라
+  '영구 빈 화면'이 아니라 '로드 전 공백'이 핵심.
+  (※ Push 사망자는 BUG-F와 달리 `RPC_PushModeGameEnd`(All)로 NextSceneName은 정상 설정됨 — 별개 원인.)
+- 수정: `LoadingSceneController`가 **결과/메인(게임 퇴장) 전환은 로딩 씬 진입 즉시 타겟을 로드**하도록
+  변경(`_enteringGame ? minDisplayTime : 0f`). 커튼(DontDestroyOnLoad)은 그대로 `minDisplayTime`+타겟
+  로드 완료까지 유지되므로(ExitRoutine 조건 불변), 결과 씬이 커튼 뒤에서 미리 로드·렌더된다 → 커튼이
+  슬라이드/페이드로 사라질 때 회색이 아닌 **이미 준비된 결과 씬**이 드러난다. 게임 입장(카운트다운)
+  전환은 기존대로 minDisplayTime 뒤 로드(일찍 로드하면 3-2-1이 커튼 뒤에서 시작돼 일부를 놓침).
+- 학습: 로딩 '커튼'은 다음 씬이 준비될 때까지 화면을 덮는 게 목적이다. 커튼의 사라짐(애니)이 다음 씬의
+  '준비 완료'와 분리돼 고정 타이머로 돌면, 로드가 늦은 경로(사망 비마스터)에서 커튼만 먼저 걷혀 빈
+  화면이 샌다. 다음 씬을 **커튼 뒤에서 미리 로드**해 두면 커튼이 무엇을 하든 드러나는 건 준비된 씬이다.
+
+> ※ 네트워크/씬 타이밍 의존이라 인게임 검증 권장(흡수·Push 양쪽에서 사망 관전→결과 확인).
+>   추가로 로딩 패널 `holdSeconds`가 `minDisplayTime`보다 충분히 길어야 커튼이 너무 일찍 옅어지지
+>   않는다(씬 인스펙터 값 점검 권장).
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
