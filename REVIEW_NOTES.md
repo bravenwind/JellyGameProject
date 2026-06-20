@@ -519,6 +519,48 @@
 
 ---
 
+## 2026-06-20 검증 — 시작 카운트다운(3-2-1-시작) 두 모드 정상 동작 확인 (사용자 요청)
+
+사용자 요청으로 카운트다운 시스템이 흡수/밀치기 두 모드에서 제대로 동작하는지 코드로 검증했다.
+
+### 결론: 카운트다운 자체는 두 모드에서 동일·정상 동작
+- 진입 경로가 **모드 무관 공통**: `SpawnAndStartGame`(Start/OnJoinedRoom) → 마스터가
+  `RPC_StartGame`(RpcTarget.All) → 전 클라 `StartGameInternal` → `StartCountdownRoutine`.
+  모드는 `RestoreGameModeFromRoom`이 룸 권위값에서 복원(호스트/게스트 일치).
+- `StartCountdownRoutine`: n=3→2→1 각 `WaitForSecondsRealtime(1f)`(timeScale 무관 — Push 종료
+  timeScale=0와 충돌 없음) → "시작!" 표시와 **동시에** `_gameRunning=true`/`Phase=Playing`/
+  `CountdownActive=false`/`InputLocked=false`를 한 묶음으로 전환 → 마스터가 `GameStartTime`(실제
+  시작 시점)을 기록 → 0.7s 후 텍스트 숨김. UI 참조는 모두 `centerCountdownText != null` 가드.
+- **카운트다운 동안 게임플레이 정지가 두 모드 모두에 올바로 적용됨**(코드 대조):
+  - 로컬 입력: `PlayerMovement.InputLocked=true` (Idle 애니는 유지)
+  - 봇: `GameModeManager.CountdownActive` → AIPlayerMovement가 velocity 0 + ResetPath (Phase가
+    아니라 전용 플래그라 'Absorb에서 마스터 사망 시 전 봇 정지' 버그 없음)
+  - 타일 붕괴: `TileCollapseManager.Update`가 `IsGameRunning(_gameRunning)` 가드 → Push 스텝마모·
+    Absorb 링붕괴 둘 다 정지. 붕괴 타이밍 기준 `GameStartTime`도 카운트다운 후 시점이라 일관.
+  - 게임 타이머: `Update`가 `!_gameRunning`이면 return (Push 카운트업/Absorb 카운트다운 둘 다)
+  - 플레이어↔플레이어 흡수/공격: `NetworkPlayerSync`의 `Phase != Playing` 가드 8곳 → 카운트다운
+    (Phase=None) 중 전부 차단
+  - J5 누수 방지: `Awake`/`OnDestroy`에서 `CountdownActive`·`InputLocked` 해제(씬 전환 잠금 방지)
+- Push 모드는 젤리를 스폰하지 않으므로(NetworkJellyManager.Start) 아래 누락과 무관 — **완전 정상.**
+
+### [BUG-D] (흡수 모드 한정 / 하) 카운트다운 중 '젤리 흡수'만 정지에서 누락 → 시작 전 성장 — **수정함**
+- 위치: `PlayerAbsorber.OnTriggerEnter:16` (모드만 체크, 진행 상태 미체크),
+  `WanderingAI`(카운트다운 미인지로 배회), `NetworkJellyManager.Start`(스폰 루틴이 Start에서 시작)
+- 원인: 흡수 모드에선 젤리가 씬 시작(Start)에 스폰돼 카운트다운 중에도 배회한다(WanderingAI는
+  `CountdownActive`/`_gameRunning`을 보지 않음). 그런데 젤리 흡수 진입점 `PlayerAbsorber.OnTriggerEnter`는
+  `GameModeType.Push`만 거를 뿐 카운트다운/Phase를 보지 않아, 배회 젤리가 **정지(InputLocked)한
+  플레이어**에 닿으면 '시작!' 전에 흡수→성장한다. 카운트다운의 '다 같이 대기 후 시작' 취지에 어긋나는
+  유일한 빈틈(입력·봇·타일·P2P흡수는 모두 차단되는데 젤리 흡수만 샜다).
+- 수정: `OnTriggerEnter`에 `if (GameState.Phase != GamePhase.Playing) return;` 추가 — 플레이어간
+  흡수와 **동일 기준**(Phase=Playing일 때만)으로 게이팅. 카운트다운(None)·게임 종료 후 모두 차단.
+- 학습: "게임을 멈춘다"는 정지는 *모든 득점/상태변경 경로*에 빠짐없이 적용돼야 한다. 한 경로(젤리
+  흡수)만 다른 기준(모드)으로 가드하면 정지 의미가 새어 나간다(G6/K2 '단일 기준' 주제의 변형).
+
+> ※ 추가 점검 권장(코드로는 확인 불가): 두 게임 씬의 GameModeManager 인스펙터에 `centerCountdownText`가
+>   각각 연결돼 있는지. 미연결이면 숫자 표시만 안 될 뿐 게임 시작 로직은 정상 진행된다(널 가드 있음).
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
