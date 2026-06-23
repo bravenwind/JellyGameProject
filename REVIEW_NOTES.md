@@ -627,6 +627,87 @@
 
 ---
 
+## 2026-06-23 루틴 — 신규 커밋 없음 / 게임 종료→결과 전환 시퀀스 신규 심층 리뷰 (M1~M4 도출)
+
+마지막 코드 변경은 06-20(`4f2fbeb`)이고 그 이후 신규 커밋이 없다(전 브랜치 확인, IO=origin 동기).
+06-12·06-18 루틴과 동일하게 "신규 커밋 없을 때는 미리뷰 영역을 새로 심층 분석" 방식으로 진행했다.
+이번엔 시퀀스의 **맨 끝 — 게임 종료 → 결과 씬 데이터 전달/표시** 구간에서 아직 한 번도 항목이
+도출되지 않은 스크립트(`GameResultManager`/`ScoreboardSnapshot`은 H3~I1로 일부만 다룸,
+`ResultDataCarrier`·`NextSceneManager`·`ResultStarsUI`·`LeaderboardEntry`는 미리뷰)를 골라 분석했다.
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3). 즉시 수정할 명백한 버그는
+> 없었다. M2는 잠재 버그 성격이라 우선순위를 높였지만, 표시 로직 회귀 우려가 있어 승인 후 적용을 권한다.
+
+### [M2] (버그가능성·아키텍처 / 중) 결과 시상대가 *인스턴스*가 아닌 *공유 프리팹*의 batPivot을 비활성화 — 다음 매치로 누수 가능
+- 위치: `GameResultManager.SpawnPodium:218-233`
+- 내용: Absorb 모드에서 시상대 젤리의 박쥐(공격 비주얼)를 숨기려고
+  ```csharp
+  PlayerMovement playerMovement = prefab.GetComponent<PlayerMovement>();
+  if (playerMovement != null) playerMovement.batPivot.gameObject.SetActive(false);
+  ```
+  를 호출하는데, 대상이 인스턴스(`go`)가 아니라 **`prefab`**(= `playerJellyPrefab`/`botJellyPrefab`,
+  `Resources.Load` 또는 인스펙터로 잡은 **공유 에셋**)이다. `Instantiate` *전에* 프리팹 자식의
+  활성 상태를 끄므로 그 뒤 만들어지는 인스턴스엔 반영되지만, **변경이 프리팹 에셋(메모리 캐시)에
+  남는다.** `Resources.Load`가 돌려주는 건 캐시된 단일 인스턴스라, 결과 씬 이후 **재시작 → 다음 게임
+  씬에서 같은 프리팹을 `PhotonNetwork.Instantiate`로 다시 찍으면 박쥐가 꺼진 채 생성**될 수 있다
+  (에디터 플레이 모드에선 에셋을 dirty 처리할 수도 있음). 같은 결과 씬 안에서는 "모두 꺼짐"이 의도와
+  같아 증상이 안 보이지만, **세션을 넘겨 한 번 더 흡수 매치를 하면** 박쥐 없는 플레이어가 나올 수 있다.
+- 부가: 루프(`for i`) 안에서 매 항목마다 같은 프리팹에 반복 호출 — 중복.
+- 제안: 끄는 대상을 `go`(인스턴스)로 바꾼다. 단 `StripNetworkingAndGameplay`가 인스턴스의
+  `PlayerMovement`/`AIPlayerMovement`를 이미 `DestroyImmediate`하므로 그 컴포넌트의 `batPivot`
+  참조로는 못 찾는다 → **Strip 호출 *전에* go에서 batPivot를 캐시**해 끄거나, 인스턴스 계층에서
+  이름/경로(예: `go.transform.Find(".../BatPivot")`)로 찾아 비활성화한다. 공유 에셋은 절대 건드리지 않는다.
+- 학습: **"프리팹(템플릿)"과 "인스턴스(사본)"는 다른 객체다.** 표시용으로 잠깐 바꿀 상태는 반드시
+  Instantiate 뒤의 *사본*에 적용해야 한다. 템플릿을 바꾸면 그 변경이 캐시에 눌어붙어, 의도치 않은
+  다음 사용처(다음 매치·다른 씬)로 새어 나간다. (M2는 G3/G4/K1 'sharedMaterial 오염'과 같은 결의
+  문제 — 공유 자원에 쓰면 안 되는 곳에 썼다. 머티리얼이 아니라 프리팹 계층판.)
+
+### [M1] (아키텍처·데드코드 / 하) `ResultDataCarrier`/`RankingData` 전체 미사용 — 결과 데이터 전달 경로의 구버전 잔재
+- 위치: `Assets/Scripts/Result/ResultDataCarrier.cs`(static `TopRankings`), `struct RankingData`
+- 내용: 결과 씬은 실제로 **룸/플레이어 커스텀 프로퍼티**를 `ScoreboardSnapshot.Collect`로 읽어
+  Top3를 구성한다(H6 단일화). `ResultDataCarrier.TopRankings`/`RankingData`는 코드 전체에서
+  **쓰지도 읽지도 않는다**(grep 0건). 결과 데이터를 정적 리스트로 씬 간 넘기려던 *옛 설계*의 잔재로,
+  현재는 네트워크 권위(룸 프로퍼티) 방식으로 대체됐다. 남아 있으면 "결과 데이터가 어디서 오나"를
+  읽는 사람이 두 경로(죽은 캐리어 vs 실제 룸프롭)로 오해한다.
+- 제안: `ResultDataCarrier.cs` 삭제(또는 실제로 쓸 계획이면 ScoreboardSnapshot로 일원화). H6에서
+  '수집 로직 단일화'를 했듯, **데이터 전달 경로도 하나만 남긴다.**
+- 학습: 설계가 A(정적 캐리어)→B(네트워크 권위)로 옮겨갔으면 A는 지워야 한다. 죽은 경로를 남기면
+  다음 사람이 그게 살아 있는 줄 알고 거기에 코드를 얹다가 "왜 결과에 안 뜨지?"로 시간을 버린다.
+  (H5 '도달 불가능 분기 삭제'·K3/K4 '레거시 사용 여부 확인'과 같은 주제 — 죽은 코드는 빚이다.)
+
+### [M3] (코드품질 / 하) `GameResultManager.GetRankString`이 조회 중에 직렬화 필드 `firstPlaceText`를 영구 덮어씀(부수효과)
+- 위치: `GameResultManager.GetRankString:472-486`
+  ```csharp
+  if (GameState.CurrentGameMode == GameModeType.Push) firstPlaceText = "우승!";
+  ```
+- 내용: 순위 문자열을 *돌려주기만* 해야 할 함수가 호출 때마다 인스펙터 직렬화 필드 `firstPlaceText`를
+  "우승!"으로 **변경**한다. 멱등(항상 같은 값)이고 결과 씬 인스턴스는 곧 파괴되므로 실해는 낮지만,
+  '조회(getter) 함수가 상태를 바꾸는' 안티패턴이라 디버깅 시 값의 출처를 흐린다(인스펙터엔 "1위"인데
+  런타임엔 "우승!"). 모드 판정도 매 순위 출력마다 반복된다.
+- 제안: 필드를 건드리지 말고 로컬로 처리 —
+  `string first = (GameState.CurrentGameMode == GameModeType.Push) ? "우승!" : firstPlaceText;`
+  후 그 로컬을 반환. (필요하면 Push 분기를 Start에서 한 번만 결정)
+- 학습: 이름이 `Get…`/조회인 함수는 **읽기만** 해야 한다. 부수효과를 숨기면 "왜 이 값이 바뀌었지"를
+  추적할 때 의외의 곳을 의심하게 된다.
+
+### [M4] (코드품질·문서화 / 하) `NextSceneManager.cs`·`ResultStarsUI.cs` 한글 주석 인코딩 깨짐(mojibake)
+- 위치: `NextSceneManager.cs:7,12`(`"1. �Ѿ�� �ε� UI�� ã���ϴ�."` 등), `ResultStarsUI.cs:8,9,11,14,16,23,28,40,48`
+- 내용: 한글 주석이 전부 깨져(EUC-KR로 저장된 파일을 UTF-8로 디코딩한 흔적) 의미 파악 불가.
+  로직엔 영향 없지만 학습/유지보수에서 주석이 0 가치가 된다(`.editorconfig`/`.gitattributes`가 있는
+  프로젝트라 인코딩 일관성도 깨진 상태).
+- 부가 관찰(같은 파일): `NextSceneManager`는 `FindAnyObjectByType<LoadingBGSlideAni>()`를 찾아
+  `transform.root`를 **하드코딩 1.0s 뒤** Destroy한다. 로딩 애니 길이가 바뀌면 이 매직넘버가
+  어긋날 수 있음(J7 'LoadingCenterMultiAni 부모 조회'와 같은 로딩 정리 타이밍 주제). 우선순위 하·관찰.
+- 제안: 두 파일을 UTF-8(BOM 없음)로 주석 재작성. 빌드/동작 변화 없음 → 저위험 정리.
+
+> ※ M1·M3·M4는 동작 변화가 거의 없는 정리이고, M2가 유일하게 실사용 동작(결과 박쥐 표시)을 건드린다.
+>   M2 적용 시 흡수 모드 결과 씬에서 박쥐가 여전히 숨겨지는지, Push 모드(박쥐 표시 유지)와 다음 매치
+>   시작 시 박쥐가 정상인지 **인게임 확인 권장**.
+> ※ ResultDataCarrier(M1)·ResultStarsUI/ClearJudge/GameTimer 묶음은 K3/K4에서 '레거시 사용 여부 확인'으로
+>   남긴 단일 스테이지(클리어 별점) 경로와 연결된다 — 그 경로의 존폐를 정할 때 M1도 함께 정리하면 좋다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -685,6 +766,10 @@
 - [ ] K4  (대기 — 2026-06-18 도출, GameTimer.GameFail timeScale=0 후 널가드 없는 호출 소프트프리즈(레거시) — 사용 여부 확인)
 - [ ] L1  (대기 — 2026-06-20 도출, 젤리 흡수 점수/성장 로컬 무검증 — 경합 시 중복 흡수 double-eat, **확인 필요**)
 - [ ] L2  (대기 — 2026-06-20 도출, JellyColliderAbsorb null 미가드 — NRE 시 흡수 젤리 미파괴 소프트 누수)
+- [ ] M1  (대기 — 2026-06-23 도출, ResultDataCarrier/RankingData 전체 미사용 데드코드 — 결과 전달 구버전 잔재)
+- [ ] M2  (대기 — 2026-06-23 도출, GameResultManager.SpawnPodium이 인스턴스 아닌 공유 프리팹 batPivot 비활성화 — 다음 매치 누수 가능, **잠재 버그**)
+- [ ] M3  (대기 — 2026-06-23 도출, GameResultManager.GetRankString 조회 중 직렬화 필드 firstPlaceText 부수효과 덮어쓰기)
+- [ ] M4  (대기 — 2026-06-23 도출, NextSceneManager/ResultStarsUI 한글 주석 인코딩 깨짐 mojibake)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
@@ -715,3 +800,7 @@
   개발계획서 = `카테고리|작업명|세부내용|우선순위|난이도|예상(일)|상태|시작 날짜|종료 날짜|메모`(종료 날짜 컬럼
   추가됨). 구 스크립트는 bug 인자순서가 `날짜 심각도 카테고리…`였고 plan은 종료 날짜 컬럼이 없어 메모가
   한 칸 밀렸음. → 스크립트 인자순서/플랜 10필드로 수정 완료. (이번에 잘못 들어간 #67~70, plan #22는 API로 교정함)
+- 2026-06-23 루틴: 새 컨테이너에 gspread/credentials 둘 다 없었으나, env `GSHEET_CREDENTIALS_JSON`(len=2347)
+  존재 → `credentials.json` 주입 + `pip install --user gspread google-auth` 후 cryptography pyo3 panic 발생,
+  06-16 메모대로 `pip install --user --only-binary :all: --force-reinstall cffi cryptography`로 정상화.
+  `update_sheets.py status` 정상(개발계획서 루틴 27/26완료, 트러블슈팅 78). M1~M4 도출 기록 plan으로 반영.
