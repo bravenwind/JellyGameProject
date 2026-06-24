@@ -638,9 +638,12 @@
 > 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3). 즉시 수정할 명백한 버그는
 > 없었다. M2는 잠재 버그 성격이라 우선순위를 높였지만, 표시 로직 회귀 우려가 있어 승인 후 적용을 권한다.
 
-### [M2] (버그가능성·아키텍처 / 중) 결과 시상대가 *인스턴스*가 아닌 *공유 프리팹*의 batPivot을 비활성화 — 다음 매치로 누수 가능
+### [M2] (버그 / 중) **[2026-06-23 적용]** 결과 시상대가 *인스턴스*가 아닌 *공유 프리팹*의 batPivot을 비활성화 — 다음 매치로 누수 가능
 - 위치: `GameResultManager.SpawnPodium:218-233`
-- 내용: Absorb 모드에서 시상대 젤리의 박쥐(공격 비주얼)를 숨기려고
+- ※ 용어 정정: `batPivot`은 박쥐가 아니라 **방망이(배트 무기)**다. 규칙은 **밀치기 모드=배트 표시 /
+  흡수 모드=배트 숨김**이며, 기존 `if (Absorb)` 조건 자체는 올바랐다. 문제는 *대상*이 인스턴스가
+  아니라 공유 프리팹이었던 것뿐.
+- 내용: Absorb 모드에서 시상대 젤리의 방망이(배트)를 숨기려고
   ```csharp
   PlayerMovement playerMovement = prefab.GetComponent<PlayerMovement>();
   if (playerMovement != null) playerMovement.batPivot.gameObject.SetActive(false);
@@ -653,10 +656,13 @@
   (에디터 플레이 모드에선 에셋을 dirty 처리할 수도 있음). 같은 결과 씬 안에서는 "모두 꺼짐"이 의도와
   같아 증상이 안 보이지만, **세션을 넘겨 한 번 더 흡수 매치를 하면** 박쥐 없는 플레이어가 나올 수 있다.
 - 부가: 루프(`for i`) 안에서 매 항목마다 같은 프리팹에 반복 호출 — 중복.
-- 제안: 끄는 대상을 `go`(인스턴스)로 바꾼다. 단 `StripNetworkingAndGameplay`가 인스턴스의
-  `PlayerMovement`/`AIPlayerMovement`를 이미 `DestroyImmediate`하므로 그 컴포넌트의 `batPivot`
-  참조로는 못 찾는다 → **Strip 호출 *전에* go에서 batPivot를 캐시**해 끄거나, 인스턴스 계층에서
-  이름/경로(예: `go.transform.Find(".../BatPivot")`)로 찾아 비활성화한다. 공유 에셋은 절대 건드리지 않는다.
+- 적용(2026-06-23): SpawnPodium의 프리팹 변경 블록을 제거하고, `InstantiateDisplayOnly` 안에서
+  **인스턴스 `go`** 에 대해 Strip *전에* `HideBat(go)`를 호출하도록 변경. `HideBat`은
+  `go.GetComponent<PlayerMovement>()`/`AIPlayerMovement`의 `batPivot`을 null 가드 후 비활성화한다
+  (인게임 `AIPlayerMovement`의 batPivot null 가드 관례와 동일). 흡수 모드에서만 호출되므로
+  밀치기 모드는 배트 표시가 그대로 유지되고, 공유 프리팹 에셋은 더 이상 건드리지 않는다.
+  ※ 인스턴스는 비활성 상태로 생성돼 Awake 미실행이지만 `batPivot`은 직렬화 참조라 유효하고,
+    batPivot 자신의 activeSelf=false가 이후 `go.SetActive(true)` 후에도 숨김을 유지한다.
 - 학습: **"프리팹(템플릿)"과 "인스턴스(사본)"는 다른 객체다.** 표시용으로 잠깐 바꿀 상태는 반드시
   Instantiate 뒤의 *사본*에 적용해야 한다. 템플릿을 바꾸면 그 변경이 캐시에 눌어붙어, 의도치 않은
   다음 사용처(다음 매치·다른 씬)로 새어 나간다. (M2는 G3/G4/K1 'sharedMaterial 오염'과 같은 결의
@@ -767,7 +773,9 @@
 - [ ] L1  (대기 — 2026-06-20 도출, 젤리 흡수 점수/성장 로컬 무검증 — 경합 시 중복 흡수 double-eat, **확인 필요**)
 - [ ] L2  (대기 — 2026-06-20 도출, JellyColliderAbsorb null 미가드 — NRE 시 흡수 젤리 미파괴 소프트 누수)
 - [ ] M1  (대기 — 2026-06-23 도출, ResultDataCarrier/RankingData 전체 미사용 데드코드 — 결과 전달 구버전 잔재)
-- [ ] M2  (대기 — 2026-06-23 도출, GameResultManager.SpawnPodium이 인스턴스 아닌 공유 프리팹 batPivot 비활성화 — 다음 매치 누수 가능, **잠재 버그**)
+- [x] M2  (2026-06-23 적용) — 결과 시상대 배트 숨김을 공유 프리팹→인스턴스(go)로 변경. SpawnPodium의
+        프리팹 변경 블록 제거 + InstantiateDisplayOnly에서 Strip 전 HideBat(go) 호출(흡수 모드만,
+        null 가드). 규칙(밀치기=배트 표시/흡수=숨김) 유지, Resources 캐시 오염 제거.
 - [ ] M3  (대기 — 2026-06-23 도출, GameResultManager.GetRankString 조회 중 직렬화 필드 firstPlaceText 부수효과 덮어쓰기)
 - [ ] M4  (대기 — 2026-06-23 도출, NextSceneManager/ResultStarsUI 한글 주석 인코딩 깨짐 mojibake)
 

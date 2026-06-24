@@ -215,23 +215,6 @@ public class GameResultManager : MonoBehaviour
             GameObject prefab = entry.isBot && botJellyPrefab != null ? botJellyPrefab : playerJellyPrefab;
             if (prefab == null) continue;
 
-            if (GameState.CurrentGameMode == GameModeType.Absorb)
-            {
-                PlayerMovement playerMovement = prefab.GetComponent<PlayerMovement>();
-
-                if (playerMovement != null)
-                {
-                    playerMovement.batPivot.gameObject.SetActive(false);
-                }
-
-                AIPlayerMovement aiPlayerMovement = prefab.GetComponent<AIPlayerMovement>();
-
-                if (aiPlayerMovement != null)
-                {
-                    aiPlayerMovement.batPivot.gameObject.SetActive(false);
-                }
-            }
-
             // 여기서 pos는 X, Z 위치만 중요해지고, Y는 바닥 보정에 쓰임
             GameObject go = InstantiateDisplayOnly(prefab, positions[i], Quaternion.identity);
             go.transform.Rotate(new Vector3(0, 180, 0)); // 카메라 정면을 보도록 180도 회전
@@ -256,9 +239,30 @@ public class GameResultManager : MonoBehaviour
         GameObject go = Instantiate(prefab, pos, rot);
         prefab.SetActive(wasActive);
 
+        // 흡수 모드에서는 방망이(배트)를 숨긴다(밀치기 모드는 그대로 표시).
+        // 반드시 인스턴스(go)에 적용한다 — 공유 프리팹을 건드리면 변경이 Resources
+        // 캐시에 남아 다음 매치까지 누수된다. PlayerMovement/AIPlayerMovement는
+        // 바로 아래 Strip에서 제거되므로, 그 전에 batPivot을 끈다.
+        if (GameState.CurrentGameMode == GameModeType.Absorb)
+            HideBat(go);
+
         // 비활성 상태 → 모든 Awake 미실행. 문제 컴포넌트를 즉시 제거.
         StripNetworkingAndGameplay(go);
         return go;
+    }
+
+    // 결과 젤리 인스턴스의 방망이(배트)를 숨긴다. PlayerMovement/AIPlayerMovement의
+    // batPivot은 인게임 로직(AIPlayerMovement.UpdateBatVisibility 등)도 null 가드를
+    // 두므로 동일하게 미할당을 안전 처리한다.
+    private static void HideBat(GameObject go)
+    {
+        var pm = go.GetComponent<PlayerMovement>();
+        if (pm != null && pm.batPivot != null)
+            pm.batPivot.gameObject.SetActive(false);
+
+        var ai = go.GetComponent<AIPlayerMovement>();
+        if (ai != null && ai.batPivot != null)
+            ai.batPivot.gameObject.SetActive(false);
     }
 
     private void StripNetworkingAndGameplay(GameObject root)
