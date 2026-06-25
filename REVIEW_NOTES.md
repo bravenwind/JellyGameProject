@@ -714,6 +714,109 @@
 
 ---
 
+## 2026-06-25 루틴 — 06-24 M2 적용 검증 + 플레이어 FSM(상태머신) 신규 심층 리뷰 (N1~N6 도출)
+
+마지막 코드 변경은 06-24(`5ab9656` = M2 적용)이고, 전날 대비 변경이 있으므로 루틴을 진행했다(IO=origin 동기).
+이번엔 아직 한 번도 항목이 나오지 않은 **플레이어 FSM(상태머신)** — 인게임 조작의 매 프레임 시퀀스 —
+를 골라 분석했다. 대상: `PlayerMovement`(FSM 컨텍스트) + `PlayerBaseState`/`Idle`/`Move`/`Dash`/
+`Jump`/`Attack`/`Knockback` 7개 상태. 네트워크 정합성은 `NetworkPlayerSync`(원격 사본 처리·배트 히트
+권위)까지 교차 확인했다.
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3). 즉시 고칠 명백한 동작 버그는
+> 없었다. N1(로그 스파이크)이 가장 효과 크고 저위험이라 우선 적용을 권한다.
+
+### 06-24 커밋(`5ab9656`) 검증 — M2 회귀 없음
+- `GameResultManager.InstantiateDisplayOnly:235-252` 확인: 인스턴스는 `prefab.SetActive(false)` 후
+  `Instantiate`로 **비활성 생성** → `HideBat(go)`(흡수 모드만, null 가드) → `StripNetworkingAndGameplay(go)`
+  순서. 공유 프리팹(`playerJellyPrefab`/`botJellyPrefab`)은 더 이상 변형되지 않는다(블록 제거 확인).
+- `batPivot.gameObject.SetActive(false)`는 *자식의 자기 활성 상태*라, 이후 라인 224의 `go.SetActive(true)`
+  (부모 활성화) 뒤에도 배트는 숨김 유지된다 — 의도대로다. Push 모드는 `HideBat` 미호출이라 배트 표시 유지.
+- 결론: **회귀 없음.** (인게임에서 "흡수 결과=배트 숨김 / 다음 매치 정상 / Push=배트 표시"만 눈으로 확인 권장.)
+
+### 좋았던 점(설계 관찰)
+- **원격 사본 입력 차단이 확실하다.** `NetworkPlayerSync.SetupRemotePlayer:175`에서 `playerController.enabled
+  = false` → 원격 플레이어 사본의 `PlayerMovement.Update`가 안 돌아 로컬 Input을 읽지 않는다. FSM이 원격에서
+  제멋대로 움직이는 사고가 구조적으로 막혀 있다(좋음).
+- **배트 히트가 클라 감지 → 마스터 권위 구조다.** `PlayerAttackState.DetectBatHit`가 IsMine에서만 판정 후
+  `RPC_RequestBatHitPlayer/Bot`를 MasterClient로 보내고, 마스터가 phase·봇 `IsOutOfPlay`(G6)를 재검증한 뒤
+  넉백/성장을 권위 적용한다. 입력잠금(InputLocked)·쿨타임도 `CanDash()`/`CanAttack()`에 모여 있어 일관적.
+- `ChangeState`에 `if (currentState == newState) return;` 자기전이 가드, 각 상태의 분기마다 `return`으로
+  프레임 내 중복 전이 방지 — FSM 기본기는 갖춰져 있다.
+
+### [N1] (성능·로그 / 중) FSM 상태 전환마다 `Debug.Log` — 빌드 로그 스파이크 (G3/K3가 못 덮은 경로)
+- 위치: `PlayerMovement.ChangeState:166` (`Debug.Log($"[Player] 상태 변경 완료");`),
+  `PlayerIdleState.Enter:13` (`Debug.Log("...")`, 게다가 mojibake).
+- 내용: `ChangeState`는 **모든 상태 전환마다** 호출된다. Idle↔Move는 플레이어가 멈췄다/움직였다 할 때마다
+  바뀌므로 조작 중 초당 수~수십 회 로그가 찍힌다(IdleState.Enter도 Idle 진입마다 추가). 문자열 보간까지
+  매번 수행하고, 메시지에 *어느 상태로* 바뀌었는지도 없어 디버그 가치도 낮다. **이미 G3(FallingTile)·
+  K3(ClearJudge)에서 "빌드 매 프레임 Debug.Log = 후반 프레임 스파이크"로 확정된 것과 같은 결의 문제**인데,
+  플레이어 FSM 경로는 그 정리에서 누락됐다.
+- 제안: 두 로그를 제거하거나 `#if UNITY_EDITOR`로 감싼다. 남길 거면 최소한 전이 대상을 찍게
+  (`$"[Player] {currentState} → {newState}"`) 바꾸고 에디터 전용으로 가드.
+- 학습: 상태머신의 전이 로그는 개발 중엔 유용하지만 **고빈도 경로(매 프레임/매 전이)에 무가드 로그를
+  남기면 출시 빌드에서 GC·IO 비용이 누적**된다. "로그는 빌드에서 빠지게" 가드를 거는 게 이 프로젝트의
+  확립된 관례(G3/K3)다 — FSM도 같은 관례를 따르면 된다.
+
+### [N2] (아키텍처 / 중하) 액션 입력 폴링이 상태마다 복붙 — 입력 캐싱 일원화 안 됨 + `CanJump()` 부재
+- 위치: `PlayerIdleState.Update:23-39`, `PlayerMoveState.Update:21-37` (동일한 공격/대쉬/점프 3분기 중복),
+  대조: `PlayerMovement.Update:107-119`는 *이동축*(`inputH/inputV`)만 프레임당 1회 캐싱한다.
+- 내용: 이동축은 한 곳에서 캐싱·InputLocked 처리하는데, **액션 입력(마우스/Shift/Space)은 각 상태가
+  직접 `Input.GetMouseButtonDown`/`GetKeyDown`을 또 읽는다.** 같은 3분기가 Idle·Move에 그대로 복붙돼 있어
+  새 상태(예: 공격 가능한 다른 상태)를 늘릴 때 누락되기 쉽다. 특히 **점프는 `CanDash()`/`CanAttack()`
+  같은 헬퍼가 없어** 매 상태에서 `Input.GetKeyDown(Space) && player.isGrounded && !PlayerMovement.InputLocked`를
+  손으로 조합한다 — 조건 하나만 빠뜨려도 한 상태에서만 점프가 깨지는 류의 버그가 난다(현재는 두 곳 다
+  맞게 적혀 있지만 *구조적으로* 취약).
+- 제안: (a) `PlayerMovement.Update`에서 액션 입력도 캐싱(예: `jumpPressed`/`dashPressed`/`attackPressed`를
+  프레임당 1회, InputLocked면 false). (b) `CanJump()` 헬퍼 추가(`!InputLocked && isGrounded && 상태제약`).
+  (c) 공통 전이 분기(공격→대쉬→점프 순)를 `PlayerBaseState`의 protected 헬퍼(예: `TryHandleActionInputs()`)로
+  올려 Idle/Move가 호출만 하게. → 중복 제거 + 입력 정책 단일 출처.
+- 학습: **"입력을 어디서 읽는가"는 한 곳으로 모으는 게 정석**이다(프레임당 1회, 잠금 처리도 그 한 곳).
+  지금은 이동축만 모였고 액션은 흩어져 있어 *반쪽짜리 캐싱*이다. 분기 로직을 베이스/헬퍼로 올리면
+  "상태 추가 시 입력 처리 누락" 부류의 버그를 구조적으로 차단한다(F2·G6·H6과 같은 '출처 일원화' 테마).
+
+### [N3] (안정성 / 하) `PlayerMovement.OnFailAnimationFinished`의 `uiManager` null 미가드
+- 위치: `PlayerMovement.OnFailAnimationFinished:220-223` (`uiManager.SetState(UIState.GameOver);`).
+- 내용: 사망 애니메이션 이벤트에서 호출되는 콜백인데 `uiManager`(인스펙터 직렬화 필드)가 미할당이면 NRE.
+  게임 종료 직전 시퀀스라 여기서 예외가 나면 GameOver UI 전환이 끊긴다(H3 'PushModeEndSequence 첫 줄 NRE로
+  결과 전환 소프트락'과 같은 종료 시퀀스 NRE 테마). 실발생 확률은 낮지만(보통 할당돼 있음) 종료 경로라 가드 권장.
+- 제안: `uiManager?.SetState(UIState.GameOver);` 또는 시작 시 null 검증 후 경고 로그. J7/G8/L2와 동일한
+  '종료/콜백 경로 null 가드' 정리.
+
+### [N4] (네트워크·아키텍처 / 하·관찰) 마스터 배트 히트 검증이 **사거리/각도 미재검증** — 공격자 로컬 판정 신뢰 (L1 테마)
+- 위치: `NetworkPlayerSync.RPC_RequestBatHitPlayer:797-822`, `RPC_RequestBatHitBot:824-851`.
+- 내용: 마스터는 `phase==Playing`과 봇 `IsOutOfPlay`만 재검증하고, **피격자가 실제 배트 사거리·아크 안에
+  있었는지는 재확인하지 않는다.** 히트 판정(`OverlapSphere`+각도)은 전적으로 공격자 로컬(`DetectBatHit`)
+  결과를 신뢰한다. 방향/세기는 마스터가 *현재 위치*로 다시 계산하므로 그 부분은 권위적이나, "맞았다" 자체는
+  클라 권위다. → (1) 치팅 클라가 임의 ViewID로 RPC를 쏘면 무조건 넉백+성장 보상 (.io 친선전이라 우선순위 낮음),
+  (2) 비악의 지연 상황에서도 공격자 화면 기준으론 맞았는데 실제론 빗나간 스윙이 보상될 수 있다.
+  **L1(흡수 점수/성장 로컬 무검증, double-eat)과 정확히 같은 '권위 재검증 누락' 테마**다.
+- 제안: 마스터에서 `attacker.position`↔`victim.position` 거리와 정면 각도를 `batRange*scale`/`batArcAngle`로
+  한 번 더 검증(여유 마진 포함)한 뒤 적용. L1과 함께 "권위 측 거리 재검증"으로 묶어 처리하면 정책이 일관됨.
+- 학습: **클라이언트가 보내는 "맞았다/먹었다"는 힌트일 뿐, 권위(마스터)가 자기 좌표로 재검증해야 한다.**
+  지금은 *효과(방향·세기·성장량)*는 권위적인데 *판정(맞았는지)*만 클라 신뢰라 한 단계가 비어 있다.
+
+### [N5] (코드품질 / 하·관찰) 인스펙터 `jumpForce` 필드가 `Start`에서 항상 `originalJumpForce`로 덮어써짐
+- 위치: `PlayerMovement.Start:93` (`jumpForce = originalJumpForce;`), 필드 `jumpForce=7.5`/`originalJumpForce=10`.
+- 내용: 동작은 **정상**이다 — `jumpForce`는 런타임에 `PlayerBridge:113-115`가 스케일 임계치를 넘으면
+  `originalJumpForce + 증가량`, 아니면 `originalJumpForce`로 매번 다시 설정한다(스케일 커지면 더 높이 점프).
+  다만 `Start`가 인스펙터의 `jumpForce`(7.5) 초기값을 즉시 `originalJumpForce`(10)로 덮으므로 **인스펙터에
+  보이는 jumpForce 값은 항상 무의미**(누가 7.5로 바꿔도 게임엔 반영 안 됨). 읽는 사람이 "점프 힘 = 7.5"로
+  오해한다(M3 'GetRankString이 firstPlaceText를 덮어써 인스펙터↔런타임 불일치'와 같은 표시 혼란 테마).
+- 제안: `jumpForce`를 `[HideInInspector]`로 가리거나 인스펙터 기본값을 `originalJumpForce`와 맞춰
+  (혹은 `jumpForce`를 런타임 전용 프로퍼티로) 표시 혼란 제거. 저위험·동작 불변.
+
+### [N6] (코드품질·문서화 / 하) 플레이어 FSM 한글 주석 mojibake (M4와 동일 테마)
+- 위치: `PlayerBaseState.cs:3`(`// ���� ����`), `PlayerIdleState.cs:4-6,13`,
+  `PlayerMoveState.cs:4`, `PlayerJumpState.cs:5` 등 (상태 클래스 헤더 주석 다수).
+- 내용: EUC-KR로 저장된 파일을 UTF-8로 디코딩한 흔적으로 한글 주석이 전부 깨져 의미 0. 로직 영향은 없으나
+  학습/유지보수에서 주석 가치를 잃는다(`.editorconfig`/`.gitattributes`가 있는 프로젝트라 인코딩 일관성도 깨짐).
+  **M4(NextSceneManager/ResultStarsUI mojibake)와 같은 문제** — 한 번에 UTF-8(BOM 없음) 재작성으로 묶어 처리 권장.
+
+> ※ 우선순위: **N1(로그)** > N2(입력 아키텍처) > N3(null 가드) > N4(권위 재검증, L1과 묶음) > N5/N6(표시·주석).
+>   N1·N3·N6은 동작 불변에 가까운 저위험 정리, N2는 리팩터링(회귀 테스트 권장), N4는 L1과 함께 설계 논의 대상.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -778,6 +881,13 @@
         null 가드). 규칙(밀치기=배트 표시/흡수=숨김) 유지, Resources 캐시 오염 제거.
 - [ ] M3  (대기 — 2026-06-23 도출, GameResultManager.GetRankString 조회 중 직렬화 필드 firstPlaceText 부수효과 덮어쓰기)
 - [ ] M4  (대기 — 2026-06-23 도출, NextSceneManager/ResultStarsUI 한글 주석 인코딩 깨짐 mojibake)
+- [x] M2-검증 (2026-06-25 확인) — 06-24 커밋 5ab9656의 M2 적용 회귀 없음(인스턴스 HideBat·공유 프리팹 미변형).
+- [ ] N1  (대기 — 2026-06-25 도출, FSM ChangeState/IdleState.Enter 매 전환 Debug.Log 빌드 로그 스파이크 — G3/K3 미적용 경로, **우선 권장**)
+- [ ] N2  (대기 — 2026-06-25 도출, 액션 입력 폴링 상태마다 복붙 + CanJump() 부재 — 입력 캐싱/전이 헬퍼 일원화 리팩터링)
+- [ ] N3  (대기 — 2026-06-25 도출, PlayerMovement.OnFailAnimationFinished uiManager null 미가드 — 종료 시퀀스 NRE 위험)
+- [ ] N4  (대기 — 2026-06-25 도출, 마스터 배트 히트 사거리/각도 미재검증 — 공격자 로컬 판정 신뢰, L1과 묶음, **확인 필요**)
+- [ ] N5  (대기 — 2026-06-25 도출, 인스펙터 jumpForce가 Start에서 originalJumpForce로 항상 덮어써짐 — 표시 혼란, 동작 정상)
+- [ ] N6  (대기 — 2026-06-25 도출, 플레이어 FSM 한글 주석 mojibake — M4와 묶어 UTF-8 재작성)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
@@ -812,3 +922,12 @@
   존재 → `credentials.json` 주입 + `pip install --user gspread google-auth` 후 cryptography pyo3 panic 발생,
   06-16 메모대로 `pip install --user --only-binary :all: --force-reinstall cffi cryptography`로 정상화.
   `update_sheets.py status` 정상(개발계획서 루틴 27/26완료, 트러블슈팅 78). M1~M4 도출 기록 plan으로 반영.
+- 2026-06-25 루틴: SessionStart 훅이 자동 실행되진 않아 수동(`CLAUDE_CODE_REMOTE=true bash .claude/hooks/
+  session-start.sh`)으로 credentials 주입 + gspread 설치. 이번엔 **시스템 cryptography(rust pyo3 바인딩)가
+  깨져** `import cryptography.exceptions`에서 `pyo3_runtime.PanicException` 발생(google.auth.crypt가 ES256용
+  `es` 모듈을 강제 import해 cryptography가 필수). `pip install --upgrade --force-reinstall cryptography`로
+  정상 휠을 dist-packages에 덮어 해결(debian판 uninstall은 RECORD 없음으로 실패하나 pip 설치본이 shadow함).
+  이후 `status` 정상(개발계획서 루틴 21, 트러블슈팅 79=M2). → 06-16/06-23의 `--only-binary cffi` 대신
+  **cryptography 자체 force-reinstall**이 이번 컨테이너의 해법. 훅 pip 목록에 cryptography 강제 재설치를
+  넣어두면 다음 세션도 자동화될 가능성. (※ SessionStart 훅이 자동 실행됐는지 불확실 — credentials.json이
+  세션 시작 시 없었음. 훅 자동 실행 여부는 다음 루틴에서 재확인 필요.)
