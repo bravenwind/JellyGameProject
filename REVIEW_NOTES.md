@@ -817,6 +817,132 @@
 
 ---
 
+## 2026-06-27 루틴 — AI 봇 FSM(상태머신)·탐지·네트워크 동기화 신규 심층 리뷰 (O1~O7 도출)
+
+마지막 코드 변경은 06-24(`5ab9656`=M2), 06-25는 docs(N1~N6 도출)였고 이후 신규 커밋은 없다. 이 프로젝트의
+확립된 패턴(06-12·06-18·06-23처럼 "신규 커밋 없어도 아직 안 본 시퀀스 영역을 골라 심층 분석")에 따라,
+06-25에 본 **플레이어 FSM**의 자연스러운 짝인 **AI 봇 FSM(상태머신)** 을 골랐다. 대상:
+`AIPlayerMovement`(FSM 컨텍스트 + 흡수/넉백/대쉬/공격) + `AIBaseState`/`AIWanderState`/`AIChaseState`/
+`AIFleeState`/`AIPushSurviveState` 5개 상태 + `AIDetector`(탐지) + `EntityRegistry`(레지스트리) +
+`AIPlayerSync`(네트워크 룸프롭 동기화). 네트워크 권위는 `NetworkPlayerSync`의 흡수/넉백 검증 RPC까지 교차 확인했다.
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3). 즉시 고칠 명백한 동작 버그는 없었다.
+> O2(double-eat)는 L1·N4와 같은 '권위 재검증/경합' 테마라 묶어서 설계 결정이 필요해 보류했다.
+> 효과·저위험 기준 우선순위는 **O1(탐지 캐시)** > O3(탐지 이원화) > O2(double-eat, L1묶음) > O5/O6/O7(정리).
+
+### 좋았던 점(설계 관찰)
+- **`EntityRegistry`의 스냅샷 패턴이 훌륭하다.** 내부는 `HashSet`(중복 방지·O(1) 추가/삭제), 외부 순회는
+  dirty일 때만 새 `List`로 캐싱해 노출한다. 멀티플레이에서 한 프레임에 여러 엔티티가 파괴(`OnDisable`→
+  `Unregister`)돼도, AI 탐지 `foreach`가 옛 스냅샷을 돌므로 `InvalidOperationException`(순회 중 수정)이
+  구조적으로 안 난다. 변경 없으면 재사용해 매 프레임 GC도 없다. **"순회 안전 + GC 회피"를 동시에 푼 좋은 예.**
+- **비마스터에서 봇 시뮬레이션을 확실히 끈다.** `Start`에서 비마스터는 `PlayerAbsorber`/`PlayerAbsorbingManager`
+  비활성 + `Cloth` 제거 + `Agent.enabled=false` 후 리턴(line 174-189). 봇 권위는 마스터 단독이고 비마스터는
+  스케일만 `IPunObservable`로 받아 Lerp(line 394) → 권위 충돌(지터/되감김)이 원천 차단된다(플레이어 FSM의
+  `playerController.enabled=false` 원격 차단과 같은 결).
+- **넉백 RPC가 소유자(마스터)에게만 간다.** 봇 넉백을 `RpcTarget.All`이 아닌 `aiBot.photonView.Owner`로 보내
+  비마스터 로컬 이동과 수신 동기화 값의 충돌을 막는다(line 919, G2 적용과 일관). FSM 기본기(`ChangeState`
+  자기전이 가드 line 279, `_isTransitioning` 재진입 가드 line 280, 각 분기 `return`)도 갖춰져 있다.
+
+### [O1] (성능 / 중) `AIDetector` 캐시가 *null 결과를 캐싱하지 않아* 흔한 "대상 없음"에서 매 호출 전체 재스캔
+- 위치: `AIDetector.FindThreat:27`, `FindPrey:37`, `FindNearestJelly:54`
+  (`if (Time.time - _lastXScan < ScanCacheDuration && _cachedX != null)`).
+- 내용: 캐시 적중 조건에 **`_cachedX != null`** 이 들어가 있다. 즉 직전 스캔 결과가 null(=주변에 위협/먹이가
+  없음)이면 캐시가 무효 처리돼, 캐시 유효시간(0.1초) 안이라도 **호출할 때마다 `EntityRegistry.Players` +
+  `Bots` 전체를 다시 순회**한다(각 대상마다 `CalcEdgeDistance` 거리 계산). 그런데 "주변에 나보다 큰 위협이
+  없음 / 먹잇감이 없음"은 게임 대부분의 시간에서 **가장 흔한 상태**다. 게다가 `FindThreat`는 한 프레임에 여러
+  곳에서 불린다 — `Update`의 긴급위협 체크(0.1초, line 435), `StateEvalLoop`(line 341), `EvaluateAndTransition`
+  (line 364). 결과가 null이면 이 호출들이 전부 캐시를 못 타고 같은 프레임에 전체 스캔을 반복한다.
+  비용은 (봇 수 × 엔티티 수)로 늘어 봇이 많을수록 커진다 — 정작 캐시가 가장 필요한 상황(봇 多)에서 안 먹힌다.
+- 제안: 캐시 유효성 판정을 **시간만으로** 하고(`null`도 정상 결과로 캐싱), 별도 `bool _threatScanned`로
+  "이 주기에 스캔했는가"를 표시하거나, 단순히 `_cachedX != null` 조건을 빼면 된다. 동작 불변(반환값 동일),
+  null 구간에서 재스캔만 제거되는 순수 성능 개선.
+- 학습: **캐시는 "값이 있을 때"가 아니라 "최근에 계산했을 때"를 기준으로 적중시켜야 한다.** `null`(없음)도
+  엄연한 계산 결과인데, 그것만 캐시에서 빼면 "찾는 게 없을 때 가장 자주, 가장 비싸게 도는" 역설이 생긴다.
+  G3/K3가 '빌드 매 프레임 로그'를 잡은 것과 같은 결의 '고빈도 경로 비용' 문제다(이번엔 로그가 아니라 스캔).
+
+### [O2] (네트워크·아키텍처 / 중·확인필요) 봇 `OnTriggerEnter` 흡수의 동일프레임 *double-eat* 윈도우 + 플레이어 경로와의 규율 불일치
+- 위치: `AIPlayerMovement.OnTriggerEnter:611-643` (봇이 플레이어/다른 봇을 직접 흡수).
+- 내용: 이 트리거는 마스터에서만 돈다(line 613)지만, **흡수 성장(`ScaleCtrl.GrowByAbsorbing`)을 로컬에서
+  즉시 적용**하고 피식자에겐 `RPC_GetAbsorbed`/`RPC_BotAbsorbed`를 `RpcTarget.All`로 보낸다. 그런데 이 RPC는
+  **같은 프레임에 동기 실행되지 않고 큐잉**된다. 그래서:
+  - 봇→봇: 가드 `!otherBot.IsBeingAbsorbed`(line 633)가 있으나, `IsBeingAbsorbed`는 `RPC_BotAbsorbed`에서
+    세팅되는데 그게 큐잉이라 **같은 프레임에 두 큰 봇 A·B가 같은 작은 봇 C에 겹치면** 둘 다 가드를 통과해
+    둘 다 성장한다(C는 한 번만 흡수돼도 A·B 둘 다 보상).
+  - 봇→플레이어: 아예 `IsOutOfPlay`/중복 가드가 **없다**(line 619-629). 피식자 `RPC_GetAbsorbed`가
+    `if(_isAbsorbed) return`로 막아도 그건 *피식자* 쪽 정합일 뿐, *흡수자(봇)* 들은 이미 로컬에서 성장한다.
+  → **L1(젤리 흡수 로컬 무검증 double-eat)·N4(배트 히트 권위 재검증 누락)와 정확히 같은 '경합/권위 재검증'
+    테마**다. .io 친선전이라 심각도는 낮지만 스케일/점수 인플레가 생긴다.
+- 구조적 대조(중요): **플레이어의 흡수는 검증 RPC를 거친다** — `NetworkPlayerSync.RPC_RequestBotAbsorbValidation
+  :493`, `RPC_RequestDashHitBot:713`은 마스터가 `aiBot.IsOutOfPlay`/`!IsBeingAbsorbed`를 재검증한 뒤 승인한다.
+  반면 **봇 자신의 `OnTriggerEnter`는 이 중앙 검증 규율을 우회**해 직접 성장한다. 같은 "봇 흡수"인데 한쪽은
+  검증 게이트를 통과하고 한쪽은 안 통과하는 *비대칭*이다.
+- 제안: (a) 즉효 — 봇→봇은 마스터에서 RPC 전에 `otherBot.IsBeingAbsorbed = true`를 **동기 세팅**(setter가
+  public, line 79). 봇→플레이어는 마스터 프레임 단위 "이미 claim된 피식자" HashSet으로 중복 보상 차단.
+  (b) 정석 — 봇 OnTriggerEnter도 플레이어와 같은 마스터 검증 경로(또는 공용 헬퍼)로 모아 흡수 판정/보상을
+  단일 규율로 통일. L1·N4와 함께 "권위 측 흡수/히트 재검증" 정책으로 묶어 처리 권장.
+- 학습: **`RpcTarget.All`은 보낸 즉시 로컬에 반영되지 않는다(큐잉).** "상태 플래그를 RPC로 세팅하고 그 플래그로
+  중복을 막는" 패턴은 *같은 프레임 다중 트리거*에 취약하다 — 막을 거면 권위 측에서 **동기적으로** 먼저 잠가야 한다.
+
+### [O3] (아키텍처 / 중하) 먹이(추격 대상) 탐색 로직이 두 군데에 *이원화* — 규칙 분기 시 누락 위험
+- 위치: `AIDetector.FindPrey/FindEntityByScaleComparison:35,75` ↔ `AIPushSurviveState.FindNearestTarget:158`.
+- 내용: "나보다 작은 가장 가까운 대상"을 찾는 같은 목적의 로직이 **두 벌** 있다. `AIDetector`(흡수 모드 Chase가
+  사용)는 `EntityRegistry`를 돌며 `IsScaleMatch`+`CalcEdgeDistance`(반지름 보정 *엣지* 거리)로 판정하고,
+  `AIPushSurviveState.FindNearestTarget`(Push 모드)은 같은 레지스트리를 따로 돌며 `Vector3.Distance`(*중심* 거리)
+  와 `IsOutOfPlay`/`IsBeingAbsorbed` 가드로 판정한다. 판정 기준(엣지 vs 중심 거리)·제외 조건(한쪽만 IsOutOfPlay)
+  ·detectRadius 출처가 **미묘하게 다르다.** 둘 다 "포식자-피식자" 규칙을 손으로 구현해, 한쪽 규칙을 바꾸면
+  다른 쪽이 조용히 어긋난다(예: K2에서 IsOutOfPlay 단일화를 Push 경로에 따로 보강해야 했던 것과 같은 류).
+- 제안: 스케일 비교 기반 최근접 대상 탐색을 `AIDetector`(또는 공용 헬퍼) 한 곳으로 모으고, Push/흡수가
+  파라미터(제외조건·거리기준)만 다르게 호출하게. → F2(모드 출처)·G6(탈락판정)·H6(점수집계)·N2(입력 폴링)와
+  같은 **'판정 로직 단일 출처'** 테마.
+- 학습: 같은 질문("누가 내 먹이냐")에 답이 두 군데 있으면, 그 둘은 **시간이 지나며 반드시 갈라진다.** 지금처럼
+  "거의 같지만 미묘하게 다른" 복제가 가장 위험하다 — 버그가 한쪽에서만 재현돼 추적이 어렵다.
+
+### [O4] (아키텍처 / 하·관찰) 상태 전이 주체가 *3원화* — 코루틴 + Update + 상태 내부
+- 위치: ① `StateEvalLoop:291`(0.4초 주기 평가), ② `Update:431-437`(0.1초 긴급 위협 체크),
+  ③ 각 상태 `Update` 내부의 `ai.EvaluateAndTransition()`(Chase line 44/52, Flee line 63 등).
+- 내용: 플레이어 FSM은 전이가 사실상 *상태 Update*에서만 일어나는데, 봇은 전이를 거는 곳이 셋이다. 의도는
+  타당하다 — 긴급 회피는 0.4초 주기로는 늦으니 Update에서 0.1초로 따로 본다. 다만 "지금 누가 내 상태를
+  바꿀 수 있나"가 분산돼 추론·디버깅 난도가 올라간다. 동작 버그는 아니며(각 전이 호출 뒤 `return`으로 같은
+  프레임 중복 전이는 막힘), **설계 관찰/학습 노트**로 남긴다.
+- 학습: FSM에서 전이 트리거가 여러 주체로 흩어지면, "왜 이 상태로 갔지?"를 한 곳에서 못 읽는다. 가능하면
+  전이 결정을 한 함수(`EvaluateAndTransition`)로 모으고, 주기/긴급은 *호출 빈도만* 다르게 두는 게 읽기 쉽다.
+
+### [O5] (안정성 / 하) 탈락 봇의 `StateEvalLoop` 코루틴이 종료되지 않고 무한 공회전
+- 위치: `ApplyEliminatedLocally:674`(`enabled = false`) ↔ `StateEvalLoop:291`(`while(true)`).
+- 내용: `MonoBehaviour.enabled = false`는 `Update`만 멈출 뿐 **이미 도는 코루틴은 멈추지 않는다.** 탈락 봇은
+  "파괴하지 않고 둥둥 유지"(line 647 주석)라 오브젝트가 살아 있어, `StateEvalLoop`이 씬이 끝날 때까지
+  0.4초마다 깨어나 `if(!Agent.enabled) continue`(line 299)만 반복한다. 한 판에 탈락 봇이 쌓일수록
+  죽은 코루틴이 누적된다(미미하지만 순수 낭비). ※ 흡수당한 봇은 `BotAbsorbedSequence`가 `PhotonNetwork.Destroy`
+  하므로 해당 없음 — *탈락(OnEliminated) 경로만* 해당.
+- 제안: `StateEvalLoop` 핸들을 필드로 잡아 `ApplyEliminatedLocally`에서 `StopCoroutine`, 또는 루프 선두에
+  `if (IsEliminated) yield break;`. J7/G8/L2/N3와 같은 '정리/종료 경로' 위생.
+- 학습: **`enabled=false` ≠ 코루틴 정지.** 코루틴은 오브젝트 비활성/파괴 또는 명시적 `StopCoroutine`으로만
+  멈춘다. "컴포넌트를 껐으니 다 멈췄겠지"가 흔한 오해다.
+
+### [O6] (안정성 / 하) `OnMasterClientSwitched`의 이벤트 *중복 구독* 가드(`-=`) 부재
+- 위치: `OnMasterClientSwitched:751-752`(`ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;`),
+  최초 구독은 `Start:191-192`.
+- 내용: 현재 흐름상 새 마스터는 비마스터 시절 `Start`에서 구독을 안 했으니(line 188 early return) 보통 1회
+  구독으로 끝난다. 다만 `+=` 앞에 `-=`(방어적 해제)가 없어, 향후 마스터 교체가 연쇄로 일어나거나 콜백 흐름이
+  바뀌면 **중복 구독 → `SyncScale` 중복 호출(룸프롭 중복 쓰기)** 위험이 구조적으로 열려 있다. H1(정적 이벤트
+  정리)·N3(콜백 가드)와 같은 '이벤트 수명 위생' 테마.
+- 제안: 구독 직전에 `ScaleCtrl.OnScaleValueChanged -= OnBotScaleChanged;`를 한 줄 넣어 멱등 구독으로.
+- 학습: **C# 이벤트 구독은 `+= ` 전에 항상 `-=`** 를 습관화하면 "두 번 등록돼 두 번 호출" 부류 버그를
+  구조적으로 차단한다(특히 재진입 가능한 콜백 OnEnable/OnMasterClientSwitched에서).
+
+### [O7] (성능·로그 / 하) `RPC_BotAbsorbed`의 무가드 `Debug.Log` — 프로젝트 로그 규약(N1/G3/K3) 미적용 경로
+- 위치: `RPC_BotAbsorbed:692` (`Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어 흡수됨.");`).
+- 내용: 흡수 1회당 모든 클라에서 1회라 빈도는 낮지만(매 프레임 아님), `#if UNITY_EDITOR` 가드가 없어
+  **빌드에도 남는 디버그 로그**다. 이 프로젝트는 G3(FallingTile)·K3(ClearJudge)·N1(FSM)에서 "빌드 로그는
+  에디터 전용으로 가드"를 관례로 확립했는데, 이 경로가 그 정리에서 빠졌다(저빈도라 우선순위는 가장 낮음).
+- 제안: 제거하거나 `#if UNITY_EDITOR`로 감싼다. N1 적용 시 함께 묶어 처리하면 한 번에 정리된다.
+
+> ※ 우선순위: **O1(탐지 캐시, 순수 성능)** > O3(탐지 이원화 단일화) > O2(double-eat, L1·N4와 묶음·확인필요)
+>   > O5(코루틴 종료) ≈ O6(중복구독 가드) > O7(로그 가드). O1·O5·O6·O7은 동작 불변에 가까운 저위험 정리,
+>   O3는 리팩터링(회귀 테스트 권장), O2는 L1·N4와 함께 흡수/히트 권위 정책으로 묶어 설계 논의 대상.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -888,6 +1014,13 @@
 - [ ] N4  (대기 — 2026-06-25 도출, 마스터 배트 히트 사거리/각도 미재검증 — 공격자 로컬 판정 신뢰, L1과 묶음, **확인 필요**)
 - [ ] N5  (대기 — 2026-06-25 도출, 인스펙터 jumpForce가 Start에서 originalJumpForce로 항상 덮어써짐 — 표시 혼란, 동작 정상)
 - [ ] N6  (대기 — 2026-06-25 도출, 플레이어 FSM 한글 주석 mojibake — M4와 묶어 UTF-8 재작성)
+- [ ] O1  (대기 — 2026-06-27 도출, AIDetector 캐시가 null 결과 미캐싱 → '대상 없음'에서 매 호출 전체 재스캔, **우선 권장**)
+- [ ] O2  (대기 — 2026-06-27 도출, 봇 OnTriggerEnter 흡수 동일프레임 double-eat + 플레이어 검증RPC 경로와 규율 불일치 — L1·N4 묶음, **확인 필요**)
+- [ ] O3  (대기 — 2026-06-27 도출, 먹이 탐색 로직 이원화 AIDetector↔AIPushSurviveState.FindNearestTarget — 판정 단일 출처화 리팩터링)
+- [ ] O4  (대기 — 2026-06-27 도출, 상태 전이 주체 3원화 StateEvalLoop/Update긴급/상태Update — 동작 정상·설계 관찰)
+- [ ] O5  (대기 — 2026-06-27 도출, 탈락 봇 StateEvalLoop 코루틴 미종료 무한 공회전 — enabled=false는 코루틴 안 멈춤)
+- [ ] O6  (대기 — 2026-06-27 도출, OnMasterClientSwitched 이벤트 중복구독 가드(-=) 부재)
+- [ ] O7  (대기 — 2026-06-27 도출, RPC_BotAbsorbed 무가드 Debug.Log — N1/G3/K3 로그 규약 미적용 경로, N1과 묶음)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
