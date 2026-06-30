@@ -943,6 +943,132 @@
 
 ---
 
+## 2026-06-30 루틴 — 게임 진입/매칭/룸 라이프사이클 신규 심층 리뷰 (연결→매칭→스폰→시작, P1~P5 도출)
+
+마지막 코드 변경은 06-24(`5ab9656`=M2)였고 이후 신규 커밋은 docs뿐(06-25 N, 06-27 O)이라 06-30 기준 신규
+커밋은 없다. 이 프로젝트의 확립된 패턴(06-12·06-18·06-23·06-27처럼 "신규 커밋 없어도 아직 전용 심층 리뷰가
+없는 시퀀스 영역을 골라 분석")에 따라, 지금까지 다룬 **인게임 코어(타일·흡수 K/L)·액터 FSM(플레이어 N·봇 O)·
+종료/결과(M)** 의 *반대편 끝* — **게임 진입 시퀀스(연결→로비/매칭→씬 로드→스폰→게임 시작)** 를 골랐다. 이 영역은
+F(모드 선택)·H2(매칭 데드락)에서 단편적으로만 봤고 *라이프사이클 전체*로는 처음이다. 루틴 핵심 주제
+"안정적인 네트워크 연동"과 가장 직접적으로 맞닿는다. 대상:
+`NetworkManager`(연결/방/카운트다운/스폰), `GameModeManager.SpawnAndStartGame`(씬 진입 후 스폰·시작),
+`LoadingSceneController`(씬 전환), `LobbyController`(매칭 UI). 네트워크 권위/씬 동기화 경로를 교차 확인했다.
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3). 즉시 고칠 명백한 동작 버그는 없었다.
+> P1(재연결)은 단순 수정이 아니라 **PlayerTtl/ReconnectAndRejoin 같은 설계 결정**이 필요해 보류했고(확인필요).
+> P2(스폰 결정성)는 씬 SpawnPoint 수를 점검한 결과 **현재 구성(10개=maxPlayers)에선 비활성인 잠재 결함**으로
+> 확인됨 → 우선순위 하향. P3·P5는 동작 불변 정리, P4는 UI/네트워크 상태 단일화 테마다.
+> 효과·저위험 우선순위는 **P1(재연결 룸 복귀)** > P3(필드/상태 분리) ≈ P4 ≈ P5 ≈ P2(잠재, 설정 변경 시 활성).
+
+### 좋았던 점(설계 관찰)
+- **PUN 메시지 큐 정지/desync를 두 겹으로 방어한다.** `AutomaticallySyncScene`은 씬 전환 중 메시지 큐를
+  멈추는데, 이게 재개 안 되면 플레이어 Instantiate·타일 RPC가 게임 내내 버퍼링돼 "서로 안 보임/타일 desync/
+  젤리 끝에 소환"이 난다. 이를 `NetworkManager.OnSceneLoaded`(게임 씬 진입 시, line 141-147)와
+  `GameModeManager.SpawnAndStartGame`(스폰 직전, line 147-151) **두 진입점에서 모두** `IsMessageQueueRunning=true`로
+  복구한다. 한 경로가 누락돼도 다른 쪽이 막는 방어적 이중화 — 네트워크 타이밍 버그의 정석 대응.
+- **매칭 카운트다운의 마스터 승계 인수인계가 견고하다(H2 적용).** `OnMasterClientSwitched`가 Main 씬에서만
+  반응하고(line 311), 인원이 최소 미달이면 방을 다시 열어 모집을 재개(line 313-321), 충족이면 새 마스터가
+  카운트다운을 이어받는다(line 324). "마스터가 죽으면 매칭이 영구 대기"라는 흔한 P2P 매칭 데드락을 정확히 막음.
+- **스폰 슬롯 인덱스를 ActorNumber가 아니라 PlayerList 정렬 인덱스로 잡는다(line 563-575).** 입·퇴장 반복으로
+  ActorNumber가 비연속(1,3,5…)이 돼도 0-based 연속 인덱스를 모든 클라가 동일하게 계산 → 슬롯 충돌/범위 초과
+  방지. 물리 SpawnPoint 영역에서는 이 덕에 완전 결정적이다(아래 P2는 *가상* 포인트 영역에만 해당).
+- **결과 전환을 '모든 클라 각자 LoadLevel + 동기화 토큰 대기'로 처리(GameModeManager).** 마스터만 로드하게 하면
+  마스터가 먼저 탈락 시 생존자가 결과 씬에 못 가는 데드락이 생기는데, 룸프롭 토큰(ServerTimestamp)이 도착할
+  때까지 대기 후 각자 로드해 데드락·색상 누락을 동시에 푼다(line 454-490).
+
+### [P1] (네트워크 / 중·확인필요) 재연결이 룸으로 복귀하지 않음 — 일시 끊김 후 마스터 서버에 고립
+- 위치: `NetworkManager.OnDisconnected:391-401`(일시 끊김 → `ReconnectCoroutine`), `ReconnectCoroutine:410-418`
+  (`ConnectUsingSettings`), `OnConnectedToMaster:199-208`(재진입 가드 `if (_wantsToJoin)`).
+- 내용: `OnJoinedRoom`이 `_wantsToJoin=false`로 내린다(line 249). 그 뒤 **일시 끊김**(`ClientTimeout`/`ServerTimeout`/
+  `Exception`)이 나면 `ReconnectCoroutine`이 `ConnectUsingSettings()`로 **마스터 서버까지만** 재연결하고,
+  `OnConnectedToMaster`의 재입장 가드 `if (_wantsToJoin)`가 이제 false라 **방으로 다시 들어가는 호출이 아예 없다**
+  (`JoinOrCreateRoom`도, `ReconnectAndRejoin`도 호출 안 됨). 결과: 게임 씬은 그대로 떠 있는데 플레이어는 룸에서
+  떨어져 — 내 캐릭터가 더는 동기화되지 않고(남들 눈엔 정지), 나도 결과 씬으로 못 넘어가 **세션 내내 고립**된다.
+  매칭 단계(OnJoinedRoom 이후 카운트다운 대기 중)에도 동일하게 발생한다(이미 룸 안이라 `_wantsToJoin`=false).
+- 추가로, PUN 기본 `RoomOptions`에 `PlayerTtl`이 설정돼 있지 않다(=0) → 끊긴 액터가 서버에서 즉시 제거되므로,
+  설령 `ReconnectAndRejoin()`을 넣어도 `PlayerTtl>0` 없이는 재입장 자체가 실패한다. 즉 **두 가지가 같이 빠져 있다.**
+- 제안(설계 결정 필요): (a) "인게임 재접속"을 지원하려면 `JoinOrCreateRoom`의 `RoomOptions.PlayerTtl`을
+  수 초~수십 초로 주고, 재연결 경로를 `PhotonNetwork.ReconnectAndRejoin()`으로 바꾼다(실패 시 폴백). (b) 지원
+  안 할 거면 최소한 *정직하게* — 일시 끊김도 룸 복귀가 불가하면 `LoadMainViaLoading()`로 메인에 돌려보내 "고립
+  상태로 멈춤"을 없앤다. 지금은 (a)도 (b)도 아니라 **조용히 방치**된다. (※ 비일시·재시도 소진 경로에서
+  `_wantsToJoin`을 초기화하지 않는 잔여 위생 문제도 함께 정리 권장.)
+- 학습: **재연결은 두 계층이다 — ① 마스터 서버 복귀 ② 룸 복귀.** `ConnectUsingSettings`는 ①만 한다. ②는
+  `ReconnectAndRejoin`(+서버측 `PlayerTtl`)이나 명시적 재입장이 있어야 하고, 그게 없으면 "연결은 됐는데 게임엔
+  못 돌아오는" 가장 헷갈리는 고립 상태가 된다.
+
+### [P2] (아키텍처·네트워크 / 하·관찰·잠재) 스폰 슬롯의 *가상 포인트*가 클라이언트마다 무작위 → 물리 SpawnPoint 부족 시 겹침/봇-플레이어 충돌 (현재 구성에선 비활성, 확인 완료)
+- 위치: `NetworkManager.PrepareSpawnSlots:482-527` + `TryGenerateVirtualSpawnPoint:529-548`(`Random.insideUnitCircle`),
+  `SpawnLocalPlayer:581-598`(자기 슬롯에 본인 Instantiate), `SpawnBots:603-633`(`botStartIdx = PlayerList.Length`).
+- 내용: 각 클라이언트는 **자기만의 `_spawnSlots`** 를 만든다. 물리 SpawnPoint(태그 탐색)는 씬 지오메트리라 모든
+  클라가 동일 → 슬롯 `[0..물리수)`는 결정적이다. 그러나 부족분을 채우는 **가상 포인트는 `Random.insideUnitCircle`
+  로 클라마다 다른 좌표**가 된다. 그런데 플레이어는 *자기 클라의* `_spawnSlots[자기 정렬 인덱스]`에 **본인을**
+  Instantiate하고, 마스터는 *마스터 클라의* `_spawnSlots[PlayerList.Length..]`에 **봇을** Instantiate한다. 즉
+  가상 영역에서 "슬롯 i"가 클라마다 다른 위치를 가리켜 **서로의 배치를 모른다.** 겹침 방지(`minSpawnDistance`
+  `tooClose`)는 *한 클라의 `_spawnSlots` 내부에서만* 도므로 **클라 간 겹침은 못 막는다.** → 물리 SpawnPoint가
+  (플레이어+봇) 총수보다 적을 때, 봇이 원격 플레이어 위에, 또는 두 플레이어가 충돌 거리 안에 스폰돼 **시작
+  즉시 넉백/흡수**가 날 수 있다. `SpawnBots`가 `botStartIdx=PlayerList.Length`로 "플레이어가 0..N-1을 점유"를
+  가정하는 것도 결정적 물리 영역에서만 참이고, 가상 영역에선 그 가정이 클라 간에 깨진다.
+- 조건부: 물리 SpawnPoint 수 ≥ 총 액터면 전혀 발생 안 함. **확인 완료(2026-06-30)** — 두 게임 씬
+  (`Game_io_AbsorbMode`/`Game_io_PushMode`) 모두 `m_TagString: SpawnPoint` 오브젝트가 **정확히 10개**이고
+  `maxPlayersPerRoom`도 10이다. `needed = max(10, PlayerCount+botCount) = 10`이라 물리 10개로 슬롯이 다 차서
+  `while(_spawnSlots.Count < needed)` 가상 보충 루프가 **현재 구성에선 한 번도 돌지 않는다.** 즉 P2는 지금은
+  **비활성(잠재) 결함**이다 — 누군가 SpawnPoint를 10개 미만으로 줄이거나 `maxPlayersPerRoom`을 11+로 올리는
+  순간 바로 활성화된다. (가상 포인트 생성 경로 자체가 현재 사실상 도달 불가 = 검증 안 된 채 잠들어 있다는 뜻이라
+  오히려 위험 — 설정 한 줄 바뀌면 테스트 안 된 코드가 깨어난다.)
+- 제안: 가상 포인트를 **권위(마스터)가 한 번 계산해 룸 프로퍼티로 공유**하거나, **공유 시드**(룸 이름/
+  `GameStartTime` 등)로 `Random`을 초기화해 모든 클라가 동일한 가상 레이아웃을 재현하게 한다. → F2(모드 출처)·
+  G6(탈락판정)·O3(먹이 탐색)와 같은 **'월드 상태는 단일 권위/공유 시드에서'** 테마.
+- 학습: **"각 클라가 빈자리를 알아서 채운다"는 그 자리가 *크로스-클라 배치*에 안 쓰일 때만 안전하다.** 무작위를
+  클라별로 돌리면 월드 상태가 비결정적이 된다 — 스폰 레이아웃 같은 공유 상태는 한 권위나 공유 시드에서 와야 한다.
+
+### [P3] (아키텍처 / 하·관찰) 직렬화 설정 필드 `botCount`를 런타임 상태로 덮어씀 — N5/M3 테마
+- 위치: 선언 `NetworkManager.botCount`(인스펙터 설정, 기본 2, line 45) ↔ `CountdownCoroutine:355`
+  (`botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;`).
+- 내용: `botCount`는 "방에 유지할 봇 수"라는 *설정값*인데, 카운트다운 막판에 *런타임 계산값*으로 덮어쓴다. 첫
+  매치 이후 인스펙터 원본값은 세션 동안 사라진다. 동작상 마스터에선 매 카운트다운마다 LoadLevel 직전에 다시
+  계산하므로 OK지만 — (a) 비마스터에선 이 줄이 안 돌아 `botCount`가 기본 2로 남고 `PrepareSpawnSlots`의 `needed`
+  계산에 섞인다(`needed=max(maxPlayers, PlayerCount+botCount)`이라 maxPlayers가 상한이라 무해할 뿐), (b) N5
+  (`jumpForce`가 Start에서 덮어써짐)·M3(`firstPlaceText`를 조회 중 부수효과로 덮어씀)과 같은 **'직렬화 필드를
+  가변 상태로 재사용'** 냄새다. 인스펙터 값이 의미를 잃고 모드/경로별로 다른 값이 새어들 여지를 남긴다.
+- 제안: `botCount`는 읽기 전용 설정으로 두고, 실제 스폰 수는 별도 필드(예 `_botsToSpawn`)에 계산해 담는다.
+- 학습: **설정(직렬화) ≠ 상태(런타임).** 한 변수에 둘을 겹치면 인스펙터 값이 거짓이 되고, "어디서 이 값이
+  바뀌었지?"를 추적하기 어려워진다. 값을 덮어쓰는 대신 파생값을 새 필드에 담는 습관이 안전하다.
+
+### [P4] (아키텍처·안정성 / 하·관찰) 매칭 UI(LobbyController)와 네트워크 상태(NetworkManager)가 분리돼 일시 끊김 시 어긋남
+- 위치: `LobbyController.OnDisconnected:207-220`(어떤 끊김이든 매칭 UI를 입력 패널로 되돌림) ↔
+  `NetworkManager.OnDisconnected:391-401`(일시 끊김이면 백그라운드 재연결 시도).
+- 내용: 일시 끊김이 매칭 도중 나면, `LobbyController`는 *모든* 끊김을 "매칭 실패"로 보고 매칭 패널을 접어
+  이름 입력 화면으로 되돌린다. 동시에 `NetworkManager`는 `ReconnectCoroutine`으로 조용히 재연결을 시도한다
+  (그리고 P1대로 룸 복귀엔 실패). 두 상태머신이 "지금 매칭 중인가"에 대한 **단일 출처를 공유하지 않아**, 화면은
+  '매칭 취소됨'처럼 보이는데 네트워크는 여전히 재연결 중인 **불일치**가 생긴다.
+- 제안: 로비 UI를 `NetworkManager`의 매칭 상태(또는 명시적 상태 enum)에서 파생시키거나, `OnDisconnected`에서
+  *재시도 없는 최종 끊김*에서만 UI를 되돌리고 일시 끊김(재연결 중)에는 "재연결 중…"을 유지한다. → F2/G6/H6/
+  N2/O3와 같은 **'상태 단일 출처'** 테마. P1과 묶어 처리하면 매칭 단계 견고성이 한 번에 정리된다.
+- 학습: UI 상태와 네트워크 상태가 각자 콜백으로 따로 갱신되면, 둘이 갈라지는 순간(특히 재시도 가능한 끊김)에
+  사용자에게 모순된 화면이 보인다. 화면은 *네트워크 상태의 함수*로 두는 게 어긋남을 원천 차단한다.
+
+### [P5] (코드품질·문서화 / 하·관찰) 인스펙터 `spawnPoints`는 사실상 디버그 표시용 — 매 씬 로드에서 null로 비워져 지정값이 안 쓰임 (N5 테마)
+- 위치: 선언/툴팁 `NetworkManager.spawnPoints:34-35`("비워두면 'SpawnPoint' 태그로 자동 탐색") ↔
+  `OnSceneLoaded:134`(`spawnPoints = null;`) ↔ `GetValidSpawnPoints:445-471`(인스펙터값 우선 → 없으면 태그 탐색,
+  태그 결과를 `spawnPoints`에 되저장).
+- 내용: `NetworkManager`는 `DontDestroyOnLoad`(Main에서 생성)라 게임 씬의 SpawnPoint Transform을 인스펙터에
+  미리 꽂아둘 방법이 없고, 실제 기전은 게임 씬에서의 **태그 탐색**이다. `OnSceneLoaded`가 매 씬 로드 때
+  `spawnPoints=null`로 비우는 건 *이전 씬의 파괴된 Transform 재사용 방지*라 **올바르다.** 다만 그 결과 인스펙터에
+  값을 꽂아도 첫 게임 씬 진입 시 비워져 **실제로는 절대 안 쓰인다** — 툴팁("지정하면 그걸 쓴다")은 오해의 소지가
+  있고, `spawnPoints`는 사실상 *런타임 디버그 표시용 캐시*다. N5(인스펙터 `jumpForce`가 항상 덮어써져 표시가
+  혼란)와 같은 '인스펙터 필드가 거짓 신호' 테마.
+- 제안: 동작은 정상이므로 코드 변경보다 **의도 명시**가 핵심 — 툴팁을 "런타임에 태그 탐색 결과로 채워짐(읽기
+  전용 표시)"로 고치거나, 필드를 `[SerializeField] private`/디버그 전용으로 강등. (동작 불변)
+- 학습: "비워두면 자동, 채우면 수동"이라고 적힌 인스펙터 필드가 실제론 항상 자동으로 덮어써지면, 그 필드는
+  설정처럼 보이는 *표시값*이다. 보이는 것과 실제가 다른 필드는 미래의 자신/팀원을 헷갈리게 한다 — 라벨이 진실이게.
+
+> ※ 우선순위: **P1(재연결 룸 복귀, 네트워크 견고성)** > P3(필드/상태 분리) ≈ P4(UI/네트워크 단일화) ≈
+>   P5(인스펙터 라벨 정직화) ≈ P2(잠재 — 현재 비활성, SpawnPoint를 줄이거나 maxPlayers를 늘리면 활성).
+>   P1은 PlayerTtl/ReconnectAndRejoin 같은 **설계 결정**이 필요해 도출만 함(확인필요). P3·P4·P5는 동작 불변에
+>   가까운 저위험 정리. 즉시 고칠 명백한 동작 버그는 없었다(P2도 현재 구성에선 도달 불가로 확인됨).
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1021,6 +1147,11 @@
 - [ ] O5  (대기 — 2026-06-27 도출, 탈락 봇 StateEvalLoop 코루틴 미종료 무한 공회전 — enabled=false는 코루틴 안 멈춤)
 - [ ] O6  (대기 — 2026-06-27 도출, OnMasterClientSwitched 이벤트 중복구독 가드(-=) 부재)
 - [ ] O7  (대기 — 2026-06-27 도출, RPC_BotAbsorbed 무가드 Debug.Log — N1/G3/K3 로그 규약 미적용 경로, N1과 묶음)
+- [ ] P1  (대기 — 2026-06-30 도출, 재연결이 룸 미복귀 → 일시 끊김 후 마스터 서버 고립. ConnectUsingSettings만 하고 ReconnectAndRejoin/재입장 없음 + PlayerTtl=0, **확인 필요·설계 결정**, 우선 권장)
+- [ ] P2  (대기 — 2026-06-30 도출, 스폰 슬롯 가상 포인트가 클라별 Random → 물리 SpawnPoint 부족 시 클라 간 겹침/봇-플레이어 충돌. **확인 완료**: 두 씬 모두 SpawnPoint 10개=maxPlayers 10 → 현재 가상 폴백 비활성, **잠재** 결함. 권위/공유 시드 스폰 레이아웃 권장)
+- [ ] P3  (대기 — 2026-06-30 도출, 직렬화 필드 botCount를 CountdownCoroutine에서 런타임 상태로 덮어씀 — N5/M3 '설정≠상태' 테마, 별도 필드로 분리 권장)
+- [ ] P4  (대기 — 2026-06-30 도출, 매칭 UI(LobbyController)와 네트워크 상태(NetworkManager)가 단일 출처 없이 분리 → 일시 끊김 시 화면/네트워크 불일치, P1과 묶음)
+- [ ] P5  (대기 — 2026-06-30 도출, 인스펙터 spawnPoints가 OnSceneLoaded에서 매 씬 null로 비워져 지정값 미사용 — N5 '거짓 인스펙터 필드' 테마, 툴팁/접근성 정직화·동작 불변)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
