@@ -1069,6 +1069,135 @@ F(모드 선택)·H2(매칭 데드락)에서 단편적으로만 봤고 *라이�
 
 ---
 
+## 2026-07-02 루틴 — 인게임 점수·성장 피드백 파이프라인 신규 심층 리뷰 (흡수/적중 → 스케일 → 점수 → 동기화 → 리더보드, Q1~Q7 도출)
+
+06-30 이후 신규 코드 커밋은 없다(마지막 코드 변경은 06-24 M2, 이후는 docs만: 06-27 O, 06-30 P). 이 프로젝트의
+확립된 패턴(신규 커밋이 없어도 아직 전용 심층 리뷰가 없는 시퀀스 영역을 골라 분석)을 따른다. 지금까지 진입(P)·
+액터 FSM(N/O)·타일/흡수 코어(K/L)·종료/결과(M)를 다뤘는데, **정작 게임 *진행 중* 매 순간 도는 핵심 피드백
+루프 — "젤리 흡수/배트 적중 → PlayerScaleController 성장 → 점수 환산 → 네트워크 동기화 → 리더보드 갱신" —**
+은 조각(H4·H6·L1)으로만 봤지 *데이터 흐름 전체*로는 처음이다. 루틴 3대 주제 중 **아키텍처(단일 출처)와
+안정적 네트워크 연동(SetCustomProperties 빈도)** 에 정면으로 닿는다. 대상:
+`PlayerScaleController`(성장 상태머신/큐), `PlayerBridge`(성장→점수 브리지), `NetworkPlayerSync`(SyncScale/
+SyncScore), `ScoreboardSnapshot`+`GameModeManager.UpdateLeaderboard`(수집·정렬·표시), `LevelUpFloater(+Pool)`·
+`ScoreUI`/`LevelUI`/`CurrentStatusUI`(HUD). 성장 1회가 만드는 네트워크 쓰기 횟수와 순위 계산 경로를 교차 추적했다.
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3, 승인 후 적용). 게임을 즉시 깨는 크래시성
+> 버그는 없었으나, **Q3(리더보드 '본인 행 항상 표시' 미구현)** 와 **Q4(중복 닉네임 자기 오식별)** 는 관찰 가능한
+> 동작 결함이라 우선 권장. 효과·저위험 우선순위: **Q1(스케일/점수 동기화 이중·삼중 쓰기)** ≈ **Q3** ≈ **Q4**
+> > Q2(데드 "Score" 키) ≈ Q5(스케일 폴백 불일치) > Q6·Q7(관찰/방어).
+
+### 좋았던 점(설계 관찰)
+- **순위의 단일 출처가 'scale' 하나로 통일돼 있다(H6의 결실).** 인게임 리더보드도, 결과 씬도 모두
+  `ScoreboardSnapshot.Collect`로 수집하고 점수는 그때그때 `DataManager.ScoreFromScale(scale)`로 *파생*한다
+  (GameModeManager.cs:664, DataManager.cs:101). 점수를 따로 저장·동기화하지 않으니 "표시 점수 ≠ 실제 순위"
+  같은 이원화 사고가 원천 차단된다. 성장=scale 증가라는 게임 규칙과 데이터 모델이 정확히 일치한다.
+- **성장이 상태머신 큐로 직렬화돼 경합에 안전하다.** `PlayerScaleController`가 모든 성장/축소를 `scaleQueue`에
+  넣어 `ProcessScaleQueue`로 하나씩 처리(cs:141-155)하고, `_pendingScale`을 누적 목표로 분리해 애니메이션 중
+  들어온 추가 흡수도 자연스럽게 이어붙인다. 젤리 성장은 한 프레임 배칭(`BatchedJellyGrow`, cs:54-59)까지 해
+  연속 흡수 시 코루틴 폭발을 막는다(G1의 `_jellyBatchCoroutine=null` 방어도 유지됨).
+- **원격 사본이 성장 로직을 절대 재실행하지 않도록 못 박아 뒀다.** `SetupRemotePlayer`가 원격에서 `PlayerAbsorber`
+  /`PlayerAbsorbingManager`를 꺼(cs:179-182) 원격 클라이언트가 제 맘대로 GrowByJelly를 돌려 스케일이 갈라지는
+  사고를 막고, 스케일은 오직 소유자 CustomProperties("Scale")를 권위로 삼아 Lerp로 따라간다(cs:204-206).
+- **LevelUpFloater 풀이 부모 스케일을 상쇄해 항상 일정 크기로 뜬다.** `Vector3.one / parentScale * pop`
+  (LevelUpFloater.cs:103)으로 젤리가 아무리 커져도 팝업 글자 크기가 고정되고, 동시 흡수 시 좌우 흩뿌림
+  (spreadX)으로 겹침을 피한다. 프리팹 없으면 런타임 생성 폴백까지 있어 에셋 의존이 약하다.
+
+### [Q1] (네트워크·성능 / 중) 성장 1회에 스케일/점수 CustomProperties가 2~3번 중복 기록됨 — 겹치는 Scale 데이터 반복 전송
+- 위치: `PlayerScaleController.ScaleTo`가 완료 순간 **두 이벤트를 연달아** 던진다 —
+  `OnScaleValueChanged`(cs:127) + `OnScaleCompleted`(cs:128).
+  - `OnScaleValueChanged` → `NetworkPlayerSync.OnLocalScaleChanged`(cs:150-153) → `SyncScale()` →
+    `SetCustomProperties({ "Scale" })`(cs:273-282).
+  - `OnScaleCompleted` → `PlayerBridge.HandleScaleCompleted`(cs:109-127) → `SyncScore()` →
+    `SetCustomProperties({ "Score", "Scale" })`(cs:260-270).
+  즉 **같은 완료 시점에 SetCustomProperties가 2번** 호출되고, 두 번째가 첫 번째의 Scale을 이미 포함한다.
+  여기에 젤리 1개를 먹으면 `PlayerAbsorber.OnJellyScored` → `HandleJellyScored`도 **예측 점수로 SyncScore를
+  한 번 더** 호출한다(PlayerBridge.cs:162-163) → 젤리 1개당 대략 **SetCustomProperties 3회**(예측 SyncScore +
+  완료 SyncScale + 완료 SyncScore)가 나갈 수 있다.
+- 왜 문제인가(학습 포인트): `SetCustomProperties`는 로컬 대입이 아니라 **Photon 서버를 왕복해 방 전체에 브로드
+  캐스트되는 이벤트**다. Photon은 초당 메시지/이벤트 예산이 있어서, 여러 명이 젤리를 빠르게 흡수하는 순간
+  같은 값을 나르는 이 중복 쓰기가 예산을 잠식하고 다른 동기화(위치/색/타일 RPC)의 지연·유실로 번질 수 있다.
+  또 세 쓰기가 서로 다른 프레임에 서버에 반영되면 리더보드가 잠깐 들쭉날쭉 보일 수도 있다.
+- 제안: 성장→동기화 경로를 **하나로** 통일한다. `OnScaleValueChanged` 구독(SyncScale)을 없애고
+  `OnScaleCompleted` 한 곳에서만 `{ "Scale" }`(점수는 파생이므로 Score 키 자체 제거 — Q2 참고)을 쓰거나,
+  최소한 "직전 전송값과 동일하면 스킵"하는 가드를 둔다. `HandleJellyScored`의 예측 SyncScore는 **로컬 HUD 즉시
+  갱신용**이면 `GameState.CurrentScore`만 로컬로 올리고 네트워크 쓰기는 완료 시점 1회로 미룬다.
+- 참고: 리더보드는 어차피 30프레임마다(`GameModeManager.Update` cs:246-247) 다시 그리므로, 성장마다 즉시
+  전파할 필요가 없다 — 완료 1회 쓰기로도 순위 정확도에 손해가 없다.
+
+### [Q2] (아키텍처·데드데이터 / 하) "Score" 커스텀 프로퍼티는 *쓰기만* 하고 아무도 읽지 않음 — 네트워크 데드 데이터
+- 위치: `NetworkPlayerSync.SyncScore`가 `{ "Score", newScore }`를 매번 기록(cs:266)하지만, 프로젝트 전체에서
+  `"Score"` 키를 **읽는 곳이 단 한 곳도 없다**(`grep "Score"` 결과 쓰기 1곳뿐). 리더보드·순위·결과 모두 scale로
+  파생(Q1의 '좋았던 점' 참조)하므로 이 값은 소비처가 없다.
+- 왜 문제인가: 죽은 키라도 SetCustomProperties 페이로드에 실려 매번 브로드캐스트되고, "혹시 이게 진짜 점수
+  출처인가?" 하고 다음 사람이 오해하게 만든다(구버전 잔재는 M1과 같은 테마). Q1을 고치면 자연히 함께 정리된다.
+- 제안: `SyncScore`를 없애고 호출부를 `SyncScale`로 대체(점수는 로컬 `GameState.CurrentScore`만 갱신), 또는
+  최소한 Hashtable에서 `"Score"` 키를 빼 Scale만 남긴다. **동작 불변, 순수 정리.**
+
+### [Q3] (버그·UX / 중하) 리더보드 "상위 5위 밖이면 마지막 칸을 본인 행으로" 기능이 실제로 없음 — `localRank`/`localOutside`가 계산만 되고 버려짐
+- 위치: `GameModeManager.UpdateLeaderboard`(cs:633-667). 주석(cs:643-644)은 "로컬 플레이어가 상위 displayCount
+  밖에 있으면 마지막 칸을 본인 행으로 대체해 자신의 이름/순위가 항상 보이도록 한다"고 약속하고, 실제로
+  `localRank`를 찾아(cs:645-653) `bool localOutside = localRank >= displayCount;`(cs:654)까지 계산한다.
+  **그런데 이어지는 표시 루프(cs:656-666)는 `localOutside`/`localRank`를 전혀 참조하지 않고** 그냥 상위
+  `displayCount`(≤5)만 그린다. 두 변수는 계산 후 폐기되는 **데드 변수**이고, 약속한 기능은 미구현이다.
+- 증상: 봇 포함 6명 이상인 판에서 내가 6위 이하면 **리더보드에서 내 행이 아예 안 보인다.** 자기 순위를 확인
+  못 하는 UX 공백(특히 봇 다수 흡수 모드에서 흔함).
+- 제안(둘 중 택1): (a) `localOutside`일 때 마지막 칸(i==displayCount-1)을 상위행 대신 `entries[localRank]`로
+  치환해 렌더 — 주석대로 구현. (b) 그 기능을 접기로 했다면 `localRank`/`localOutside`/주석을 삭제해 코드와
+  의도를 일치시킨다. **어느 쪽이든 "코드=주석" 정합**이 목표(Q3은 동작 결함이라 (a) 권장).
+
+### [Q4] (버그·일관성 / 중하) 본인 식별을 *닉네임 문자열*로 함 — 중복 닉네임 시 오식별 (H4의 확장, 이제 즉시 해결 가능)
+- 위치: 자기 식별이 닉네임 비교로 되어 있는 곳이 **3군데** —
+  `UpdateLeaderboard` 내 localRank 탐색(cs:648)·`isMe` 판정(cs:663), `GetLocalPlayerRank`(cs:407):
+  모두 `entry.name == PhotonNetwork.NickName`.
+- 왜 문제인가: 닉네임은 유일성이 보장되지 않는다(둘 다 "Player" 가능). 동명이인이 있으면 하이라이트(myEntry
+  노란 배경)와 내 순위가 **엉뚱한 사람 행에** 붙는다. 이건 06-13에 H4로 이미 도출됐던 테마다.
+- **지금이 고치기 딱 좋은 이유:** H6에서 `ScoreboardSnapshot.Entry`에 `actorNumber` 필드를 추가하며 주석에
+  *"닉네임 중복에 안전한 비교용"*(ScoreboardSnapshot.cs:28)이라고 명시해뒀는데, **정작 이 세 호출부는 아직도
+  name을 쓴다.** 인프라는 이미 있으니 `entry.actorNumber == PhotonNetwork.LocalPlayer.ActorNumber` 한 줄로
+  교체하면 H4가 닫힌다(봇은 actorNumber=0이라 자연히 제외됨).
+- 제안: 위 3곳을 actorNumber 비교로 교체. **H4를 이번 루틴에서 함께 완료 처리 가능.**
+
+### [Q5] (일관성·견고성 / 하) 스케일 '기본값' 폴백이 리더마다 제각각(1f vs startingScale=2f) + 무검증 캐스트
+- 위치: 같은 "Scale" 프로퍼티가 아직 없을 때의 폴백이 경로마다 다르다 —
+  `NetworkPlayerSync.GetPlayerSyncedScale`은 **1f**(cs:333),
+  `GetAuthorityScale`은 실제 `pv.transform.localScale.x`(cs:631),
+  `ScoreboardSnapshot.Collect`엔 `GameModeManager`가 `startingScale`(=2f)을 넘김(GameModeManager.cs:367),
+  `GameState.Reset`의 초기값은 **2f**(GameState.cs). 실제 스폰 스케일은 2f인데 `GetPlayerSyncedScale`만 1f로
+  가정한다.
+- 증상: 첫 `SyncScore(0)`(cs:142)이 서버에 반영되기 전 짧은 창에서, 봇의 위협/도주 판정이 상대 플레이어를
+  실제(2f)보다 작은 **1f로 오판**(`AIPlayerMovement.cs:623`이 `GetPlayerSyncedScale` 사용)해 봇이 안 도망가거나
+  잘못 달려들 수 있다. 스폰 직후 한두 프레임짜리 미세 결함이지만 폴백 상수 불일치가 근본 원인.
+- 추가: `GetPlayerSyncedScale`(cs:332)·`GetAuthorityScale`(cs:629)의 `return (float)val;`은 **무검증 캐스트**다.
+  `ScoreboardSnapshot.ReadFloat`(cs:118-122)는 `v is float` 확인 후 폴백하는 안전 패턴을 쓰는데 이 둘만 안 쓴다.
+  "Scale"은 항상 float로 쓰이니 실무상 안전하지만, 타입이 어긋나면 InvalidCastException으로 매 프레임(Update의
+  Lerp 경로) 터질 수 있어 방어가 낫다.
+- 제안: 폴백 상수를 `DataManager.Instance.startingScale` 하나로 통일하고, 두 메서드도 `is float` 가드 패턴으로
+  맞춘다. **동작 사실상 불변, 일관성/견고성만 상승.**
+
+### [Q6] (일관성·관찰 / 하) `ResetScale`은 1f로 리셋하는데 스폰/초기값은 2f — 리셋 기준이 스폰 기준과 이원화
+- 위치: `PlayerScaleController.ResetScale`이 `currentScaleValue=1f`·`_pendingScale=1f`(cs:169-170),
+  `HandleScaleReset`도 `PlayerCurrentScale=1f`(PlayerBridge.cs:133). 반면 `Start`/`GameState.Reset`/
+  `startingScale`은 모두 2f 기준. 리셋 경로만 1f로 떨어진다.
+- 관찰: 리셋(사망/재시작 등) 후 다시 게임에 들어갈 때 기준 스케일이 스폰(2f)과 달라, "리셋 직후 첫 판정"에서
+  시각 크기·흡수 우열·점수(ScoreFromScale은 startingScale=2f 기준이라 scale 1f면 음수→0으로 클램프) 계산이
+  스폰 상태와 어긋날 수 있다. 설계 의도(리셋=최소 기본 1)일 가능성이 있어 **관찰**로 둔다 — 다만 리셋 기준을
+  `startingScale`로 통일할지 결정이 필요하다.
+- 제안: 리셋 목표를 `DataManager.Instance.startingScale`로 통일하거나, 1f가 의도라면 스폰 초기값도 1f로 맞춰
+  **'기본 스케일'의 단일 출처**를 정한다. (N5/P3의 "설정≠상태" 테마와 결이 같음)
+
+### [Q7] (견고성 / 하·방어) `LevelUI` 경험치 게이지가 (max-min) 0 나눗셈을 가드하지 않음
+- 위치: `LevelUI.Refresh`의 `expImage.fillAmount = (current - min) / (max - min);`(LevelUI.cs:30). `DataManager`에서
+  `minScale == maxScale`로 설정되면 0 나눗셈 → `fillAmount`가 NaN/Inf가 되어 게이지가 깨진다.
+- 관찰: 정상 구성에선 max>min이라 발생하지 않는 **구성 실수 방어** 수준. 아주 경미.
+- 제안: `float denom = Mathf.Max(max - min, 1e-4f);`로 나눈 뒤 `Mathf.Clamp01`. 한 줄 방어.
+
+> 요약: 이 파이프라인의 **설계(단일 출처 scale, 상태머신 큐, 원격 재실행 차단)는 견고**하다. 개선 여지는
+> 주로 **네트워크 쓰기 빈도(Q1)** 와 **정리·정합(Q2 데드키, Q3 미구현 기능, Q4 닉네임 식별, Q5/Q6 폴백 이원화)** 에
+> 몰려 있다. 특히 **Q4는 H6이 깔아둔 actorNumber 덕에 이제 한 줄로 닫을 수 있고(H4 동시 종결)**, Q3는
+> 사용자가 실제로 체감하는 UX 공백이라 우선 검토를 권한다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1152,6 +1281,13 @@ F(모드 선택)·H2(매칭 데드락)에서 단편적으로만 봤고 *라이�
 - [ ] P3  (대기 — 2026-06-30 도출, 직렬화 필드 botCount를 CountdownCoroutine에서 런타임 상태로 덮어씀 — N5/M3 '설정≠상태' 테마, 별도 필드로 분리 권장)
 - [ ] P4  (대기 — 2026-06-30 도출, 매칭 UI(LobbyController)와 네트워크 상태(NetworkManager)가 단일 출처 없이 분리 → 일시 끊김 시 화면/네트워크 불일치, P1과 묶음)
 - [ ] P5  (대기 — 2026-06-30 도출, 인스펙터 spawnPoints가 OnSceneLoaded에서 매 씬 null로 비워져 지정값 미사용 — N5 '거짓 인스펙터 필드' 테마, 툴팁/접근성 정직화·동작 불변)
+- [ ] Q1  (대기 — 2026-07-02 도출, 성장 1회에 SetCustomProperties 2~3회 중복(SyncScale+SyncScore(완료)+SyncScore(예측)) — 겹치는 Scale 반복 전송, 완료 1회 쓰기로 통합/변화없으면 스킵 권장, **우선 권장**)
+- [ ] Q2  (대기 — 2026-07-02 도출, "Score" 커스텀 프로퍼티 쓰기만 하고 아무도 안 읽음 — 데드 데이터(M1 테마), SyncScore→SyncScale 대체 또는 "Score" 키 제거, 동작 불변)
+- [ ] Q3  (대기 — 2026-07-02 도출, 리더보드 '상위5 밖이면 본인 행 표시' 미구현 + localRank/localOutside 데드변수 — 5위 밖 플레이어가 자기 순위 못 봄, 주석대로 구현 or 데드코드 삭제, **우선 권장**)
+- [ ] Q4  (대기 — 2026-07-02 도출, 본인 식별을 닉네임 문자열로(UpdateLeaderboard 648/663, GetLocalPlayerRank 407) — 중복 닉네임 오식별. **H4 확장**: ScoreboardSnapshot.Entry.actorNumber 이미 존재 → actorNumber 비교로 교체하면 H4 동시 종결, **우선 권장**)
+- [ ] Q5  (대기 — 2026-07-02 도출, 스케일 폴백 상수 이원화 GetPlayerSyncedScale=1f vs startingScale=2f/실제 transform — 스폰 직후 봇 위협판정 오판 + (float)val 무검증 캐스트(ReadFloat 안전패턴 미적용). startingScale로 통일+is float 가드 권장)
+- [ ] Q6  (대기 — 2026-07-02 도출, ResetScale/HandleScaleReset은 1f로, Start/GameState.Reset/startingScale은 2f — '기본 스케일' 출처 이원화, 관찰. 설계의도 확인 후 startingScale로 통일 결정 필요)
+- [ ] Q7  (대기 — 2026-07-02 도출, LevelUI.Refresh (max-min) 0 나눗셈 미가드 → min==max 구성 시 NaN, Mathf.Max(denom,ε)+Clamp01 방어, 아주 경미)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
