@@ -1198,6 +1198,156 @@ SyncScore), `ScoreboardSnapshot`+`GameModeManager.UpdateLeaderboard`(수집·정
 
 ---
 
+## 2026-07-04 루틴 — 인게임 '시야/상황인지' 계층 신규 심층 리뷰 (카메라 팔로우·크기 연출 / 미니맵 화살표 / 오프스크린 인디케이터, R1~R9 도출)
+
+07-02 이후 신규 코드 커밋은 없다(마지막 코드 변경은 06-24 M2, 이후 06-27 O·06-30 P·07-02 Q는 docs만).
+IO 브랜치 HEAD는 여전히 `9aa33f0`. 이 프로젝트의 확립된 패턴(신규 커밋이 없어도 아직 전용 심층 리뷰가 없는
+시퀀스 영역을 골라 분석)을 따른다. 지금까지 진입(P)·액터 FSM(N/O)·타일/흡수 코어(K/L)·종료/결과(M)·점수/성장
+파이프라인(Q)을 다뤘는데, **플레이어가 매 프레임 '세상을 지각하는' 계층 — 메인 카메라 팔로우/크기 연출,
+미니맵 화살표, 화면 밖 대상 삼각형 인디케이터 —** 는 아직 전용 리뷰가 없었다(관전 관련 언급은 06-20 Push
+사망 커튼 *버그 수정*뿐, 카메라 스크립트 자체의 구조 리뷰는 처음). 루틴 3대 주제 중 **아키텍처(추적 대상의
+단일 출처)·버그 차단(파괴/null 대상, 디버그 잔재)·네트워크 연동(원격 액터를 따라가는 카메라/인디케이터)** 에
+정면으로 닿는다. 대상: `MainCamera_Action`(팔로우+ortho 크기 큐), `TopDownCameraFollow`, `JellyCamera`(연출),
+`MinimapArrowManager`/`MinimapArrow`/`MinimapFollow`, `OffScreenPlayerIndicator`, 연결부(`NetworkPlayerSync.
+SetupLocalPlayer`, `PlayerExternalEventLinker`, `GameTimer`).
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3, 승인 후 적용). 게임을 즉시 깨는 크래시성
+> 결함은 관찰되지 않았으나(정상 씬 구성 전제), **관찰 가능 동작 결함으로는 R3(게임 중 P키 → 화면 연출 오발동)**
+> 이 가장 눈에 띈다. 효과·저위험 우선순위: **R3(디버그 P키 잔존)** ≈ **R2(미니맵 카메라 무가드 NRE 체인)** ≈
+> **R6(Camera.main 무가드 반복 접근)** > R1(추적 이원화)·R5(카메라 크기 라이터 4원화, 아키텍처) >
+> R4·R8(방어/레거시 확인) > R7·R9(정합/미미).
+
+### 좋았던 점(설계 관찰)
+- **`OffScreenPlayerIndicator`는 이 그룹에서 가장 잘 짜인 코드다 — 그동안 쌓인 규율이 전부 반영돼 있다.**
+  추적 대상을 `FindObjectsByType`가 아니라 **`EntityRegistry`(단일 출처, dirty-스냅샷, GC 무할당)** 로 조회하고
+  (cs:108·127), 탈락/흡수 제외는 `IsOutOfPlay` 단일 헬퍼(G6)로(cs:114·131), 봇 색은 **sharedMaterial**로
+  읽어(G4) 배칭을 안 깬다(cs:225-227). 인디케이터는 딕셔너리+큐로 **풀링**되고(cs:238·284), 카메라 뒤
+  대상은 `WorldToScreenPoint`가 뒤집는 좌표 대신 카메라 right/up 축 투영으로 실제 방향을 다시 구한다(cs:165-170).
+  런타임 부트스트랩(`RuntimeInitializeOnLoadMethod`)+`DontDestroyOnLoad` 싱글턴이라 씬 와이어링도 필요 없다.
+  **다른 추적 코드(미니맵)가 따라야 할 기준점이다(R1의 근거).**
+- **사망=관전을 '오브젝트를 살려둔 채 입력만 차단'으로 구현해 카메라 타겟이 뜨지 않는다.** `GameModeManager.
+  GameOver`가 Push/엔딩 시퀀스 경로에서 로컬 플레이어를 파괴하지 않고 `playerController.enabled=false`만
+  건다(cs:542·563). 그래서 `MainCamera_Action.target`(SetupLocalPlayer에서 1회 지정, NetworkPlayerSync.cs:127)이
+  **가리키는 트랜스폼이 계속 살아 있어** 카메라가 '내 시체' 시점에서 자연스럽게 관전으로 이어진다. 즉 "사망 시
+  카메라 타겟 null → 프리즈"는 이 설계에선 발생하지 않는다(별도 관전 카메라 핸드오프가 없어도 되는 이유).
+- **카메라 크기 연출(이벤트 경로)이 큐로 직렬화돼 있다.** 흡수/축소로 들어온 크기 변화량을 `cameraSizeQueue`에
+  넣고 `ProcessCameraQueue`가 하나씩, **코루틴 시작 시점의 실측 orthographicSize를 기준으로** 목표를 잡아
+  순차 처리한다(MainCamera_Action.cs:100-117). 연속 성장 시 크기 튐을 줄이는 좋은 구조 — 다만 이 큐를 *우회하는*
+  경로가 따로 있어 R5로 이어진다.
+
+### [R2] (버그·NRE / 중) 미니맵 카메라 타겟 지정이 무가드 체인 — 태그/컴포넌트 부재 시 매 스캔 NRE로 화살표 갱신 전체 중단
+- 위치: `MinimapArrowManager.ScanAndRefresh` 안, 로컬 플레이어를 처음 발견했을 때
+  `GameObject.FindGameObjectWithTag("MinimapCamera").GetComponent<TopDownCameraFollow>().target = player.transform;`
+  (cs:94). **세 단계가 전부 무가드**다 — (1) "MinimapCamera" 태그 오브젝트가 없으면 `FindGameObjectWithTag`가
+  null, (2) 그 오브젝트에 `TopDownCameraFollow`가 없으면 `GetComponent`가 null, (3) 둘 중 하나라도 null이면 여기서
+  NRE.
+- 왜 문제인가(학습 포인트): 이 줄은 0.5초마다 도는 `ScanAndRefresh`(cs:78) 안에 있고, NRE가 나면 **그 뒤의 봇
+  화살표 생성 루프(cs:101-111)까지 통째로 스킵**된다 → 태그를 안 붙였거나 씬을 바꾼 순간부터 미니맵이 영영
+  안 채워진다. 게다가 같은 파일이 바로 아래에서는 `arrowPrefab`(cs:119)·`MinimapArrow` 컴포넌트(cs:141·147)를
+  꼬박꼬박 null 가드하는데 **정작 이 카메라 체인만 안 한다** — 규율 불일치. `NetworkPlayerSync`가 같은 일을
+  할 때는 `Camera.main?.GetComponent<TopDownCameraFollow>()`로 안전하게 처리(cs:123)하는 것과도 대비된다.
+- 추가 구조 문제: 이 "미니맵 카메라를 로컬 플레이어에 붙인다"는 **한 번만 하면 되는 1회성 배선**인데, 매 0.5초
+  스캔 루프의 `if (!_arrows.ContainsKey(tf))` 분기 안에 얹혀 있어(사실상 로컬 화살표를 처음 만들 때 한 번 실행)
+  위치가 어색하고 의도가 흐릿하다.
+- 제안: `var mc = GameObject.FindGameObjectWithTag("MinimapCamera"); var follow = mc ? mc.GetComponent<
+  TopDownCameraFollow>() : null; if (follow != null) follow.target = player.transform;`로 가드하고, 가능하면
+  이 배선을 스캔 루프 밖(로컬 플레이어 등록 시 1회)으로 빼낸다. **동작 불변, 크래시 경로 제거.**
+
+### [R3] (버그·디버그 잔재 / 중) `JellyCamera.Update`에 P키 디버그 트리거가 프로덕션에 그대로 남음 — 게임 중 P 누르면 화면 왜곡 연출 오발동
+- 위치: `JellyCamera.Update`의 `if (Input.GetKeyDown(KeyCode.P)) PlayDing();`(cs:57-60). `PlayDing`은 렌즈
+  왜곡(Lens Distortion) 꿀렁임 + FOV 펀치 + 카메라 Z축 기우뚱 회전을 1.5초간 연출한다(cs:65-105).
+- 왜 문제인가: 인게임에서 **아무 때나 P를 누르면 실제로 화면이 출렁인다.** 주석(cs:56)도 "P키를 누르면 효과
+  확인 가능"이라 명시한 **개발용 테스트 코드**다. 특히 인접 키(O/L 등) 오입력이나 채팅/닉네임 입력이 없는
+  구성에서 조작 중 우발적으로 발동할 수 있다. 이는 N1/G3/K3에서 정리해 온 "디버그 잔재를 빌드에 남기지 않는다"
+  규약의 **입력(Input) 버전**이다.
+- 제안: 최소 `#if UNITY_EDITOR`로 감싸거나(에디터에서만 테스트), 아예 제거하고 `[ContextMenu("Play Ding
+  Effect")]`(cs:64, 이미 존재)로만 테스트한다. **런타임 동작에서 오발동 경로 제거.**
+
+### [R6] (버그·NRE·성능 / 중) `MainCamera_Action`이 `Camera.main.orthographicSize`를 곳곳에서 무가드로 반복 접근
+- 위치: `ProcessCameraQueue`(cs:109), `OnScaleChanged_Co` 2종(cs:127·131·153·157), `ChangeCameraSizeToLevel`
+  (cs:137), `GameFailSizeChange`(cs:162·164)가 모두 `Camera.main.orthographicSize`를 **null 가드 없이** 읽고
+  쓴다. 반면 같은 파일의 `SetOrthographicSizeDirect`(cs:52-54)는 `if (Camera.main != null)`로 가드한다 — 한
+  클래스 안에서 규율이 갈린다.
+- 왜 문제인가(학습 포인트): `Camera.main`은 단순 참조가 아니라 **매 호출 "MainCamera" 태그를 씬에서 스캔**하는
+  비용 있는 API고, 메인 카메라가 비활성/파괴(씬 전환 순간)면 **null을 반환**한다. 크기 연출 코루틴은 여러 프레임
+  살아 있으므로, 연출 도중 씬이 바뀌면 `Camera.main.orthographicSize`에서 매 프레임 NRE가 날 수 있다. 또 코루틴
+  루프 안에서 `Camera.main`을 반복 조회(cs:127·153)하는 건 불필요한 태그 스캔 반복이다.
+- 제안: `Start`/`Awake`에서 카메라 참조를 한 번 캐시(`_cam = GetComponent<Camera>()` 또는 `Camera.main`)하고,
+  코루틴은 캐시된 `_cam`을 null 가드 뒤에 쓴다. **연출 품질 불변, 씬 전환 크래시 경로 제거 + 태그 스캔 절감.**
+
+### [R1] (아키텍처·성능 / 중) 액터 추적이 이원화 — 미니맵은 `FindObjectsByType`, 인디케이터는 `EntityRegistry`
+- 위치: `MinimapArrowManager.ScanAndRefresh`가 0.5초마다 `FindObjectsByType<NetworkPlayerSync>` +
+  `FindObjectsByType<AIPlayerMovement>`로 씬 전체를 스캔한다(cs:81·101). 반면 `OffScreenPlayerIndicator`는
+  같은 "씬의 모든 플레이어/봇" 질문을 **`EntityRegistry.Players`/`Bots`**(단일 출처, dirty-스냅샷)로 답한다
+  (cs:108·127). 즉 동일한 데이터에 대해 **두 개의 서로 다른 조회 경로**가 공존한다.
+- 왜 문제인가: `FindObjectsByType`는 씬 오브젝트를 순회하는 무거운 API고, 미니맵은 이를 0.5초마다 두 번
+  돌린다. `EntityRegistry`(N/O 루틴에서 정착)는 Register/Unregister로 이미 최신 목록을 GC 없이 유지하므로,
+  미니맵도 이걸 쓰면 스캔 비용이 사라지고 "액터 목록의 단일 출처"가 하나로 모인다. H6(점수 단일화)·O3(먹이
+  탐색 단일화)와 같은 **단일 출처 통일** 테마.
+- 제안: `MinimapArrowManager`의 두 `FindObjectsByType`를 `EntityRegistry.Players`/`Bots` 조회로 교체
+  (추가/파괴 감지 로직은 그대로 유지 가능). **동작 불변, 스캔 비용 제거 + 단일 출처.** (다만 미니맵 화살표는
+  탈락한 봇도 계속 표시하는 게 의도일 수 있으니 `IsOutOfPlay` 필터 적용 여부는 UX 결정으로 남긴다.)
+
+### [R5] (아키텍처·경합 / 중) 카메라 `orthographicSize`를 쓰는 주체가 4원화 — 큐를 우회하는 경로들이 서로 값 경합
+- 위치: 같은 `Camera.main.orthographicSize`를 네 경로가 각자 건드린다 —
+  (a) `MainCamera_Action.ProcessCameraQueue`(큐 직렬화 코루틴, cs:100),
+  (b) `MainCamera_Action.ChangeCameraSizeToLevel`(**큐를 거치지 않고** 별도 코루틴 직접 시작, cs:135-143),
+  (c) `MainCamera_Action.SetOrthographicSizeDirect`(이벤트로 즉시 대입, cs:51-55),
+  (d) `PlayerExternalEventLinker.ChangeCameraOrthoSize`(`Camera.main.orthographicSize` 직접 대입, cs:33).
+- 왜 문제인가(학습 포인트): (a)의 큐가 크기를 Lerp하는 도중 (b)/(c)/(d)가 끼어들면 **두 코루틴/대입이 같은
+  변수를 두고 싸운다.** 예: 성장으로 큐 연출이 도는 중 레벨 변경(b)이 겹치면, 두 `OnScaleChanged_Co`가 서로
+  다른 목표로 동시에 Lerp를 써 카메라 크기가 튀거나 최종값이 비결정적이 된다. `ProcessCameraQueue`가 큐로
+  직렬화를 애써 해놨는데 (b)가 그 큐를 우회하는 게 근본 원인이다. `this.targetSize`/`currentSize` 필드(cs:18-19)도
+  코루틴 간 공유 상태로 쓰여 경합을 키운다(대부분 로컬 `targetSize`에 가려진 사실상 데드/혼란 필드).
+- 제안: **모든 크기 변경을 단일 큐(또는 단일 "목표 크기" 상태 + 단일 러너 코루틴)로 통일**한다. `ChangeCameraSizeToLevel`도
+  큐에 목표를 넣게 하고, 즉시 대입 경로(c/d)는 진행 중 코루틴을 `StopCoroutine`으로 정리한 뒤 값을 세팅한다.
+  공유 필드 `currentSize`/`targetSize`는 코루틴 인자로 넘겨 상태 공유를 없앤다. **연출 결정성/일관성 상승.**
+
+### [R4] (견고성·NRE / 하) `JellyCamera`가 `globalVolume`/`lensDistortion` null을 가드하지 않음
+- 위치: `Start`의 `if (globalVolume.profile.TryGet(out lensDistortion))`(cs:48) — `globalVolume`이 인스펙터에서
+  비어 있으면 여기서 NRE. 또 `TryGet`이 false여도(Volume에 Lens Distortion 미추가) `lensDistortion`은 null인데,
+  이후 `PlayDing`이 `lensDistortion.intensity.value`(cs:73·86-97)를 무조건 만져 NRE.
+- 왜 문제인가: 주석(cs:31-33)이 "건드리지 마세요/꼭 추가돼 있어야"라고 경고하는 건 역으로 **구성 실수 시
+  런타임에서 조용히 죽는다**는 뜻이다. 연출 하나 빠지는 것과 NRE로 카메라 스크립트가 죽는 건 무게가 다르다.
+- 제안: `Start`에서 `globalVolume == null`이면 조기 반환(경고 로그 1회), `TryGet` 실패 시 `lensDistortion`
+  null을 기억해 `PlayDing`에서 렌즈 왜곡 시퀀스만 스킵(FOV/회전 연출은 유지). **정상 구성 동작 불변, 오구성 방어.**
+
+### [R8] (관찰·레거시 / 하) `GameTimer.GameFail` 종료 경로가 전부 무가드 — 멀티 흐름 사용 여부 확인 필요 (K4 연장선)
+- 위치: `GameTimer.GameFail`(cs:62-88)이 `playerController.enabled`·`softBody3D.DisableCloth()`·`mainCamera_Action.
+  GameFailSizeChange()`·`resultStarsUI.SetStarIndex(0)`·`playerAnimController.SetTrigger`·`PlaySFXAudio.Instance.
+  *`를 **모두 null 가드 없이** 호출하고, `Time.timeScale = 0f`로 시간을 멈춘다.
+- 왜 문제인가: 이 경로는 `limitTime`(기본 300초) 카운트다운이 0이 되면 도는 **싱글플레이형 타임아웃 종료**로,
+  멀티플레이 종료를 총괄하는 `GameModeManager`(위 '좋았던 점' 참조)와 **별개**다. K4에서 이미 `GameTimer.GameFail`의
+  `timeScale=0` 후 무가드 호출로 인한 소프트프리즈를 레거시로 도출했었다. 참조 필드 중 하나라도 인스펙터
+  미할당이면 `timeScale=0`이 걸린 채 NRE → **입력·시간 영구 정지(소프트프리즈)**.
+- 제안: 먼저 이 컴포넌트가 현재 멀티 씬에서 실제로 활성/사용되는지 확인한다. 사용 안 하면 K4와 묶어 데드코드
+  정리, 사용하면 각 참조 null 가드 + `timeScale` 복원 보장. **사용 여부는 설계 결정(사용자 확인) 대상.**
+
+### [R7] (일관성·인코딩 / 하) `TopDownCameraFollow.cs`·`GameTimer.cs` 한글 주석 mojibake — M4/N6와 동일 테마
+- 위치: `TopDownCameraFollow.cs`의 Header/Tooltip·본문 주석 전체(cs:5-34)와 `GameTimer.cs` 다수 주석(cs:21·27·33·64
+  등)이 인코딩이 깨져(`����…`) 읽을 수 없다. 특히 `TopDownCameraFollow`는 인스펙터에 보이는 `[Header]`/`[Tooltip]`
+  문자열까지 깨져 **에디터에서 필드 설명이 글자 깨짐으로 뜬다.**
+- 제안: M4(NextSceneManager/ResultStarsUI)·N6(플레이어 FSM)와 **한 번에 묶어 UTF-8로 재작성.** 동작 무관, 가독성/에디터 UX만.
+
+### [R9] (성능·정합 / 하·미미) `MinimapArrow.SetColor`가 `r.material.color`로 인스턴스 머티리얼 복제 (G3/G4/K1 테마)
+- 위치: `MinimapArrow.SetColor`가 SpriteRenderer는 `.color` tint로 안전하게 처리하면서(cs:31-34), 일반 Renderer는
+  `r.material.color = color`로 대입(cs:41)해 **화살표마다 머티리얼 인스턴스를 복제**한다. 주석(cs:36)도 "인스턴스
+  머티리얼 자동 생성"이라 인정한다.
+- 왜 문제인가: G3/G4/K1에서 반복 정리해 온 `.material`(인스턴스 복제)→`sharedMaterial`/`MaterialPropertyBlock`
+  전환 규약의 미적용 경로다. 화살표 수가 적어(≤플레이어+봇) 영향은 미미하지만, **색을 tint하려는 의도**면
+  MaterialPropertyBlock이 정석이고 배칭도 안 깬다.
+- 제안: MeshRenderer 경로도 MaterialPropertyBlock(`_BaseColor`/`_Color` 자동 선택, K1과 동일 패턴)으로 tint.
+  **표시 불변, 인스턴스 복제 제거.** (미니맵 화살표가 스프라이트 기반이면 이 경로 자체가 죽은 분기일 수 있어 확인 겸.)
+
+> 요약: 이 '시야/상황인지' 계층은 **최신 코드(`OffScreenPlayerIndicator`)가 그동안 쌓은 규율(EntityRegistry
+> 단일 출처·G6·G4·풀링)을 모범적으로 반영**한 반면, **오래된 코드(`MinimapArrowManager`·`MainCamera_Action`·
+> `JellyCamera`)는 그 규율 이전 상태**로 남아 대비가 크다. 개선 여지는 **① 크래시 경로(R2 무가드 체인, R6
+> Camera.main, R4 Volume) ② 디버그 잔재(R3 P키) ③ 단일 출처/경합(R1 추적 이원화, R5 크기 라이터 4원화)** 에
+> 몰려 있고, 방향은 이미 코드베이스가 확립한 패턴(EntityRegistry·null 가드·큐 직렬화·sharedMaterial)으로 **낡은
+> 쪽을 끌어올리는 것**으로 일관된다. 사망=관전 카메라 설계는 견고하니 손댈 필요 없다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1288,6 +1438,15 @@ SyncScore), `ScoreboardSnapshot`+`GameModeManager.UpdateLeaderboard`(수집·정
 - [ ] Q5  (대기 — 2026-07-02 도출, 스케일 폴백 상수 이원화 GetPlayerSyncedScale=1f vs startingScale=2f/실제 transform — 스폰 직후 봇 위협판정 오판 + (float)val 무검증 캐스트(ReadFloat 안전패턴 미적용). startingScale로 통일+is float 가드 권장)
 - [ ] Q6  (대기 — 2026-07-02 도출, ResetScale/HandleScaleReset은 1f로, Start/GameState.Reset/startingScale은 2f — '기본 스케일' 출처 이원화, 관찰. 설계의도 확인 후 startingScale로 통일 결정 필요)
 - [ ] Q7  (대기 — 2026-07-02 도출, LevelUI.Refresh (max-min) 0 나눗셈 미가드 → min==max 구성 시 NaN, Mathf.Max(denom,ε)+Clamp01 방어, 아주 경미)
+- [ ] R1  (대기 — 2026-07-04 도출, 액터 추적 이원화: MinimapArrowManager는 0.5s마다 FindObjectsByType×2, OffScreenPlayerIndicator는 EntityRegistry 단일출처 — 미니맵도 EntityRegistry로 통일 권장. H6/O3 단일출처 테마)
+- [ ] R2  (대기 — 2026-07-04 도출, MinimapArrowManager:94 미니맵 카메라 타겟 지정 무가드 체인(FindGameObjectWithTag→GetComponent→.target) → 태그/컴포넌트 부재 시 매 스캔 NRE로 봇 화살표까지 통째 스킵. null 가드+1회성 분리, **우선 권장**)
+- [ ] R3  (대기 — 2026-07-04 도출, JellyCamera.Update:57 P키 디버그 트리거 프로덕션 잔존 → 게임 중 P 누르면 렌즈왜곡+FOV+회전 연출 오발동. #if UNITY_EDITOR 가드 or 제거, ContextMenu 이미 존재. N1/G3 디버그잔재 입력판, **우선 권장**)
+- [ ] R4  (대기 — 2026-07-04 도출, JellyCamera.Start:48 globalVolume/lensDistortion null 미가드 → 미할당/Volume 미구성 시 Start·PlayDing NRE. null 가드로 연출만 스킵)
+- [ ] R5  (대기 — 2026-07-04 도출, 카메라 orthographicSize 라이터 4원화: ProcessCameraQueue(큐)/ChangeCameraSizeToLevel(큐 우회)/SetOrthographicSizeDirect/PlayerExternalEventLinker.ChangeCameraOrthoSize — 겹치면 Lerp 경합·비결정. 단일 큐/목표상태로 통일 권장. 아키텍처)
+- [ ] R6  (대기 — 2026-07-04 도출, MainCamera_Action이 Camera.main.orthographicSize를 곳곳 무가드 반복 접근(SetOrthographicSizeDirect만 가드) → 씬 전환 중 코루틴 NRE + 태그 스캔 반복. _cam 캐시+null 가드, **우선 권장**)
+- [ ] R7  (대기 — 2026-07-04 도출, TopDownCameraFollow.cs/GameTimer.cs 한글 주석 mojibake(Header/Tooltip 포함 → 에디터 필드설명 깨짐). M4/N6와 묶어 UTF-8 재작성)
+- [ ] R8  (대기 — 2026-07-04 도출, GameTimer.GameFail 종료경로 전부 무가드+timeScale=0 → 참조 미할당 시 소프트프리즈(K4 연장선). 멀티 씬 사용 여부 확인 후 데드코드 정리 or 널가드, **확인 필요**)
+- [ ] R9  (대기 — 2026-07-04 도출, MinimapArrow.SetColor:41 r.material.color 인스턴스 복제(G3/G4/K1 테마) → MaterialPropertyBlock tint 권장. 화살표 소수라 미미, 죽은 분기 여부 확인 겸)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
