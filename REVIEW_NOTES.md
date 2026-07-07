@@ -1348,6 +1348,185 @@ SetupLocalPlayer`, `PlayerExternalEventLinker`, `GameTimer`).
 
 ---
 
+## 2026-07-07 루틴 — 네트워크 '상태 동기화' 계층 신규 심층 리뷰 (Transform·스케일·색상·흡수판정 직렬화 / RPC 권위 흐름, S1~S10 도출)
+
+07-04 이후 신규 코드 커밋은 없다(마지막 코드 변경은 06-24 M2, 이후 O·P·Q·R은 docs만). IO 브랜치 HEAD는 여전히
+`c126760`. 확립된 패턴(신규 커밋이 없어도 아직 전용 심층 리뷰가 없는 시퀀스 영역을 골라 분석)을 따른다. 지금까지
+진입(P)·액터 FSM(N/O)·타일/흡수 코어(K/L)·종료/결과(M)·점수/성장(Q)·시야(R)를 다뤘는데, **이 모든 시퀀스를
+클라이언트 사이로 실어 나르는 '상태 동기화 계층' 자체 — 플레이어/봇의 Transform·스케일·색상 직렬화, 흡수/공격
+판정의 MasterClient(MC) 권위 흐름, 젤리 스폰/삭제 동기화 —** 는 전용 리뷰가 없었다(네트워크는 F1·G2·H2·J2·L1·
+N4·O2·P1 등에서 *부분적으로* 닿았을 뿐, 직렬화·권위 판정 파이프라인을 통째로 본 적은 처음). 루틴 3대 주제 중
+사용자가 명시한 **"안정적인 네트워크 연동"** 에 정면으로 닿는 회차다. 대상: `NetworkPlayerSync`(플레이어 동기화+
+흡수/대쉬/배트 판정 RPC), `AIPlayerSync`(봇 룸 프로퍼티), `AIPlayerMovement`(봇 흡수/넉백 RPC+IPunObservable),
+`NetworkJellyManager`(젤리 스폰/삭제), `NetworkNavMeshHelper`+`WanderingAI`(젤리 Transform 직렬화).
+
+> 모두 **도출만** 했고 게임 코드는 수정하지 않았다(루틴 작업흐름 2·3, 승인 후 적용). 게임을 즉시 깨는 크래시성
+> 결함은 관찰되지 않았으나, **관찰 가능 동작 결함으로는 S1(흡수 거부된 봇 영구 차단)·S2(원격 보간값으로 점수
+> 계산)** 이 가장 눈에 띈다. 효과·저위험 우선순위: **S1(거부봇 영구차단, 버그)** ≈ **S2(점수/성장 권위값 오류)**
+> > S3(리스폰 미배선, 데드/설계)·S4(봇 스케일 이중채널) > S5(색상 상시 스트리밍)·S6(위치 재검증 부재) >
+> S7(흡수경로 이원화)·S8(RPC null가드) > S9·S10(마이그레이션 관찰·로그 잔재).
+
+### 좋았던 점(설계 관찰)
+- **흡수·공격 판정을 MasterClient(MC)로 모으는 '권위 서버' 패턴이 일관되게 자리잡았다.** 플레이어가 상대를
+  트리거하면 `RPC_Request*Validation`을 **`RpcTarget.MasterClient`** 로만 보내고(NetworkPlayerSync.cs:345·357),
+  MC가 크기를 비교해 통과 시에만 `RPC_Get*Absorbed`/`RPC_*AbsorbConfirmed`를 되쏜다(cs:456-500). 클라이언트가
+  스스로 "내가 먹었다"를 선언하지 못하게 막는 정석 구조 — 경합/치팅 표면을 MC 한 곳으로 좁힌다.
+- **크기 비교의 단일 출처가 `GetAuthorityScale` 헬퍼로 통일돼 있다.** `Owner.CustomProperties["Scale"]`(권위) →
+  없으면 `transform.localScale.x`(폴백) 순으로 읽는다(cs:625-631). 보간 중인 로컬 스케일이 아니라 **동기화된
+  권위값**으로 승패를 가리려는 의도가 분명하다(그래서 S2가 더 뼈아프다 — 정작 보상 계산만 이 헬퍼를 안 쓴다).
+- **넉백을 '소유자에게만' 보내 비마스터 지터를 막는다.** 봇 위치는 MC가 `PhotonTransformView`로 권위 동기화하므로,
+  넉백 RPC를 `RpcTarget.All`이 아니라 `aiBot.photonView.Owner`(=MC)에게만 보낸다(cs:739·919). 주석(cs:737·916)이
+  "All로 보내면 비마스터에서 transform이 수신값과 충돌해 지터/되감김"이라 이유까지 남겼다 — 네트워크 권위 규율을
+  잘 이해한 코드. (단 배트 대(對)플레이어 넉백은 victim의 Owner로 보내 대칭. cs:817)
+- **`NetworkJellyManager`가 로컬 추적목록이 아닌 `EntityRegistry` 실개수 기준으로 부족분만 보충한다**(cs:130-133·
+  103·118). 마스터 교체로 새 마스터의 `_spawnedJellies`가 비어도 씬의 실제 젤리를 세어 과다 생성을 막는다 —
+  R1에서 칭찬한 EntityRegistry 단일 출처가 여기서도 마이그레이션 견고성으로 쓰인다.
+- **`AIPlayerSync`가 `IPunInstantiateMagicCallback`으로 ViewID 타이밍 버그를 회피한다**(cs:19-22). `Start`에서
+  ViewID를 읽으면 PUN 초기화 순서 때문에 0이 나와 봇 이름표가 "AI 봇 0"으로 뭉개지던 문제를, ViewID가 확정된
+  시점 콜백으로 옮겨 정면 해결했다. 주석에 원인까지 기록(cs:15-18) — 좋은 학습 흔적.
+
+### [S1] (네트워크·버그 / 중) `_absorbedBotIds` 사전 등록 — MC가 흡수를 거부해도 그 봇은 영구히 다시 못 먹음
+- 위치: `NetworkPlayerSync.OnTriggerEnter`의 봇 분기(cs:350-358). 봇과 겹치면 **MC 검증 RPC를 보내기 *전에***
+  `_absorbedBotIds.Add(botId)`로 먼저 등록하고(cs:355), 다음부터 같은 봇은 `_absorbedBotIds.Contains(botId)`에서
+  조기 반환된다(cs:354).
+- 왜 문제인가(학습 포인트): 이 HashSet의 의도는 "이미 먹은 봇을 중복 처리하지 않기"인데, **실제로 먹었는지(=MC가
+  승인했는지) 확인하기 전에** 넣어버린다. `RPC_RequestBotAbsorbValidation`(cs:475-500)은 세 갈래다 — (a) 봇이 더
+  크면 *내가* 흡수당함, (b) 내가 더 크면 봇 흡수 확정, (c) **크기가 같으면(`botScale > playerScale`도 `playerScale
+  > botScale`도 아님) 아무 일도 안 일어남**. (c)에서는 흡수가 성립 안 했는데도 botId는 세트에 남는다. 그 뒤 내가
+  성장해 그 봇보다 커져서 다시 부딪혀도 → `Contains`에서 막혀 **영원히 그 특정 봇을 못 먹는다.** 흡수 모드의 핵심
+  루프(작은 상대를 먹어 성장)가 특정 대상에 대해 조용히 깨지는 상태다.
+- 대비: 확정 경로 `RPC_BotAbsorbConfirmed`가 이미 `_absorbedBotIds.Add(botViewID)`를 한다(cs:509). 즉 **확정 시점에
+  넣는 코드가 따로 있는데도** 트리거 시점에서 미리 넣어 중복이자 버그를 만든다.
+- 제안: cs:355의 사전 `Add`를 제거하고, "요청 진행 중" 중복만 막으려면 별도의 *임시* pending 집합(성공/실패 응답
+  수신 시 제거)을 쓰거나, 짧은 재시도 쿨다운으로 대체한다. 확정 등록은 `RPC_BotAbsorbConfirmed`(cs:509)에만 둔다.
+  **정상 흡수 동작 불변, '거부된 봇 영구 차단' 버그 제거.** (동일 프레임 중복 트리거 폭주 방지는 pending으로 커버)
+
+### [S2] (네트워크·버그 / 중) `RPC_GetAbsorbed`가 점수·성장을 원격 사본의 *보간 중* `transform.localScale.x`로 계산 — 권위 Scale 미사용
+- 위치: `RPC_GetAbsorbed`의 흡수자 보상 계산(cs:538-545). 흡수자 스케일에 **피흡수자의 크기를 더해** 예측 점수를
+  구하는데, 그 피흡수자 크기를 `transform.localScale.x`(cs:539·545)로 읽는다. 이 스크립트의 `transform`은 피흡수자
+  본인이고, 흡수자 클라이언트에서 이 값은 **매 프레임 `Vector3.Lerp`로 권위값을 향해 보간되는 중**이다(Update, cs:206).
+- 왜 문제인가(학습 포인트): 흡수 순간 피흡수자의 화면상 로컬 스케일은 네트워크 지연 탓에 **아직 권위 Scale에
+  도달하지 못한 중간값**일 수 있다. 그래서 흡수자가 얻는 점수/성장이 실제보다 작거나(따라잡기 전) 커질 수 있고,
+  클라이언트마다 보간 진척이 달라 **흡수자 본인 화면에서만 보상이 어긋난다.** 바로 위 '좋았던 점'에서 본 대로
+  이 코드베이스는 승패 판정엔 `GetAuthorityScale`(권위 CustomProperties)을 쓰는데, **정작 보상 계산만 보간값을
+  쓴다** — 규율 불일치.
+- 대비: 쌍둥이 경로인 봇 흡수 `RPC_BotAbsorbConfirmed`는 MC가 넘겨준 **권위 `botScale` 인자**로 성장한다(cs:512-517).
+  플레이어 흡수 경로만 권위값 대신 로컬 보간값을 쓴다.
+- 제안: cs:539·545의 `transform.localScale.x`를 `GetAuthorityScale(photonView)`(피흡수자 권위 Scale)로 교체. 더
+  근본적으로는 S1과 함께, **성장/점수 확정을 MC가 계산해 흡수자에게 인자로 넘기는 방식(BotAbsorbConfirmed 패턴)**
+  으로 플레이어 경로도 통일하면 클라 간 결정성이 올라간다. **정상 시 값 거의 동일, 지연 상황에서 보상 정확도 상승.**
+
+### [S3] (아키텍처·데드코드 / 중) 플레이어 리스폰 시스템 전체가 미배선 — `_isAbsorbed`가 한 번 켜지면 리셋 경로 없음
+- 위치: `respawnDelay`(cs:53), `Respawn()`(cs:589-613), `RPC_OnRespawn`(cs:615-619)이 존재하지만 **`Respawn()`을
+  호출하는 코드가 프로젝트 어디에도 없다**(전역 grep 확인 — 정의부와 내부 RPC 호출뿐). `AbsorbedSequence`(cs:554)는
+  피흡수자를 축소→`SetActive(false)`로 끝내고 리스폰 코루틴을 걸지 않는다.
+- 왜 문제인가(학습 포인트): 필드 이름(`respawnDelay=3f`)과 `Respawn`/`RPC_OnRespawn`은 "3초 뒤 부활" 기능을
+  암시하지만 **실제로는 흡수 모드에 리스폰이 없다**(흡수당하면 그대로 관전/탈락). `Respawn()` 안에서만 하는 두 가지
+  중요한 리셋 — `_isAbsorbed=false`(cs:591)와 `_absorbedBotIds.Clear()`(cs:592) — 이 **한 판 안에서 절대 실행되지
+  않는다.** 즉 S1의 세트도, `Update`를 통째로 스킵시키는 `if (_isAbsorbed) return`(cs:202)도 되돌릴 길이 없다.
+  이는 J4(Milk 리스폰 통째 소실)·M1(ResultDataCarrier 미사용)에서 본 **"절반만 구현된/미배선 기능이 코드에 남아
+  의도를 흐린다"** 테마의 네트워크판이다.
+- 제안: 두 갈래 중 설계 결정이 필요하다 — **(A) 흡수 모드에 리스폰을 실제로 넣을 것인가**(그렇다면
+  `AbsorbedSequence` 끝에서 `StartCoroutine`으로 `respawnDelay` 후 `Respawn()` 호출 + MC 권위 확인), **(B) 리스폰
+  없음이 의도라면** `respawnDelay`/`Respawn`/`RPC_OnRespawn`을 삭제해 "부활할 것 같은" 착시를 제거. 어느 쪽이든
+  **사용자 확인 대상**(게임 규칙 결정). 지금 상태는 '있지만 안 도는' 회색지대라 유지보수 함정.
+
+### [S4] (아키텍처·네트워크 / 중하) 봇 스케일이 이중 채널로 동기화 — Room 프로퍼티(권위) + IPunObservable 스트림(시각)
+- 위치: 봇의 스케일이 **두 경로로 동시에** 네트워크를 탄다 — (1) `AIPlayerSync.SyncScale`이 `Room.CustomProperties
+  ["{prefix}_Scale"]`에 기록(cs:65-73), (2) `AIPlayerMovement.OnPhotonSerializeView`가 매 직렬화 틱마다
+  `transform.localScale.x`를 스트림 전송(cs:761-771). 소비도 갈린다 — 크기 *판정*은 (1)을 `GetSyncedScale`로 읽고
+  (AIPlayerMovement.cs:107, NetworkPlayerSync.cs:636), 원격 *시각*은 (2)의 `_networkScale`로 Lerp한다(cs:394).
+- 왜 문제인가(학습 포인트): 같은 물리량(봇 크기)에 **두 개의 출처**가 생겨, 순간적으로 판정용 값과 표시용 값이
+  어긋날 수 있다(스트림은 매 틱, 룸 프로퍼티는 성장 콜백 때만 갱신 — 갱신 시점이 다름). 또 스케일은 성장 순간에만
+  바뀌는데 **IPunObservable로 매 틱 흘려보내는 건 대역폭 낭비**다(Q1에서 정리한 "안 바뀌는 값 반복 전송" 테마).
+  Q2에서 본 "Score는 쓰기만 하고 안 읽음"과 유사하게, 여기선 두 채널이 **부분적으로 서로를 중복**한다.
+- 제안: 봇 스케일의 단일 출처를 **룸 프로퍼티(권위)** 로 정하고, 원격 시각 Lerp도 `GetSyncedScale`을 목표값으로
+  쓰면 `OnPhotonSerializeView`의 스케일 전송을 없앨 수 있다(봇이 스케일 외에 스트림할 게 없다면 `IPunObservable`
+  자체를 관측 목록에서 뺄 수 있어 틱 비용 0). 반대로 스트림을 단일 출처로 삼는다면 `GetSyncedScale`류 판정도
+  스트림 캐시를 읽게 통일. **동작 불변, 채널 이중화 해소 + 대역폭 절감.** (S2·Q1과 묶어 "권위 스케일 파이프라인
+  일원화"로 다루면 좋음)
+
+### [S5] (네트워크·성능 / 중) 플레이어 색상 4-float를 매 직렬화 틱마다 스트리밍 — 게임 중 거의 안 변하는 값 + alpha는 무의미 전송
+- 위치: `NetworkPlayerSync.OnPhotonSerializeView`가 색상 r·g·b·a **네 개 float**를 매 틱 `SendNext`한다(cs:237-244).
+  수신 측은 a를 받아 놓고 **무조건 1로 덮어쓴다**(`_networkColor = new Color(r,g,b,1f)`, cs:251) — 즉 alpha는
+  보내나 마나다.
+- 왜 문제인가(학습 포인트): `OnPhotonSerializeView`는 `PhotonView`의 SendRate(기본 초당 10~20회)로 **관측 오브젝트
+  전원에 대해 지속 호출**된다. 플레이어 색은 흡수 성장으로 색조가 바뀔 때 말고는 사실상 고정인데, 이를 매 틱
+  전 클라이언트에 흘려보낸다. 게다가 이 스크립트에는 이미 **게임 종료 직전 색을 룸 프로퍼티에 저장하는 `SyncColor`**
+  (cs:289-301)가 있어, "변할 때만 알리는" 이벤트/프로퍼티 경로의 선례가 코드 안에 있다.
+- 제안: 색상을 **변화 시에만** 전파(예: `PlayerColorVisual`이 색 확정 때 RPC 1회, 또는 스케일처럼 CustomProperties)로
+  바꾸고 `OnPhotonSerializeView`의 상시 스트림을 제거. 최소한 alpha 전송(cs:243·250)은 즉시 삭제 가능(수신부가
+  버리므로 완전 무손실). **표시 불변, 상시 대역폭 4→0(또는 이벤트당 3) float로 절감.** Q1/Q2의 "네트워크 데드/중복
+  트래픽 정리" 테마 연장.
+
+### [S6] (네트워크 / 중·확인필요) 흡수·대쉬·배트 MC 검증이 위치·사거리 재확인 없이 크기만 비교 — 요청 클라의 트리거를 신뢰 (N4 확장)
+- 위치: `RPC_RequestAbsorbValidation`(cs:456-472)·`RPC_RequestDashHitPlayer`(cs:667)·`RPC_RequestBatHitPlayer`
+  (cs:797)가 MC에서 도는데, **크기(및 Phase)만 검증**하고 두 대상이 실제로 사거리 안에 있는지는 재확인하지 않는다.
+  판정의 사실상 근거는 "요청 클라가 트리거/스윙에 겹쳤다고 주장"뿐이다.
+- 왜 문제인가(학습 포인트): 위치 권위는 각 소유자의 `PhotonTransformView`에 있으므로, MC는 `victimPV.transform.
+  position`을 이미 알고 있다(넉백 방향 계산에 쓴다, cs:688·809). 즉 **"공격자와 피격자 거리 < 사거리"를 MC에서 한 줄
+  재검증할 재료가 이미 있는데** 안 한다. 지연·경합 상황에서 공격자 화면에선 닿았지만 권위 위치로는 빗나간 히트가
+  승인될 수 있고, 이론상 조작된 ViewID로 원거리 흡수/넉백을 유도할 수도 있다. N4(마스터 배트 히트 사거리 미재검증)에서
+  이미 도출한 테마를 흡수/대쉬까지 확장한 것 — 이 계층 전반의 공통 약점이다.
+- 제안: 각 `RPC_Request*`에서 크기 검증에 더해 **MC가 아는 권위 위치로 거리 게이트**를 추가
+  (`(attackerPos - victimPos).sqrMagnitude <= (range*scale)^2`). 필요 시 약간의 관용(lag 보정)을 상수로 둔다.
+  **정상 히트 동작 불변, 위치 불일치·조작 히트 차단.** 스케일이 커서 사거리가 늘어나는 배트/대쉬는 `range*scale`을
+  그대로 재사용하면 되어 비용이 거의 없다. (경쟁적 정합성이 목표가 아니라면 우선순위는 낮출 수 있음 → 확인 필요)
+
+### [S7] (아키텍처·일관성 / 하) 흡수 판정 경로 이원화 — 플레이어발(‘요청→MC검증’ RPC) vs 봇발(MC 로컬 직접) (O3 테마)
+- 위치: 흡수 성립 판정이 두 파일에 서로 다른 모양으로 있다 — 플레이어가 상대와 겹치면 `NetworkPlayerSync.
+  OnTriggerEnter`가 **MC에 검증 RPC를 보내고**(cs:342-358), 봇이 상대와 겹치면 `AIPlayerMovement.OnTriggerEnter`가
+  **그 자리(MC)에서 크기 비교 후 바로 `RPC_GetAbsorbed`/`RPC_BotAbsorbed`를 쏜다**(cs:611-643, MC 전용 가드 cs:613).
+- 왜 문제인가: 봇은 애초에 MC 소유라 봇발 트리거는 이미 MC에서 도니 "직접 판정"이 기능적으로 틀린 건 아니다.
+  하지만 **같은 규칙("더 크면 먹는다")이 두 곳에 복붙**돼 있어, 규칙이 바뀌면(예: 크기차 임계값 도입, 흡수 쿨다운)
+  한쪽만 고쳐 드리프트가 날 위험이 있다. O3(먹이 탐색 이원화)·H6(점수 집계 이중구현)와 같은 **단일 출처화** 테마.
+  실제로 S1·S2가 "플레이어 경로에만" 존재하는 것도 이 이원화의 부산물이다.
+- 제안: 흡수 성립 판정(대상 탐색은 제외, "이 둘 중 누가 먹나 + 보상은 얼마"를 정하는 코어)을 **MC에서 도는 단일
+  헬퍼**로 뽑아 플레이어/봇 양쪽이 호출하게 통일. 당장의 리스크는 낮으니 S1·S2 수정 시 함께 리팩터링하는 걸 권장.
+
+### [S8] (안정성·NRE / 하) 흡수 보상 RPC들이 `DataManager.Instance`를 null 가드 없이 역참조 (G8/L2 테마)
+- 위치: `RPC_BotAbsorbConfirmed`(cs:511-513)·`RPC_GetAbsorbed`(cs:537-541)가 `DataManager.Instance`를 받아
+  `dm.absorbScalePercent`·`dm.maxScale`·`dm.ScoreFromScale`을 **null 확인 없이** 호출한다. 대쉬/배트 RPC들도
+  `DataManager.Instance.PushScaleThreshold`(cs:679)·`.dashPushForce`(cs:693) 등을 무가드로 쓴다.
+- 왜 문제인가: 이 RPC들은 **네트워크로 도착**하므로 로컬 코드보다 타이밍을 통제하기 어렵다 — 씬 전환 직후 stale RPC가
+  도착하거나 `DataManager`가 아직/이미 없을 때 NRE가 나면, 흡수 판정 도중에 그 클라이언트만 조용히 예외로 중단된다.
+  G8(FallingTile의 DataManager 무가드)·L2(JellyColliderAbsorb null 미가드)·H3(결과 시퀀스 NRE)에서 반복 정리해 온
+  "DataManager 등 싱글턴은 RPC/코루틴 진입점에서 가드" 규약의 미적용 경로다.
+- 제안: 각 RPC 진입부에서 `var dm = DataManager.Instance; if (dm == null) return;` 한 줄. **정상 동작 불변, 경계
+  타이밍의 NRE 차단.** (S2 수정 시 같은 함수를 건드리므로 묶어서 처리하기 좋다)
+
+### [S9] (네트워크·안정성 / 하·확인필요) 젤리(`WanderingAI`)에 호스트 마이그레이션 재초기화 콜백 부재 — 봇은 이어받는데 젤리는 안 이어받음
+- 위치: `WanderingAI._isMine`은 `Start`에서 `NetworkNavMeshHelper.SetupOwnership`로 **한 번만** 계산되고(cs:34), 이
+  클래스는 `MonoBehaviourPun`이라 **`OnMasterClientSwitched`를 구현하지 않는다**. 반면 봇 `AIPlayerMovement`는
+  `OnMasterClientSwitched`에서 `InitAndRun`을 다시 돌려 새 마스터가 제어를 이어받는다(cs:739-755).
+- 왜 문제인가(학습 포인트): 현재 `NetworkJellyManager`는 젤리를 **`PhotonNetwork.Instantiate`**(룸오브젝트 아님,
+  cs:150·259)로 소환한다. PUN 기본 정리(CleanupCacheOnLeave)에서 이런 오브젝트는 **소유자(마스터) 이탈 시 파괴**되고,
+  새 마스터의 `SpawnRoutine`(OnMasterClientSwitched, cs:306-322)이 부족분을 다시 채운다. 그래서 `_isMine` staleness가
+  당장 프리즈를 일으키진 않지만, **마스터 교체 때마다 흡수 대상 젤리가 일시에 사라졌다가 서서히 재생성**되는 흐름이
+  된다(흡수 모드 체감 저하). 만약 향후 젤리를 `InstantiateRoomObject`로 바꿔 마이그레이션에서 살아남게 하면, 그
+  순간 이 미구현이 **"새 마스터의 젤리가 `_isMine=false`로 남아 영영 안 움직이는"** 실버그로 승격된다(P1·O6의
+  '소유권 이전 후 재초기화 누락' 테마). 지금은 관찰·잠재.
+- 제안: (즉시) 마스터 교체 시 젤리 소멸→재생성이 흡수 모드 UX에 문제면 젤리를 룸오브젝트로 전환 **+** `WanderingAI`에
+  `OnMasterClientSwitched`(또는 `IPunOwnershipCallbacks`)로 `_isMine` 재평가 + agent 재활성 추가. (아니면) 현
+  '파괴 후 재보충'이 의도임을 주석으로 명시. **확인 필요(설계 결정).**
+
+### [S10] (성능·로그 / 하) `RPC_BotAbsorbed`의 무가드 `Debug.Log`가 아직 남음 — O7에서 도출, 미적용 확인
+- 위치: `AIPlayerMovement.RPC_BotAbsorbed`(cs:692)의 `Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어
+  흡수됨.")`. 흡수가 일어날 때마다 **모든 클라이언트에서** 문자열 결합과 함께 로그가 찍힌다.
+- 왜 문제인가: N1/G3/K3/O7에서 반복 정리한 "빌드 로그 스파이크 방지(무조건 로그 금지)" 규약의 잔존 경로다. 07-02
+  Q 루틴까지 코드 변경이 없었으므로 O7(06-27 도출) 이후 그대로다 — **이번 리뷰에서 미적용 상태 재확인.**
+- 제안: 제거하거나 `[Conditional("UNITY_EDITOR")]` 로그 래퍼로 감싼다. O7·N1과 **한 번에** 로그 규약 일괄 정리
+  권장. **동작 불변.**
+
+> 요약: 이 '상태 동기화' 계층은 **권위 구조(MC 검증)·크기 판정 단일 헬퍼·넉백 소유자 타겟팅·EntityRegistry 기반
+> 젤리 보충**처럼 네트워크 규율의 좋은 뼈대를 이미 갖췄다. 개선 여지는 뼈대가 아니라 **① 그 권위 규율을 일부
+> 경로가 안 지키는 데**(S2 보상만 보간값, S6 위치 재검증 부재)와 **② 절반만 구현/이중화된 상태 경로**(S1 사전등록
+> 버그, S3 리스폰 미배선, S4 봇 스케일 이중채널, S5 색상 상시 스트리밍)에 몰려 있다. 방향은 R까지와 동일하게
+> **이미 코드베이스가 확립한 패턴(권위값 GetAuthorityScale·이벤트/프로퍼티 전파·단일 출처)** 으로 예외 경로를
+> 끌어올리는 것으로 일관된다. S1·S2는 흡수 모드 코어 루프에 직접 닿으니 우선 검토를 권한다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1447,6 +1626,16 @@ SetupLocalPlayer`, `PlayerExternalEventLinker`, `GameTimer`).
 - [ ] R7  (대기 — 2026-07-04 도출, TopDownCameraFollow.cs/GameTimer.cs 한글 주석 mojibake(Header/Tooltip 포함 → 에디터 필드설명 깨짐). M4/N6와 묶어 UTF-8 재작성)
 - [ ] R8  (대기 — 2026-07-04 도출, GameTimer.GameFail 종료경로 전부 무가드+timeScale=0 → 참조 미할당 시 소프트프리즈(K4 연장선). 멀티 씬 사용 여부 확인 후 데드코드 정리 or 널가드, **확인 필요**)
 - [ ] R9  (대기 — 2026-07-04 도출, MinimapArrow.SetColor:41 r.material.color 인스턴스 복제(G3/G4/K1 테마) → MaterialPropertyBlock tint 권장. 화살표 소수라 미미, 죽은 분기 여부 확인 겸)
+- [ ] S1  (대기 — 2026-07-07 도출, NetworkPlayerSync.OnTriggerEnter:355 _absorbedBotIds를 MC 검증 *전* 사전 등록 → 크기 동률 등으로 흡수 거부돼도 세트에 남아 그 봇을 영구히 다시 못 먹음. 사전 Add 제거, 확정 등록은 RPC_BotAbsorbConfirmed:509에만. **우선 권장**·버그)
+- [ ] S2  (대기 — 2026-07-07 도출, RPC_GetAbsorbed:539·545가 점수/성장을 피흡수자 *보간 중* transform.localScale.x로 계산 → 권위 Scale 미사용, 클라별 보상 어긋남. GetAuthorityScale(photonView)로 교체(BotAbsorbConfirmed는 이미 권위값 사용). **우선 권장**·버그)
+- [ ] S3  (대기 — 2026-07-07 도출, 플레이어 리스폰 시스템 전체 미배선 — respawnDelay/Respawn()/RPC_OnRespawn 존재하나 Respawn() 호출처 0. _isAbsorbed·_absorbedBotIds 리셋이 한 판 내 절대 실행 안 됨. 리스폰 넣을지/삭제할지 **설계 결정·사용자 확인**. J4/M1 반쪽구현 테마)
+- [ ] S4  (대기 — 2026-07-07 도출, 봇 스케일 이중 채널 — AIPlayerSync 룸프로퍼티(판정용 GetSyncedScale) + AIPlayerMovement.OnPhotonSerializeView 매틱 스트림(시각 Lerp). 단일 출처(룸프로퍼티) 통일 시 스트림 제거 가능, 대역폭 절감. Q1/Q2 테마)
+- [ ] S5  (대기 — 2026-07-07 도출, NetworkPlayerSync.OnPhotonSerializeView가 색상 4-float를 매 틱 스트리밍(거의 안 변함) + alpha는 수신부가 1로 덮어 무의미 전송. 변화 시 이벤트/프로퍼티 전파로 전환(SyncColor 선례 존재), 최소 alpha 즉시 삭제. Q1/Q2 트래픽 정리)
+- [ ] S6  (대기 — 2026-07-07 도출, RPC_Request흡수/대쉬/배트 MC 검증이 크기만 보고 위치·사거리 재확인 없음 → 지연/경합 시 빗나간 히트 승인, 조작 ViewID 원거리 히트 여지. MC가 아는 권위 위치로 거리 게이트 추가. **N4 확장·확인 필요**)
+- [ ] S7  (대기 — 2026-07-07 도출, 흡수 판정 이원화 — 플레이어발 '요청→MC검증' RPC vs 봇발 MC 로컬 직접(OnTriggerEnter). 규칙 복붙→드리프트 위험, S1·S2가 플레이어 경로에만 있는 원인. MC 단일 헬퍼로 통일 권장. O3/H6 테마)
+- [ ] S8  (대기 — 2026-07-07 도출, RPC_BotAbsorbConfirmed:511/RPC_GetAbsorbed:537 등 흡수·대쉬·배트 RPC가 DataManager.Instance 무가드 역참조 → 씬 전환 경계 stale RPC 시 NRE. 진입부 null 가드 1줄. G8/L2/H3 테마, S2와 묶음)
+- [ ] S9  (대기 — 2026-07-07 도출, WanderingAI._isMine이 Start 1회 계산 + OnMasterClientSwitched 미구현 → 봇은 이어받는데 젤리는 안 함. 현재 PhotonNetwork.Instantiate라 마스터 이탈 시 파괴+재보충(젤리 일시 증발). 룸오브젝트化 시 실버그로 승격. **확인 필요·설계 결정**. P1/O6 테마)
+- [ ] S10 (대기 — 2026-07-07 도출, AIPlayerMovement.RPC_BotAbsorbed:692 무가드 Debug.Log 잔존 — O7(06-27) 이후 코드변경 없어 그대로. 제거 or [Conditional] 래퍼, O7/N1 로그규약 일괄 정리)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
