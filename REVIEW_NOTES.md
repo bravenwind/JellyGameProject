@@ -1527,6 +1527,158 @@ N4·O2·P1 등에서 *부분적으로* 닿았을 뿐, 직렬화·권위 판정 �
 
 ---
 
+## 2026-07-09 루틴 — 젤리 소프트바디(Cloth) 물리 계층 신규 심층 리뷰 (SoftBody3D 생명주기 · 스케일 연동 · 재빌드 경합, T1~T7 도출)
+
+이번 루틴은 지금까지 한 번도 깊게 안 본 **게임의 시그니처 시스템, 젤리 소프트바디 물리**를 대상으로 했다.
+현행 젤리 출렁임은 Unity 내장 `Cloth`(천 시뮬레이션)를 `SkinnedMeshRenderer` 위에 얹어 구현하며,
+핵심 스크립트는 `Assets/Scripts/JellyMesh/SoftBody3D.cs`(181줄) 하나다. 이 컴포넌트는 스스로 물리를
+돌리지 않고 **Cloth의 파라미터/제약(coefficients)을 게임 상황에 맞춰 켜고·끄고·다시 만드는 "관리자"**
+역할만 한다. 그래서 이 계층의 위험은 대부분 *물리 계산 자체*가 아니라 **생명주기(언제 끄고 언제 다시
+만드느냐)와 다른 시스템(스케일 애니메이션·네트워크·결과 전환)과의 타이밍 경합**에 있다.
+
+리뷰 범위: `SoftBody3D.cs` 전체 + 이를 부르는 5개 호출부
+(`PlayerScaleController`(성장/축소 시 Disable→Rebuild), `AIPlayerMovement`/`NetworkPlayerSync`(원격·봇에서 RemoveCloth),
+`GameTimer.GameFail`(사망 시 DisableCloth), `GameResultManager`(결과 씬에서 enabled=false)) + 레거시 `JellyMesh_Legacy/`.
+
+### 좋았던 점(설계 관찰)
+- **역할 분리가 명확하다.** SoftBody3D는 "천을 어떻게 다룰지"만 알고, "언제 성장하는지"는 PlayerScaleController가
+  결정해 `DisableCloth()`/`RequestRebuildCloth()`만 호출한다. 스케일 로직과 물리 로직이 이벤트 경계로 나뉘어 있어
+  읽기 쉽다. 특히 성장 애니메이션(`transform.localScale` Lerp)이 도는 동안 Cloth를 꺼서 천이 스케일과 싸우며
+  찌그러지는 것을 막으려는 **의도**가 분명하다(주석에도 "스케일 동기화와 충돌하여 모델 찌그러짐 방지").
+- **원격/봇 사본은 Cloth를 통째로 제거**(`RemoveCloth`)해 스케일·애니메이션 동기화만 신뢰하고, 그림자 유지를 위해
+  `updateWhenOffscreen=true`로 돌려놓는 처리가 세심하다. 물리를 로컬에서만 돌리는 것은 네트워크 게임의 정석이다.
+- **결과 씬 정리(GameResultManager)에서 Cloth를 `DestroyImmediate` 대신 `enabled=false`로만** 끄는 이유를
+  주석으로 남겨뒀다("Cloth를 DestroyImmediate하면 SkinnedMeshRenderer 데이터가 오염됨"). 실제로 Unity에서 겪기 쉬운
+  함정을 이미 학습해 회피한 흔적이라 좋다.
+- **재빌드를 `SetActive(false)` 없이** 하도록 코루틴을 짜서 렌더러 깜빡임을 피한 점(주석: "렌더러는 끄지 않아 깜빡임 방지")도
+  경험에서 나온 좋은 판단이다.
+
+아래는 그 위에서 발견한 구조적 개선점이다. **T1이 이번 계층의 핵심(시그니처 연출이 첫 성장 이후 손상)** 이고,
+T2·T3는 그와 얽힌 재빌드 타이밍 경합이다.
+
+### [T1] (버그·정합 / 중·확인필요) Cloth 재빌드가 **에디터에서 손으로 칠한 softness 맵을 잃어버림** — 첫 성장 이후 시그니처 연출 손상
+
+이 컴포넌트의 하이라이트 기능은 `useHybridSoftness`다. 툴팁에 적혀 있듯 *"에디터에서 칠한 값(0인 부분)은 유지하고,
+나머지만 Softness로 제어"* 하는 것 — 즉 젤리의 어떤 부분(예: 얼굴·눈)은 딱딱하게 고정하고 몸통만 출렁이게 하는,
+**손으로 칠한 제약 맵**이 핵심이다. 이 맵은 `_initialCoefficients`에 담긴다.
+
+문제는 **이 맵을 캡처하는 시점이 두 곳인데, 두 번째가 잘못된 값을 담는다**는 것이다.
+
+- `InitCloth()`(게임 시작): `_initialCoefficients = _cloth.coefficients;` (SoftBody3D.cs:75)
+  → 여기서 `_cloth`는 **에디터에서 직렬화된**(손으로 칠한) Cloth 컴포넌트다. 올바른 값이 담긴다.
+- `EnableAndRebuildCloth()`(스케일 변경마다): 기존 Cloth를 `Destroy`하고 `AddComponent<Cloth>()`로 **새 Cloth**를
+  만든 직후 다시 `_initialCoefficients = _cloth.coefficients;` (SoftBody3D.cs:171-173)
+  → 새로 붙인 Cloth의 coefficients는 **에디터에서 칠한 값이 아니라 Unity가 자동 생성한 기본값**이다.
+  칠한 제약 맵은 Destroy된 원본 컴포넌트와 함께 사라졌다.
+
+**결과:** 재빌드는 성장/축소가 끝날 때마다(`ScaleTo` 끝의 `RequestRebuildCloth`) 일어난다. 따라서 **첫 성장 직후부터**
+`_initialCoefficients`가 기본값으로 바뀌고, `UpdateSoftness`의 하이브리드 분기
+(`if (_initialCoefficients[i].maxDistance < softness) 유지 else softness`)가 "칠한 부분 유지"를 못 하게 된다.
+딱딱해야 할 부분(눈·입 등)까지 균일하게 출렁이기 시작한다 — **게임을 상징하는 젤리 연출이 한 번 성장하면 무너지는** 셈.
+
+- 근거: SoftBody3D.cs:75(원본 캡처) vs :171-173(새 Cloth 계수 재캡처 — 덮어씀).
+- 학습 포인트: Unity에서 `Cloth`의 "칠한 제약(constraint painting)"은 **컴포넌트에 직렬화**된다. 그 컴포넌트를 Destroy하면
+  칠한 값도 함께 사라지고, 새로 `AddComponent`한 Cloth는 메시로부터 기본 coefficients를 자동 생성할 뿐이다.
+- 제안(미적용): `_initialCoefficients`를 **InitCloth에서 한 번만** 캡처하고 재빌드 시에는 재캡처하지 말 것
+  (멤버로 보존 → 새 Cloth에 `_cloth.coefficients = _initialCoefficients`로 다시 적용). 단 재빌드된 Cloth의
+  정점 순서/개수가 원본과 동일한지(동일 SkinnedMesh이므로 일반적으로 동일) **에디터 실측 확인 필요**.
+  ※ 그런데 애초에 "성장할 때마다 Cloth를 통째로 재생성"하는 설계가 꼭 필요한지도 함께 재검토 대상(→ T2/T3).
+
+### [T2] (버그·경합 / 중·확인필요) 큐로 연속된 스케일 변경 시 **재빌드 코루틴이 다음 애니메이션 도중 Cloth를 다시 켜** 찌그러짐 방지가 무너짐
+
+`ScaleTo`는 **시작에 `DisableCloth()`, 끝에 `RequestRebuildCloth()`** 를 부른다(PlayerScaleController.cs:106, 130).
+그런데 `RequestRebuildCloth`는 즉시 끝나지 않는 **fire-and-forget 코루틴**(`EnableAndRebuildCloth`, 2프레임 대기 후
+새 Cloth 생성·enable)이다. 반면 `ProcessScaleQueue`(:147-155)는 한 `ScaleTo`가 끝나면 **곧바로 다음 `ScaleTo`를 꺼내
+실행**한다. 이 둘의 타이밍이 어긋난다:
+
+1. ScaleTo#1 끝 → `RequestRebuildCloth` → `EnableAndRebuildCloth` 시작: `_isRebuilding=true`, 기존 Cloth `Destroy`,
+   `yield 2프레임` 대기 진입.
+2. ProcessScaleQueue가 곧바로 ScaleTo#2를 실행 → ScaleTo#2가 `DisableCloth()`를 부르지만, 방금 Destroy된 `_cloth`는
+   이미 **Unity의 (가짜)null**이라 `if (_cloth != null)` 가드에 걸려 **아무 것도 못 끈다**.
+3. ~2프레임 뒤 EnableAndRebuildCloth가 깨어나 **새 Cloth를 AddComponent + enable** → 이때 ScaleTo#2는 한창
+   `transform.localScale`을 Lerp하는 중 → **스케일 애니메이션 도중에 Cloth 시뮬레이션이 켜진다** → DisableCloth로
+   막으려던 바로 그 "스케일과 천이 싸워 찌그러지는" 증상이 재현된다.
+
+젤리를 **빠르게 연속 흡수**(성장 큐가 쌓이는 흔한 상황)할 때 발생한다. AIPlayerMovement/NetworkPlayerSync 주석이 말하는
+"스케일 동기화와 충돌하여 모델 찌그러짐"과 정확히 같은 증상이, 로컬 큐에서도 재현되는 경로다.
+
+- 근거: PlayerScaleController.cs:106/130 + :147-155 + SoftBody3D.cs:141-181.
+- 제안(미적용): 재빌드를 **ScaleTo 끝마다가 아니라 스케일 큐가 완전히 빈 시점**(ProcessScaleQueue의 while 종료 직후)에
+  한 번만 수행하도록 이동. 성장 도중에는 Cloth를 계속 꺼둔 채로 두고, 모든 연속 성장이 끝난 뒤 딱 한 번 rebuild.
+  이러면 T1의 "성장마다 재캡처" 빈도도 크게 줄어 두 문제를 동시에 완화한다. **확인 필요**(연출 체감 실측).
+
+### [T3] (안정성 / 중하) `DisableCloth`/`RemoveCloth`가 **진행 중인 rebuild 코루틴을 취소하지 않아** 꺼야 할 때 Cloth가 되살아남
+
+T2의 근본 원인이자 별도로도 위험하다. `DisableCloth()`는 `_cloth.enabled=false`만, `RemoveCloth()`는 `Destroy`만 한다.
+둘 다 **이미 돌고 있는 `EnableAndRebuildCloth` 코루틴을 멈추지 않는다.** 그래서 "이제 Cloth를 꺼야 하는" 이벤트
+(사망·결과 전환 등)가 rebuild 코루틴의 2프레임 대기 사이에 끼면, 코루틴이 깨어나 **Cloth를 다시 만들고 enable**해버린다.
+
+특히 `GameTimer.GameFail`은 `Time.timeScale = 0f` 직후 `softBody3D.DisableCloth()`를 부르는데(GameTimer.cs:64,75),
+`EnableAndRebuildCloth`의 대기는 `WaitForSeconds`가 아니라 **`yield return null`(프레임 단위)** 이라 `timeScale=0`에도
+계속 진행된다 → **사망 처리 직후 rebuild가 완료돼 Cloth가 다시 켜질 수 있다.**
+
+- 근거: SoftBody3D.cs:118-122 / :124-139 vs :148-181; GameTimer.cs:75.
+- 제안(미적용): `DisableCloth`/`RemoveCloth` 진입부에 `if (_isRebuilding) { StopCoroutine(...); _isRebuilding=false; }`
+  추가(코루틴 핸들 보관 필요). "끄기"가 "다시 만들기"를 항상 이긴다는 불변식을 코드로 못박기.
+
+### [T4] (코드품질·성능 / 하) `Update`가 매 프레임 Cloth 파라미터 5종 + `useGravity=true`를 무조건 재기록 → `ApplyClothSettings`의 `useGravity=false`가 죽은 대입 + 두 경로 모순
+
+`Update()`(SoftBody3D.cs:45-61)는 인스펙터 값이 안 바뀌어도 **매 프레임** `damping/stretchingStiffness/bendingStiffness/
+worldVelocityScale/worldAccelerationScale`를 Cloth에 대입한다(젤리가 여럿이면 자잘한 낭비). 더 큰 문제는 **일관성**이다:
+`ApplyClothSettings`(:80-89)는 `useGravity=false`로 설정하는데, `Update`는 매 프레임 `useGravity=true`로 덮는다
+→ ApplyClothSettings의 그 줄은 **사실상 죽은 대입**이고, 두 경로가 중력 정책을 두고 서로 모순된다(초기화는 off, 매 프레임 on).
+S5(거의 안 변하는 값을 매 틱 갱신) 테마.
+
+- 근거: SoftBody3D.cs:45-61 vs :80-89.
+- 제안(미적용): 파라미터 대입을 값이 바뀔 때만(런타임 튜닝이 필요 없으면 InitCloth/Rebuild 시 1회, 에디터 튜닝은
+  `OnValidate`)로 제한하고, `useGravity` 정책을 **한 곳으로 통일**(둘 중 진짜 의도를 확정). 동작 영향 없이 코드 정직화.
+
+### [T5] (안정성·문서화 / 하·확인필요) `GameTimer.GameFail` 종료 경로 전부 무가드 + `timeScale=0` + 주석 mojibake — **K4/R8 재확인** (젤리 관점에서 T3와 결합)
+
+`GameFail`(GameTimer.cs:63-90)은 `Time.timeScale=0f`를 먼저 설정한 뒤 `PlaySFXAudio.Instance`, `playerController`,
+`softBody3D.DisableCloth()`, `playerAnimController`, `mainCamera_Action`, `resultStarsUI`를 **전부 null 가드 없이** 호출한다.
+참조 하나라도 미할당이면 **timeScale이 0인 채 NRE로 멈춰 소프트프리즈**. 한글 주석은 전부 mojibake(깨진 인코딩)다.
+이미 K4(06-18)·R8(07-04)로 도출됐고 "이 GameFail 경로가 멀티 흐름에서 실제 불리는지" 확인이 반복 미해결 상태다.
+젤리 관점의 추가 발견: 여기서 `DisableCloth`만 부르고 rebuild가 없어 **T3 위험(대기 중 rebuild가 되살림)과 직접 결합**한다.
+
+- 근거: GameTimer.cs:63-90.
+- 제안(미적용): **사용 여부 먼저 확인** → 미사용(레거시 단일플레이 잔재)이면 K4/R8/T5 묶어 데드코드 정리,
+  사용 중이면 `timeScale=0` 설정 *전* null 가드 + T3(진행 중 rebuild 취소) 적용 + 주석 UTF-8 재작성(M4/N6/R7 묶음).
+
+### [T6] (데드코드 / 하·관찰) `JellyMesh_Legacy/` 4종 중 3종 **완전 미참조**, `JellyMesh.cs`만 테스트 씬 2곳에 잔존
+
+현행 젤리는 `SoftBody3D`(Cloth) 단일 계통인데, 구버전 스프링/2D 젤리 계열이 통째로 남아 있다. GUID 역참조 조사 결과:
+- `AddSpringJoint.cs`, `JellyLine2D.cs`, `JellyMeshver2.cs` → 코드·프리팹·씬·asset **어디에서도 참조 0**.
+- `JellyMesh.cs` → `Assets/Scenes/Legacy/3DTestScene.unity`, `Assets/Scenes/Test/3DTestScene.unity` 2개 **테스트 씬**에서만 참조.
+
+M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 빌드 크기·검색 노이즈·신규 합류자 혼란 요인.
+
+- 제안(미적용): 미참조 3종은 삭제 후보, `JellyMesh.cs`는 딸린 테스트 씬 정리 여부까지 **사용자 확인 후** 함께 결정.
+  (씬이 빌드에 포함되는지 확인 필요하므로 관찰로 둠, 직접 삭제 X.)
+
+### [T7] (안정성 / 하·관찰) `RequestRebuildCloth`가 비활성 오브젝트에서 호출되면 **재빌드를 조용히 버려** Cloth가 영구 소실 (S3 리스폰 미배선과 연결)
+
+`RequestRebuildCloth`는 `if (!gameObject.activeInHierarchy) return;`(SoftBody3D.cs:143)로, `EnableAndRebuildCloth`도
+대기 후 `if (!gameObject.activeInHierarchy) { _isRebuilding=false; yield break; }`(:164-168)로 조기 반환한다.
+즉 **스케일 완료 직후 오브젝트가 잠깐 비활성**(사망/흡수 연출로 SetActive(false))되면 rebuild가 스킵되고, 이후 다시
+활성화돼도 **Cloth를 재생성하는 재시도 경로가 없어** 젤리가 뻣뻣한(천 없는) 상태로 남는다. 다만 현재 플레이어는
+**리스폰이 배선돼 있지 않으므로(S3)** "사망 후 재활성" 시나리오 자체가 없어 실무 영향은 낮다 — S3 리스폰을 넣는 순간
+실버그로 승격될 잠재 결함이다.
+
+- 근거: SoftBody3D.cs:143, 164-168.
+- 제안(미적용): `OnEnable`에서 "Cloth가 없고 원격/봇이 아니면 rebuild 재시도" 가드를 두거나, **S3 리스폰 설계와 묶어**
+  결정. 지금은 관찰로 기록.
+
+> **이번 루틴 총평(학습용):** 젤리 물리 계층의 위험은 물리식이 아니라 **"Cloth를 언제 끄고 언제 다시 만드느냐"의 타이밍**에
+> 몰려 있다. 핵심은 T1(재빌드가 칠한 제약 맵을 날림)과 T2·T3(재빌드 코루틴이 다음 애니메이션/사망 처리와 경합)이다.
+> 세 문제 모두 뿌리가 같다 — **"성장할 때마다 Cloth를 통째로 Destroy→AddComponent로 재생성"** 하는 설계.
+> Cloth를 새로 만드는 대신 **끄고(disable) → 스케일 애니메이션 → 다시 켜기(enable)** 로 바꾸면(원본 컴포넌트·칠한 제약이
+> 그대로 보존되므로) T1이 근본 해소되고, "만들기"가 없어 T2·T3 경합도 사라진다. 재빌드가 정말 필요한 이유(스케일 후
+> 천의 rest pose 갱신 등)가 있는지 **사용자에게 확인**한 뒤, 없다면 enable/disable 방식으로 단순화하는 것을 1순위로 권한다.
+> T4~T7은 정직화·데드코드·엣지케이스로 우선순위는 낮다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1636,6 +1788,13 @@ N4·O2·P1 등에서 *부분적으로* 닿았을 뿐, 직렬화·권위 판정 �
 - [ ] S8  (대기 — 2026-07-07 도출, RPC_BotAbsorbConfirmed:511/RPC_GetAbsorbed:537 등 흡수·대쉬·배트 RPC가 DataManager.Instance 무가드 역참조 → 씬 전환 경계 stale RPC 시 NRE. 진입부 null 가드 1줄. G8/L2/H3 테마, S2와 묶음)
 - [ ] S9  (대기 — 2026-07-07 도출, WanderingAI._isMine이 Start 1회 계산 + OnMasterClientSwitched 미구현 → 봇은 이어받는데 젤리는 안 함. 현재 PhotonNetwork.Instantiate라 마스터 이탈 시 파괴+재보충(젤리 일시 증발). 룸오브젝트化 시 실버그로 승격. **확인 필요·설계 결정**. P1/O6 테마)
 - [ ] S10 (대기 — 2026-07-07 도출, AIPlayerMovement.RPC_BotAbsorbed:692 무가드 Debug.Log 잔존 — O7(06-27) 이후 코드변경 없어 그대로. 제거 or [Conditional] 래퍼, O7/N1 로그규약 일괄 정리)
+- [ ] T1  (대기 — 2026-07-09 도출, Cloth 재빌드(EnableAndRebuildCloth)가 새 Cloth의 기본 coefficients를 _initialCoefficients에 재캡처 → 에디터에서 칠한 softness 맵 소실. 첫 성장 이후 하이브리드 연출 손상. InitCloth 1회 캡처값을 보존·재적용, 정점순서 동일성 에디터 실측 **확인 필요**, **우선 권장**·시그니처)
+- [ ] T2  (대기 — 2026-07-09 도출, 연속 스케일 큐에서 이전 ScaleTo의 RequestRebuildCloth 코루틴이 다음 ScaleTo Lerp 도중 Cloth를 재-enable → 찌그러짐 방지 무력화(연속 흡수 시). 재빌드를 ProcessScaleQueue 종료 시 1회로 이동 권장(T1 빈도도 완화). **확인 필요**)
+- [ ] T3  (대기 — 2026-07-09 도출, DisableCloth/RemoveCloth가 진행 중 EnableAndRebuildCloth 코루틴 미취소 → 꺼야 할 때(GameFail 등, yield null은 timeScale=0에도 진행) Cloth가 되살아남. 진입부 StopCoroutine+_isRebuilding=false로 '끄기가 만들기를 이긴다' 불변식 확립. T2 근본)
+- [ ] T4  (대기 — 2026-07-09 도출, Update가 매 프레임 Cloth 파라미터 5종+useGravity=true 무조건 재기록 → ApplyClothSettings의 useGravity=false 죽은 대입+중력정책 모순. 값 변경 시로 제한+정책 단일화, 동작 불변. S5 테마)
+- [ ] T5  (대기 — 2026-07-09 도출, GameTimer.GameFail 종료경로 전부 무가드+timeScale=0 후 소프트프리즈+주석 mojibake — K4/R8 재확인, 젤리 관점 T3와 결합(DisableCloth만·rebuild 취소 없음). 사용 여부 확인 후 데드코드 정리 or 널가드+T3, **확인 필요**)
+- [ ] T6  (대기 — 2026-07-09 도출, JellyMesh_Legacy 4종 중 AddSpringJoint/JellyLine2D/JellyMeshver2 GUID 참조 0, JellyMesh.cs만 3DTestScene(Legacy/Test) 2씬 잔존. 구버전 스프링/2D 젤리 데드코드(M1/J4 테마). 씬 빌드 포함 여부 확인 후 사용자 확인·정리)
+- [ ] T7  (대기 — 2026-07-09 도출, RequestRebuildCloth/EnableAndRebuildCloth가 비활성 시 재빌드 조용히 버림+재시도 경로 없음 → 재활성 시 Cloth 영구 소실. 현재 리스폰 미배선(S3)이라 시나리오 부재·잠재. S3 리스폰과 묶어 OnEnable 재시도 결정, 관찰)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
