@@ -1679,6 +1679,147 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 
 ---
 
+## 2026-07-11 루틴 — 플레이어 전투/스킬 시퀀스 신규 심층 리뷰 (대쉬 → 배트 스윙 → 히트판정 → 넉백 권위 흐름, U1~U7 도출)
+
+지금까지 루틴은 플레이어 FSM의 **구조**(N: 상태 전이·수명), 흡수 판정(H/L/S), 젤리 물리(T)를 봤지만
+**Push 모드의 실제 전투 루프 — "대쉬로 파고들어 배트로 때려서 밀쳐낸다"** 그 자체는 한 번도 대상이 아니었다.
+이번엔 그 시퀀스를 입력부터 권위 판정까지 관통해서 봤다.
+
+리뷰 범위: 입력·전이(`PlayerIdleState`/`PlayerMoveState`) → 대쉬(`PlayerDashState`) → 배트 스윙·히트감지
+(`PlayerAttackState.DetectBatHit`) → 마스터 검증·넉백(`NetworkPlayerSync.RPC_Request*` / `RPC_ApplyKnockback`)
+→ 피격자 반응(`PlayerKnockbackState`, `AIPlayerMovement.RPC_ApplyKnockback`/`KnockbackRoutine`) + 봇 대칭 경로
+(`AIPlayerMovement.DetectBatHit`) + `PushObject`(프롭 밀치기).
+
+### 좋았던 점(설계 관찰)
+- **입력 → 상태 → 판정의 책임 분리가 깔끔하다.** 로컬 클라는 "때렸다고 **요청**"만 하고
+  (`photonView.RPC(RPC_RequestBatHit*, RpcTarget.MasterClient, viewID)`), 실제 넉백/성장은 마스터가
+  결정해 소유자에게만 되돌려준다(`RPC_ApplyKnockback`을 `victimPV.Owner`에게). 권위 모델의 정석이다.
+- **봇 넉백은 소유자(마스터)에게만** 보내는 이유를 주석으로 남겼다("All로 보내면 비마스터도 로컬에서
+  transform을 밀어 수신값과 충돌→지터/되감김"). PhotonTransformView 권위 동기화와의 충돌을 이미 학습한 흔적.
+- **봇 넉백 종료 시 발밑 레이캐스트로 땅을 먼저 확인**한 뒤 Agent를 켜서(맵 밖으로 밀렸으면 그대로 낙하)
+  "Agent.enabled=true가 근처 NavMesh로 스냅해 되살아나는" 함정을 회피했다(AIPlayerMovement.cs:1015~). 세심함.
+- 대쉬/배트 **쿨다운을 `Enter`에서 즉시 설정**(선입금)해 스팸을 막고, `CanDash()`/`CanAttack()`이
+  `InputLocked`·모드·현재상태까지 함께 보게 한 게 좋다(카운트다운 입력잠금 J5와 정합).
+
+아래가 그 위에서 발견한 개선점이다. **U1(대쉬-충돌 고아 서브시스템)** 과 **U2(배트 히트 무검증 신뢰)** 가 핵심이다.
+
+### [U1] (데드코드·설계결정 / 중·확인필요) 대쉬-충돌(넉백) 서브시스템이 **완전히 고아** — 마스터 핸들러 2개 + 설정값이 아무도 부르지 않은 채 잔존
+
+`PlayerDashState`는 주석까지 달아 **"대쉬는 순수 이동기 — 충돌/밀치기 판정 없음"**(PlayerDashState.cs:35)이라
+못박고, 실제로 대쉬 중엔 `controller.Move`만 하지 히트 감지를 전혀 안 한다. 그런데 네트워크 계층에는
+대쉬로 상대를 밀치는 **마스터 검증 핸들러가 통째로 남아 있다**:
+
+- `RPC_RequestDashHitPlayer(int victimViewID)` (NetworkPlayerSync.cs:668~701)
+- `RPC_RequestDashHitBot(int botViewID)` (NetworkPlayerSync.cs:704~745)
+
+이 둘은 `dasherScale - victimScale`로 흡수/밀치기를 가르고 `dashPushForce`로 넉백을 주는, 원래 "대쉬 어택"의
+서버 판정부다. 하지만 GUID/텍스트 역참조 결과 **호출처가 0개**다. 유일하게 이 핸들러 안에서만 읽히는
+`DataManager.dashPushForce = 15f`(DataManager.cs:53)도 **사실상 죽은 설정값**이다. 즉 "대쉬로 밀친다" 기능이
+이동기로 리팩터되며 감지부만 제거되고, **서버 판정부 + 밸런싱 값은 미아로 남은 반쪽 삭제**다.
+
+- 근거: PlayerDashState.cs:35(감지 없음 선언) vs NetworkPlayerSync.cs:668/704(호출자 0) + DataManager.cs:53(고아 값).
+- 학습 포인트: 기능을 걷어낼 땐 **호출 그래프의 양끝(입력→감지→RPC 요청→서버 핸들러→설정값)** 을 함께
+  지워야 미아가 안 생긴다. 지금은 서버 핸들러만 남아 "대쉬가 밀치는 줄" 오해를 부르고 검색 노이즈가 된다.
+  M1(ResultDataCarrier)·S3(리스폰 미배선)·J4와 같은 **반쪽구현** 테마.
+- 제안(미적용): **설계 결정 먼저** — (A) 대쉬는 순수 이동으로 확정 → 핸들러 2개 + `dashPushForce` 삭제,
+  또는 (B) .io식 "대쉬 어택"을 되살릴 계획이면 `PlayerDashState.Update`에 배트와 같은 감지→`RPC_RequestDashHit*`
+  배선을 복구. **사용자 확인 필요**(대쉬 밀치기를 쓸지 말지가 게임 디자인 의도).
+
+### [U2] (보안·정합 / 중·핵심·확인필요) 배트 히트 마스터 핸들러가 **클라이언트의 명중 주장을 무검증 신뢰** — 거리·사거리·호 재확인이 없어 원거리 임의 타격 + 공짜 성장 가능
+
+로컬 클라의 `PlayerAttackState.DetectBatHit`은 OverlapSphere + 거리 + 호(arc) 각도를 성실히 검사한 뒤
+`RPC_RequestBatHitPlayer/Bot`을 마스터로 보낸다. 문제는 **마스터가 그 요청을 받으면 아무 재검증 없이 바로
+넉백 + 성장 보상을 준다**는 것이다(NetworkPlayerSync.cs:798~851):
+
+- `RPC_RequestBatHitPlayer`는 `victimViewID`만 받아 `PhotonView.Find` → 곧바로 `pushDir` 계산 → 피격자에게
+  `RPC_ApplyKnockback`, 공격자에게 `RPC_BatGrowReward`. **"공격자와 피격자가 실제로 배트 사거리 안에 있었는지"를
+  마스터가 아는 권위 위치로 다시 확인하지 않는다.**
+- 즉 조작/지연 클라가 `RPC_RequestBatHitPlayer(임의 ViewID)`를 보내면, 맵 반대편 상대도 넉백당하고
+  **공격자는 `batHitGrowth` 성장까지 획득**한다(성장 보상이 붙어 흡수 경로보다 악용 유인이 크다).
+
+이것은 S6(대쉬/흡수 RPC가 크기만 보고 위치·사거리 재확인 없음)의 **배트 버전**이자, N4(공격 판정 권위)의 연장선이다.
+현재 배트 판정은 "요청→MC검증"의 형식은 갖췄지만 **검증 내용이 비어 있다**(ViewID 유효성 + Phase만 봄).
+
+- 근거: NetworkPlayerSync.cs:798~822(플레이어 대상), :825~851(봇 대상) — 둘 다 range/arc 재검증 없음.
+- 참고: 봇발 배트(`AIPlayerMovement.DetectBatHit`, :873~929)는 마스터에서 직접 도는 로컬 판정이라 이 신뢰 문제는
+  없다. 취약점은 **플레이어발 "요청" 경로에만** 있다 — S7(흡수 판정 이원화)이 지적한 "경로가 둘이라 한쪽에만
+  방어가 빠진다"는 드리프트가 여기서도 재현.
+- 제안(미적용): 마스터 핸들러 진입부에 **권위 위치 기반 거리·호 게이트** 추가 —
+  `Vector3 d = victimPV.transform.position - transform.position; d.y=0;`
+  `if (d.magnitude > dm.batRange * attackerScale * (1+여유)) return;` + 필요 시 `Vector3.Angle(forward, d) <= halfArc`.
+  (마스터가 아는 봇 위치는 권위값, 플레이어 위치는 PhotonTransformView 보간값이라 지연 여유 계수 필요 — **실측 확인**.)
+  S1/S2/S6와 묶어 "요청형 RPC는 서버가 반드시 재검증" 규약으로 일괄 처리 권장.
+
+### [U3] (버그가능성·안정성 / 중하·확인필요) 플레이어 `RPC_ApplyKnockback` 수신부에 **Phase·사망 가드가 전무** — 봇 경로와 방어 수준이 어긋남
+
+넉백을 실제로 적용하는 수신부가 플레이어와 봇에서 방어 수준이 다르다:
+
+- 봇: `AIPlayerMovement.RPC_ApplyKnockback`(:981)은 `if (IsEliminated || IsBeingAbsorbed) return;`으로
+  "이미 탈락/흡수 중이면 안 밀림"을 보장한다.
+- 플레이어: `NetworkPlayerSync.RPC_ApplyKnockback`(:748)은 **아무 가드 없이** 곧바로
+  `playerController.ApplyKnockback` → **강제로 `knockbackState` 진입**(진행 중이던 attack/dash를 끊고 "Hit" 애니 재생).
+  Phase가 `Playing`이 아닌 순간(결과 전환·사망 처리 중)이나 stale RPC가 늦게 도착하면, 죽은/전환 중인 플레이어가
+  다시 넉백 모션으로 튀어나올 수 있다.
+
+`ApplyKnockback`은 `InputLocked`(카운트다운)조차 무시하고 상태를 강제 전환하므로, "언제 밀려도 되는가"의 불변식이
+플레이어 쪽에만 비어 있다. T3(젤리 rebuild가 "끄기"를 못 이김)와 같은 **"강제 동작이 종료 상태를 존중 안 함"** 테마.
+
+- 근거: NetworkPlayerSync.cs:748~753 vs AIPlayerMovement.cs:981~983.
+- 제안(미적용): 플레이어 수신부에도 `if (GameState.Phase != GamePhase.Playing) return;`(+ 사망/관전 플래그가
+  있으면 함께) 가드 추가. 봇과 대칭 맞추기. **확인 필요**(사망 후 관전 상태 표현이 넉백에 의존하지 않는지).
+
+### [U4] (설계·정합 / 하·확인필요) 배트 스윙은 **아크(부채꼴)** 인데 히트감지가 **첫 명중 후 즉시 `return`** — 겹친 두 명 중 하나만 맞음
+
+`DetectBatHit`(플레이어 PlayerAttackState.cs:95~123 / 봇 AIPlayerMovement.cs:888~926)은 OverlapSphere로 호 안의
+여러 대상을 순회하다가 **첫 유효 타겟에서 `_hitDetected=true; ... return;`** 한다. 비주얼(`BatDebugVisualizer`,
+`RemoteBatSwing`)은 `batArcAngle` 부채꼴을 **쓸고 지나가는** 연출인데, 판정은 사실상 단일 대상이다. 밀집 상황에서
+"분명 둘을 쓸었는데 하나만 밀림"이 체감 버그로 보일 수 있다.
+
+- 근거: PlayerAttackState.cs:109~121(첫 히트 return), AIPlayerMovement.cs:910/924.
+- 제안(미적용): 단일 대상이 **의도면** 명시(주석/툴팁)만 보강. 다중 타격이 맞다면 `return`을 걷고 호 안 모든
+  유효 타겟에 `RPC_RequestBatHit*`를 보내되, **자기 성장 보상은 히트 수에 비례/상한**을 둬 U2 악용과 겹치지 않게.
+  플레이어·봇 양쪽 동일 수정 필요(복붙 경로라 한쪽만 고치면 드리프트, S7 테마). **디자인 확인 필요.**
+
+### [U5] (성능·GC / 하) 배트 스윙마다 `LayerMask.GetMask` 문자열 조회 + `OverlapSphere` 배열 할당 — 매 공격 GC
+
+`DetectBatHit`은 스윙 1회마다 `LayerMask.GetMask("Player") | LayerMask.GetMask("Edible")`(문자열→마스크 조회 2회)와
+`Physics.OverlapSphere(...)`(결과 배열 힙 할당)를 수행한다(PlayerAttackState.cs:92~93, AIPlayerMovement.cs:885~886).
+봇이 여럿이면 전투 중 자잘한 GC가 쌓인다. S5(거의 안 변하는 값 매 틱 재계산)·K1/G3(머티리얼/할당 정리) 성능 테마.
+
+- 제안(미적용): 마스크를 `static readonly int _batMask = LayerMask.GetMask("Player","Edible");`로 1회 캐시,
+  감지를 `Physics.OverlapSphereNonAlloc(origin, range, _buffer, _batMask)`로 버퍼 재사용. 플레이어/봇 공통 헬퍼로
+  추출하면 U4까지 한 곳에서 관리 가능(중복 로직 단일화). 동작 불변·순수 최적화.
+
+### [U6] (코드품질·정합 / 하) 넉백 지속시간 `0.4f`가 **두 곳에 각각 하드코딩** — 힘은 DataManager로 중앙화됐는데 시간만 흩어짐
+
+밀치기 **힘**은 `dm.batPushForce`/`dm.dashPushForce`로 DataManager에 모여 있는데, 밀치기 **지속시간**은
+`PlayerKnockbackState.KNOCKBACK_DURATION = 0.4f`(:7)와 `AIPlayerMovement.KnockbackRoutine`의 `const float duration = 0.4f`(:998)에
+**따로 하드코딩**돼 있다. 한쪽만 튜닝하면 플레이어와 봇의 넉백 감속 곡선이 어긋난다(밸런싱 드리프트).
+
+- 근거: PlayerKnockbackState.cs:7, AIPlayerMovement.cs:998.
+- 제안(미적용): `DataManager.knockbackDuration`(또는 bat/dash별)로 단일 출처화하고 양쪽이 참조. S7(규칙 복붙→드리프트)
+  예방 테마. 순수 정직화.
+
+### [U7] (로그규약·인코딩 / 하·관찰) `ChangeState`가 전이마다 무조건 `Debug.Log` + 내용 부실(어느 상태인지도 안 찍음) + 주변 mojibake 주석
+
+`PlayerMovement.ChangeState`(:166)는 상태가 바뀔 때마다 `Debug.Log($"[Player] 상태 변경 완료");`를 **무가드로** 출력한다.
+전투 중 대쉬·공격·넉백으로 전이가 잦아 로그가 도배되는데, 정작 **어느 상태로 갔는지**는 안 찍혀 디버깅 가치도 낮다.
+`PlayerIdleState` 등에도 `Debug.Log("[Player] ... 진입")`가 남아 있고, 주석 상당수가 mojibake(`PlayerIdleState.cs:5~6`,
+`PushObject.cs` 전체)다. N1/O7/S10(로그규약)·M4/N6/R7(주석 인코딩) 테마의 전투 계층 재확인.
+
+- 근거: PlayerMovement.cs:166, PlayerIdleState.cs:5~6/13, PushObject.cs.
+- 제안(미적용): 전이 로그는 `[System.Diagnostics.Conditional("PLAYER_FSM_DEBUG")]` 래퍼로 감싸거나 제거, 남긴다면
+  `to.GetType().Name`을 포함. mojibake 주석은 UTF-8 재작성(로그규약 일괄 정리 시 함께). 관찰로 기록.
+
+> **이번 루틴 총평(학습용):** Push 전투 루프는 "로컬은 요청만, 마스터가 판정"이라는 **권위 모델의 뼈대는 옳게** 서 있다.
+> 다만 그 뼈대에 **살(검증)이 안 붙은 곳**이 핵심 리스크다 — U2(마스터가 배트 명중을 재검증 안 함)가 대표이고,
+> 이는 S1/S2/S6와 같은 뿌리("요청형 RPC를 서버가 그대로 믿는다")다. U3(플레이어 넉백 수신 무가드)도 봇에는 있는
+> 방어가 플레이어에만 빠진 **비대칭**이라, 봇/플레이어 판정을 **공통 헬퍼 하나**로 합치면(U4·U5·U6까지) 검증·성능·밸런싱이
+> 한곳에서 정합화된다. U1은 그와 별개로 "대쉬 어택을 쓸지"라는 **디자인 결정**이 먼저다 — 결정 후 미아 코드를 정리하거나
+> 기능을 복구하면 된다. 우선순위: U2 ≥ U3 > U1 > U4~U7.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1795,6 +1936,13 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 - [ ] T5  (대기 — 2026-07-09 도출, GameTimer.GameFail 종료경로 전부 무가드+timeScale=0 후 소프트프리즈+주석 mojibake — K4/R8 재확인, 젤리 관점 T3와 결합(DisableCloth만·rebuild 취소 없음). 사용 여부 확인 후 데드코드 정리 or 널가드+T3, **확인 필요**)
 - [ ] T6  (대기 — 2026-07-09 도출, JellyMesh_Legacy 4종 중 AddSpringJoint/JellyLine2D/JellyMeshver2 GUID 참조 0, JellyMesh.cs만 3DTestScene(Legacy/Test) 2씬 잔존. 구버전 스프링/2D 젤리 데드코드(M1/J4 테마). 씬 빌드 포함 여부 확인 후 사용자 확인·정리)
 - [ ] T7  (대기 — 2026-07-09 도출, RequestRebuildCloth/EnableAndRebuildCloth가 비활성 시 재빌드 조용히 버림+재시도 경로 없음 → 재활성 시 Cloth 영구 소실. 현재 리스폰 미배선(S3)이라 시나리오 부재·잠재. S3 리스폰과 묶어 OnEnable 재시도 결정, 관찰)
+- [ ] U1  (대기 — 2026-07-11 도출, 대쉬-충돌 서브시스템 완전 고아 — RPC_RequestDashHitPlayer/Bot(NetworkPlayerSync:668/704) 호출자 0 + dashPushForce(DataManager:53) 그 핸들러에서만 읽힘. PlayerDashState는 "순수 이동기" 선언. 대쉬 밀치기 반쪽삭제(M1/S3/J4 테마). 삭제 or 대쉬어택 복구 **설계 결정·사용자 확인**)
+- [ ] U2  (대기 — 2026-07-11 도출, 배트 히트 MC 핸들러(RPC_RequestBatHitPlayer/Bot:798/825)가 클라 명중 주장을 무검증 신뢰 — 거리·호 재확인 없음. 조작 클라가 임의 ViewID·원거리 넉백+batHitGrowth 공짜 성장. S6 배트버전·N4 연장. 권위 위치 기반 거리/arc 게이트 추가, **우선 권장**·보안·확인 필요)
+- [ ] U3  (대기 — 2026-07-11 도출, 플레이어 RPC_ApplyKnockback(NetworkPlayerSync:748) Phase·사망 가드 전무 → stale/전환 중 RPC가 강제 knockbackState 진입(attack/dash 끊고 Hit 애니). 봇(AIPlayerMovement:981)엔 IsEliminated/Absorbed 가드 있음 — 비대칭. 플레이어측에 Phase!=Playing 가드 추가, **확인 필요**)
+- [ ] U4  (대기 — 2026-07-11 도출, DetectBatHit이 아크 스윙인데 첫 명중 후 즉시 return → 겹친 두 명 중 하나만 타격(PlayerAttackState:109~/AIPlayerMovement:910). 단일 대상 의도면 명시, 다중이면 return 제거+성장보상 상한(U2 악용 방지). 플레이어·봇 동일 수정. **디자인 확인 필요**)
+- [ ] U5  (대기 — 2026-07-11 도출, DetectBatHit이 스윙마다 LayerMask.GetMask 문자열 조회+OverlapSphere 배열 할당(PlayerAttackState:92~93/AIPlayerMovement:885~886). 마스크 static 캐시+OverlapSphereNonAlloc 버퍼. S5/K1/G3 GC 테마. 공통 헬퍼로 추출 시 U4까지 단일화. 순수 최적화)
+- [ ] U6  (대기 — 2026-07-11 도출, 넉백 지속시간 0.4f 이중 하드코딩 — PlayerKnockbackState:7 + AIPlayerMovement:998. 힘은 DataManager 중앙화됐는데 시간만 흩어져 한쪽 튜닝 시 플레이어/봇 감속곡선 드리프트. DataManager.knockbackDuration 단일화. S7 테마·정직화)
+- [ ] U7  (대기 — 2026-07-11 도출, PlayerMovement.ChangeState:166이 전이마다 무가드 Debug.Log("상태 변경 완료")+어느 상태인지 안 찍음. PlayerIdleState:5~6/PushObject 주석 mojibake. N1/O7/S10 로그규약·M4/N6/R7 인코딩 테마. [Conditional] 래퍼+상태명 포함, UTF-8 재작성. 관찰)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
