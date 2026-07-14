@@ -1820,6 +1820,173 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 
 ---
 
+## 2026-07-14 루틴 — 젤리 데이터→외형→네트워크 스폰 파이프라인 신규 심층 리뷰 (CSV 파싱 → DTO/DAO → 스폰 외형 동기화 채널, V1~V10 도출)
+
+이번 루틴은 지금까지 개별 파일로만 스쳤던 **"젤리 데이터(CSV) → 외형 → 네트워크 스폰" 파이프라인**을 처음으로
+전용 주제로 관통했다 — `JellyDataDTO`(CSV 한 줄 파싱) → `JellyDataDAO`(Resources 로드/캐시) → `DataManager`
+(전역 설정) → `JellyObject`/`EntityRegistry`(개체 등록) → `NetworkJellyManager`(마스터 스폰/삭제) →
+`JellySpawnMachine`(가중치 소환기)의 흐름과, **각 클라이언트에서 젤리 외형이 실제로 어떻게 일치되는가**를 추적했다.
+분석은 Fable 5로 수행하고 도출 결과를 Opus가 코드/GUID 역참조로 교차검증했다(V1의 씬 부착 사실을 정정).
+
+### 좋았던 점(설계 관찰)
+- **젤리 개수를 `EntityRegistry.Jellies.Count`로 세는 판단이 정확하다**(NetworkJellyManager.cs:130~133). 마스터
+  교체 시 새 마스터의 `_spawnedJellies`가 비어 있어도 실제 씬 개수로 부족분만 채운다는 주석(:97~99)까지 남겼다.
+- `OnMasterClientSwitched`에 Push 모드 가드를 **뒤늦게라도 대칭으로 채워 넣고 이유를 주석화**했다(:308~315).
+- `PlaceJellyOnNavMesh`의 **Warp를 써야 하는 이유**(agent/transform 어긋남 → 바닥 박힘, baseOffset 동기화)를
+  상세히 문서화(:155~174) — J1 후속 학습이 잘 정착.
+- `GameState` 프로퍼티들이 **변경 감지 후에만 이벤트를 쏘고**, `ResetValues`에 H1 재발 방지 주석을 남겼다(:105~110).
+
+핵심은 **V1(파이프라인 전체가 고아)·V2(외형 동기화 채널 부재)** 이고, V3은 그 옆의 초기화 순서 레이스다.
+
+### [V1] (아키텍처·데드코드 / 중·핵심) CSV 외형 파이프라인(`JellyDataDTO`/`JellyDataDAO`)이 **통째로 고아** — 로드된 외형 데이터가 어떤 젤리에도 도달하지 않음
+- 위치: JellyDataDAO.cs 전체, JellyDataDTO.cs 전체, JellyObject.cs:6~8
+- 내용: 이번 리뷰의 출발 질문 "CSV의 BaseMap/NormalMap/MaskMap/MaterialPath/RGB가 스폰된 젤리에 어떻게 입혀지는가"의
+  답은 **"입혀지지 않는다"** 다. 역참조 결과:
+  - `LoadJellyData()`/`LoadPlayerData()`의 호출자가 **0개**이고, DTO의 `BaseMap`/`NormalMap`/`MaskMap`/`MaterialPath`/
+    `GetColor()`를 읽는 코드도 **0개**다. `Resources/Data/EnemyJellyData·PlayerJellyData` CSV는 로드조차 되지 않는다.
+  - `JellyDataDAO`(MonoBehaviour, GUID `d0ab5749…`)는 **라이브 게임 씬에는 부착돼 있지 않고**, `Assets/Scenes/Legacy/`
+    아래 `LevelScene.unity`·`TileScene.unity` **두 레거시 씬에만** 남아 있다 — 그마저도 `Load*`를 호출하는 코드가 없어
+    죽은 채로 잔존한다. (Fable 5 초안은 "어느 씬에도 없다"였으나 교차검증에서 레거시 씬 2곳 부착을 확인·정정. 결론
+    "라이브 파이프라인에서 고아"는 오히려 강화됨.)
+  - 수신부가 될 `JellyObject`를 보면 의도가 보인다 — `jellyName`/`jellyType`/`jellyRGB` 필드가 DTO의 `Name`/`ColorType`/
+    `R·G·B`와 **거울처럼 대응**하는데, 실제로 소비되는 것은 `jellyType` 하나뿐이고(JellyColliderAbsorb.cs:120의
+    `AbsorbColor`), `jellyName`과 `jellyRGB`는 **아무도 쓰지도 채우지도 않는다**. 즉 "CSV → DTO → JellyObject 주입"
+    다리를 설계만 하고 배선하지 않은 채, 실제 외형은 전부 프리팹 에셋에 **구워 넣는 방식으로 우회**한 상태다.
+  - 학습 포인트: U1(대쉬 서브시스템 고아)·M1·S3과 같은 **반쪽구현 테마**의 데이터 계층판이다. DAO/DTO/CSV/미사용
+    필드가 남아 있으면 "젤리 외형은 CSV로 관리된다"는 **거짓 지도를 코드가 그리게 되고**, 다음 사람(미래의 나)이
+    CSV를 고치고 왜 반영이 안 되는지 헤매게 된다.
+- 제안(미적용): **설계 결정 먼저** — (A) 프리팹 구움 방식으로 확정이면 DAO/DTO/CSV와 `jellyName`/`jellyRGB` 필드를
+  삭제(또는 `Legacy/`로 격리)하고 "외형은 프리팹이 단일 출처"를 주석으로 못박기, (B) CSV 주도 외형(커스텀 젤리)을
+  살릴 계획이면 V2의 동기화 채널과 함께 배선. **사용자 확인 필요**(커스텀 젤리 기능의 로드맵 여부).
+
+### [V2] (네트워크·아키텍처 / 중·핵심) 젤리 외형의 동기화 채널이 **"프리팹 이름" 하나뿐** — 지금은 우연히 정합, 런타임 커스텀 외형을 넣는 순간 클라 간 desync 예약
+- 위치: NetworkJellyManager.cs:140·150·259, JellySpawnMachine.cs:68
+- 내용: 멀티에서 젤리 외형이 모든 클라이언트에 일치하는 근거는 단 하나 — `PhotonNetwork.Instantiate(prefabFolder +
+  prefabName)`으로 **같은 이름의 프리팹 에셋을 각자 로드**하기 때문이다(젤리 스폰 경로엔 `IPunInstantiateMagicCallback`/
+  `InstantiationData`가 전혀 없음 — 교차검증 확인). 머티리얼·색이 프리팹에 구워져 있는 한 동기화는 "구조상 공짜"로
+  성립한다. 문제는 **확장 방향이 막혀 있다는 것**:
+  - CSV의 RGB/MaterialPath나 "플레이어별 커스텀 젤리 외형"처럼 **스폰 후 런타임에 입히는 외형**은 전달 통로가 전혀
+    없다. 스폰한 클라가 로컬에서 머티리얼을 바꿔도 원격 사본은 프리팹 기본 외형 그대로다 — 즉 V1의 파이프라인을
+    "그냥 연결"하면 **각 클라가 다른 젤리를 보는** 전형적 desync가 된다.
+  - 또한 프리팹 **이름 문자열**이 곧 프로토콜이라, 파일명 변경/폴더 이동이 곧바로 런타임 스폰 실패가 되는 취약한
+    결합이다(JellySpawnMachine 툴팁이 이를 경고로만 때우고 있음, :23~24).
+- 제안(미적용): 외형을 텍스처/머티리얼로 보내지 말고 **"데이터 ID만 보내고 각 클라가 로컬 CSV에서 결정론적으로 복원"**
+  하는 구조 권장 — `PhotonNetwork.Instantiate(name, pos, rot, 0, new object[]{ dtoID })`의 instantiationData로 CSV ID를
+  실어 보내고, 젤리 쪽 `IPunInstantiateMagicCallback.OnPhotonInstantiate`에서 `info.photonView.InstantiationData`를 읽어
+  DAO 조회 → `JellyObject.jellyType/jellyRGB` 채움 + 머티리얼 적용. 이러면 V1의 DTO/DAO가 정확히 제자리를 찾고,
+  네트워크로는 int 하나만 흐른다. 늦게 합류한 클라이언트에게도 instantiationData는 자동 재전달되므로 별도 재동기화 불필요.
+
+### [V3] (버그가능성·초기화순서 / 중·확인필요) `DataManager.Awake`의 `GameState.Reset()` 호출 — 이벤트 전멸 + `CurrentGameMode`를 Absorb로 되돌리는데, 이를 읽는 쪽(`NetworkJellyManager.Start` 등)과 복원(`GameModeManager.Start`)의 **실행 순서가 미정의**
+- 위치: DataManager.cs:150, GameState.cs:88·90~93, GameModeManager.cs:153~156, NetworkJellyManager.cs:73, JellySpawnMachine.cs:31
+- 내용: `GameState.Reset()`은 원래 **도메인 리로드 대비용**(`RuntimeInitializeOnLoadMethod`)인데, `DataManager.Awake`가
+  게임 씬 로드마다 이를 직접 호출한다. Reset은 두 가지 파괴적 동작을 한다:
+  1. `CurrentGameMode = Absorb`(:88) — 로비에서 고른 Push 모드가 씬 진입 순간 지워진다. `GameModeManager`가 `Start`에서
+     룸 프로퍼티로 복원하지만, **같은 값을 `Start`에서 읽는 소비자가 둘 더 있다** — `NetworkJellyManager.Start`(:73)와
+     `JellySpawnMachine.Start`(:31). Unity에서 스크립트 간 `Start` 순서는 미정의이므로, NetworkJellyManager.Start가
+     GameModeManager.Start보다 먼저 돌면 Push 씬에서 **모드를 Absorb로 오독하고 수집용 젤리 스폰 루틴을 켤** 여지가 있다.
+     "복원해 두었으니 괜찮다"가 아니라 복원 시점과 소비 시점 사이의 레이스가 열려 있는 구조.
+  2. 이벤트 4종을 전부 null로(:90~93) — 씬 로드 중 Unity는 오브젝트별 Awake→OnEnable을 섞어 호출하므로, **다른
+     오브젝트의 OnEnable 구독이 DataManager.Awake보다 먼저 실행되면 구독이 통째로 끊긴다**. 정확히 H1에서 한 번 데인
+     패턴(그래서 `ResetValues`를 만든 것)인데, Awake 경로엔 여전히 이벤트를 지우는 `Reset()`이 남아 있다.
+- 제안(미적용): `DataManager.Awake`에서는 `GameState.Reset()` 대신 **`ResetValues()`를 호출**(이벤트 보존 +
+  `CurrentGameMode` 불변). `Reset()`은 `RuntimeInitializeOnLoadMethod` 전용으로 남기고 "런타임 호출 금지" 주석 추가.
+  이러면 GameModeManager의 복원이 방어용 2중화가 되고 Start 순서 레이스가 근본적으로 사라진다. **확인 필요**: 리매치로
+  게임 씬 재진입 시 모드 이월 허용 여부(룸 프로퍼티 복원이 있어 문제없어 보이나 실측 권장).
+
+### [V4] (버그가능성·파싱 / 중) `JellyDataDTO` 생성자가 예외를 **삼키기만** 하고 DAO는 그대로 `Add` — 좀비 DTO(ID=0, ColorType=Red) 양산 + CRLF가 마지막 컬럼 `Trim()` 하나에 의존
+- 위치: JellyDataDTO.cs:27~60, JellyDataDAO.cs:38·45~46
+- 내용: 지금은 죽은 코드(V1)지만 되살리는 순간 그대로 터지는 지뢰들이다:
+  - 생성자 `catch`가 `Debug.LogError`만 하고 끝나는데, 호출부 `LoadCsvData`는 **실패 여부를 알 길이 없어** 그 DTO를
+    무조건 `Add`(:45~46) → `ID=0, Name=null, 경로 전부 null`인 **좀비 DTO**가 섞인다. 특히 `ColorType`은 enum 기본값
+    0 = **Red**가 된다(`None`이 마지막 멤버라서) — "파싱 실패한 젤리가 조용히 빨간 젤리가 되는" 함정.
+  - 컬럼이 9개 미만이면 `values[8]`에서 `IndexOutOfRangeException` → 역시 좀비로 흡수. 길이 검증 없음.
+  - DAO가 `Split('\n')`만 하므로(:38) Windows CRLF면 각 라인 끝에 `'\r'` 잔존. 지금은 **마지막 컬럼만**
+    `values[8].Trim()`(:55)이 우연히 구제 → 컬럼 순서를 바꾸거나 마지막 컬럼이 숫자가 되면(`int.Parse("3\r")`) 전 행 실패.
+- 제안(미적용): 생성자 대신 **`static bool TryParse(string line, out JellyDataDTO dto)` 팩토리** — 진입 시
+  `line = line.TrimEnd('\r')`, `values.Length < 9`면 즉시 false, 실패 시 DAO가 Add 스킵 + 몇 번째 줄이 왜 실패했는지
+  로깅. `Enum.Parse`도 `Enum.TryParse(values[2].Trim(), true, out …)`로(공백/대소문자 내성).
+
+### [V5] (버그가능성·캡슐화 / 하) `JellyDataDAO` — `Count>0` 캐시 규칙의 오염 캐시 가능성, 실패 시 null 반환, 내부 캐시 리스트 참조 노출, 불필요한 MonoBehaviour
+- 위치: JellyDataDAO.cs:4·29·34~36·49
+- 내용:
+  - 캐시 판정이 `targetList.Count > 0`(:29)이라, V4의 좀비 DTO가 **하나라도** Add되면 그 쓰레기 리스트가 **영구 캐시**
+    된다(오염 캐시). 반대로 헤더만 있는 정상 빈 CSV는 매 호출 재파싱 — "성공했는가"가 아니라 "결과가 비었는가"로 판정.
+  - 파일이 없으면 `null` 반환(:34~36) → 호출자가 null 체크를 빼먹으면 즉시 NRE(G8 널 가드 반환값판). **빈 리스트 반환 +
+    에러 로그**가 소비자를 단순하게 만든다.
+  - `return targetList`(:49)는 **내부 캐시 참조 그 자체**라 호출자가 `Clear()`/`Add()` 하면 캐시 오염 →
+    `IReadOnlyList<JellyDataDTO>` 반환 권장.
+  - 상태가 캐시 리스트 2개뿐인데 MonoBehaviour(:4). 순수 클래스로 만들어 `DataManager`가 소유하거나 static 서비스로
+    두면 V2의 `OnPhotonInstantiate` 경로(씬 배치 무관 조회)에서 쓰기 쉽다.
+- 제안(미적용): 성공 플래그로 캐시 판정 분리, 실패 시 빈 리스트 반환, `IReadOnlyList` 노출, MonoBehaviour 제거.
+  V1의 설계 결정(A안이면 통삭제)과 함께 처리.
+
+### [V6] (안정성·수명 / 중하) `NetworkJellyManager` — `_spawnRoutineRunning`이 **한 번 true면 영원히 true**(재시작 영구 차단 가능) + 스폰 루프에 **Phase 가드가 없어** 게임 종료 후에도 계속 스폰
+- 위치: NetworkJellyManager.cs:63·93~94·108~121·317~321
+- 내용:
+  - 플래그는 코루틴 진입 시 true(:94) 뒤 **어디서도 false로 안 돌아온다**. 코루틴은 GameObject 비활성화/`StopAllCoroutines()`로
+    플래그와 무관하게 죽을 수 있는데, 그 후 `OnMasterClientSwitched`가 재시작을 시도하면 `if (_spawnRoutineRunning)
+    yield break;`(:93)에 막혀 **스폰 영구 정지**. 코루틴 핸들 자체(`Coroutine _routine`)를 진실로 쓰는 게 안전.
+  - `while(true)` 루프(:108~121)에 `GameState.Phase` 확인이 없어 GameOver/Result 전환 중에도 씬이 살아 있는 한 젤리를
+    계속 소환 → 결과 연출 중 배경 낭비이자 결과 스냅샷 계열 로직에 노이즈.
+- 제안(미적용): `private Coroutine _routine;` + `if (_routine != null) return; _routine = StartCoroutine(...)`,
+  `OnDisable`에서 `_routine = null`. 루프 선두 `if (GameState.Phase != GamePhase.Playing) { yield return null; continue; }`
+  또는 `OnPhaseChanged` 구독으로 정지. 마스터 교체 이어받기 로직 자체는 유지.
+
+### [V7] (네트워크 정합 / 중) 이중 흡수 — `RPC_DestroyJelly`는 멱등이라 **안전**하지만, 흡수 **보상**은 마스터 중재 없이 각자 선지급이라 한 젤리로 두 명이 성장 가능
+- 위치: NetworkJellyManager.cs:272~297, JellyColliderAbsorb.cs:108~135
+- 내용: 두 플레이어가 같은 젤리를 거의 동시에 빨면, 각 클라에서 `CompleteAbsorption` → `AbsorbColor(성장/색)` →
+  `RequestDestroyJelly`가 **로컬에서 먼저 확정**되고 마스터엔 삭제 RPC 두 발 도착. 삭제는 잘 방어됨 — 첫 요청이
+  `PhotonNetwork.Destroy`, 두 번째는 `PhotonView.Find`가 null이라 조용히 무시(:290~296). **문제는 보상이 삭제와
+  분리**된 점: 두 클라 모두 이미 로컬 성장을 받았고 마스터는 "누가 먹었는가"를 판정하지 않으므로 젤리 하나가 **2인분**.
+  S6/U2의 "요청형 RPC는 서버가 재검증·중재" 규약의 흡수 경로 버전. 각주: Photon ViewID는 파괴 후 재활용될 수 있어
+  극단 지연 삭제 RPC가 재활용 ID의 다른 젤리를 지울 이론상 위험(확률 매우 낮음).
+- 제안(미적용): 보상을 마스터 확정형으로 — 클라는 `RPC_RequestAbsorbJelly(viewID)`만 보내고(연출은 예측 재생),
+  마스터가 `PhotonView.Find` 성공 = 선착 승자로 판정해 승자에게만 `RPC_ConfirmAbsorb`(성장) 후 Destroy. 삭제의
+  멱등성이 그대로 **보상의 배타성**이 된다. 흡수 계열(H/L/S) 설계와 함께 다뤄야 함 — **확인 필요**.
+
+### [V8] (네트워크 연동·연출 / 중하) `JellySpawnMachine` — 연출 루프가 **클라이언트별 로컬 타이머**라 회전/사운드와 실제 젤리 등장이 어긋나고, cap 도달 시 **연출은 다 하고 스폰만 조용히 무시**
+- 위치: JellySpawnMachine.cs:39~50·64~70, NetworkJellyManager.cs:256~257
+- 내용: 모든 클라가 각자 `Start` 시점 기준 `ContinuousSpawnLoop`를 돌리고 실제 스폰은 마스터 루프의 회전 완료
+  콜백에서만 일어난다. 즉 비마스터의 머신 회전·사운드는 **마스터 스폰 시점과 무관한 장식** — 시작 프레임 차이·
+  `WaitForSeconds` 드리프트·중도 합류로 "머신이 돌았는데 젤리가 안 나오거나, 안 돌았는데 튀어나오는" 체감 desync 누적.
+  게다가 `SpawnJellyAt`은 cap 도달 시 **말없이 return**(:257)이라 맵이 차면 마스터에서조차 연출 완주 후 아무것도 안
+  나온다. 머신 젤리가 자연 스폰과 **전역 cap을 공유**하는 것이 의도인지도 애매(자연 스폰이 cap을 채우면 머신 영구 무력화).
+- 제안(미적용): 연출 단일 출처화 — 비마스터 루프 제거, **마스터가 스폰 직전 RPC/RaiseEvent로 "머신 가동" 트리거**를
+  쏴 모든 클라가 그때 회전/사운드 재생 → 연출과 스폰이 정의상 일치. cap은 (a) 머신용 소량 예약분 or (b) cap 초과 시
+  "가동 자체를 스킵". **디자인 확인 필요**(머신 젤리를 cap에 포함할지).
+
+### [V9] (버그가능성 / 하) `PickWeighted` — 전 가중치 0이면 **항상 첫 아이템 반환**("0 = 안 나옴" 계약 붕괴), 경계값에서 가중치 0 아이템 선택 가능
+- 위치: JellySpawnMachine.cs:76~89
+- 내용: `Random.Range(0, totalWeight)`는 float 오버로드(min·max 포함)라 그 자체는 의도대로. 문제는 경계:
+  - 모든 `spawnWeight`가 0이면 `totalWeight=0, randomValue=0`, 첫 순회에서 `current=0`, `randomValue <= current`(0<=0)라
+    **첫 아이템 100% 반환**. `[Min(0)]`로 "0이면 안 나온다"를 만들어 놓고 전부 0인 순간 뒤집힌다.
+  - 같은 `<=` 때문에 누적 경계에 정확히 떨어지면 가중치 0짜리가 뽑힐 수 있다.
+  - 리스트 요소/`jellyPrefab`이 인스펙터에서 비면 `item.spawnWeight`/`selected.jellyPrefab.name`에서 NRE — 코루틴
+    콜백 안이라 조용히 죽는다(V10 연결).
+- 제안(미적용): 순회 시 `weight <= 0` 스킵, `totalWeight <= 0f`면 경고 후 null, 판정은 `randomValue < current`. `Start`에서
+  리스트/프리팹 null 검증 1회. 재사용 많으니 `static T PickWeighted<T>(IList<T>, Func<T,float>)` 유틸화 권장.
+
+### [V10] (품질·G8·인코딩 / 하) 무가드 싱글톤 접근이 **코루틴 안**이라 NRE 한 번에 머신 영구 정지 + `GetJellyRYBEffect`의 Awake 이전 호출은 **침묵으로 (0,0,0)** + DTO/DAO 주석 mojibake
+- 위치: JellySpawnMachine.cs:44·47, DataManager.cs:130~135·137~148, JellyDataDTO.cs·JellyDataDAO.cs 주석 전반
+- 내용:
+  - `PlaySFXAudio.Instance.PlayMachineSound()`(:44)와 `DataManager.Instance.spawnCoolTime`(:47)이 널 가드 없이
+    **`while(true)` 코루틴 내부**에서 호출 → 어느 하나 null인 프레임이면 NRE로 코루틴이 죽고 재시작 코드가 없어 **그
+    클라의 머신은 남은 게임 내내 침묵**. G8 중에서도 "예외가 루프를 죽이는" 최악 위치.
+  - `DataManager.GetJellyRYBEffect`는 캐시를 `Awake`에서만 만드는데(:148), 더 먼저 도는 다른 스크립트의 Awake/OnEnable에서
+    호출되면 `_jellyEffectCache == null`이라 **경고 없이 `RYBColor(0,0,0)`** 반환(:132~134) — "값이 이상한데 에러는
+    없는" 디버깅 난제.
+  - `JellyDataDTO.cs`/`JellyDataDAO.cs` 주석 전체가 mojibake(EUC-KR 저장본을 UTF-8로 읽음, M4/N6/R7/U7 재발). V1에서
+    살리기로 결정 시 UTF-8 재저장 선행.
+- 제안(미적용): 코루틴 진입 전(Start)에 의존 싱글톤 3종(PlaySFXAudio/DataManager/rotator) 검증 후 없으면 경고+비활성화,
+  `GetJellyRYBEffect`에 지연 빌드(`_jellyEffectCache ??= Build…`) 또는 최소 `Debug.LogWarning` 1회. mojibake 파일 UTF-8
+  재저장 + 주석 복원. 전부 동작 불변 정리.
+
+> **오늘의 우선순위**: 아키텍처 큰 그림 = **V1 → V2**(둘은 한 결정: 커스텀 외형을 살릴지/접을지). 실제 동작 리스크 =
+> **V3(초기화 레이스, 지금 코드로도 잠재 발현) ≥ V6(스폰 영구정지 조건) > V7(이중보상)**. 나머지(V4·V5·V8·V9·V10)는
+> V1의 설계 결정이 정해진 뒤 그 방향에 맞춰 일괄 정리하면 된다. **직접 코드 수정은 하지 않았고, 전부 사용자 승인 대기.**
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -1943,6 +2110,16 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 - [ ] U5  (대기 — 2026-07-11 도출, DetectBatHit이 스윙마다 LayerMask.GetMask 문자열 조회+OverlapSphere 배열 할당(PlayerAttackState:92~93/AIPlayerMovement:885~886). 마스크 static 캐시+OverlapSphereNonAlloc 버퍼. S5/K1/G3 GC 테마. 공통 헬퍼로 추출 시 U4까지 단일화. 순수 최적화)
 - [ ] U6  (대기 — 2026-07-11 도출, 넉백 지속시간 0.4f 이중 하드코딩 — PlayerKnockbackState:7 + AIPlayerMovement:998. 힘은 DataManager 중앙화됐는데 시간만 흩어져 한쪽 튜닝 시 플레이어/봇 감속곡선 드리프트. DataManager.knockbackDuration 단일화. S7 테마·정직화)
 - [ ] U7  (대기 — 2026-07-11 도출, PlayerMovement.ChangeState:166이 전이마다 무가드 Debug.Log("상태 변경 완료")+어느 상태인지 안 찍음. PlayerIdleState:5~6/PushObject 주석 mojibake. N1/O7/S10 로그규약·M4/N6/R7 인코딩 테마. [Conditional] 래퍼+상태명 포함, UTF-8 재작성. 관찰)
+- [ ] V1  (대기 — 2026-07-14 도출, CSV 외형 파이프라인(JellyDataDTO/DAO) 통째로 고아 — Load*/외형필드 호출자 0, DAO는 Legacy 씬 2곳(LevelScene/TileScene)에만 부착·거기서도 미호출. JellyObject.jellyName/jellyRGB도 미사용(jellyType만 소비). 커스텀젤리 로드맵 여부 **설계결정·사용자 확인** 후 삭제(A) or V2와 배선(B). M1/S3/U1 반쪽구현 테마)
+- [ ] V2  (대기 — 2026-07-14 도출, 젤리 외형 동기화 채널이 '프리팹 이름' 하나뿐(IPunInstantiateMagic 부재 확인) → 런타임 커스텀 외형 넣는 순간 클라간 desync. instantiationData로 CSV ID만 실어 OnPhotonInstantiate에서 로컬 복원 권장. V1과 한 결정)
+- [ ] V3  (대기 — 2026-07-14 도출, DataManager.Awake가 GameState.Reset() 호출 → CurrentGameMode=Absorb 리셋+이벤트 4종 null. 같은 값을 Start에서 읽는 NetworkJellyManager/JellySpawnMachine와 복원자 GameModeManager의 Start 순서 미정의 = Push 씬 오독 레이스 + H1 이벤트 소실 재현 여지. Awake는 ResetValues() 호출로 교체, Reset()은 RuntimeInit 전용. **확인 필요**·잠재발현)
+- [ ] V4  (대기 — 2026-07-14 도출, JellyDataDTO 생성자가 예외 삼키고 DAO는 무조건 Add → 좀비 DTO(ID=0/ColorType=Red) + 컬럼<9 IndexOOR 흡수 + CRLF가 마지막컬럼 Trim 하나에 의존. static TryParse 팩토리+TrimEnd('\r')+길이검증+Enum.TryParse로 전환. V1 되살릴 시 필수)
+- [ ] V5  (대기 — 2026-07-14 도출, JellyDataDAO Count>0 캐시가 좀비 오염 캐시화+빈 CSV 매번 재파싱, 실패 시 null 반환(NRE 유발), 내부 캐시 리스트 참조 노출, 불필요 MonoBehaviour. 성공플래그 캐시판정+빈 리스트 반환+IReadOnlyList+순수클래스화. G8 반환값판, V1과 함께)
+- [ ] V6  (대기 — 2026-07-14 도출, NetworkJellyManager _spawnRoutineRunning 한번 true면 영원히 true → 코루틴 외부 사망 후 마스터교체 재시작이 영구 차단 가능 + SpawnRoutine while(true)에 Phase 가드 없어 GameOver/Result 중에도 계속 스폰. Coroutine 핸들을 진실로+OnDisable 리셋, 루프에 Phase!=Playing 정지)
+- [ ] V7  (대기 — 2026-07-14 도출, 이중 흡수 시 RPC_DestroyJelly는 멱등 안전하나 보상(AbsorbColor)이 각 클라 로컬 선지급이라 한 젤리로 2인분 성장. 마스터 확정형(RequestAbsorb→선착 판정→승자만 ConfirmAbsorb+Destroy)로 전환. S6/U2 요청형RPC 재검증 테마. **확인 필요**)
+- [ ] V8  (대기 — 2026-07-14 도출, JellySpawnMachine 연출 루프가 클라별 로컬 타이머라 회전/사운드와 실제 젤리 등장 어긋남(비마스터는 장식) + cap 도달 시 연출 완주 후 SpawnJellyAt 조용히 return + 머신젤리가 전역 cap 공유로 무력화 가능. 마스터 트리거 RPC로 연출 단일출처화+cap 정책 정리. **디자인 확인 필요**)
+- [ ] V9  (대기 — 2026-07-14 도출, PickWeighted 전 가중치 0이면 항상 첫 아이템 반환('0=안나옴' 계약 붕괴)+경계값서 0가중치 선택 가능+리스트/프리팹 null 시 코루틴 조용히 사망. weight<=0 스킵+total<=0 null+< 판정+Start null검증. static 제네릭 유틸화 권장)
+- [ ] V10 (대기 — 2026-07-14 도출, JellySpawnMachine 코루틴 내 PlaySFXAudio/DataManager.Instance 무가드 → NRE 1회로 머신 영구정지(G8 최악위치) + GetJellyRYBEffect Awake 이전 호출 시 침묵 (0,0,0) + DTO/DAO 주석 mojibake. Start 사전검증+지연빌드/경고+UTF-8 재저장. G8·M4/N6 테마)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
