@@ -1987,6 +1987,96 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 
 ---
 
+## 2026-07-16 루틴 — 인게임 반응형 HUD 파이프라인 신규 심층 리뷰 (게임플레이 → GameState 이벤트 → 화면 위젯, W1~W10 도출)
+
+**리뷰 범위:** `Assets/Scripts/UI/InGameUI/` HUD 스크립트 전체(ScoreUI/CurrentStatusUI/TargetStatusUI/CooldownRingUI/MissionUI/StageTitleUI/LevelUI) + 데이터 소스(GameState·PlayerEvents·DataManager·PlayerMovement·PlayerBridge·NetworkPlayerSync·GameModeManager·UIManager). 분석은 **Fable 5** 서브에이전트가 수행하고, 핵심 주장(W1·W2·W3·W5)은 메인 세션이 GUID·빌드세팅·콜사이트로 재검증함. **직접 코드 수정은 하지 않았고, 전부 사용자 승인 대기.**
+
+**데이터 흐름 요약(학습용):** 게임플레이 → `PlayerBridge`(플레이어 프리팹의 이벤트 허브) → `GameState` 정적 프로퍼티(setter가 이벤트 발화) → 각 HUD가 `OnEnable`에서 구독. 예외적으로 `CooldownRingUI`만 `PlayerMovement.Local`을 매 프레임 **폴링**한다(연속 변화값이라 이 선택은 옳음 — 아래 좋았던 점 참조). "이벤트로 변화만 받는 UI는 반드시 *구독 + 현재값 1회 시딩*이 한 세트"라는 게 이번 회차의 핵심 교훈이다.
+
+### 검증으로 드러난 큰 그림 — HUD의 절반이 빌드에서 죽어 있음
+빌드 씬은 `Main / Loading / Game_io_AbsorbMode / Game_io_PushMode / GameResult_*` 6개뿐(EditorBuildSettings 확인). GUID 전수 검색 결과 **두 인게임 씬에 실제로 부착된 HUD는 `CurrentStatusUI`와 `CooldownRingUI` 둘뿐**이다.
+- `ScoreUI`·`TargetStatusUI`·`StageTitleUI` → 빌드에 없는 `Game.unity`/`MaterialTest.unity`에만
+- `LevelUI` → `MaterialTest.unity`에만
+- `MissionUI` → **어떤 씬에도 없음**(Legacy/_Recovery 잔재)
+즉 점수/레벨/미션/스테이지타이틀 HUD는 IO 빌드에서 실행 자체가 안 되고(=W2), 실제 인게임 점수 표시는 `GameModeManager.UpdateLeaderboard()`가 담당한다. **이 사실이 W3·W5의 체감 영향 판정을 좌우하므로 각 항목에 반영함.**
+
+### [W1] (버그가능성 / 중·V3 재확인) `DataManager.Awake`의 `GameState.Reset()`이 씬 로드 중 HUD 이벤트 구독을 전멸시킬 수 있음 — 이번엔 HUD 구독자 관점
+- **파일:** DataManager.cs:150 / GameState.cs:79-94(Reset) vs 96-110(ResetValues) / CurrentStatusUI.cs:9-13
+- **현상/원인:** `GameState.Reset()`은 마지막에 `OnScoreChanged/OnScaleChanged/OnDisplayColorChanged = null`로 **모든 구독을 끊는다**. 이 함수는 도메인 리로드 대비 `[RuntimeInitializeOnLoadMethod]`이면서 동시에 `DataManager.Awake()`에서도 **매 게임 씬 로드마다 호출**된다. Unity의 씬 로드는 "모든 Awake → 모든 OnEnable"이 아니라 **오브젝트 단위로 Awake→OnEnable이 인터리브**되므로, HUD Canvas가 DataManager보다 먼저 초기화되는 하이어라키 배치라면 `CurrentStatusUI.OnEnable`(구독)이 `DataManager.Awake`(구독 전멸)보다 먼저 실행돼 **HUD가 게임 내내 한 번도 갱신되지 않는다**. 바로 옆 `ResetValues()`에는 H1 교훈("여기서 이벤트를 null로 비우면 안 된다")이 주석으로 박혀 있는데, `Awake`가 `ResetValues()`가 아니라 `Reset()`을 부르는 순간 그 교훈이 뒷문으로 다시 열린 셈.
+- **재현/영향:** 씬 오브젝트 순서를 바꾸기만 해도 은폐/재현이 뒤집히는, 추적 어려운 "가끔 HUD가 안 움직임" 버그. `UIManager.SetState`가 이미 켜진 패널에 `SetActive(true)`를 다시 불러도 OnEnable이 재발화 안 해 자가 회복도 없음.
+- **제안:** `DataManager.Awake`에서 이벤트를 안 건드리는 `GameState.ResetValues()`로 교체(델리게이트 null은 RuntimeInit 경로에만) — H1 원칙. 보강으로 `DataManager`에 `[DefaultExecutionOrder(-100)]` 부여(현재 실행순서 지정 스크립트는 `AutoConnectForTest` 하나뿐).
+- **연관:** **V3(2026-07-14, 같은 `Awake→Reset()` 뿌리 — 그쪽은 CurrentGameMode 오독 레이스 관점, W1은 HUD 구독 소실 관점)**, H1, G8/L2. ※ 수정(Awake→ResetValues)은 V3·W1을 동시에 해소함.
+
+### [W2] (아키텍처·데드코드 / 중·핵심) HUD 파이프라인 절반이 빌드 씬에 없음 — ScoreUI·LevelUI·TargetStatusUI·MissionUI·StageTitleUI 전부 고아
+- **파일:** ScoreUI/LevelUI/TargetStatusUI/MissionUI/StageTitleUI.cs / EditorBuildSettings.asset (GUID 전수검색으로 검증)
+- **현상/원인:** 위 "검증으로 드러난 큰 그림" 참조. 부수 확인: `SceneLoader.LoadGame()`(SceneLoader.cs)은 빌드에 없는 `"Game"` 씬을 `LoadScene`하므로 그 버튼이 연결돼 있다면 런타임 씬 로드 실패(버튼 연결 여부는 인스펙터 확인 필요).
+- **영향:** 기능 버그는 아니지만 "HUD를 고친다"며 ScoreUI/LevelUI를 수정해도 빌드엔 무변화인 함정. 유지보수 혼란이 실제 손해(이번 리뷰 대상 7개 중 5개가 실은 비활성).
+- **제안:** ① 살릴 것/버릴 것 명시 결정 → 버릴 것은 `Legacy`로 이동(관례 있음). ② 살릴 것(특히 ScoreUI — 구현 품질 최상)은 `Game_io_*` 씬 HUD Canvas에 배치. ③ `_Recovery/`는 복구 잔재로 삭제 검토.
+- **연관:** V1/M1/T6/U1(고아 서브시스템)
+
+### [W3] (버그 / 중) 미션 별(star) UI가 영원히 갱신 안 됨 — `ChangeMissionUI()` 호출처 0곳 (데이터만 쓰고 뷰 새로고침 채널 없음)
+- **파일:** MissionUI.cs:22-31 / PlayerBridge.cs:167-168
+- **현상/원인:** `PlayerBridge`가 목표 도달 시 `dm.missions[1].missionCleared = true`로 **데이터만 기록**한다. 이를 화면에 반영하는 유일 함수 `MissionUI.ChangeMissionUI()`는 **프로젝트 전체 호출처 0곳**(grep 확인 — 정의뿐). 이벤트도 폴링도 없어 별은 영영 `notClearedStar`. "모델은 바뀌었는데 뷰에 알리는 채널이 없다"는 MVC 단절의 교과서 사례 — `GameState`처럼 setter에서 이벤트 쏘는 패턴을 이미 갖고 있으면서 미션만 빠짐. 추가로 `missions[1]`은 매직 인덱스라 배열을 2개 미만으로 줄이면 `HandleJellyScored` 한복판에서 `IndexOutOfRange`가 나 이후 로직까지 끊음. `missions[0]/[2]`는 클리어 코드 자체가 없음.
+- **재현/영향:** MissionUI가 빌드 씬에 없어(W2) 별 미갱신의 **사용자 체감은 현재 없음**. 그러나 데이터 쓰기(PlayerBridge)는 **활성 씬에서 매 게임 실행 중**이라 배열 축소 시 크래시 위험은 실존.
+- **제안:** 미션도 이벤트 소스로 승격 — `DataManager`에 `static event Action<int> OnMissionCleared;` + 범위검사하는 `SetMissionCleared(int)` , `MissionUI.OnEnable`에서 구독+초기 시딩. 매직 인덱스는 `const int MISSION_REACH_TARGET = 1;`로.
+- **연관:** V1(호출되지 않는 기능), N5(써놓고 안 읽는 데이터)
+
+### [W4] (버그가능성 / 중) MissionUI — 세 배열(missionTexts/missionImages/missions)을 서로 다른 기준으로 순회, 인스펙터 불일치 시 IndexOutOfRange + 무가드 싱글턴
+- **파일:** MissionUI.cs:15-19, 24-30
+- **현상/원인:** `Start()`는 `missionTexts.Length` 기준으로 돌며 `missions[i]`·`missionImages[i]`를 인덱싱, `ChangeMissionUI()`는 반대로 `missions.Length` 기준으로 `missionImages[i]`를 인덱싱. 세 배열은 각기 다른 인스펙터(씬 2곳 + DataManager 1곳)에서 편집되는 독립 길이인데 코드가 "항상 같은 길이"라 가정. 어느 한쪽만 추가/삭제해도 예외. `Start`의 `DataManager.Instance`도 무가드(G8).
+- **제안:** `int n = Mathf.Min(missionTexts.Length, missionImages.Length, missions?.Length ?? 0);`로 공통 길이 순회 + 불일치 시 `LogWarning`. 근본적으론 텍스트+이미지를 묶은 `MissionSlot` 직렬화 클래스 배열 하나로 자유도 제거.
+- **연관:** G8, Q7(범위 무가드)
+
+### [W5] (버그 / 중·라이브) `CurrentStatusUI`(빌드 씬에 실재)는 초기값 시딩이 없고, 스폰 시 스케일 이벤트가 Approximately 가드에 확정적으로 삼켜져 첫 변화 전까지 플레이스홀더 표시
+- **파일:** CurrentStatusUI.cs:9-19 / GameState.cs:46-55 / PlayerBridge.cs(HandleScaleInit)
+- **현상/원인:** 형제 `ScoreUI`(구독 직후 `Refresh(GameState.CurrentScore)`)·`LevelUI`는 초기 시딩을 하는데 `CurrentStatusUI`만 구독만 함. 단순 스타일 문제가 아닌 이유: 스폰 시 `PlayerCurrentScale = 2f` 대입해도 기본값이 이미 `2f`라 setter의 `Mathf.Approximately` 가드가 **이벤트를 확정적으로 삼킨다**(`DataManager.startingScale`도 2로 일치). 색상도 첫 흡수 전까지 `OnDisplayColorChanged` 미발화. 결과: **두 인게임 빌드 씬 모두에 부착된** 이 위젯의 `currentScaleText`는 씬 저장 디자인타임 문자열, `currentColorImage`는 디자인타임 색이 첫 변화까지 그대로.
+- **재현/영향:** 게임 시작~첫 젤리 흡수 사이, 매 판 시작마다 확정 재현(흡수가 빠른 게임이라 짧게 스침).
+- **제안:** ScoreUI 패턴으로 통일 — OnEnable 끝에 `OnScaleChanged(GameState.PlayerCurrentScale); OnDisplayColorChanged(GameState.CurrentDisplayColor);` 시딩. (교훈: 이벤트는 *변화*만 알려주므로 구독 시점 이전 상태는 스스로 당겨와야 한다.)
+- **연관:** ScoreUI 시딩 관찰, H1
+
+### [W6] (네트워크 / 중·확인필요) 원격 플레이어 클론의 `PlayerBridge`가 살아 있어 원격 오브젝트 이벤트가 로컬 전역 `GameState`(HUD·DetectRadius)를 오염시킬 여지
+- **파일:** NetworkPlayerSync.cs(SetupRemotePlayer) / PlayerBridge.cs(HandleScaleInit/HandleScaleCompleted) / PlayerScaleController.cs
+- **현상/원인:** `SetupRemotePlayer()`는 원격 클론에서 컨트롤러·Absorber·CharacterController는 끄지만 `PlayerBridge`·`PlayerScaleController`·`PlayerColorVisual`은 켜 둔다(프리팹 `NetworkPlayer_Bear` 공유 — GUID 확인). 그런데 `PlayerBridge` 핸들러는 "이 오브젝트=내 캐릭터" 전제로 **전역** `GameState`에 쓴다: `HandleScaleInit`은 `GameState.PlayerCurrentScale`·`DetectRadius`를 IsMine 가드 없이 대입, `HandleScaleCompleted`도 `CurrentScore`까지 대입하고 **SyncScore(네트워크 전송)만** IsMine으로 가드. 지금은 원격 흡수 경로가 꺼져 있고 스폰값(2f)이 로컬 기본값과 우연히 같아 증상이 가려짐 → **그래서 확인필요**. 하지만 ① 게임 도중 원격 오브젝트 재-Instantiate 경로(중간 입장·호스트 마이그레이션)가 생기면 로컬 DetectRadius(게임플레이 값!)·HUD가 원격 것으로 리셋, ② 원격에서도 스케일 연출을 돌리게 리팩터하는 순간 점수/HUD가 남의 값으로 덮임.
+- **제안:** ① `SetupRemotePlayer()`에서 `GetComponent<PlayerBridge>()?.enabled = false;`(원격 클론은 GameState 쓸 권리 없음). ② 나머지 핸들러에도 `photonView.IsMine` 가드 확장(`HandleJellyScored`엔 이미 있음). "로컬 상태의 단일 출처=로컬 오브젝트 하나"를 코드로 강제.
+- **연관:** G8, Q4/H4(오브젝트≠내 플레이어 정체성)
+
+### [W7] (데드코드 / 하) TargetStatusUI — 표시 로직 전체가 주석 처리, 게다가 주석이 참조하는 `GameModeManager` API가 이미 소멸(부활 불가)
+- **파일:** TargetStatusUI.cs:29-57
+- **현상/원인:** `UpdateTargetDisplay()` 본문 34-56행 전부 주석, 살아있는 건 null 체크 한 줄뿐. 그런데 여전히 `PlayerEvents.OnColorUIUpdate` 구독(색 바뀔 때마다 빈 함수 호출) + Text 4·Image 1·Text 1, 6개 직렬화 참조 유지. 결정타: 주석이 참조하는 `gm.TargetColor`·`CurrentPurityThreshold`·`CycleCount`·`GetColorName()`은 **현재 GameModeManager에 존재하지 않음** → 주석 풀어도 컴파일 불가. 옛 "목표 색상 라운드제" 디자인의 화석.
+- **제안:** 삭제 또는 Legacy 이동. 옛 구현 보존은 git 히스토리 담당(`git log -- ...TargetStatusUI.cs`).
+- **연관:** V1/M1(고아), N5(직렬화만 남은 데이터). ※ 참고: `OnColorUIUpdate`는 정적 `PlayerEvents.OnColorUIUpdate`와 인스턴스 `PlayerColorVisual.OnColorUIUpdate`로 **이름 충돌** — 정리 시 함께 개명 권장.
+
+### [W8] (안정성 / 하) CooldownRingUI — `DOKill()`이 펀치 도중 스케일을 방치해 링 크기가 영구 드리프트할 수 있음
+- **파일:** CooldownRingUI.cs:97-102
+- **현상/원인:** 준비완료 순간 `transform.DOKill(); transform.DOPunchScale(transform.localScale * 0.18f, ...)`. `DOKill()` 기본은 complete=false — 진행 중 펀치를 그 자리에서 죽인다. DOPunchScale은 시작 스케일로 복귀하는 상대 트윈이라, 최대로 부푼 순간(예 1.18배) 죽으면 스케일이 1.18배로 남고 다음 펀치가 그 값을 새 기준으로 삼아 **되돌릴 방법 없이 누적**. 준비 에지가 0.3초 안에 두 번 오는 밸런스/에지에서 발생.
+- **제안:** `Awake`에서 `_baseScale = transform.localScale;` 캐싱 후 펄스 시 `DOKill(); transform.localScale = _baseScale; DOPunchScale(_baseScale * 0.18f, ...)`. 교훈: **상대(punch/shake) 트윈은 반드시 "기준값 복원"과 짝**.
+- **연관:** (신규 패턴 — DOTween 상대 트윈 안전성)
+
+### [W9] (인코딩·코드품질 / 하) StageTitleUI — 주석 mojibake + 뒤집힌 "FadeIn/FadeOut" 문자열 API + 무가드 참조 (빌드 밖 고아)
+- **파일:** StageTitleUI.cs:9-28(ISO-8859 저장 확인) / UIManager.cs:179-197
+- **현상/원인:** ① 주석 전체 mojibake(UIManager.cs·GameTimer.cs도 동일 — M4/N6/R7/U7 테마). ② 의미 반전: `UIManager.Fade`는 `"FadeOut"`에 alpha 0→1(나타남), `"FadeIn"`에 1→0(사라짐)이라 StageTitleUI가 띄울 때 "FadeOut"을 넘김 — 문자열 기반 API의 전형적 비용(오타 시 컴파일러가 아니라 "아무 일도 안 일어남"으로만 드러남). ③ `uiManager`·`fadeCanvasGroup` 무가드 → 미연결 시 `IEnumerator Start` 첫 줄 NRE로 코루틴 사망.
+- **제안:** 살린다면 `enum FadeDirection { In, Out }`로 교체(In=나타남으로 이름·동작 일치) + null 가드 + UTF-8 재저장. 버린다면 Legacy.
+- **연관:** M4/N6/R7/U7(mojibake), V1(고아)
+
+### [W10] (코드품질 / 하) LevelUI·CurrentStatusUI 잔여 — 무가드 싱글턴 시딩, min==max 0-나눗셈, 라벨-필드 불일치, Text/TMP 혼용
+- **파일:** LevelUI.cs:24-31 / CurrentStatusUI.cs:6-7
+- **현상/원인:** (a) `LevelUI.Refresh`가 `DataManager.Instance.minScale/maxScale` 무가드(W1 인터리빙에서 NRE). (b) `(current-min)/(max-min)`에서 `ValidateSettings`가 min>max만 교정, **min==max는 통과** → 0 나눗셈 `fillAmount=NaN`(Q7 미적용 잔여 줄). (c) 필드명 불일치 — `needJellyText`가 "Scale:x", `currentLevelText`가 "Max:x" 표시(레벨 시절 이름 잔재). (d) `CurrentStatusUI`만 레거시 `UnityEngine.UI.Text`, 나머지는 TMP — 활성 씬 유일 텍스트 HUD인 만큼 TMP 통일 권장.
+- **제안:** `float range = max-min; fill = range>0f ? Mathf.Clamp01((current-min)/range) : 1f;` + 필드 리네임(`[FormerlySerializedAs]`로 인스펙터 연결 보존).
+- **연관:** Q7(0-나눗셈), G8, N5(이름-역할 불일치)
+
+### 좋았던 점(설계 관찰)
+- **ScoreUI가 반응형 HUD의 모범 답안** — OnEnable 구독+즉시 시딩, OnDisable 대칭 해제, 렌더 로직 단일 메서드(`Refresh`) 집약. 25줄로 "이벤트 UI는 이렇게"를 보여주며 W5 수정 방향이 곧 이 파일(아이러니하게 빌드 씬엔 없음 — W2).
+- **CooldownRingUI의 폴링 선택은 옳다** — 매 프레임 연속 변하는 쿨타임엔 이벤트보다 폴링이 적합. `PlayerMovement.Local` null(스폰 전/탈락)을 CanvasGroup alpha로 우아하게 처리, `_wasReady` 에지 검출로 펄스 1회, XML 주석 가이드까지 학생 코드로는 수준급.
+- **씬 단위 모드 구성** — Absorb엔 Dash 링만, Push엔 Dash+Attack 2개 배치로 "Attack=Push 전용"을 코드 분기 없이 씬 구성으로 표현. 같은 컴포넌트를 `type` 하나로 재사용.
+- **GameState의 변화-가드 setter + 정적 이벤트 허브 + H1 주석 박제** — 동일값 재대입 시 이벤트 차단(불필요 갱신 방지), 리뷰 교훈이 코드에 체화된 증거(단 그 가드가 W5를 만들고 Reset()이 W1의 뒷문이 됨까지가 이번 교훈).
+
+### mojibake(인코딩 손상) 확인 파일
+- `StageTitleUI.cs`(주석 전체·ISO-8859 확인), `UIManager.cs`(대부분), `GameTimer.cs`(전체, 레거시). M4/N6/R7/U7과 동일 원인(비-UTF8 저장). 정상 한글이 섞인 파일은 "손상 후 추가 편집"이 있었다는 뜻 → 일괄 복구 시 git 히스토리로 원문 대조 필요.
+
+> **우선순위 제안:** 라이브 영향 기준 **W5(매 판 시작 플레이스홀더, CurrentStatusUI는 빌드 씬 실재) > W1/V3(HUD 동결 레이스) > W3·W4(활성 PlayerBridge 경유 배열 크래시 위험)**. W2·W7·W9는 "살릴지/버릴지" **설계 결정**이 먼저(V1/U1과 한 묶음으로 일괄). W6은 리팩터/재입장 경로 생기기 전까지 잠재. W8·W10은 방어적 소품. **직접 코드 수정은 하지 않았고, 전부 사용자 승인 대기.**
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -2120,6 +2210,16 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 - [ ] V8  (대기 — 2026-07-14 도출, JellySpawnMachine 연출 루프가 클라별 로컬 타이머라 회전/사운드와 실제 젤리 등장 어긋남(비마스터는 장식) + cap 도달 시 연출 완주 후 SpawnJellyAt 조용히 return + 머신젤리가 전역 cap 공유로 무력화 가능. 마스터 트리거 RPC로 연출 단일출처화+cap 정책 정리. **디자인 확인 필요**)
 - [ ] V9  (대기 — 2026-07-14 도출, PickWeighted 전 가중치 0이면 항상 첫 아이템 반환('0=안나옴' 계약 붕괴)+경계값서 0가중치 선택 가능+리스트/프리팹 null 시 코루틴 조용히 사망. weight<=0 스킵+total<=0 null+< 판정+Start null검증. static 제네릭 유틸화 권장)
 - [ ] V10 (대기 — 2026-07-14 도출, JellySpawnMachine 코루틴 내 PlaySFXAudio/DataManager.Instance 무가드 → NRE 1회로 머신 영구정지(G8 최악위치) + GetJellyRYBEffect Awake 이전 호출 시 침묵 (0,0,0) + DTO/DAO 주석 mojibake. Start 사전검증+지연빌드/경고+UTF-8 재저장. G8·M4/N6 테마)
+- [ ] W1  (대기 — 2026-07-16 도출, **V3와 같은 뿌리** DataManager.Awake:150→GameState.Reset()이 이벤트 4종 null. V3는 CurrentGameMode 오독 레이스, W1은 HUD 구독 소실(씬 Awake→OnEnable 인터리브로 CurrentStatusUI 구독이 Awake보다 먼저면 HUD 영구동결). Awake를 ResetValues()로 교체 시 V3·W1 동시 해소. H1 원칙·[DefaultExecutionOrder] 보강. **확인 필요**)
+- [ ] W2  (대기 — 2026-07-16 도출, HUD 절반이 빌드 씬에 없음 — GUID 검증: 인게임 빌드 2씬엔 CurrentStatusUI·CooldownRingUI만. ScoreUI/TargetStatusUI/StageTitleUI=Game.unity/MaterialTest(비빌드), LevelUI=MaterialTest, MissionUI=씬 부재. 점수는 GameModeManager.UpdateLeaderboard가 담당. SceneLoader.LoadGame이 비빌드 "Game" 로드 위험도. 살릴것 배치/버릴것 Legacy **설계 결정**. V1/M1/T6/U1 고아 테마)
+- [ ] W3  (대기 — 2026-07-16 도출, 미션 별 UI 영구 미갱신 — ChangeMissionUI() 호출처 0곳(grep). PlayerBridge:168이 missions[1].missionCleared=true 데이터만 씀·뷰 채널 부재(MVC 단절). missions[1] 매직인덱스라 배열<2 시 HandleJellyScored 한복판 IndexOOR(활성 씬 실행중=실위험). DataManager static event OnMissionCleared+범위검사 setter+MissionUI 구독/시딩. V1/N5 테마. ※MissionUI 자체는 빌드 밖(W2)이라 별 미갱신 체감은 없음)
+- [ ] W4  (대기 — 2026-07-16 도출, MissionUI가 missionTexts/missionImages/missions 세 배열을 서로 다른 길이 기준으로 순회(Start=texts.Length, ChangeMissionUI=missions.Length) → 인스펙터 불일치 시 IndexOOR + Start의 DataManager.Instance 무가드(G8). Mathf.Min 공통길이+불일치 경고, 근본적으론 MissionSlot 직렬화 배열 1개로. Q7)
+- [ ] W5  (대기 — 2026-07-16 도출·**라이브**, CurrentStatusUI(빌드 2씬 실재)가 초기 시딩 없음 → 스폰 시 Scale=2f가 기본값 2f와 같아 Approximately 가드가 이벤트 확정 삼킴 + 색은 첫 흡수 전 미발화 → 매 판 시작~첫 흡수까지 디자인타임 플레이스홀더 표시. OnEnable 끝에 OnScaleChanged/OnDisplayColorChanged 현재값 시딩(ScoreUI 패턴). H1)
+- [ ] W6  (대기 — 2026-07-16 도출, 원격 클론 PlayerBridge가 SetupRemotePlayer에서 안 꺼짐 → HandleScaleInit/Completed가 IsMine 무가드로 전역 GameState(PlayerCurrentScale·DetectRadius·CurrentScore) 대입(SyncScore만 IsMine). 현재 원격 스폰값=로컬 기본값이라 은폐, 재입장/호스트마이그레이션/원격 연출 리팩터 시 로컬 HUD·감지반경 오염. SetupRemotePlayer에서 PlayerBridge.enabled=false + 핸들러 IsMine 가드. **확인 필요**. G8/H4)
+- [ ] W7  (대기 — 2026-07-16 도출, TargetStatusUI 표시로직 전체 주석+OnColorUIUpdate 빈 구독+6개 직렬화 참조 잔존. 주석이 참조하는 gm.TargetColor/CurrentPurityThreshold/CycleCount/GetColorName은 현 GameModeManager에 부재→부활 불가 화석. 삭제 or Legacy. OnColorUIUpdate 정적/인스턴스 이름충돌도 함께 개명. V1/M1/N5)
+- [ ] W8  (대기 — 2026-07-16 도출, CooldownRingUI:99 DOKill()이 펀치 중 스케일 방치 → 상대 트윈(DOPunchScale)이 부푼 값을 새 기준으로 삼아 링 크기 영구 드리프트(준비 에지 0.3s 내 2회 시). Awake에서 _baseScale 캐싱 후 펄스 시 복원+_baseScale 기준 펀치. 신규 패턴)
+- [ ] W9  (대기 — 2026-07-16 도출, StageTitleUI 주석 mojibake(ISO-8859 확인, UIManager/GameTimer도)+뒤집힌 "FadeIn/FadeOut" 문자열 API(Fade는 FadeOut=나타남)+uiManager/fadeCanvasGroup 무가드 NRE. 살릴 시 enum FadeDirection 교체+가드+UTF-8, 버릴 시 Legacy. 빌드 밖(W2). M4/N6/R7/U7·V1)
+- [ ] W10 (대기 — 2026-07-16 도출, LevelUI DataManager.Instance 무가드 시딩+min==max 0나눗셈 fillAmount=NaN(ValidateSettings가 min>max만 교정, Q7 미적용 잔여)+needJellyText/currentLevelText 라벨-내용 불일치+CurrentStatusUI만 레거시 Text. range>0 가드+[FormerlySerializedAs] 리네임+TMP 통일. Q7/G8/N5)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
