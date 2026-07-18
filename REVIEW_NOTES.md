@@ -2227,6 +2227,46 @@ NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, Je
 
 ---
 
+## 2026-07-18 적용 — 젤리 생명주기 권위화 (S9 + V7, 사용자 발견/승인 후 즉시 수정)
+
+계기: 사용자가 네트워크 기술 명세서(`NETWORK_SPEC.md`) 작성 중, 먹히는 젤리가
+`PhotonNetwork.InstantiateRoomObject`가 아니라 `PhotonNetwork.Instantiate`인 점을 발견 →
+"마스터 이탈 시 젤리가 갑자기 사라지는 것 아니냐"고 제보. 이어 "애초에 RPC_DestroyJelly가
+필요한가?"라는 질문으로 흡수 삭제/보상 구조까지 재검토. S9(룸 오브젝트化)와 V7(마스터 중재
+흡수)을 한 작업으로 묶어 적용하기로 승인.
+
+### 변경 요약
+- **S9 — 젤리 룸 오브젝트化 + 이동 권한 핸드오프**
+  - `NetworkJellyManager.SpawnJelly/SpawnJellyAt`: `Instantiate` → `InstantiateRoomObject`
+    → 마스터가 방을 나가도(CleanupCacheOnLeave 기본 true로 인한) 젤리 전량 파괴가 없어지고
+    새 마스터가 소유권을 이어받음(젤리 일시 증발 제거).
+  - `WanderingAI`: `MonoBehaviourPun` → `MonoBehaviourPunCallbacks`로 바꾸고
+    `OnMasterClientSwitched`에서 `_isMine` 재평가 + NavMeshAgent 재활성 + 이동 재개.
+    (룸 오브젝트化만 하고 이 핸드오프가 없으면, 살아남은 젤리가 새 마스터에서
+    agent 꺼진 채 '얼어붙는' 2차 버그가 생김 — 봇 AIPlayerMovement가 이미 쓰는 패턴을 미러.)
+- **V7 — 흡수 삭제/보상의 마스터 중재화 (이중 흡수 차단)**
+  - `JellyColliderAbsorb.OnAbsorbed`: 로컬 즉시 `AbsorbColor`(보상) + `RequestDestroyJelly` 제거
+    → `NetworkJellyManager.RequestEatJelly(jellyViewID, eaterViewID)` 하나로 대체(연출용 렌더러
+    숨김은 로컬 유지). 오프라인 폴백만 기존 로컬 처리.
+  - `NetworkJellyManager`: `RequestDestroyJelly`/`RPC_DestroyJelly` 폐기 →
+    `RequestEatJelly` / `RPC_RequestEatJelly`(마스터: `_claimedJellies` 선착 판정) /
+    `RPC_ConfirmEat`(승자 소유자만 `AbsorbColor` 보상) + 마스터가 `PhotonNetwork.Destroy`.
+  - 효과: 한 젤리를 두 엔티티가 동시에 먹어도 **선착 1명만 성장**(이중 흡수 제거). 삭제 권한도
+    마스터 단일화. 플레이어↔플레이어 흡수(`RPC_RequestAbsorbValidation`)와 동일한 권위 패턴으로 통일.
+
+### 학습 포인트
+- **RPC를 "없애는" 게 아니라 "합치는" 것**: 삭제 트리거 메시지는 소유권 규칙상 불가피(비마스터는
+  마스터 소유 젤리를 못 지움). 대신 삭제+보상+이중흡수판정을 한 마스터 핸들러로 묶으면 correctness↑.
+- **룸 오브젝트化는 "권한 이전"과 세트**: 오브젝트를 살려도 그 오브젝트를 '운전'하는 권한(_isMine)을
+  새 소유자가 다시 잡아주지 않으면 멈춘다.
+
+### 남은 확인(사용자)
+- **유니티 플레이테스트 필수**(원격 컨테이너에서 컴파일/실행 불가). 특히: (1) 2인 이상 실제
+  매칭에서 마스터 강제 종료 시 젤리 유지·이동 지속, (2) 흡수 보상 타이밍이 '로컬 즉시'→'마스터
+  확정(~1RTT)'로 바뀐 체감(기존 0.6s 흡입 연출 뒤 지급이라 차이는 미미할 것으로 예상).
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -2334,7 +2374,7 @@ NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, Je
 - [ ] S6  (대기 — 2026-07-07 도출, RPC_Request흡수/대쉬/배트 MC 검증이 크기만 보고 위치·사거리 재확인 없음 → 지연/경합 시 빗나간 히트 승인, 조작 ViewID 원거리 히트 여지. MC가 아는 권위 위치로 거리 게이트 추가. **N4 확장·확인 필요**)
 - [ ] S7  (대기 — 2026-07-07 도출, 흡수 판정 이원화 — 플레이어발 '요청→MC검증' RPC vs 봇발 MC 로컬 직접(OnTriggerEnter). 규칙 복붙→드리프트 위험, S1·S2가 플레이어 경로에만 있는 원인. MC 단일 헬퍼로 통일 권장. O3/H6 테마)
 - [ ] S8  (대기 — 2026-07-07 도출, RPC_BotAbsorbConfirmed:511/RPC_GetAbsorbed:537 등 흡수·대쉬·배트 RPC가 DataManager.Instance 무가드 역참조 → 씬 전환 경계 stale RPC 시 NRE. 진입부 null 가드 1줄. G8/L2/H3 테마, S2와 묶음)
-- [ ] S9  (대기 — 2026-07-07 도출, WanderingAI._isMine이 Start 1회 계산 + OnMasterClientSwitched 미구현 → 봇은 이어받는데 젤리는 안 함. 현재 PhotonNetwork.Instantiate라 마스터 이탈 시 파괴+재보충(젤리 일시 증발). 룸오브젝트化 시 실버그로 승격. **확인 필요·설계 결정**. P1/O6 테마)
+- [x] S9  (**2026-07-18 적용** — 사용자 발견/승인) 젤리를 `PhotonNetwork.InstantiateRoomObject`(룸 오브젝트)로 생성(NetworkJellyManager.cs:157/267) → 마스터 이탈 시 파괴 대신 새 마스터에게 소유권 이전(젤리 일시 증발 제거). + WanderingAI를 MonoBehaviourPunCallbacks로 바꿔 `OnMasterClientSwitched`에서 소유권 재평가·agent 재활성·이동 재개(WanderingAI.cs:117, 봇 AIPlayerMovement 패턴 미러). V7과 함께 '젤리 생명주기 권위화'로 묶어 적용. ※ 유니티 플레이테스트 필요.
 - [ ] S10 (대기 — 2026-07-07 도출, AIPlayerMovement.RPC_BotAbsorbed:692 무가드 Debug.Log 잔존 — O7(06-27) 이후 코드변경 없어 그대로. 제거 or [Conditional] 래퍼, O7/N1 로그규약 일괄 정리)
 - [ ] T1  (대기 — 2026-07-09 도출, Cloth 재빌드(EnableAndRebuildCloth)가 새 Cloth의 기본 coefficients를 _initialCoefficients에 재캡처 → 에디터에서 칠한 softness 맵 소실. 첫 성장 이후 하이브리드 연출 손상. InitCloth 1회 캡처값을 보존·재적용, 정점순서 동일성 에디터 실측 **확인 필요**, **우선 권장**·시그니처)
 - [ ] T2  (대기 — 2026-07-09 도출, 연속 스케일 큐에서 이전 ScaleTo의 RequestRebuildCloth 코루틴이 다음 ScaleTo Lerp 도중 Cloth를 재-enable → 찌그러짐 방지 무력화(연속 흡수 시). 재빌드를 ProcessScaleQueue 종료 시 1회로 이동 권장(T1 빈도도 완화). **확인 필요**)
@@ -2356,7 +2396,7 @@ NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, Je
 - [ ] V4  (대기 — 2026-07-14 도출, JellyDataDTO 생성자가 예외 삼키고 DAO는 무조건 Add → 좀비 DTO(ID=0/ColorType=Red) + 컬럼<9 IndexOOR 흡수 + CRLF가 마지막컬럼 Trim 하나에 의존. static TryParse 팩토리+TrimEnd('\r')+길이검증+Enum.TryParse로 전환. V1 되살릴 시 필수)
 - [ ] V5  (대기 — 2026-07-14 도출, JellyDataDAO Count>0 캐시가 좀비 오염 캐시화+빈 CSV 매번 재파싱, 실패 시 null 반환(NRE 유발), 내부 캐시 리스트 참조 노출, 불필요 MonoBehaviour. 성공플래그 캐시판정+빈 리스트 반환+IReadOnlyList+순수클래스화. G8 반환값판, V1과 함께)
 - [ ] V6  (대기 — 2026-07-14 도출, NetworkJellyManager _spawnRoutineRunning 한번 true면 영원히 true → 코루틴 외부 사망 후 마스터교체 재시작이 영구 차단 가능 + SpawnRoutine while(true)에 Phase 가드 없어 GameOver/Result 중에도 계속 스폰. Coroutine 핸들을 진실로+OnDisable 리셋, 루프에 Phase!=Playing 정지)
-- [ ] V7  (대기 — 2026-07-14 도출, 이중 흡수 시 RPC_DestroyJelly는 멱등 안전하나 보상(AbsorbColor)이 각 클라 로컬 선지급이라 한 젤리로 2인분 성장. 마스터 확정형(RequestAbsorb→선착 판정→승자만 ConfirmAbsorb+Destroy)로 전환. S6/U2 요청형RPC 재검증 테마. **확인 필요**)
+- [x] V7  (**2026-07-18 적용** — 사용자 발견/승인) 젤리 흡수를 마스터 확정형으로 전환: 먹은 클라가 `RequestEatJelly(jellyViewID, eaterViewID)`→마스터 `RPC_RequestEatJelly`가 `_claimedJellies` 선착 1명 판정→승자에게 `RPC_ConfirmEat`(소유자만 AbsorbColor 보상)+`PhotonNetwork.Destroy`. 기존 로컬 즉시 보상(JellyColliderAbsorb.OnAbsorbed의 AbsorbColor) 제거 → 이중 흡수(2인분 성장) 차단, 삭제 권한 통일(RequestDestroyJelly/RPC_DestroyJelly 폐기). 플레이어↔플레이어 RPC_RequestAbsorbValidation과 동일 패턴. S6/U2 요청형RPC 재검증 테마. ※ 보상 타이밍이 '로컬 즉시'→'마스터 확정(~1RTT)'로 이동 — 유니티 플레이테스트로 체감 확인 필요.
 - [ ] V8  (대기 — 2026-07-14 도출, JellySpawnMachine 연출 루프가 클라별 로컬 타이머라 회전/사운드와 실제 젤리 등장 어긋남(비마스터는 장식) + cap 도달 시 연출 완주 후 SpawnJellyAt 조용히 return + 머신젤리가 전역 cap 공유로 무력화 가능. 마스터 트리거 RPC로 연출 단일출처화+cap 정책 정리. **디자인 확인 필요**)
 - [ ] V9  (대기 — 2026-07-14 도출, PickWeighted 전 가중치 0이면 항상 첫 아이템 반환('0=안나옴' 계약 붕괴)+경계값서 0가중치 선택 가능+리스트/프리팹 null 시 코루틴 조용히 사망. weight<=0 스킵+total<=0 null+< 판정+Start null검증. static 제네릭 유틸화 권장)
 - [ ] V10 (대기 — 2026-07-14 도출, JellySpawnMachine 코루틴 내 PlaySFXAudio/DataManager.Instance 무가드 → NRE 1회로 머신 영구정지(G8 최악위치) + GetJellyRYBEffect Awake 이전 호출 시 침묵 (0,0,0) + DTO/DAO 주석 mojibake. Start 사전검증+지연빌드/경고+UTF-8 재저장. G8·M4/N6 테마)

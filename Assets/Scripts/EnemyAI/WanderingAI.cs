@@ -2,9 +2,10 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 using Photon.Pun;
+using Photon.Realtime;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public class WanderingAI : MonoBehaviourPun, IPunObservable
+public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
 {
     [Header("Wandering Settings")]
     public float wanderRadius = 10f;
@@ -105,6 +106,29 @@ public class WanderingAI : MonoBehaviourPun, IPunObservable
     {
         NetworkNavMeshHelper.SerializeTransform(stream, transform, agent,
             ref _networkPosition, ref _networkRotation, ref _networkIsMoving);
+    }
+
+    /// <summary>
+    /// [S9] 젤리는 룸 오브젝트라 마스터가 나가도 파괴되지 않고 소유권이 새 마스터로 이전된다.
+    /// 그런데 _isMine은 Start()에서 1회만 계산되므로, 새로 소유하게 된 클라가 이동 권한을 다시
+    /// 잡지 않으면 NavMeshAgent가 꺼진 채 젤리가 그대로 멈춘다(봇 AIPlayerMovement는 이미 같은
+    /// 방식으로 제어를 이어받는다). 여기서 소유권을 재평가해 이동을 재개한다.
+    /// </summary>
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        if (!photonView.IsMine || _isMine) return;
+
+        _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
+            ref _networkPosition, ref _networkRotation);
+
+        if (_isMine && agent != null)
+        {
+            if (!agent.enabled) agent.enabled = true;   // 원격일 때 꺼져 있던 agent 재활성
+            agent.avoidancePriority = Random.Range(0, 100);
+            initialPosition = transform.position;
+            // NavMesh 밖이면 Update()의 복구 로직이 가장 가까운 지점으로 Warp한다. 여기선 이동만 재개.
+            MoveToRandomPosition();
+        }
     }
 
     IEnumerator WaitAndMove()

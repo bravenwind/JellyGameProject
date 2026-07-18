@@ -4,10 +4,11 @@
 // 역할: 멀티플레이 환경에서 젤리 스폰/삭제를 관리
 //
 // [핵심 규칙]
-//   - 젤리 생성: MasterClient(방장)만 담당
-//     → "누가 스폰했는지"가 달라지면 중복/누락이 생김
-//   - 젤리 삭제: 흡수한 플레이어 클라이언트가 RPC로 요청
-//     → MasterClient가 PhotonNetwork.Destroy()로 실제 삭제
+//   - 젤리 생성: MasterClient(방장)만 담당 (PhotonNetwork.InstantiateRoomObject = 룸 오브젝트) [S9]
+//     → "누가 스폰했는지"가 달라지면 중복/누락이 생김. 룸 오브젝트라 마스터 이탈 시에도
+//       파괴되지 않고 새 마스터가 소유권을 이어받는다(젤리 일시 증발 방지).
+//   - 젤리 흡수/삭제: 먹은 클라가 마스터에 '흡수 요청' → 마스터가 선착 1명 판정 후 [V7]
+//     보상 확정(RPC_ConfirmEat) + PhotonNetwork.Destroy (이중 흡수 방지 + 삭제 권한 통일)
 //
 // [기존 RandomJellySpawner와의 차이]
 //   RandomJellySpawner → 싱글플레이용 (로컬 Instantiate)
@@ -61,6 +62,9 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
 
     // 스폰 루틴 중복 실행 방지 (MasterClient 교체 시 이중 시작 차단)
     private bool _spawnRoutineRunning = false;
+
+    // [V7] 이중 흡수 방지: 이미 흡수 판정이 확정된 젤리 ViewID (마스터만 사용).
+    private readonly HashSet<int> _claimedJellies = new HashSet<int>();
 
     private void Awake()
     {
@@ -147,7 +151,10 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, pos, Quaternion.identity);
+        // [S9] 룸 오브젝트로 생성 → 마스터가 방을 나가도 파괴되지 않고 새 마스터에게 소유권 이전.
+        // (기존 PhotonNetwork.Instantiate는 CleanupCacheOnLeave 기본값 true 때문에 마스터 이탈 시
+        //  그 마스터가 만든 젤리가 전부 파괴됐다가 새 마스터가 재보충 → '젤리 일시 증발' 발생)
+        GameObject jelly = PhotonNetwork.InstantiateRoomObject(prefabFolder + prefabName, pos, Quaternion.identity);
         PlaceJellyOnNavMesh(jelly, pos);
         _spawnedJellies.Add(jelly);
     }
@@ -256,44 +263,70 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         _spawnedJellies.RemoveAll(j => j == null);
         if (CurrentJellyCount() >= maxJellyCount) return;
 
-        GameObject jelly = PhotonNetwork.Instantiate(prefabFolder + prefabName, position, Quaternion.identity);
+        // [S9] 룸 오브젝트로 생성 (마스터 이탈 시 소유권 이전, 파괴 방지)
+        GameObject jelly = PhotonNetwork.InstantiateRoomObject(prefabFolder + prefabName, position, Quaternion.identity);
         PlaceJellyOnNavMesh(jelly, position);
         _spawnedJellies.Add(jelly);
     }
 
     // ─────────────────────────────────────────────────────────
-    // 젤리 삭제 (누구든 요청 가능, MasterClient가 실제 삭제)
+    // 젤리 흡수 (마스터 중재 — 이중 흡수 방지 + 삭제 권한 통일) [V7]
     // ─────────────────────────────────────────────────────────
+    //
+    // [설계 근거]
+    //   - 삭제 권한: PhotonNetwork.Destroy는 소유자/마스터만 호출 가능한데 젤리는 룸(마스터)
+    //     소유이므로, 비마스터가 먹었어도 마스터에게 요청해야 한다 → 삭제 트리거 메시지는 필수.
+    //   - 이중 흡수(double-eat): 예전엔 보상(성장/색/점수)을 각 클라가 로컬에서 즉시 지급해,
+    //     두 엔티티가 같은 젤리를 같은 프레임에 먹으면 둘 다 성장했다. (REVIEW_NOTES V7/L1)
+    //   → "요청 → 마스터 선착 1명 판정 → 승자에게만 보상 확정 + 젤리 파괴"로 통일한다.
+    //     (플레이어↔플레이어 흡수의 RPC_RequestAbsorbValidation과 동일한 권위 패턴)
 
     /// <summary>
-    /// 플레이어가 젤리를 흡수했을 때 호출
-    /// → MasterClient에게 삭제 요청 RPC 전송
+    /// 젤리를 먹었을 때(흡수 애니 완료 시) 호출. 마스터에게 흡수 판정을 요청한다.
+    /// jellyViewID = 먹힌 젤리, eaterViewID = 먹은 플레이어/봇의 PhotonView.
     /// </summary>
-    public void RequestDestroyJelly(GameObject jellyObject)
+    public void RequestEatJelly(int jellyViewID, int eaterViewID)
     {
-        PhotonView jellyView = jellyObject.GetComponent<PhotonView>();
-        if (jellyView == null) return;
-
-        // MasterClient에게만 RPC 전송 (MasterClient가 Destroy 권한을 가짐)
-        photonView.RPC(nameof(RPC_DestroyJelly), RpcTarget.MasterClient, jellyView.ViewID);
+        photonView.RPC(nameof(RPC_RequestEatJelly), RpcTarget.MasterClient, jellyViewID, eaterViewID);
     }
 
-    /// <summary>
-    /// [RPC] MasterClient에서 젤리를 실제로 삭제
-    /// </summary>
+    /// <summary>[RPC · 마스터] 선착 1명만 승자로 판정 → 승자에게 보상 확정 + 젤리 파괴.</summary>
     [PunRPC]
-    private void RPC_DestroyJelly(int jellyViewID)
+    private void RPC_RequestEatJelly(int jellyViewID, int eaterViewID)
     {
-        // MasterClient만 실행
         if (!PhotonNetwork.IsMasterClient) return;
 
+        // 이미 다른 요청이 이 젤리를 선점했으면(이중 흡수 시도) 무시 → 후발 요청자는 보상 없음.
+        if (_claimedJellies.Contains(jellyViewID)) return;
+
         PhotonView jellyView = PhotonView.Find(jellyViewID);
-        if (jellyView != null)
-        {
-            _spawnedJellies.Remove(jellyView.gameObject);
-            // PhotonNetwork.Destroy → 모든 클라이언트에서 오브젝트 제거
-            PhotonNetwork.Destroy(jellyView.gameObject);
-        }
+        if (jellyView == null) return;   // 이미 파괴됨(늦은 요청)
+
+        _claimedJellies.Add(jellyViewID);
+
+        // 젤리 색(보상 정보)을 읽어 승자에게 실어 보낸다.
+        int colorType = 0;
+        var jellyObj = jellyView.GetComponent<JellyObject>();
+        if (jellyObj != null) colorType = (int)jellyObj.jellyType;
+
+        // 승자 확정을 전 클라에 보내되, 그 엔티티의 소유자만 실제 보상을 적용한다.
+        photonView.RPC(nameof(RPC_ConfirmEat), RpcTarget.All, eaterViewID, colorType);
+
+        // 젤리 실제 파괴(룸 오브젝트는 마스터만 파괴 가능 — 규칙 충족).
+        _spawnedJellies.Remove(jellyView.gameObject);
+        PhotonNetwork.Destroy(jellyView.gameObject);
+    }
+
+    /// <summary>[RPC] 흡수 승자의 소유자 클라에서만 보상(성장/색/점수)을 적용한다.</summary>
+    [PunRPC]
+    private void RPC_ConfirmEat(int eaterViewID, int colorType)
+    {
+        PhotonView eaterView = PhotonView.Find(eaterViewID);
+        if (eaterView == null || !eaterView.IsMine) return;   // 그 엔티티의 소유자만 보상
+
+        // AbsorbColor → OnJellyScored(점수)/OnJellyEaten(색+성장) 기존 보상 경로를 그대로 탄다.
+        PlayerAbsorber absorber = eaterView.GetComponentInChildren<PlayerAbsorber>();
+        absorber?.AbsorbColor((JellyColorType)colorType);
     }
 
     // ─────────────────────────────────────────────────────────

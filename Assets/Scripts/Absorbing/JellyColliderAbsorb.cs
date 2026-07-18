@@ -113,23 +113,30 @@ public class JellyColliderAbsorb : MonoBehaviour
 
     void OnAbsorbed()
     {
-        if (target != null)
-        {
-            PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
-            if (player != null)
-                player.AbsorbColor(GetComponent<JellyObject>().jellyType);
-        }
+        // 먹힌 즉시 로컬에서 숨겨 반응성을 유지한다(연출). 실제 파괴/보상은 마스터가 판정한다.
+        foreach (var r in GetComponentsInChildren<Renderer>())
+            r.enabled = false;
 
-        // 봇 점수는 BotBridge.HandleScaleCompleted에서 크기 기반으로 자동 산출
-
+        // [V7] 보상(성장/색/점수)을 여기서 로컬로 즉시 지급하지 않는다.
+        // 예전엔 각 클라가 로컬 AbsorbColor로 즉시 보상해, 두 엔티티가 같은 젤리를 동시에 먹으면
+        // 둘 다 성장하는 이중 흡수가 있었다. 이제 마스터에게 '흡수 요청'만 보내고, 마스터가 선착
+        // 1명을 승자로 판정해 그 승자에게만 보상을 확정한다(RPC_ConfirmEat → AbsorbColor).
+        // 봇 점수는 그 보상 경로(BotBridge.HandleScaleCompleted)에서 크기 기반으로 자동 산출.
         if (NetworkJellyManager.Instance != null)
         {
-            foreach (var r in GetComponentsInChildren<Renderer>())
-                r.enabled = false;
-            NetworkJellyManager.Instance.RequestDestroyJelly(gameObject);
+            PhotonView jellyView = GetComponent<PhotonView>();
+            PhotonView eaterView = target != null ? target.GetComponentInParent<PhotonView>() : null;
+            if (jellyView != null && eaterView != null)
+                NetworkJellyManager.Instance.RequestEatJelly(jellyView.ViewID, eaterView.ViewID);
         }
         else
         {
+            // 오프라인/싱글 폴백: 네트워크 매니저가 없으면 기존처럼 로컬 처리.
+            if (target != null)
+            {
+                PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
+                player?.AbsorbColor(GetComponent<JellyObject>().jellyType);
+            }
             Destroy(gameObject);
         }
     }
