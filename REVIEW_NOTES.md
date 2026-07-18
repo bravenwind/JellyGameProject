@@ -2077,6 +2077,156 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 
 ---
 
+## 2026-07-18 루틴 — 맵/환경 라이프사이클 & 해저드 시퀀스 신규 심층 리뷰 (맵 생성 → Push 타일 붕괴 → 낙하/NavMesh carve → 클리어 판정 + 지형 해저드, X1~X12 도출) · **Fable 5로 진행**
+
+리뷰 대상: `AutoGridMapGenerator`, `TileCollapseManager`, `FallingTile`, `ClearJudge`,
+`RandomObjectSpawner`, `RandomJellySpawner`, `ChocolateFluid`, `Milk`, `Rotator`,
+`PuddingWiggle`, `FixBounds`, `MultiRandomMaterialApplier` (+ 호출측 GameModeManager RPC,
+NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, JellySpawnMachine).
+빌드 씬 6종(Main / Loading / Game_io_AbsorbMode / Game_io_PushMode / GameResult ×2)과 GUID 참조 대조.
+
+> 이번 루틴은 지정대로 **Fable 5** 모델로 리뷰를 수행했고, 네트워크 고위험 3건(X1·X3·X4)은
+> 기록 전 실제 코드로 교차검증함(Opus 검증). X1은 "즉시 수정 후보"이나 단순 게이트 삽입 시
+> 초콜릿 부력/물결 **연출까지 원격 클라에서 죽는** 부작용이 있어(연출은 전 클라 실행이 정상)
+> 수술적 수정이 필요 → **사용자 승인 대기**로 둔다(자동 적용 안 함).
+
+### [X1] (네트워크·버그 / 높음·즉시수정후보·검증완료) ChocolateFluid가 소유권 가드 없이 모든 클라에서 봇 탈락/물리 개조 → 클라 간 봇 생사 분기
+- 위치: `ChocolateFluid.cs:137-176` (봇 경로 전체 — 161-164 물리 개조, 175 `aiPlayer.OnEliminated()`),
+  연쇄로 `AIPlayerMovement.cs:650-658` (`OnEliminated`의 비마스터 폴백 `ApplyEliminatedLocally()` 657)
+- 원인: 트리거 콜백은 **모든 클라에서 각자 로컬로** 발화한다. 봇은 마스터 소유·위치는 동기화로 흘러오는데,
+  원격 클라에서도 봇의 보간 콜라이더가 초콜릿에 닿으면 그 클라의 `OnTriggerEnter`가 실행된다. 사람 경로
+  (129-135)는 `SyncChocolateElimination()` 내부 `IsMine` 가드(NetworkPlayerSync)로 안전하지만, 봇 경로엔
+  Milk가 J2에서 심은 `if (pv==null||!pv.IsMine) return;`(Milk.cs:30-31) 게이트가 **없다.** 그래서 원격에서도
+  (1) rb 물리를 개조하고 (2) `OnEliminated()` → 비마스터에선 RPC 없이 `ApplyEliminatedLocally()`만 실행 →
+  **그 클라에서만** 봇 탈락. 위치 보간이 경계에서 클라마다 수 프레임 어긋나 "아슬하게 스친" 봇이
+  A 클라 탈락 / 마스터 생존으로 갈린다.
+- 영향: 원격 "유령 탈락 봇"(그 클라만 FSM/애니 정지, 마스터에선 계속 이동 → 텔레포트처럼 보임) 또는 반대.
+  `IsEliminated`가 클라마다 달라져 EntityRegistry 기반 생존자 수·Push 종료 판정까지 오염 여지.
+- 제안: **블랭킷 early-return은 금물**(초콜릿 부력/물결 연출은 전 클라 실행이 정상이라 desync가 아니라 연출).
+  탈락·네트워크 상태 변경 같은 **권위 행위만** 소유자 게이트 뒤로: 봇 경로에서 `pv.IsMine`(봇=마스터)일 때만
+  `OnEliminated()` 호출. `AIPlayerMovement.OnEliminated`의 비마스터 로컬 폴백(657)도 네트워크 게임에선
+  무시(return)가 안전. 학습 포인트: **"물리 이벤트는 로컬 사건, 게임 상태 변경은 소유자의 권한."**
+  트리거 콜백 첫 줄에서 "내가 이 대상의 권위자인가"를 물어야 하되, *연출*과 *권위*를 분리해서 게이트할 것.
+
+### [X2] (네트워크·버그 / 중) 초콜릿이 네트워크 젤리를 로컬 `SetActive(false)`로 제거 — 마스터 권위 삭제(NetworkJellyManager) 우회
+- 위치: `ChocolateFluid.cs:167-168`(`DeactivateAfterDelay` 예약), `:192-205`, 퇴장 복원 `:231-246`
+- 원인: 젤리 생성/삭제는 `NetworkJellyManager`가 `PhotonNetwork.Instantiate`/`RPC_DestroyJelly→PhotonNetwork.Destroy`로
+  **마스터만** 수행하는 단일 경로 설계. 그런데 초콜릿은 Edible이 뜨면 각 클라가 자기 타이머(`floatingLifetime` 5s)로
+  로컬 `SetActive(false)`만 한다. 클라마다 발화 시점이 다르고 경계에선 한쪽만 발화 → "이 클라엔 사라졌는데 저 클라엔
+  떠 있는" 젤리. PhotonView는 파괴 안 되고 비활성으로 남아 뷰 누수. 덤으로 `OnTriggerExit`(243)이 원래 damping을
+  저장 안 하고 하드코딩 `0.05f`로 "복원"(config↔런타임 혼동, Milk J3 대칭복원과 대비).
+- 영향: 클라 간 젤리 존재 불일치(한쪽만 먹는 젤리), 비활성 PhotonView 누적, damping 원본과 무관하게 0.05 덮임.
+- 제안: 제거를 `NetworkJellyManager` 단일 경로로 통일(H6/O3/R1/S7 단일출처). damping은 진입 시 원본 저장→대칭 복원.
+  학습 포인트: 네트워크 오브젝트의 로컬 `SetActive(false)`는 "삭제"가 아니라 "desync 씨앗".
+
+### [X3] (네트워크·아키텍처 / 중·검증완료) Push 타일 마모 상태가 마스터 로컬 메모리에만 존재 — 마스터 교체 시 마모 전량 리셋 + 비마스터 위험판정 불능
+- 위치: `TileCollapseManager.cs:44-46`(상태 dict 3종), `:298-320`(`WearTile` — 카운트는 로컬 dict, 전파는 색 RPC뿐),
+  `:322-349`(`DarkenStepTile` — stepCount를 **인자로 받고도 저장 안 함**), `:424-434`(`IsPositionDangerous` Push 분기)
+- 원인: 마모 카운트는 마스터 `_tileStepCounts`에만 쌓이고, `RPC_StepTileDarken`은 stepCount를 실어 오면서도 수신부에서
+  **색만 칠하고 값을 버린다**(318행이 count 전송 → 322행이 받아 342행 t 계산에만 쓰고 dict 미기록). 결과: (1) 비마스터
+  `_tileStepCounts`가 늘 비어 `IsPositionDangerous` Push 분기가 "타일 있으면 무조건 안전" 반환, (2) 마스터 교체 시
+  새 마스터도 빈 dict에서 시작 → 화면상 거의 검게 닳은 타일이 내부적으론 새 타일(체류 마모 타이머 `_entityDwellTime`도 소실).
+  현재는 봇 FSM이 마스터에서만 돌아 증상이 가려져 있으나, "시각 상태(전 클라) ↔ 논리 상태(마스터 1곳)" 이원 거주가 근본 문제.
+- 영향: 마스터 이탈 시 라운드 난이도 조용히 리셋(닳은 타일이 다시 maxSteps 견딤), 시각-논리 불일치. 향후 비마스터에서
+  `IsPositionDangerous`(로컬 경고 UI 등)를 쓰는 순간 잠복 버그 발현.
+- 제안: `DarkenStepTile`에 `_tileStepCounts[tileKey] = stepCount;` **한 줄** 추가 → RPC가 이미 값을 실어 오므로 전 클라가
+  같은 상태 공유 + 마스터 교체 시 마지막 RPC까지 마모 보존. 학습 포인트: **권위(판정)는 마스터 단독이어도 판정 근거 상태는
+  전 클라에 복제해 두면 마스터 승계가 공짜.** "RPC에 실려 오는 데이터를 버리고 있지 않은가"는 좋은 점검 질문.
+
+### [X4] (안정성·버그 / 중·검증완료) FallingTile 붕괴 코루틴 한복판의 무가드 `DataManager.Instance` — NRE 한 방에 타일 영구 미붕괴
+- 위치: `FallingTile.cs:190-192` (`AwakePhysicsOnTile`의 `DataManager.Instance.objectLayerMask` + `1<<NameToLayer`)
+- 원인: G8/L2/S8/V10 무가드 싱글톤 재발. **코루틴 내부**라 특히 위험: `FallRoutine`(경고 흔들림 → AwakePhysicsOnTile →
+  CarveNavMesh → MarkCellCollapsed → 콜라이더 off → 낙하)에서 190행 NRE 시 코루틴이 그 지점에서 **조용히 사망**한다.
+  매니저는 이미 `_tiles[x,z]=null`(붕괴 예약)이므로 논리상 사라진 타일이 물리적으론 빨갛게 흔들리다 멈춘 채 영구 잔존,
+  carve·MarkCellCollapsed 미실행으로 `IsOverVoid` 판정까지 어긋남. 게임 씬 직접 실행 시 100% 재현 여지. 보너스:
+  `NameToLayer("Player")`가 -1이면 `1<<-1`은 C# 시프트 마스킹으로 `1<<31`이 되어 엉뚱한 31번 레이어가 마스크에 섞임.
+- 영향: 씬 직접 실행/초기화 순서 꼬임 시 붕괴 시퀀스 전체 중단(좀비 타일). 한 클라만 터지면 클라 간 지형 불일치로 번짐.
+- 제안: `var dm=DataManager.Instance; int mask = dm!=null ? dm.objectLayerMask.value : 0;` + `NameToLayer` 음수검사 후 OR.
+  학습 포인트: 코루틴 안 예외는 프레임 루프를 안 죽이는 대신 **그 코루틴만 소리 없이 끊어** 상태머신을 어중간한 지점에 방치.
+  다단계 코루틴일수록 외부 의존(싱글톤·씬 오브젝트)은 진입 전 검증. (덤: `_lastOverlapResult`는 기록만 되고 읽는 곳 없는
+  죽은 디버그 필드 — 콜라이더 배열을 붙잡아 둠.)
+
+### [X5] (성능 / 중하) ChocolateFluid `debugLogTriggers` 기본값 true — 빌드에서 트리거마다 문자열 조립+로그
+- 위치: `ChocolateFluid.cs:33`(기본 true), `:132`, `:153-157`(카테고리 문자열 보간)
+- 원인: N1/O7/S10/U7/K3 빌드 로그 스파이크 재발. 인스펙터 기본 true라 씬의 모든 초콜릿이 기본 켜짐, 진입마다
+  `$"...{other.name}...{rb.name}..."` 보간(GC)+`Debug.Log`(빌드도 스택트레이스 수집). 젤리 우수수 빠질 때 스파이크 몰림.
+  FallingTile은 G3에서 `#if UNITY_EDITOR`로 정리했는데 여긴 누락.
+- 제안: 기본 false + 로그 `#if UNITY_EDITOR`/`[Conditional("UNITY_EDITOR")]`. 학습 포인트: flag 기본값이 true인 순간
+  "디버그 코드"가 "출하 코드"가 된다.
+
+### [X6] (데드코드 / 중하·레거시) ClearJudge — 빌드 씬 부재 + 핵심 판정 주석처리로 도달불가 + 눌림 중 매 프레임 Debug.Log
+- 위치: `ClearJudge.cs:91-95`(Update 매 프레임 `Debug.Log("저울 눌림")`), `:98-115`(`JudgeClear` 전체 주석 →
+  `isCleared` 영원히 false, `ClearSequence`/`FadeRoutine` 도달불가), `:140`·`:154`(무가드 싱글톤)
+- 원인: GUID 조사상 ClearJudge는 Legacy/`Game.unity`/`MaterialTest.unity`에만 있고 **빌드 씬 6종 어디에도 없음**(M1/S3/U1/V1
+  반쪽구현). 클리어 판정이 주석이라 상태 플래그를 세울 방법 없음. 91-95는 N1 계열 매 프레임 로그.
+- 제안: Legacy 폴더 이동 or `JudgeClear` 복구/삭제 결단. 학습 포인트: "주석처리로 끈 기능"은 git 있으면 삭제가 정답.
+
+### [X7] (데드코드 / 하) FixBounds — 프로젝트 전체 참조 0건 완전 고아 + `.mesh` 인스턴스 복제 + 무가드 GetComponent(순서 역전)
+- 위치: `FixBounds.cs:8-13`
+- 원인: 부착 오브젝트 0건(M1 고아). (1) `GetComponent<MeshFilter>().mesh` — MeshFilter 없으면 null 체크 **도달 전** NRE(순서 역전),
+  (2) `.mesh` 접근이 공유 메쉬 복제(G3/K1 메쉬판), (3) bounds 10000이면 프러스텀 컬링 사실상 off.
+- 제안: 삭제 권장. 유지 시 `TryGetComponent`. 학습 포인트: `.mesh`/`.material` 게터는 "읽기"가 아니라 "복제 트리거".
+
+### [X8] (아키텍처·데드코드 / 중하·레거시) 젤리 스포너 이원화 — RandomObjectSpawner/RandomJellySpawner는 레거시 전용인데 Map 폴더에 현역처럼 동거
+- 위치: `RandomObjectSpawner.cs`(참조: Legacy/TileScene 1곳), `RandomJellySpawner.cs`(Legacy/TileScene + `_Recovery/0.unity`),
+  대체자 명시 `NetworkJellyManager.cs:12-14` 주석
+- 원인: 멀티 스폰은 NetworkJellyManager 단일출처(H6/O3/R1/S7), 이 둘은 빌드 씬 부재. RandomJellySpawner는 `Start`에서
+  `InRoom` 시 자기 비활성 안전핀(29-33)이라도 있으나 RandomObjectSpawner는 무가드 → io 씬 실수 부착 시 P2(클라별 `Random.Range`
+  배치 상이) 재현. 둘 다 `tileRenderer` null 미검사(37/89행 NRE), RandomJellySpawner.SpawnRandomBatch는 InRoom 가드가
+  `Start`에만 있어 ContextMenu/외부 호출 우회 가능.
+- 제안: Legacy 폴더/네임스페이스 격리 + 상단 "멀티는 NetworkJellyManager" 배너. 학습 포인트: 같은 책임 클래스 둘이 살아 있으면
+  폴더 위치·이름이 곧 문서 — 물리적 격리가 가장 싼 재발 방지.
+
+### [X9] (네트워크·버그 / 중하·확인필요) MultiRandomMaterialApplier — 클라별 `Random.Range`로 머신 외형 결정(P2 재발), 머신 프리팹은 빌드 io 씬 현존
+- 위치: `MultiRandomMaterialApplier.cs:27-30`(`Random.Range(0, materialList.Count)` → `sharedMaterial` 교체),
+  부착: `machine_red/white/blue/green.prefab` → `Game_io_AbsorbMode`/`Game_io_PushMode` 포함
+- 원인: `Start`에서 각 클라가 자기 RNG로 렌더러별 머티리얼 선택, 시드 공유 없음 → 같은 머신이 A 클라 빨강/B 클라 초록(P2 외형판).
+  `sharedMaterial` 사용은 G3/K1 교훈 반영된 좋은 선택이나 공유 자산이면 그 자산 쓰는 모두가 함께 바뀜도 인지 필요. 33행 Debug.Log는
+  Start마다(N1, 1회성이라 경미).
+- 영향: "저 초록 머신 옆에서 만나"류 위치 소통이 클라 간 어긋나는 코스메틱 desync. 머신색↔스폰젤리색 연관 연출이면 오해 유발.
+- 제안: 무작위 불필요 시 프리팹 고정, 필요 시 `transform.position` 해시/룸프로퍼티 시드로 **결정론 랜덤**(`new System.Random(seed)`).
+  학습 포인트: 멀티에서 `UnityEngine.Random`은 "각자 다른 결과"의 약속 — 모두 같은 걸 봐야 하면 시드 공유/마스터 전파.
+
+### [X10] (데드코드 / 하·관찰) Milk — J2/J3 이후 잔존물: 호출자 0인 RespawnRoutine/SetAppearance, 오프라인(레거시) 씬 전 기능 무동작
+- 위치: `Milk.cs:95-121`(`RespawnRoutine`/`SetAppearance` grep 0건 + `respawnTime` 고아), `:30-31`(pv null이면 return)
+- 원인: 감속은 J2(소유권)/J3(dict+대칭복원+OnDisable복원+0나눗셈가드)로 잘 정리됐으나 "밟으면 사라졌다 5초 재생성"은 트리거 코드
+  소실 후 사체만 남음(M1). J2 게이트 부수효과로 PhotonView 없는 레거시/오프라인 씬에선 밀크가 완전 무동작(의도면 OK).
+- 제안: 리스폰 계획 없으면 95-121+`respawnTime` 삭제, 살릴 거면 마스터 판정+전파 구조로(로컬 SetAppearance만으론 X2와 동일 desync).
+
+### [X11] (코드품질 / 하) Rotator — 주석은 Y축·코드는 Z축 + pragma로 은폐한 죽은 필드 + 호출측 무가드 싱글톤 체인
+- 위치: `Rotator.cs:12-14`(`rotateCoroutine` — 대입은 null뿐, `#pragma warning disable 0414`로 경고만 침묵),
+  `:26-28` vs `:45-46`(주석 "Y값" ↔ 실제 `eulerAngles.z`), 호출측 `JellySpawnMachine.cs:44-47`(무가드 싱글톤 체인, G8)
+- 원인: `rotateCoroutine`은 코루틴 핸들로 쓰려다 만 흔적(값 유입 경로 없음) → "중복 회전 방지" 미수행. pragma가 "이 필드 안 쓴다"는
+  컴파일러 신호를 꺼 죽은 코드가 경고 없이 잔류. 주석-축 불일치는 디버깅 때 잘못된 축을 뒤지게 함. `eulerAngles` RMW는 짐벌 표현
+  변환으로 특정 자세에서 튈 수 있는 패턴(현재 Z 단일축이라 실害 낮음).
+- 제안: 죽은 필드 삭제(또는 진짜 중복방지 가드로 완성), 주석을 실제 축으로, 호출측 싱글톤 null 가드. 학습 포인트:
+  `#pragma warning disable`로 죽은 코드를 덮으면 컴파일러라는 공짜 리뷰어를 해고하는 셈.
+
+### [X12] (인코딩 / 중하) Map 폴더 5개 파일 한글 주석 mojibake — M4/N6/R7/U7/V10/W9 재발
+- 위치: `RandomObjectSpawner.cs`(ISO-8859/CP949), `RandomJellySpawner.cs`(U+FFFD 44), `Rotator.cs`(U+FFFD 13),
+  `FixBounds.cs`(ISO-8859), `MultiRandomMaterialApplier.cs`(ISO-8859)
+- 원인: CP949 저장 파일을 UTF-8로 읽거나 그 반대를 오가며 주석이 `�`/깨진 바이트로 굳음. 같은 폴더 TileCollapseManager/
+  FallingTile/ChocolateFluid는 UTF-8(BOM) 정상 → 특정 시기·에디터 설정 파일만 오염.
+- 제안: `.editorconfig`에 `charset = utf-8` 고정 + 5개 일괄 재인코딩(가능하면 git 이전 리비전서 원문 복구). 학습 포인트:
+  인코딩은 한 번 깨지면 원문 소실되는 비가역 손상 → 도구 강제(editorconfig) 예방 외 답 없음.
+
+### 좋았던 점 (설계 관찰)
+- **Push 붕괴 파이프라인의 권위+멱등 구조가 교과서적.** 마모 판정 마스터 단독(`UpdateStepCollapse`의 IsMasterClient 가드),
+  결과만 RPC 전파, 수신부 `CollapseStepTile`이 `_tiles[x,z]==null` 가드로 중복 RPC에 멱등 → RpcTarget.All 로컬 즉시실행과
+  맞물려 같은 타일 이중붕괴가 구조적으로 차단. `WearTilePath` 대쉬 칸 건너뜀 보강, MAX_SWEEP 텔레포트 예외처리도 인상적.
+- **FallingTile.CarveNavMesh의 '유령 NavMesh' 해결이 원인분석→해결→수명관리 삼박자.** 낙하 타일에 장애물 붙여 구멍 닫는 근본
+  원인을 주석으로 남기고, carve 오브젝트 + `carveOnlyStationary=false`로 타이밍 공백 제거, G7 매니저 소유 일괄정리로 수명 종결.
+- **흡수 링 붕괴·초콜릿 흐름의 시계 동기화가 올바른 결정론 접근.** RPC 폭주 대신 룸프로퍼티 `GameStartTime` +
+  `PhotonNetwork.ServerTimestamp` 절대시각으로 각 클라 독립 재생 → 순회순서·흐름방향까지 전 클라 동일 재현.
+- **J2/J3(Milk)·K1(MPB) 교훈이 실제로 정착.** Milk ViewID dict + 대칭복원, TileCollapseManager/FallingTile의 sharedMaterial
+  읽기+MPB 쓰기, PuddingWiggle의 `IsMine` 게이트 후 RPC 전파(연출은 전 클라, 판정은 소유자만)까지 이전 지적이 새 습관으로 이어짐.
+  (PuddingWiggle은 경계 재진입 RPC 연타 방지용 짧은 쿨다운만 있으면 완성형.)
+
+### mojibake(인코딩 손상) 확인 파일
+- `Assets/Scripts/Map/RandomObjectSpawner.cs`, `RandomJellySpawner.cs`, `Rotator.cs`, `FixBounds.cs`, `MultiRandomMaterialApplier.cs`
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -2220,6 +2370,18 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
 - [ ] W8  (대기 — 2026-07-16 도출, CooldownRingUI:99 DOKill()이 펀치 중 스케일 방치 → 상대 트윈(DOPunchScale)이 부푼 값을 새 기준으로 삼아 링 크기 영구 드리프트(준비 에지 0.3s 내 2회 시). Awake에서 _baseScale 캐싱 후 펄스 시 복원+_baseScale 기준 펀치. 신규 패턴)
 - [ ] W9  (대기 — 2026-07-16 도출, StageTitleUI 주석 mojibake(ISO-8859 확인, UIManager/GameTimer도)+뒤집힌 "FadeIn/FadeOut" 문자열 API(Fade는 FadeOut=나타남)+uiManager/fadeCanvasGroup 무가드 NRE. 살릴 시 enum FadeDirection 교체+가드+UTF-8, 버릴 시 Legacy. 빌드 밖(W2). M4/N6/R7/U7·V1)
 - [ ] W10 (대기 — 2026-07-16 도출, LevelUI DataManager.Instance 무가드 시딩+min==max 0나눗셈 fillAmount=NaN(ValidateSettings가 min>max만 교정, Q7 미적용 잔여)+needJellyText/currentLevelText 라벨-내용 불일치+CurrentStatusUI만 레거시 Text. range>0 가드+[FormerlySerializedAs] 리네임+TMP 통일. Q7/G8/N5)
+- [ ] X1  (대기 — 2026-07-18 도출·**검증완료·즉시수정후보**, ChocolateFluid 봇 경로(137-176)에 Milk J2식 IsMine 게이트 부재 → 원격 클라도 rb 물리개조+OnEliminated 로컬 실행(비마스터 폴백 657) → 클라 간 봇 생사 분기(유령 탈락봇/EntityRegistry 오염). **블랭킷 return 금물**(부력·물결 연출은 전 클라 정상) → 권위 행위(OnEliminated)만 소유자 게이트로 수술적 수정. **사용자 승인 대기**. J2/G6 테마)
+- [ ] X2  (대기 — 2026-07-18 도출, 초콜릿이 네트워크 젤리를 로컬 SetActive(false)(167/192-205)로 제거 → 마스터 권위 삭제(NetworkJellyManager RPC_DestroyJelly) 우회 → 클라 간 젤리 존재 불일치+비활성 PhotonView 누수. OnTriggerExit(243) damping 하드코딩 0.05 복원(config↔런타임 혼동, Milk J3 대비). 삭제를 NetworkJellyManager 단일경로로+damping 대칭복원. H6/O3/R1/S7 단일출처)
+- [ ] X3  (대기 — 2026-07-18 도출·**검증완료**, TileCollapseManager 마모상태(_tileStepCounts 등)가 마스터 로컬에만 존재. DarkenStepTile(322)이 RPC로 실려온 stepCount를 색 계산에만 쓰고 dict 미기록 → 비마스터 위험판정 불능+마스터 교체 시 마모 전량 리셋(닳은 타일이 새 타일화). **한 줄 수정**: DarkenStepTile에 `_tileStepCounts[tileKey]=stepCount;`. 권위=마스터·근거상태=전 클라 복제 원칙)
+- [ ] X4  (대기 — 2026-07-18 도출·**검증완료**, FallingTile.AwakePhysicsOnTile(190-192) 무가드 DataManager.Instance가 **붕괴 코루틴 한복판** → NRE 시 코루틴 조용히 사망 → 논리상 사라진 타일이 물리적으론 흔들리다 멈춘 채 영구잔존+carve/MarkCellCollapsed 미실행+IsOverVoid 어긋남. 1<<NameToLayer(-1)=1<<31 마스크 오염도. dm null 가드+NameToLayer 음수검사. G8/L2/S8/V10. _lastOverlapResult 죽은 필드)
+- [ ] X5  (대기 — 2026-07-18 도출, ChocolateFluid debugLogTriggers 기본 true(33) → 빌드에서 트리거마다 문자열 보간(GC)+Debug.Log(153-157). 기본 false+#if UNITY_EDITOR. N1/O7/S10/U7/K3 로그 스파이크 계열, FallingTile G3 누락 경로)
+- [ ] X6  (대기 — 2026-07-18 도출·레거시, ClearJudge 빌드 씬 부재(Legacy/Game/MaterialTest만)+JudgeClear 전체 주석으로 클리어판정 도달불가(98-115)+Update 매 프레임 Debug.Log(91-95)+무가드 싱글톤. Legacy 이동 or 복구/삭제 결단. M1/S3/U1/V1 반쪽구현·N1 로그)
+- [ ] X7  (대기 — 2026-07-18 도출, FixBounds 프로젝트 참조 0건 완전 고아+GetComponent<MeshFilter>().mesh null체크 순서 역전 NRE+.mesh 인스턴스 복제(G3/K1 메쉬판)+bounds 10000 컬링 무력화. 삭제 권장. M1 고아)
+- [ ] X8  (대기 — 2026-07-18 도출·레거시, RandomObjectSpawner/RandomJellySpawner 레거시 전용(빌드 씬 부재)인데 Map 폴더 동거. NetworkJellyManager가 단일출처. RandomObjectSpawner 무가드→io 씬 실수부착 시 P2(클라별 Random 배치) 재현+둘 다 tileRenderer null 미검사. Legacy 폴더/네임스페이스 격리. H6/O3/R1/S7·M1)
+- [ ] X9  (대기 — 2026-07-18 도출·확인필요, MultiRandomMaterialApplier(27-30) 클라별 Random.Range로 머신 외형 결정→같은 머신 클라마다 다른 색(P2 외형판). 머신 프리팹은 빌드 io 2씬 현존. 프리팹 고정 or 결정론 랜덤(position 해시/룸프로퍼티 시드). sharedMaterial 사용 자체는 G3/K1 반영 굿)
+- [ ] X10 (대기 — 2026-07-18 도출·관찰, Milk 호출자 0인 RespawnRoutine/SetAppearance+respawnTime 고아(J2/J3 이후 잔존물)+PhotonView 없는 레거시 씬 전 기능 무동작. 삭제 or 마스터판정+전파 재설계. M1 반쪽구현)
+- [ ] X11 (대기 — 2026-07-18 도출, Rotator rotateCoroutine 죽은 필드를 #pragma warning disable 0414로 은폐(중복회전 방지 미수행)+주석 Y축↔코드 Z축 불일치+호출측(JellySpawnMachine:44-47) 무가드 싱글톤. 죽은 필드 삭제+주석 정정+null 가드. G8)
+- [ ] X12 (대기 — 2026-07-18 도출, Map 폴더 5파일 한글 주석 mojibake(RandomObjectSpawner/RandomJellySpawner/Rotator/FixBounds/MultiRandomMaterialApplier). .editorconfig charset=utf-8 고정+일괄 재인코딩(git 이전 리비전 원문 복구). M4/N6/R7/U7/V10/W9 계열)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
@@ -2263,3 +2425,10 @@ M1(ResultDataCarrier 미사용)·J4와 같은 "반쪽/구버전 잔재" 테마. 
   **cryptography 자체 force-reinstall**이 이번 컨테이너의 해법. 훅 pip 목록에 cryptography 강제 재설치를
   넣어두면 다음 세션도 자동화될 가능성. (※ SessionStart 훅이 자동 실행됐는지 불확실 — credentials.json이
   세션 시작 시 없었음. 훅 자동 실행 여부는 다음 루틴에서 재확인 필요.)
+- 2026-07-18 루틴: 새 컨테이너에 credentials.json/gspread 둘 다 없음. env `GSHEET_CREDENTIALS_JSON`(len=2347) 존재 →
+  `credentials.json` 주입 후 `pip install --user gspread google-auth` → 예상대로 `cryptography.hazmat.bindings._rust`
+  **pyo3_runtime.PanicException** 재발(google.auth.crypt.es가 강제 import). 06-25 메모대로 **cryptography+cffi 바이너리
+  휠 강제 재설치**로 해결: `pip install --user --upgrade --force-reinstall --only-binary :all: cryptography cffi`
+  (cryptography-49.0.0, cffi-2.1.0 설치됨). 이후 `update_sheets.py status` 정상(개발계획서 루틴 31→32, 트러블슈팅 79).
+  → SessionStart 훅 pip 목록에 이 정확한 명령을 넣어두면 다음 세션 자동화 유력. (SessionStart 훅 자동 실행 여부는
+  이번에도 불확실 — credentials.json이 세션 시작 시 부재였음.)
