@@ -23,7 +23,7 @@
 |---|---|---|---|---|
 | 로컬 플레이어 | `PhotonNetwork.Instantiate` | 각 플레이어 본인 | 본인 클라 | `NetworkManager.cs:591` |
 | AI 봇 | `PhotonNetwork.InstantiateRoomObject` | **룸(=마스터)** | 마스터 클라 | `NetworkManager.cs:632` |
-| 젤리(흡수 모드) | `PhotonNetwork.Instantiate` (마스터만) | 마스터 | 마스터 클라 | `NetworkJellyManager.cs:150` |
+| 젤리(흡수 모드) | `PhotonNetwork.InstantiateRoomObject` (마스터만) | **룸(=마스터)** | 마스터 클라 | `NetworkJellyManager.cs:157` |
 
 > **왜 봇은 `InstantiateRoomObject`인가?** 일반 `Instantiate`로 만든 오브젝트는 생성한 클라가 나가면 파괴된다. 봇은 특정 사람에 종속되면 안 되므로 **룸 소유 오브젝트**로 만들어, 마스터가 바뀌어도 봇이 사라지지 않고 새 마스터가 소유권을 이어받는다.
 
@@ -126,10 +126,11 @@ sequenceDiagram
     participant P as 플레이어(로컬)
     participant ALL as 모든 클라
 
-    Note over M,J: 마스터만 젤리 스폰 (PhotonNetwork.Instantiate)
-    P->>M: 젤리 충돌 → RequestDestroyJelly → RPC_DestroyJelly [MasterClient]
-    M->>ALL: PhotonNetwork.Destroy(젤리)  (멱등)
-    Note over P: 로컬에서 색/스케일 성장 예측 → SyncScore/SyncScale(프로퍼티)
+    Note over M,J: 마스터만 젤리 스폰 (InstantiateRoomObject = 룸 오브젝트)
+    P->>M: 흡수 애니 완료 → RequestEatJelly → RPC_RequestEatJelly [MasterClient]
+    Note over M: _claimedJellies 선착 1명 판정(이중 흡수 차단)
+    M->>ALL: RPC_ConfirmEat(승자ViewID) — 승자 소유자만 보상 + PhotonNetwork.Destroy(젤리)
+    Note over P: 승자만 AbsorbColor → SyncScore/SyncScale(프로퍼티)로 성장 전파
 
     P->>M: 상대와 충돌 → RPC_RequestAbsorbValidation [MasterClient]
     Note over M: 크기 비교 (프로퍼티 "Scale")
@@ -144,8 +145,8 @@ sequenceDiagram
 
 | 단계 | 코드 | 핵심 |
 |---|---|---|
-| 젤리 스폰 | `NetworkJellyManager.cs:79-84, 90-122` `SpawnRoutine()` | **마스터만** 스폰. 개수는 `EntityRegistry.Jellies.Count`(전 클라 공유)로 판단 → 마스터 교체 시 과다 생성 방지 |
-| 젤리 삭제 | `NetworkJellyManager.cs:272-297` `RequestDestroyJelly` → `RPC_DestroyJelly[MasterClient]` → `PhotonNetwork.Destroy` | 삭제 권한을 마스터로 단일화. `Destroy`는 **멱등**이라 중복 요청 안전 |
+| 젤리 스폰 | `NetworkJellyManager.cs:79-84, 90-122` `SpawnRoutine()` (룸 오브젝트) | **마스터만** 스폰. 개수는 `EntityRegistry.Jellies.Count`(전 클라 공유)로 판단 → 마스터 교체 시 과다 생성 방지. 룸 오브젝트라 마스터 이탈에도 유지·소유권 이전(S9) |
+| 젤리 흡수/삭제 | `NetworkJellyManager.cs:288-329` `RequestEatJelly` → `RPC_RequestEatJelly[Master]`(선착 판정) → `RPC_ConfirmEat`(승자 보상) + `PhotonNetwork.Destroy` | **마스터 선착 1명 판정**으로 이중 흡수(double-eat) 차단 + 삭제 권한 단일화(V7). 플레이어 흡수와 동일 패턴 |
 | 플레이어 흡수 요청 | `NetworkPlayerSync.cs:336-359` `OnTriggerEnter` → `RPC_RequestAbsorbValidation/RPC_RequestBotAbsorbValidation [MasterClient]` | 로컬은 "요청"만. `IsMine`·`Phase==Playing`·`Absorb`모드 가드 |
 | 마스터 검증 | `NetworkPlayerSync.cs:456-500` | **권위 스케일**(`GetAuthorityScale`=프로퍼티 "Scale")로 비교 후 승자 확정 |
 | 흡수 확정 | `NetworkPlayerSync.cs:523-552` `RPC_GetAbsorbed [All]` | `_isAbsorbed` 가드로 **중복 흡수 차단**, `SyncEliminated()`로 탈락 기록 |
@@ -318,7 +319,7 @@ private static float GetAuthorityScale(PhotonView pv)
 
 **정의:** `[PunRPC]` 메서드를 `photonView.RPC(...)`로 원격 호출. **특정 순간에 한 번 발생하는 사건**을 대상에게(특정 클라/마스터/전체) 전달한다. `RpcTarget`으로 수신자를 정밀 지정한다.
 
-**무엇에 썼나:** 흡수 판정, 밀치기/넉백, 타일 붕괴, 젤리 삭제, 애니메이션 트리거, 탈락 전파, 게임 시작/종료.
+**무엇에 썼나:** 흡수 판정, 밀치기/넉백, 타일 붕괴, 젤리 흡수/삭제, 애니메이션 트리거, 탈락 전파, 게임 시작/종료.
 
 **핵심 패턴 — "요청 → 마스터 검증 → 결과 브로드캐스트":**
 ```csharp
@@ -346,7 +347,7 @@ private void RPC_GetAbsorbed(int absorberViewID) {
 **선택 근거:**
 - **사건(event)** 이기 때문. "흡수가 일어났다", "타일이 무너졌다"는 지속 상태가 아니라 순간적 트리거 → RPC가 맞다.
 - **마스터 검증으로 일관성/치팅 방지.** 크기 비교를 각자 하면 클라마다 결과가 갈리므로, 판정을 마스터 한 곳에 모은다.
-- **멱등(idempotency) 설계로 중복 안전.** `RPC_DestroyJelly`(`PhotonNetwork.Destroy`는 멱등), `RPC_GetAbsorbed`(`_isAbsorbed` 가드), `CollapseStepTile`(`_tiles[x,z]==null` 가드) — 같은 RPC가 두 번 와도 상태가 깨지지 않는다.
+- **멱등(idempotency) 설계로 중복 안전.** `RPC_RequestEatJelly`(`_claimedJellies` 선착 판정으로 후발 무시), `RPC_GetAbsorbed`(`_isAbsorbed` 가드), `CollapseStepTile`(`_tiles[x,z]==null` 가드) — 같은 RPC가 두 번 와도 상태가 깨지지 않는다.
 
 ### 3.5 (보조) `RaiseEvent` — 매칭 단계 브로드캐스트
 
@@ -398,7 +399,8 @@ RPC는 특정 PhotonView 오브젝트가 있어야 하지만, **로비/매칭 �
 | `RPC_StartGame` | `GameModeManager.cs:170` | All | 게임 시작 초기화·카운트다운 |
 | `RPC_PushModeGameEnd` | `GameModeManager.cs:737` | All | 밀치기 종료 |
 | `RPC_StepTileDarken/Collapse` | `GameModeManager.cs:782/788` | All | 타일 마모/붕괴 전파 |
-| `RPC_DestroyJelly` | `NetworkJellyManager.cs:285` | Master | 젤리 실제 삭제 |
+| `RPC_RequestEatJelly` | `NetworkJellyManager.cs:295` | Master | 젤리 흡수 선착 판정(이중 흡수 차단) |
+| `RPC_ConfirmEat` | `NetworkJellyManager.cs:322` | All | 승자 소유자만 보상 적용 |
 | `RPC_RequestAbsorbValidation` | `NetworkPlayerSync.cs:457` | Master | 흡수 검증 요청 |
 | `RPC_RequestBotAbsorbValidation` | `NetworkPlayerSync.cs:475` | Master | 봇 흡수 검증 요청 |
 | `RPC_GetAbsorbed` | `NetworkPlayerSync.cs:524` | All | 흡수 확정·연출 |
