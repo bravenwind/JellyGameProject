@@ -2267,6 +2267,168 @@ NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, Je
 
 ---
 
+## 2026-07-21 루틴 — 게임 종료 판정 → Phase/승자 전파 → 결과 씬 동기 전환 시퀀스 신규 심층 리뷰 (엔딩 시퀀스 → 스코어보드 스냅샷 → 로딩 핸드오프 → 시상대, Y1~Y9 도출) · **Fable 5 지정(이번엔 미가용)**
+
+리뷰 대상: `GameModeManager`(엔딩 시퀀스/GameWin/GameOver/CheckLastSurvivor/RPC_PushModeGameEnd/
+LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboard),
+`ScoreboardSnapshot`(수집·탈락 필터·정렬 단일 헬퍼), `GameResultManager`(결과 씬 Top3 시상대/카메라 시퀀스/
+색 복원/Strip), `AIPlayerSync`(봇 룸프로퍼티 write/ClearBotProperties/OnDestroy 가드), `LoadingSceneController`
+(결과 로딩 전환/AllClientsLoad/마스터 교체), `NextSceneManager`, `LeaderboardEntry`, `ResultStarsUI`,
+`GameTimer`(레거시). 빌드 씬 6종(Main/Loading/Game_io_Absorb/Game_io_Push/GameResult_Absorb/Push)과 GUID 대조.
+
+> **모델 메모**: 지침상 이번 루틴은 **Fable 5**로 수행 예정이었으나, 현재 환경에서 Fable 5는 크레딧이
+> 없어 실행이 거부됨(agent 실행 시 "Fable 5 requires usage credits"). 그래서 리뷰는 오케스트레이터
+> 모델(Opus)로 수행했다. X 시리즈(07-18)와 동일하게 네트워크 고위험 항목(Y1·Y2·Y3)은 실제 코드로
+> 교차검증했다(라인·플래그·룸프로퍼티 정리 경로 확인). 모두 **도출만** 했고 게임 코드는 수정하지 않았다.
+
+### [Y1] (네트워크·아키텍처 / 중·검증완료) Absorb 종료 판정이 클라마다 로컬 `_gameTimer` — 이미 있는 서버권위 클럭(NetworkedElapsedTime) 미사용
+- 위치: `GameModeManager.cs:259-266`(`_gameTimer -= Time.deltaTime` → `_gameTimer<=3f`에 `GameEndingSequenceRoutine` 시작),
+  서버클럭 정의 `:803-813`(`NetworkedElapsedTime` — `GameStartTime` 룸프로퍼티 기반), 기록처 `:228`
+- 원인: Absorb 모드의 "게임 종료"는 각 클라이언트가 자기 `Update`에서 로컬 `Time.deltaTime`을 차감한
+  `_gameTimer`로 판정한다. 그런데 `RPC_StartGame` 도착 시점이 클라마다 다르고(네트워크 지연), 프레임 히칭·
+  탭 백그라운드화로 deltaTime 누적이 어긋난다. 정작 **모든 클라가 동일하게 읽는 서버 타임스탬프 클럭**
+  (`NetworkedElapsedTime`, `GameStartTime` 룸프로퍼티)이 이미 구현돼 있는데 종료 트리거엔 안 쓴다.
+- 영향: 한 클라는 이미 `GamePhase.Result`로 전투·타일이 동결됐는데 다른 클라(특히 마스터)는 아직 `Playing` →
+  그 몇 초 사이 흡수/밀치기 판정이 한쪽에서만 유효, **최후 순위 스냅샷이 클라마다 다른 순간에 찍혀** 결과가
+  갈릴 여지. 게다가 Y7과 맞물리면: 비마스터가 먼저 종료돼 `LoadResultSceneAfterSync`의 동기화 토큰(마스터가
+  자기 종료 시점에 기록)을 `maxWait`(2s) 안에 못 받고 **봇 색이 누락된 채** 결과 씬으로 넘어갈 수 있다.
+- 제안: 종료 트리거를 마스터 단일 판정 → `RPC_...GameEnd(All)`로 일제 전환(Push의 `RPC_PushModeGameEnd`
+  패턴을 Absorb에도 이식). 최소 대안으로 남은 시간을 `gameDuration - NetworkedElapsedTime`으로 계산해
+  종료 순간을 서버클럭에 고정. 타이머 **표시**는 로컬로 둬도 되지만 **만료 판정**만 권위화.
+- 학습 포인트: "타이머 표시"와 "타이머 만료"는 다른 문제다. 표시는 각자 그려도 무방하지만, 게임 상태를
+  바꾸는 만료는 모두가 같은 순간에 겪어야 하므로 서버권위 시계 하나에 묶어야 한다. 인프라(NetworkedElapsedTime)를
+  만들어 놓고 정작 판정에 안 쓰는 건 "다리를 놓고 옆 개천으로 건너는" 격.
+
+### [Y2] (네트워크·버그 / 높음·검증완료) 흡수 중(IsBeingAbsorbed) 봇이 스코어보드에 '생존자'로 집계 — 소비처가 IsOutOfPlay가 아닌 IsEliminated만 필터 + Result 단계 파괴 봇의 룸프로퍼티 잔존
+- 위치: `ScoreboardSnapshot.cs:108-116`(`IsBotEliminated` — `bot.IsEliminated`만 검사),
+  `AIPlayerMovement.cs:79-84`(`IsBeingAbsorbed`/`IsEliminated`/`IsOutOfPlay = IsEliminated||IsBeingAbsorbed`),
+  `GameModeManager.cs:444-452`(`DestroyAbsorbedBots` — `IsBeingAbsorbed` 봇 파괴), `:419`·`:431`(GameWin이 Phase=Result 뒤 호출),
+  `AIPlayerSync.cs:137-141`(`OnDestroy`가 `Phase==Result`면 `ClearBotProperties` **스킵**)
+- 원인: G6(06-17)에서 "판 밖" 판정을 `IsOutOfPlay = IsEliminated || IsBeingAbsorbed`로 합성했고, 그 backlog 메모는
+  *"결과 씬 ScoreboardSnapshot은 오브젝트 파괴 후 룸프롭 생존자 목록 기반이라 의도적으로 별개 유지"*라고 적었다.
+  맞지만 그 별개 유지가 **덮지 못하는 사각**이 두 개 있다:
+  (1) **인게임**: `ScoreboardSnapshot`은 리더보드(`UpdateLeaderboard`, 30프레임마다)에서도 쓰이고, 살아있는 봇에 대해
+  `IsBotEliminated`가 오직 `IsEliminated`만 본다. 흡수 애니 진행 중(`IsBeingAbsorbed=true`, 아직 `IsEliminated=false`)
+  봇은 `IsOutOfPlay` 취지로는 '판 밖'인데 스코어보드엔 **생존자로** 뜬다.
+  (2) **결과 씬**: `GameWin`은 `Phase=Result`로 바꾼 **뒤** `DestroyAbsorbedBots`로 `IsBeingAbsorbed` 봇을 파괴한다.
+  그런데 `AIPlayerSync.OnDestroy`는 Result 단계에선 `ClearBotProperties`를 건너뛰므로(생존 봇 프로퍼티 보존 의도),
+  파괴된 흡수봇의 `Bot{id}_Name/_Scale/_Color_*` 룸프로퍼티가 **그대로 남는다**. 결과 씬 `ScoreboardSnapshot`은
+  룸프로퍼티를 훑다 그 이름을 발견하고, `IsBotEliminated`는 오브젝트가 사라졌으니 `false`(못 찾음) → **파괴된 흡수봇이
+  최종 시상대에 오른다**.
+- 영향: 사실상 먹혀 사라진 봇이 Top3에 껴 실제 살아남은 플레이어를 4위 밖으로 밀어냄("나는 살아남았는데 결과에 없음").
+  마지막 순간에 흡수가 몰릴수록 발현↑. 인게임 리더보드에서도 먹히는 중인 봇이 순위에 잠깐 남음.
+- 제안: (a) `ScoreboardSnapshot`의 봇 필터를 `IsEliminated` → `IsOutOfPlay`로(살아있는 봇 한정, 이미 그 술어 존재).
+  (b) `DestroyAbsorbedBots`가 파괴 **직전** 그 봇의 `ClearBotProperties()`를 명시 호출 → "결과에 남길 봇"과 "치울 봇"을
+  파괴 경로에서 구분(OnDestroy의 Result-스킵은 '정상 종료 생존봇' 보존용이지 '흡수 소멸봇' 보존용이 아님).
+- 학습 포인트: "판 밖"을 뜻하는 합성 술어(IsOutOfPlay)를 만들었으면 **소비처가 그 합성 술어를 봐야** 한다. 한
+  플래그만 보면 두 플래그가 갈리는 짧은 창에서 판정이 샌다. + 네트워크 오브젝트를 파괴할 땐 "그 오브젝트가 남긴
+  룸프로퍼티"의 수명도 같이 설계해야 한다 — 오브젝트를 지워도 데이터는 룸에 남는다(오브젝트 ≠ 데이터).
+
+### [Y3] (네트워크·안정성 / 중·검증완료) `RPC_PushModeGameEnd`의 `if(!_gameRunning) return;` — 아직 카운트다운 중인 클라는 종료 신호를 버려 결과 전환을 영영 못 함
+- 위치: `GameModeManager.cs:737-745`(`RPC_PushModeGameEnd` 진입 가드), 발화처 `CheckLastSurvivor:725-733`,
+  `_gameRunning`을 true로 세우는 곳 `StartCountdownRoutine:220`
+- 원인: 마스터가 최후 생존자를 감지해 `RpcTarget.All`로 `RPC_PushModeGameEnd`를 쏘지만, 수신 클라의 `_gameRunning`이
+  `false`면 즉시 `return` → 결과 씬 로드를 담은 `PushModeEndSequence`가 시작조차 안 된다. `_gameRunning`은
+  `StartCountdownRoutine`이 3-2-1 **끝에서야** true로 세운다. `CheckLastSurvivor`가 `_gameTimer>3f` 유예를 두므로
+  정상 흐름에선 다들 running이지만, **지연 입장·씬 재동기·프레임 정지로 카운트다운이 늦은 클라**가 있으면 그 클라만
+  종료 신호를 버리고 인게임 씬에 홀로 남는다. (대칭적으로 Absorb의 `GameWin`은 각 클라 로컬 판정이라 이 문제에서 자유롭다 —
+  Push만 마스터 단일 트리거라 취약.)
+- 영향: 저확률이나 발현 시 특정 클라가 이미 끝난 게임 씬에 갇혀 멈춤(수동 나가기 외 복구 불가). Y1(비동기 시작/종료)과
+  같은 뿌리 — "시작 타이밍이 클라마다 다르다".
+- 제안: 가드를 **중복 방지**로만 좁힌다 — `if (GameState.Phase == GamePhase.Result) return;`로 이미 전환한 클라만 무시하고,
+  `_gameRunning` 여부와 무관하게 결과 전환은 보장. (필요하면 진입 시 `_gameRunning=false`, `Phase=Result` 세팅 후 진행.)
+- 학습 포인트: "게임이 돌고 있을 때만 끝낼 수 있다"는 가드는 직관적이지만, '아직 시작조차 안 한 클라'까지 끝에서
+  배제하면 그 클라는 영원히 끝을 못 본다. **종료 신호는 시작 여부와 독립적으로 수신·처리**돼야 데드락이 없다.
+
+### [Y4] (성능·코드품질 / 중하) `SyncAllColorsForResult`가 종료 직전 봇마다 `.material` 인스턴스 복제 + 봇 색 소스가 두 셰이더 프로퍼티로 이원화
+- 위치: `GameModeManager.cs:511-522`(`rend.material.GetColor("_BaseColor_01")`), 대비 같은 파일 `ResolveLiveBotColor:384-400`
+  (`sharedMaterial` + `"_FresnelColor"`, 주석으로 G4 학습 명시)
+- 원인: 게임 종료 직전 모든 생존 봇을 돌며 `rend.material`로 색을 읽는데, `.material` 게터는 봇마다 **머티리얼 인스턴스를
+  복제**(배칭 파괴)한다. 바로 20여 줄 위 `ResolveLiveBotColor`는 같은 목적(봇 색 읽기)에 `sharedMaterial`을 의도적으로
+  쓰며 G4 교훈까지 주석에 달아뒀는데 여기선 `.material`. 더해서 **색 소스 키가 다르다**: 인게임 리더보드/결과씬 표시는
+  `_FresnelColor`를, 여기 결과 룸프로퍼티 write는 `_BaseColor_01`을 읽는다 → 두 셰이더 색이 다르게 세팅된 프리팹이면
+  인게임 리더보드 색 ≠ 결과 시상대 색.
+- 영향: 종료 순간(프레임 예산이 가장 빠듯한 시점)에 불필요한 머티리얼 복제 N개. 곧 씬이 파괴돼 누수는 짧지만 스파이크.
+  색 키 이원화로 인-게임/결과 색 불일치 잠재.
+- 제안: `sharedMaterial` 사용 + 봇 색 소스를 한 프로퍼티로 통일(둘 다 `_FresnelColor` 또는 둘 다 `_BaseColor_01`).
+  조회는 `ResolveLiveBotColor` 하나로 재사용해 단일 출처화.
+- 학습 포인트: 같은 개념("봇 색")을 두 곳에서 각자 다른 프로퍼티로 읽으면 '단일 출처' 원칙이 깨져 언젠가 어긋난다.
+  그리고 `.material`은 "읽기"가 아니라 "복제 트리거"임을 다시 — 읽기 전용이면 `sharedMaterial`.
+
+### [Y5] (코드품질 / 하) `GameWin`의 `finalRank` 데드변수 — 로컬 최종 순위를 계산만 하고 버림
+- 위치: `GameModeManager.cs:433-436`(`int finalRank = GetLocalPlayerRank(sortedEntries);` 이후 미사용, 뒤 `Debug.Log`은 고정 문자열)
+- 원인: 결과 진입 시 로컬 플레이어 순위를 구해 두지만 어디에도 전달·표시하지 않는다. 결과 씬(`GameResultManager`)은
+  룸프로퍼티에서 독자 수집하므로 이 값이 넘어가지도 않는다. 게다가 `GetLocalPlayerRank`는 닉네임 문자열 비교(Q4)라
+  계산 자체도 중복 닉에 취약하다.
+- 영향: 실해 없음(죽은 계산). 다만 "여기서 순위를 넘기나?"라는 오해를 유발하고, Q3(본인 순위 표시)·Y6과 연결점 착시.
+- 제안: 삭제하거나, 결과 씬으로 '내 최종 순위'를 실제 전달할 거면 `actorNumber` 기반으로 재작성 후 씬 파라미터/
+  프로퍼티로 넘긴다(Q3/Q4/Y6 동시 해소). Y6의 "You: N위" 자리에 쓰면 죽은 계산이 살아난다.
+- 학습 포인트: 계산해 놓고 안 쓰는 지역변수는 "원래 뭔가 하려던" 미완의 신호다. 지우거나 완성하거나 — 방치하면
+  다음 사람이 "이 값이 어디 쓰이지?"로 시간을 버린다.
+
+### [Y6] (UX·시퀀스 / 중하) 결과 씬은 Top3만 연출 — 4위 이하/중간 탈락자는 자기 성적 피드백 전무 (Q3의 결과씬 확장)
+- 위치: `GameResultManager.cs:169`(`.Take(3)`), `PlayCameraSequence:426-467`(상위 3 시상대만), 로컬 순위 헬퍼는 인게임 전용
+  `GameModeManager.GetLocalPlayerRank`
+- 원인: 결과 씬은 상위 3명 시상대만 카메라로 순회한다. 4위 이하로 끝났거나 중간에 탈락한 플레이어는 결과 화면에서 자신의
+  순위/생존시간 등 **어떤 피드백도 못 본다**. 인게임 `GameOver`의 "탈락! N분 M초 생존" 패널은 로딩 커튼과 함께 사라진다.
+  인게임 리더보드에도 Q3(상위5 밖 본인행 표시) 미구현이 겹쳐, 순위 밖 플레이어는 인게임·결과 어디서도 자기 위치를 못 본다.
+- 영향: 다인전(최대 10)에서 대다수 플레이어가 "나 몇 등이었지?"를 결과에서 확인 불가 → 이탈감. 학습/설계 관찰.
+- 제안: 결과 씬에 "You: N위 · M초 생존" 오버레이 추가(본인은 `actorNumber`로 식별, 데이터는 이미 룸프로퍼티에 전부 존재 —
+  전체 스냅샷에서 본인 위치만 계산). Y5의 죽은 `finalRank`를 진짜로 살리는 자리.
+- 학습 포인트: 시상대는 승자 연출이지만, 결과 화면의 진짜 청중은 '이기지 못한 대다수'다. 모두에게 최소한의 자기 성적을
+  돌려주는 것이 리텐션의 기본.
+
+### [Y7] (네트워크·안정성 / 중하·검증완료) 결과 동기화 룸프로퍼티(PushSurvivorActors/ResultSyncToken/Bot*_*)가 명시적 정리 없음 — 룸 재사용 시 지난 판 잔존
+- 위치: `GameModeManager.cs:729-730`(`PUSH_SURVIVOR_ACTORS_KEY` write) / `:476-477`(`RESULT_SYNC_TOKEN_KEY` write) /
+  `:493-500`(`GetRoomSyncToken`), `AIPlayerSync.cs:102-135`(봇 프로퍼티 write/Clear), `StartGameInternal:182`
+  (`GameState.ResetValues`는 룸프로퍼티를 안 건드림)
+- 원인: 종료 전환용으로 룸에 쌓는 키들(권위 생존자 목록·동기화 토큰·봇 이름/점수/색)은 게임이 끝나도 룸에서 지워지지
+  않는다. **현재 재시작 경로**(`OnClickRestartButton` → `GoToMainMenu`)가 완전 Disconnect 콜드스타트라 새 룸을 잡으므로
+  대개 안전하지만, 같은 룸을 재사용하는 흐름(향후 '방 유지 재경기', 관전자 잔류 등)이 생기면: 지난 판 `PushSurvivorActors`가
+  남아 결과 씬이 이미 나간 액터를 생존자로 읽거나, 이전 봇 프로퍼티가 유령 엔트리로 섞인다. `ResultSyncToken`은
+  `ServerTimestamp` 단조증가라 `previousToken` 비교로 방어되지만, 나머지 키는 무방비.
+- 영향: 콜드스타트 재시작 하에선 잠복(발현 안 함). 룸 재사용 기능을 붙이는 순간 즉시 발현(지난 판 순위/봇이 새 결과에 유입).
+- 제안: 새 게임 `StartGameInternal`에서 마스터가 해당 키들(+ 살아있는 모든 봇의 `ClearBotProperties`)을 `null`로 일괄
+  정리한 뒤 스폰. "쓰기 짝에는 지우기 짝을" — 판 단위 상태는 판 시작 시 초기화.
+- 학습 포인트: 룸 커스텀 프로퍼티는 룸이 살아있는 한 계속 남는 **전역 상태**다. 판 단위로 쓰는 키는 처음부터 판 종료/
+  시작 시 지우는 대칭 정리를 넣어야, 나중에 '방 유지 재경기'를 붙일 때 조용한 오염을 피한다.
+
+### [Y8] (데드코드 / 하·검증완료) `NextSceneManager`는 빌드 씬 부재(레거시 전용) — 결과 로딩 커튼 정리 실경로는 `LoadingSceneController.ExitRoutine` 단독 + mojibake(M4)
+- 위치: `NextSceneManager.cs:5-15`(하드코딩 `Destroy(loadingAni.transform.root, 1.0f)` + 주석 mojibake), 실제 정리
+  `LoadingSceneController.cs:177-196`(`ExitRoutine` — `slide.OutDuration` 기준 정리)
+- 원인: GUID 조사상 `NextSceneManager`(guid 6e2cfff…)는 **Legacy 씬(Game3~10/LevelDesign 등)에만** 부착돼 있고 빌드 6씬
+  어디에도 없다. 즉 현행 결과 전환에서 로딩 커튼 정리는 `LoadingSceneController.ExitRoutine`이 단독으로 하며,
+  `NextSceneManager`는 실행되지 않는 화석이다. 게다가 그 화석은 하드코딩 `1.0s` Destroy(로딩 애니 길이 무관)와
+  깨진 한글 주석(M4에서 지적)을 안고 있다.
+- 영향: 실해 없음(빌드 밖). 다만 "결과 커튼은 누가 치우나"를 읽는 사람이 두 경로(`NextSceneManager` vs `ExitRoutine`)로
+  오해할 여지 — M1/X6/X8과 같은 '레거시가 현역처럼 동거' 테마.
+- 제안: `NextSceneManager` 삭제 또는 Legacy 네임스페이스/폴더 격리(X8 배너 방식). 커튼 정리는 `ExitRoutine` 단일 출처로 명문화.
+- 학습 포인트: "이 스크립트가 결과 시퀀스에 관여하나?"의 답은 **부착된 씬이 빌드에 들어가는가**로 갈린다. 빌드 밖 스크립트는
+  코드가 멀쩡해 보여도 죽은 코드다 — GUID로 부착처를 확인하는 습관이 유령 경로를 걷어낸다.
+
+### [Y9] (데드코드 / 중하·확인필요) 별점(★) 결과 경로(GameTimer→ResultStarsUI→ClearJudge)가 멀티 결과씬(GameResultManager 시상대)과 완전 분리 — 셋 다 빌드 씬 부재
+- 위치: `GameTimer.cs`(레거시 싱글 타이머, `resultStarsUI.SetStarIndex`로 별점 세팅), `ResultStarsUI.cs`(별 0~3 표시),
+  참조 관계: `ResultStarsUI` ← `GameTimer`·`ClearJudge`만 / `GameTimer`(클래스) ← `ClearJudge`만
+  (`GameModeManager`의 `GameTimer`는 동명의 float 프로퍼티지 이 클래스 아님)
+- 원인: 빌드 결과씬(GameResult_Absorb/PushMode)은 `GameResultManager`(시상대+시네머신)를 쓴다. 반면 `GameTimer`→
+  `ResultStarsUI`→`ClearJudge`는 **싱글플레이/레거시 클리어 별점** 경로로, X6에서 확인된 대로 `ClearJudge`는 빌드 밖이고
+  `GameTimer`·`ResultStarsUI`도 io/GameResult 빌드 씬에 부착되지 않는다(전형적 M1/K3/K4/R8/T5/X6 반쪽구현). 즉 shipped
+  멀티 흐름에서 **별점 UI는 전부 데드**다. `GameTimer.GameFail`은 R8/T5에서 이미 무가드+`timeScale=0` 소프트프리즈로 지적됨.
+- 영향: 실해 없음(빌드 밖). 다만 "게임 결과가 별점인가 시상대인가"라는 두 결과 모델이 코드에 공존해 학습·유지보수 혼선.
+- 제안: 별점 경로(GameTimer/ResultStarsUI/ClearJudge)를 **살릴지(싱글/튜토리얼용) 버릴지** 사용자 결단(R8·T5·X6과 한 묶음).
+  살리면 마스터/네트워크 없는 오프라인 전용임을 명시, 버리면 Legacy 격리·삭제. **확인 필요**.
+- 학습 포인트: 한 게임에 "결과를 표현하는 방식"이 둘(별점 vs 시상대) 공존하면, 어느 쪽이 현역인지 폴더·빌드설정이 말해줘야
+  한다. 죽은 결과 모델을 남기면 다음 사람이 엉뚱한 쪽에 기능을 얹는다("왜 별점이 안 뜨지?" = M1과 같은 함정).
+
+> ※ Y1·Y2·Y3은 네트워크 고위험(종료 동기화·결과 정확성·데드락)이라 우선순위가 높다. 특히 Y2는 기존 G6 backlog 메모가
+>   "ScoreboardSnapshot은 의도적으로 IsOutOfPlay와 별개"라 적어둔 지점의 **사각**(흡수중 봇 집계 + Result 단계 파괴봇
+>   룸프롭 잔존)을 짚은 것이라, G6 설계 의도와 충돌이 아니라 그 경계의 미검토 케이스다. 셋 다 **유니티 실측/플레이테스트**로
+>   재현·검증 후 적용을 권한다(원격 컨테이너에서는 컴파일/실행 불가).
+> ※ Y5·Y6은 함께 처리하면 좋다(죽은 finalRank → 결과 씬 "You: N위" 피드백으로 승격, Q3/Q4 동시 진전).
+> ※ Y8·Y9는 M1/X6/X8 '레거시 동거' 정리 테마와 한 결단으로 묶을 수 있다.
+
+---
+
 ## 적용 상태
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
@@ -2422,6 +2584,15 @@ NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, Je
 - [ ] X10 (대기 — 2026-07-18 도출·관찰, Milk 호출자 0인 RespawnRoutine/SetAppearance+respawnTime 고아(J2/J3 이후 잔존물)+PhotonView 없는 레거시 씬 전 기능 무동작. 삭제 or 마스터판정+전파 재설계. M1 반쪽구현)
 - [ ] X11 (대기 — 2026-07-18 도출, Rotator rotateCoroutine 죽은 필드를 #pragma warning disable 0414로 은폐(중복회전 방지 미수행)+주석 Y축↔코드 Z축 불일치+호출측(JellySpawnMachine:44-47) 무가드 싱글톤. 죽은 필드 삭제+주석 정정+null 가드. G8)
 - [ ] X12 (대기 — 2026-07-18 도출, Map 폴더 5파일 한글 주석 mojibake(RandomObjectSpawner/RandomJellySpawner/Rotator/FixBounds/MultiRandomMaterialApplier). .editorconfig charset=utf-8 고정+일괄 재인코딩(git 이전 리비전 원문 복구). M4/N6/R7/U7/V10/W9 계열)
+- [ ] Y1  (대기 — 2026-07-21 도출·**검증완료**, Absorb 종료 판정이 클라별 로컬 `_gameTimer`(Update:259-266)라 종료 순간이 클라마다 어긋남. 서버권위 클럭 `NetworkedElapsedTime`(803-813, GameStartTime 룸프롭)이 이미 있는데 미사용 → 최후 순위 스냅샷 시점 불일치+Y7 토큰 누락 연쇄. 마스터 단일 종료 RPC(All) or `gameDuration - NetworkedElapsedTime`으로 만료 판정 고정. **우선 권장**·네트워크)
+- [ ] Y2  (대기 — 2026-07-21 도출·**검증완료**, 흡수중(IsBeingAbsorbed) 봇이 스코어보드에 생존자로 집계 — `ScoreboardSnapshot.IsBotEliminated`(108-116)가 `IsOutOfPlay` 아닌 `IsEliminated`만 필터 + `DestroyAbsorbedBots`(444-452)가 Phase=Result 뒤 파괴하는데 `AIPlayerSync.OnDestroy`(137-141)가 Result면 ClearBotProperties 스킵 → 파괴된 흡수봇 룸프롭 잔존 → 결과 시상대에 유령 봇이 실플레이어를 Top3 밖으로. G6 '의도적 별개'의 사각. 필터를 IsOutOfPlay로+파괴 전 ClearBotProperties. **우선 권장**·버그·높음)
+- [ ] Y3  (대기 — 2026-07-21 도출·**검증완료**, `RPC_PushModeGameEnd`(737-745) `if(!_gameRunning) return;`가 카운트다운 지연 클라의 종료 신호를 버려 인게임 씬에 스트랜딩(Push만 마스터 단일 트리거라 취약, Absorb는 로컬판정이라 무해). 가드를 `Phase==Result` 중복방지로 좁히고 running 무관 결과 전환 보장. Y1 동근·네트워크)
+- [ ] Y4  (대기 — 2026-07-21 도출, `SyncAllColorsForResult`(511-522) 종료 직전 봇마다 `.material` 인스턴스 복제(G3/G4/K1) + 봇 색 소스 이원화(여기 `_BaseColor_01` vs ResolveLiveBotColor 384-400의 sharedMaterial+`_FresnelColor`). sharedMaterial+단일 프로퍼티 통일, ResolveLiveBotColor 재사용)
+- [ ] Y5  (대기 — 2026-07-21 도출, `GameWin`(433-436) `finalRank` 계산 후 미사용 데드변수(+GetLocalPlayerRank는 닉네임비교 Q4). 삭제 or actorNumber 기반 재작성해 Y6 결과 피드백으로 승격)
+- [ ] Y6  (대기 — 2026-07-21 도출, 결과 씬이 Top3만(GatherTopEntries `.Take(3)` 169)이라 4위 이하/중간탈락자는 결과에서 자기 순위 피드백 전무(인게임 Q3 미표시까지 겹침). "You: N위·M초" 오버레이(actorNumber 식별, 데이터는 룸프롭에 존재). Y5 finalRank 재활용. UX)
+- [ ] Y7  (대기 — 2026-07-21 도출·**검증완료**, 종료용 룸프로퍼티(PushSurvivorActors 729/ResultSyncToken 476/Bot*_*)가 명시 정리 없음 → 콜드스타트 재시작은 새 룸이라 잠복이나 '방 유지 재경기' 추가 시 지난 판 생존자/봇 유입. StartGameInternal 마스터가 키+전 봇 ClearBotProperties 일괄 정리. '쓰기 짝엔 지우기 짝')
+- [ ] Y8  (대기 — 2026-07-21 도출·**검증완료·레거시**, NextSceneManager(guid 6e2cfff…)가 Legacy 씬에만 부착·빌드 6씬 부재 → 결과 커튼 정리 실경로는 LoadingSceneController.ExitRoutine(177-196) 단독. 하드코딩 1.0s Destroy+주석 mojibake(M4). 삭제 or Legacy 격리. M1/X6/X8 동거 테마)
+- [ ] Y9  (대기 — 2026-07-21 도출·확인필요·레거시, 별점 결과 경로 GameTimer→ResultStarsUI→ClearJudge가 멀티 결과씬(GameResultManager 시상대)과 분리·셋 다 빌드 씬 부재. shipped 흐름에서 별점 UI 전량 데드. 살릴지(오프라인) 버릴지 결단. R8/T5/X6/M1/K3/K4 반쪽구현 한 묶음)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
@@ -2472,3 +2643,11 @@ NetworkPlayerSync, AIPlayerMovement, AIPushSurviveState, NetworkJellyManager, Je
   (cryptography-49.0.0, cffi-2.1.0 설치됨). 이후 `update_sheets.py status` 정상(개발계획서 루틴 31→32, 트러블슈팅 79).
   → SessionStart 훅 pip 목록에 이 정확한 명령을 넣어두면 다음 세션 자동화 유력. (SessionStart 훅 자동 실행 여부는
   이번에도 불확실 — credentials.json이 세션 시작 시 부재였음.)
+- 2026-07-21 루틴: 새 컨테이너에 credentials.json/gspread 둘 다 없음. env `GSHEET_CREDENTIALS_JSON`(len=2347) 존재 →
+  `credentials.json` 주입 + `pip install --user gspread google-auth` 후 07-18 메모대로
+  `pip install --user --upgrade --force-reinstall --only-binary :all: cryptography cffi`로 pyo3 panic 회피, `import`·
+  `update_sheets.py status` 정상(개발계획서 루틴 32, 트러블슈팅 75). ※ 트러블슈팅 카운트가 07-18의 79→75로 보인 건
+  이번 루틴 상태조회 기준일 뿐(행 삭제/정리 여부는 다음 루틴에서 확인).
+- **2026-07-21 모델 메모(중요)**: 지침은 이번 루틴을 **Fable 5**로 수행하라 했으나, 이 환경에서 Fable 5 서브에이전트 실행이
+  "**Fable 5 requires usage credits**" 오류로 거부됨(크레딧 미보유). 그래서 Y1~Y9 리뷰는 오케스트레이터(Opus)로 수행하고
+  이 사실을 REVIEW_NOTES 루틴 섹션 서두에 명기함. 다음 루틴에서 Fable 5 크레딧 상태를 사용자에게 확인 필요.
