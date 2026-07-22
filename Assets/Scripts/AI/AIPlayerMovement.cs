@@ -619,6 +619,13 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         NetworkPlayerSync player = other.GetComponentInParent<NetworkPlayerSync>();
         if (player != null)
         {
+            // [O2] 이미 판 밖(흡수 처리 중 포함)인 플레이어는 건너뛴다.
+            // 같은 프레임에 봇 두 마리가 같은 플레이어에 닿으면, 첫 봇의
+            // RPC_GetAbsorbed(All)가 마스터 로컬에서 즉시 실행돼 _isAbsorbed가 켜지므로
+            // 두 번째 봇은 여기서 걸러진다 — 가드가 없으면 GrowByAbsorbing이
+            // 두 번 실행돼 두 번째 봇이 공짜 성장(이중 보상)을 얻는다.
+            if (player.IsOutOfPlay) return;
+
             float myScale = GetMyAuthorityScale();
             float playerScale = NetworkPlayerSync.GetPlayerSyncedScale(player.photonView.Owner);
             if (playerScale >= myScale) return;
@@ -652,9 +659,16 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (IsEliminated) return;
 
         if (PhotonNetwork.IsMasterClient && photonView != null)
+        {
             photonView.RPC(nameof(RPC_OnEliminated), RpcTarget.All);
-        else
+        }
+        else if (!PhotonNetwork.InRoom)
+        {
+            // 오프라인(레거시 씬) 폴백. 네트워크 게임에서 비마스터의 로컬 호출은 무시한다 —
+            // 여기서 로컬만 탈락 처리하면 그 클라에서만 봇이 죽어 클라 간 생사가 갈린다(X1).
+            // 탈락 전파는 소유자(마스터)의 RPC_OnEliminated(All)가 유일한 경로다.
             ApplyEliminatedLocally();
+        }
     }
 
     [PunRPC]
@@ -689,7 +703,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     {
         if (IsBeingAbsorbed) return;
         IsBeingAbsorbed = true;
-        Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어 흡수됨.");
+#if UNITY_EDITOR
+        Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어 흡수됨."); // [S10] 빌드 로그 스파이크 방지
+#endif
         StartCoroutine(BotAbsorbedSequence(absorberViewID));
     }
 

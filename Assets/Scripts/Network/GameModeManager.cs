@@ -150,9 +150,11 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             PhotonNetwork.IsMessageQueueRunning = true;
         }
 
-        // 게임 씬 진입 시 DataManager.Awake의 GameState.Reset()이 모드를 Absorb로 되돌리므로,
-        // 룸 커스텀 프로퍼티(권위값)로부터 실제 게임 모드를 다시 복원한다.
-        // (이 처리가 없으면 빌드로 접속한 클라이언트는 Push 모드여도 좌클릭 공격이 안 된다.)
+        // 룸 커스텀 프로퍼티(권위값)로부터 실제 게임 모드를 복원한다.
+        // ※ 과거엔 DataManager.Awake의 GameState.Reset()이 모드를 Absorb로 되돌려 이 복원이
+        //   필수였다(빌드 클라가 Push인데 좌클릭 공격 불가). W1/V3 수정으로 Awake가 모드를
+        //   건드리지 않게 됐지만, "씬 진입 시 룸 권위값으로 재확인"은 그 자체로 올바른
+        //   방어(단일 출처 원칙)라 유지한다.
         RestoreGameModeFromRoom();
 
         // 1. 가상 포인트 포함 스폰 슬롯 미리 준비 → 2. 로컬 플레이어 → 3. 봇
@@ -210,6 +212,17 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             yield return new WaitForSecondsRealtime(1f);
         }
 
+        // [Y3] 카운트다운 도중 게임이 이미 끝나버렸다면(지연 클라가 종료 RPC를 먼저 처리)
+        // 여기서 Playing으로 되돌려 결과 전환을 뒤엎지 않는다.
+        if (GameState.Phase == GamePhase.Result)
+        {
+            CountdownActive = false;
+            PlayerMovement.InputLocked = false;
+            _countdownRunning = false;
+            if (centerCountdownText != null) centerCountdownText.gameObject.SetActive(false);
+            yield break;
+        }
+
         // "시작!" 표시와 동시에 실제 게임 시작
         if (centerCountdownText != null)
         {
@@ -256,7 +269,17 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        _gameTimer -= Time.deltaTime;
+        // [Y1] 남은 시간(=종료 판정)을 서버 클럭에 고정한다.
+        // 로컬 deltaTime 누적은 RPC 도착 지연·프레임 히칭으로 클라마다 어긋나
+        // 종료 순간이 수 초씩 갈렸다(한쪽은 Result 동결, 다른 쪽은 아직 Playing).
+        // GameStartTime 룸 프로퍼티(마스터가 카운트다운 종료 시각을 기록)는 모든 클라가
+        // 같은 값을 읽으므로, 이를 기준으로 하면 전 클라의 만료 순간이 일치한다.
+        // 룸 프로퍼티가 아직 도착 전이면(-1) 종전처럼 로컬 차감으로 폴백.
+        float networkElapsed = NetworkedElapsedTime;
+        if (networkElapsed >= 0f)
+            _gameTimer = Mathf.Max(0f, gameDuration - networkElapsed);
+        else
+            _gameTimer -= Time.deltaTime;
         UpdateGameTimerUI();
 
         if (_gameTimer <= 3f && !_isEndingSequenceStarted)
@@ -399,15 +422,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         return Color.white;
     }
 
-    private int GetLocalPlayerRank(List<ScoreboardSnapshot.Entry> sortedEntries)
-    {
-        for (int i = 0; i < sortedEntries.Count; i++)
-        {
-            if (!sortedEntries[i].isBot && sortedEntries[i].name == PhotonNetwork.NickName)
-                return i + 1;
-        }
-        return sortedEntries.Count > 0 ? sortedEntries.Count : 1;
-    }
+    // [Y5 정리] GetLocalPlayerRank 삭제 (2026-07-22) — GameWin에서 계산만 하고 버리던
+    // 데드 코드였다. '내 최종 순위' 표시(Y6)를 붙일 때는 닉네임 문자열 비교(Q4) 대신
+    // ScoreboardSnapshot.Entry.actorNumber == PhotonNetwork.LocalPlayer.ActorNumber로 새로 작성할 것.
 
     // ─────────────────────────────────────────────────────────
     // 게임 결과 판정
@@ -430,9 +447,6 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
             DestroyAbsorbedBots();
 
-        var sortedEntries = GetSortedScores();
-        int finalRank = GetLocalPlayerRank(sortedEntries);
-
         Debug.Log("[GameMode] 타임 오버! 생존 성공!");
 
         // 결과 씬으로 색상을 가져갈 수 있도록 룸 프로퍼티에 저장
@@ -447,6 +461,14 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             if (bot == null || !bot.IsBeingAbsorbed) continue;
             bot.StopAllCoroutines();
+
+            // [Y2] 이 시점은 이미 Phase == Result라 AIPlayerSync.OnDestroy가
+            // 룸 프로퍼티 정리를 건너뛴다(생존 봇의 결과용 데이터 보존 목적).
+            // 흡수로 소멸하는 봇은 여기서 명시적으로 지워야 — 안 지우면 Bot*_Name 등이
+            // 룸에 남아 결과 씬 ScoreboardSnapshot이 '살아있는 봇'으로 오인해
+            // 파괴된 봇이 시상대에 오르고 실제 생존자를 밀어낸다(유령 봇).
+            bot.GetComponent<AIPlayerSync>()?.ClearBotProperties();
+
             PhotonNetwork.Destroy(bot.gameObject);
         }
     }
@@ -517,7 +539,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
                 var rend = bot.GetComponentInChildren<Renderer>();
                 if (rend == null) continue;
 
-                Color c = rend.material.GetColor("_BaseColor_01");
+                // [Y4] 읽기 전용 조회는 sharedMaterial — .material 게터는 봇마다 머티리얼
+                // 인스턴스를 복제해(G4) 종료 순간 프레임 스파이크를 만든다.
+                // 키는 결과 씬 젤리 '몸색' 복원용이므로 _BaseColor_01이 맞다
+                // (_FresnelColor는 리더보드 이름색용 림라이트 색 — ResolveLiveBotColor 참조).
+                if (rend.sharedMaterial == null || !rend.sharedMaterial.HasProperty("_BaseColor_01")) continue;
+                Color c = rend.sharedMaterial.GetColor("_BaseColor_01");
                 aiSync.SyncColor(c);
             }
         }
@@ -710,7 +737,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         var survivorActors = new List<int>();
         foreach (Player p in PhotonNetwork.PlayerList)
         {
-            if (p.CustomProperties.TryGetValue("Eliminated", out object e) && e is bool b && b)
+            // [P1] PlayerTtl > 0 도입 후 PlayerList에는 '끊겨서 자리만 보존된'(Inactive)
+            // 플레이어도 남는다 — 생존자 수에 넣으면 게임이 영영 안 끝난다.
+            if (p.IsInactive) continue;
+            if (p.CustomProperties.TryGetValue(NetworkPlayerSync.ELIMINATED_KEY, out object e) && e is bool b && b)
                 continue;
             survivorActors.Add(p.ActorNumber);
             aliveCount++;
@@ -736,7 +766,11 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     [PunRPC]
     private void RPC_PushModeGameEnd()
     {
-        if (!_gameRunning) return;
+        // [Y3] '이미 결과로 전환했는가'(중복 수신)만 걸러낸다.
+        // 예전 가드(!_gameRunning)는 자기 카운트다운이 아직 안 끝난(지연 입장/씬 재동기)
+        // 클라이언트의 종료 신호까지 버려, 그 클라만 끝난 게임 씬에 영영 갇혔다.
+        // 종료 신호는 '시작했는지'와 무관하게 반드시 처리돼야 데드락이 없다.
+        if (GameState.Phase == GamePhase.Result) return;
         _gameRunning = false;
         GameState.Phase = GamePhase.Result;
 

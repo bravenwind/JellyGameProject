@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Playables;
 
 // ==========================================
-// 1. Idle ���� Ŭ����
+// 1. Idle(대기) 상태 클래스
 // ==========================================
 public class PlayerIdleState : PlayerBaseState
 {
@@ -10,7 +10,7 @@ public class PlayerIdleState : PlayerBaseState
 
     public override void Enter()
     {
-        Debug.Log("[Player] ��� ���� ����.");
+        // [N1] 매 Idle 진입마다 찍히던 로그 제거 — 전환 로그는 ChangeState(에디터 전용) 한 곳으로 통일.
         player.inputDir = Vector3.zero;
         player.verticalVelocity = 0;
     }

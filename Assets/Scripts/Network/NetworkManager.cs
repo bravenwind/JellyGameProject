@@ -204,6 +204,18 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         if (_wantsToJoin)
         {
             JoinOrCreateRoom();
+            return;
+        }
+
+        // [P1] 게임 도중 끊겼다가 '마스터 서버까지만' 복귀한 경우(룸 재입장 경로 없음).
+        // 예전엔 여기서 아무것도 하지 않아 플레이어가 멈춘 게임 화면에 영구 고립됐다.
+        // 룸 복귀는 ReconnectAndRejoin이 담당하므로, 이 경로로 들어왔다면 재입장에
+        // 실패했거나 세션 정보가 없던 것 — 게임/로딩 씬에 있다면 메인으로 복귀시킨다.
+        string currentScene = SceneManager.GetActiveScene().name;
+        if (currentScene != "Main" && currentScene != "Loading")
+        {
+            Debug.LogWarning("[Network] 재연결됐지만 룸 복귀 경로가 없음 → 메인 복귀 (고립 방지)");
+            LoadingSceneController.LoadMainViaLoading();
         }
     }
 
@@ -219,6 +231,14 @@ public class NetworkManager : MonoBehaviourPunCallbacks
             MaxPlayers = (byte)maxPlayersPerRoom,
             IsVisible = true,
             IsOpen = true,
+
+            // [P1] 일시 끊김 후 ReconnectAndRejoin으로 '같은 방, 같은 자리'에 복귀하려면
+            // 자리가 잠시 보존돼야 한다(0이면 끊기는 즉시 자리가 사라져 재입장 불가).
+            // 10초: 와이파이 순단·AP 전환을 덮는 수준. 주의 — 이 값이 0보다 크면
+            // PhotonNetwork.PlayerList에 IsInactive(끊긴) 플레이어가 남으므로,
+            // 생존자 판정(CheckLastSurvivor)과 점수판(ScoreboardSnapshot)은
+            // p.IsInactive를 걸러야 한다(해당 가드 적용됨).
+            PlayerTtl = 10000,
             CustomRoomProperties = new ExitGames.Client.Photon.Hashtable
             {
                 { ROOM_PROP_GAME_MODE, modeStr }
@@ -413,8 +433,27 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         if (!PhotonNetwork.IsConnected)
         {
-            PhotonNetwork.ConnectUsingSettings();
+            // [P1] 게임(룸) 도중 끊겼다면 ReconnectAndRejoin으로 '같은 방, 같은 자리'까지
+            // 한 번에 복귀를 시도한다(PlayerTtl 동안 자리가 보존됨 + 내 네트워크 오브젝트 유지).
+            // 직전 룸 세션 정보가 없으면 false를 반환하므로 일반 재연결로 폴백한다.
+            // 재입장 실패(자리 만료/방 소멸)는 OnJoinRoomFailed에서 메인 복귀로 수습된다.
+            if (!PhotonNetwork.ReconnectAndRejoin())
+                PhotonNetwork.ConnectUsingSettings();
         }
+    }
+
+    /// <summary>
+    /// [자동 콜백] 지정 방 입장 실패 — ReconnectAndRejoin의 재입장 실패(자리 만료/방 소멸)가
+    /// 대표 경로다. room에 못 돌아가면 마스터 서버에 어중간하게 고립되지 않도록
+    /// 메인 씬으로 확실히 복귀시킨다. (P1)
+    /// </summary>
+    public override void OnJoinRoomFailed(short returnCode, string message)
+    {
+        Debug.LogWarning($"[Network] 방 재입장 실패 ({returnCode}): {message} → 메인 복귀");
+        _wantsToJoin = false;
+        _reconnectAttempts = 0;
+        _isCountingDown = false;
+        LoadingSceneController.LoadMainViaLoading();
     }
 
     public override void OnLeftRoom()

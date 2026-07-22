@@ -351,11 +351,31 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         if (aiBot != null)
         {
             int botId = aiBot.photonView.ViewID;
+            // [S1] 여기서 미리 _absorbedBotIds에 넣지 않는다 — 마스터가 흡수를 거부하면
+            // (동급 크기, Phase 밖 등) 봇 ID만 세트에 남아 그 봇을 영구히 다시 못 먹는다.
+            // 확정 등록은 마스터 승인이 도착하는 RPC_BotAbsorbConfirmed에서만 한다.
+            // (승인 전 중복 '요청'은 마스터 쪽 IsBeingAbsorbed 가드가 걸러준다)
             if (_absorbedBotIds.Contains(botId)) return;
-            _absorbedBotIds.Add(botId);
 
             photonView.RPC(nameof(RPC_RequestBotAbsorbValidation), RpcTarget.MasterClient, botId);
         }
+    }
+
+    /// <summary>
+    /// [S6/U2] 마스터 검증 공통 근접 게이트.
+    /// 클라이언트의 "닿았다/맞았다" 주장을 그대로 믿지 않고, 마스터가 아는 권위 위치로
+    /// "물리적으로 말이 되는 거리인가"만 확인한다. 보간 지연·콜라이더 크기를 감안해
+    /// 넉넉한 허용치를 두므로 정상 플레이가 거부될 일은 없고, 조작된 ViewID로 맵 반대편
+    /// 대상을 때리는 류의 이상치만 차단한다. (정밀 재판정이 아니라 sanity check)
+    /// </summary>
+    private static bool WithinPlausibleRange(Transform a, Transform b, float baseRange)
+    {
+        const float NetworkTolerance = 2f; // 위치 보간/전송 지연 여유 (월드 유닛)
+        if (a == null || b == null) return false;
+        Vector3 d = a.position - b.position;
+        d.y = 0f;
+        float allowed = baseRange + NetworkTolerance;
+        return d.sqrMagnitude <= allowed * allowed;
     }
 
     // NetworkPlayerSync.cs 내부 혹은 플레이어 메인 스크립트에 추가
@@ -465,6 +485,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         float victimScale = GetAuthorityScale(photonView);
         float absorberScale = GetAuthorityScale(absorberPV);
 
+        // [S6] 흡수는 몸이 닿아야 성립한다 — 두 몸 크기 합보다 훨씬 떨어져 있으면
+        // 지연 이상치/조작 요청으로 보고 거부한다.
+        if (!WithinPlausibleRange(photonView.transform, absorberPV.transform, victimScale + absorberScale))
+            return;
+
         if (absorberScale > victimScale)
         {
             photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, absorberViewID);
@@ -486,6 +511,10 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         float playerScale = GetAuthorityScale(photonView);
         float botScale = GetBotAuthorityScale(aiBot);
 
+        // [S6] 근접 게이트 — 플레이어↔플레이어 흡수 검증과 동일 규율.
+        if (!WithinPlausibleRange(photonView.transform, botPV.transform, playerScale + botScale))
+            return;
+
         if (botScale > playerScale)
         {
             photonView.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, -1);
@@ -506,9 +535,12 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     private void RPC_BotAbsorbConfirmed(int bonusScore, float botScale, int botViewID)
     {
         if (!photonView.IsMine) return;
-        _absorbedBotIds.Add(botViewID);
 
+        // [S8] 씬 전환 경계에 도착한 stale RPC 방어 — DataManager가 이미 없으면 보상만 생략.
         var dm = DataManager.Instance;
+        if (dm == null) return;
+
+        _absorbedBotIds.Add(botViewID);
         float predictedScale = scaleController != null
             ? Mathf.Min(scaleController.currentScaleValue + botScale * dm.absorbScalePercent, dm.maxScale)
             : GameState.PlayerCurrentScale;
@@ -531,18 +563,24 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             PhotonView absorberView = PhotonView.Find(absorberViewID);
             if (absorberView != null && absorberView.IsMine)
             {
+                // [S2] 보상 계산은 피흡수자의 '보간 중' transform 스케일이 아니라
+                // 권위 Scale(커스텀 프로퍼티)로 한다 — 원격 사본의 localScale은 클라마다
+                // Lerp 진행도가 달라, 같은 흡수인데 흡수자마다 보상이 어긋난다.
+                // (봇 경로 RPC_BotAbsorbConfirmed가 권위 botScale을 쓰는 것과 동일 규율)
+                float victimScale = GetAuthorityScale(photonView);
+
                 var absorberScale = absorberView.GetComponent<PlayerScaleController>();
-                if (absorberScale != null)
+                var dm = DataManager.Instance; // [S8] stale RPC 방어
+                if (absorberScale != null && dm != null)
                 {
-                    var dm = DataManager.Instance;
                     float predictedScale = Mathf.Min(
-                        absorberScale.currentScaleValue + transform.localScale.x * dm.absorbScalePercent,
+                        absorberScale.currentScaleValue + victimScale * dm.absorbScalePercent,
                         dm.maxScale);
                     GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
                     SyncScore(GameState.CurrentScore);
                 }
 
-                absorberView.GetComponent<PlayerScaleController>()?.GrowByAbsorbing(transform.localScale.x);
+                absorberView.GetComponent<PlayerScaleController>()?.GrowByAbsorbing(victimScale);
             }
         }
 
@@ -664,89 +702,19 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             playerController.jellyAnimator.SetTrigger("Dash");
     }
 
-    [PunRPC]
-    public void RPC_RequestDashHitPlayer(int victimViewID)
-    {
-        if (!PhotonNetwork.IsMasterClient) return;
-        if (GameState.Phase != GamePhase.Playing) return;
-
-        PhotonView victimPV = PhotonView.Find(victimViewID);
-        if (victimPV == null) return;
-
-        float dasherScale = GetAuthorityScale(photonView);
-        float victimScale = GetAuthorityScale(victimPV);
-        float diff = dasherScale - victimScale;
-        float threshold = DataManager.Instance.PushScaleThreshold;
-
-        // Push 모드에서는 크기 차가 커도 흡수하지 않고 항상 밀치기만.
-        if (diff > threshold && GameState.CurrentGameMode == GameModeType.Absorb)
-        {
-            victimPV.RPC(nameof(RPC_GetAbsorbed), RpcTarget.All, photonView.ViewID);
-        }
-        else
-        {
-            Vector3 pushDir = (victimPV.transform.position - transform.position).normalized;
-            pushDir.y = 0f;
-            if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
-            pushDir.Normalize();
-
-            float pushForce = DataManager.Instance.dashPushForce;
-
-            victimPV.RPC(nameof(RPC_ApplyKnockback), victimPV.Owner,
-                pushDir.x, pushDir.z, pushForce);
-
-            photonView.RPC(nameof(RPC_ApplyKnockback), photonView.Owner,
-                -pushDir.x, -pushDir.z, pushForce * 0.5f);
-        }
-    }
-
-    [PunRPC]
-    public void RPC_RequestDashHitBot(int botViewID)
-    {
-        if (!PhotonNetwork.IsMasterClient) return;
-        if (GameState.Phase != GamePhase.Playing) return;
-
-        PhotonView botPV = PhotonView.Find(botViewID);
-        if (botPV == null) return;
-
-        AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
-        if (aiBot == null || aiBot.IsOutOfPlay) return; // 탈락/흡수 판정 단일 출처 (G6)
-
-        float dasherScale = GetAuthorityScale(photonView);
-        float botScale = GetBotAuthorityScale(aiBot);
-        float diff = dasherScale - botScale;
-        float threshold = DataManager.Instance.PushScaleThreshold;
-
-        // Push 모드에서는 크기 차가 커도 흡수하지 않고 항상 밀치기만.
-        if (diff > threshold && GameState.CurrentGameMode == GameModeType.Absorb)
-        {
-            int bonus = aiBot.CurrentScore;
-            photonView.RPC(nameof(RPC_BotAbsorbConfirmed), photonView.Owner,
-                bonus, botScale, botViewID);
-            aiBot.photonView.RPC("RPC_BotAbsorbed", RpcTarget.All, photonView.ViewID);
-        }
-        else
-        {
-            Vector3 pushDir = (botPV.transform.position - transform.position).normalized;
-            pushDir.y = 0f;
-            if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
-            pushDir.Normalize();
-
-            float pushForce = DataManager.Instance.dashPushForce;
-
-            // 봇 위치는 소유자(마스터)가 PhotonTransformView로 권위 동기화하므로, 넉백도
-            // 소유자에게만 보내 transform을 움직이게 한다(All로 보내면 비마스터에서 지터 발생).
-            aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), aiBot.photonView.Owner,
-                pushDir.x, pushDir.z, pushForce);
-
-            photonView.RPC(nameof(RPC_ApplyKnockback), photonView.Owner,
-                -pushDir.x, -pushDir.z, pushForce * 0.5f);
-        }
-    }
+    // [U1 정리] RPC_RequestDashHitPlayer / RPC_RequestDashHitBot 삭제 (2026-07-22).
+    // 호출자가 프로젝트 전체에 0곳인 고아 핸들러였다 — PlayerDashState는 "순수 이동기"로
+    // 히트 감지를 하지 않아 이 RPC를 쏘는 코드가 없었다. '대쉬로 밀치기/흡수' 기능을
+    // 살리려면 git 히스토리(이 커밋 이전)에서 복원 후 PlayerDashState에 감지를 배선할 것.
 
     [PunRPC]
     public void RPC_ApplyKnockback(float dirX, float dirZ, float force)
     {
+        // [U3] stale/전환 중 RPC 방어 — 게임이 진행 중이 아니거나 이미 흡수된 상태면
+        // 강제 넉백 상태 전이를 하지 않는다. (봇 쪽 AIPlayerMovement.RPC_ApplyKnockback의
+        // IsEliminated/IsBeingAbsorbed 가드와 대칭을 맞춘 것)
+        if (GameState.Phase != GamePhase.Playing) return;
+        if (_isAbsorbed) return;
         if (playerController == null) return;
         Vector3 dir = new Vector3(dirX, 0f, dirZ).normalized;
         playerController.ApplyKnockback(dir, force);
@@ -803,15 +771,25 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         PhotonView victimPV = PhotonView.Find(victimViewID);
         if (victimPV == null) return;
 
+        var dm = DataManager.Instance;
+        if (dm == null) return; // [S8] 씬 전환 경계 stale RPC 방어
+
         float attackerScale = GetAuthorityScale(photonView);
         float victimScale = GetAuthorityScale(victimPV);
+
+        // [U2/N4] 공격자의 "맞았다" 주장을 재검증한다 — 클라 판정 사거리(batRange×크기)에
+        // 피격자 몸 크기와 네트워크 여유를 더한 것보다 멀면 조작/이상치로 보고 거부.
+        // 이 게이트가 없으면 조작 클라가 임의 ViewID로 맵 반대편 상대를 넉백시키고
+        // batHitGrowth 성장을 공짜로 얻을 수 있다.
+        if (!WithinPlausibleRange(transform, victimPV.transform,
+                dm.batRange * attackerScale + victimScale))
+            return;
 
         Vector3 pushDir = (victimPV.transform.position - transform.position).normalized;
         pushDir.y = 0f;
         if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
         pushDir.Normalize();
 
-        var dm = DataManager.Instance;
         float pushForce = dm.batPushForce * (attackerScale / dm.startingScale);
 
         victimPV.RPC(nameof(RPC_ApplyKnockback), victimPV.Owner,
@@ -833,17 +811,28 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
         AIPlayerMovement aiBot = botPV.GetComponent<AIPlayerMovement>();
         if (aiBot == null || aiBot.IsOutOfPlay) return; // 탈락/흡수 판정 단일 출처 (G6)
 
+        var dm = DataManager.Instance;
+        if (dm == null) return; // [S8] 씬 전환 경계 stale RPC 방어
+
         float attackerScale = GetAuthorityScale(photonView);
+        float botScale = GetBotAuthorityScale(aiBot);
+
+        // [U2/N4] 근접 재검증 — 플레이어 대상 핸들러와 동일 규율.
+        if (!WithinPlausibleRange(transform, botPV.transform,
+                dm.batRange * attackerScale + botScale))
+            return;
 
         Vector3 pushDir = (botPV.transform.position - transform.position).normalized;
         pushDir.y = 0f;
         if (pushDir.sqrMagnitude < 0.01f) pushDir = transform.forward;
         pushDir.Normalize();
 
-        var dm = DataManager.Instance;
         float pushForce = dm.batPushForce * (attackerScale / dm.startingScale);
 
-        aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), RpcTarget.All,
+        // 봇 위치는 소유자(마스터)가 PhotonTransformView로 권위 동기화하므로 넉백도
+        // 소유자에게만 보낸다 — All로 보내면 비마스터가 로컬로도 transform을 움직여
+        // 동기화와 충돌(지터)한다. (G2에서 대쉬 경로 3곳을 고칠 때 배트 경로만 누락됐던 것)
+        aiBot.photonView.RPC(nameof(AIPlayerMovement.RPC_ApplyKnockback), aiBot.photonView.Owner,
             pushDir.x, pushDir.z, pushForce);
 
         float growth = dm.batHitGrowth / Mathf.Max(attackerScale, 1f);

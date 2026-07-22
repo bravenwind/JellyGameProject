@@ -6,8 +6,6 @@ using Photon.Pun;
 public class Milk : MonoBehaviour
 {
     [Header("Settings")]
-    [SerializeField] private float respawnTime = 5.0f; // 다시 나타날 시간
-
     [SerializeField] private float speedSlowMultiplier = 0.5f;
 
     // 이 밀크가 현재 감속시킨 대상들. ViewID로 식별해 중복 적용/복원을 막고,
@@ -92,31 +90,8 @@ public class Milk : MonoBehaviour
         if (entity.ai != null) entity.ai.ApplySpeedMultiplier(restore);
     }
 
-    private IEnumerator RespawnRoutine()
-    {
-        // 렌더러와 컬라이더만 꺼서 오브젝트는 '살아있는' 상태로 유지 (그래야 코루틴이 돌아감)
-        SetAppearance(false);
-
-        // 5초 대기 (Time.scale의 영향을 받지 않으려면 WaitForSecondsRealtime 사용 가능)
-        yield return new WaitForSeconds(respawnTime);
-
-        // 다시 나타나기
-        SetAppearance(true);
-    }
-
-    // 오브젝트의 외형과 충돌체만 끄고 켜는 함수
-    private void SetAppearance(bool active)
-    {
-        //// MeshRenderer 또는 SpriteRenderer가 있을 경우
-        //if (TryGetComponent<Renderer>(out var renderer)) renderer.enabled = active;
-
-        // Collider 끄기
-        if (TryGetComponent<Collider>(out var collider)) collider.enabled = active;
-
-        // 만약 자식 오브젝트들이 있다면 자식들도 끄고 켜기
-        foreach (Transform child in transform)
-        {
-            child.gameObject.SetActive(active);
-        }
-    }
+    // [X10 정리] RespawnRoutine/SetAppearance/respawnTime 삭제 (2026-07-22) —
+    // "밟으면 사라졌다 재생성" 기능의 트리거 코드가 소실된 뒤 호출자 0인 사체만 남아 있었다.
+    // 되살릴 경우 로컬 SetAppearance만으로는 클라 간 desync가 나므로(X2와 동일 문제)
+    // 마스터 판정 + RPC 전파 구조로 새로 설계할 것.
 }

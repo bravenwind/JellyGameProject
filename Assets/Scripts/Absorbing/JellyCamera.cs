@@ -51,14 +51,17 @@ public class JellyCamera : MonoBehaviour
         }
     }
 
+#if UNITY_EDITOR
     private void Update()
     {
-        // 게임 실행 중 P키를 누르면 효과 확인 가능
+        // [R3] P키 연출 테스트는 에디터 전용 — 빌드에서는 게임 중 P를 눌러도
+        // 렌즈왜곡/FOV 연출이 오발동하지 않는다. (에디터 테스트는 ContextMenu로도 가능)
         if (Input.GetKeyDown(KeyCode.P))
         {
             PlayDing();
         }
     }
+#endif
 
     // 인스펙터에서 스크립트 우클릭 -> Play Ding Effect 를 눌러서 테스트 가능
     [ContextMenu("Play Ding Effect")]

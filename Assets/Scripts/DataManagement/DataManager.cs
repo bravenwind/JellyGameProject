@@ -46,11 +46,8 @@ public class DataManager : MonoBehaviour
     public float scaleDecreaseTime = 1.0f;
     public float IncreaseJumpForceValue = 5;
 
-    [Header("Dash / Push Settings")]
-    [Tooltip("대쉬 충돌 시 '비슷한 크기'로 판정할 젤리 개수 차이. 이 개수 이내면 서로 밀치고, 초과해서 크면 흡수한다.")]
-    public int pushJellyThreshold = 4;
-    [Tooltip("밀치기 힘 (CharacterController.Move 속도 단위)")]
-    public float dashPushForce = 15f;
+    // [U1 정리] Dash/Push 설정(pushJellyThreshold·dashPushForce·PushScaleThreshold) 삭제 —
+    // 유일 소비처였던 고아 대쉬 히트 RPC(NetworkPlayerSync)와 함께 제거 (2026-07-22).
 
     [Header("Bat Attack Settings (Push Mode)")]
     [Tooltip("방망이 공격 쿨다운 (초)")]
@@ -77,13 +74,6 @@ public class DataManager : MonoBehaviour
     public int stepTileStepsToCollapse = 3;
     [Tooltip("한 타일 위에 가만히 머물 때 견디는 횟수가 1 감소하기까지의 시간 (초). 0 이하면 제자리 마모 비활성")]
     public float stepTileIdleWearSeconds = 2f;
-
-    /// <summary>
-    /// '비슷한 크기' 판정용 스케일 차이 임계값.
-    /// pushJellyThreshold(젤리 개수) × jellyScaleIncrease(젤리당 스케일 증가량)로 환산.
-    /// 두 젤리의 스케일 차이가 이 값 이내면 흡수 대신 밀치기.
-    /// </summary>
-    public float PushScaleThreshold => pushJellyThreshold * jellyScaleIncrease;
 
     [Header("Camera Settings")]
     public float scaleIncreaseDuration = 1.0f;
@@ -147,7 +137,13 @@ public class DataManager : MonoBehaviour
         ValidateSettings();
         BuildJellyEffectCache();
 
-        GameState.Reset();
+        // [W1/V3] Reset()이 아니라 ResetValues()를 호출한다.
+        // Reset()은 (1) 정적 이벤트 4종을 null로 말소해 — 이미 OnEnable에서 구독을 마친
+        // 씬 HUD(CurrentStatusUI 등)의 구독이 끊겨 화면이 영구 동결될 수 있고(W1),
+        // (2) CurrentGameMode를 Absorb로 되돌려 룸 권위 복원(GameModeManager)과의
+        // Start 순서에 따라 Push 씬이 Absorb로 오독되는 레이스를 만든다(V3).
+        // Reset()은 도메인 리로드 대비용(SubsystemRegistration) 전용이다. (H1 원칙)
+        GameState.ResetValues();
         GameState.DetectRadius = originalDetectRadius;
 
         objectLayerMask = LayerMask.GetMask("BackGroundObject");

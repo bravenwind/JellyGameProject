@@ -53,6 +53,9 @@ public static class ScoreboardSnapshot
 
         foreach (Player p in PhotonNetwork.PlayerList)
         {
+            // [P1] PlayerTtl > 0 도입 후 PlayerList에는 '끊겨서 자리만 보존된'(Inactive)
+            // 플레이어도 남는다 — 점수판에는 실제 접속 중인 플레이어만 올린다.
+            if (p.IsInactive) continue;
             if (!includeEliminatedPlayers && IsPlayerEliminated(p, survivorActors)) continue;
 
             entries.Add(new Entry
@@ -102,15 +105,20 @@ public static class ScoreboardSnapshot
     {
         if (survivorActors != null)
             return !survivorActors.Contains(p.ActorNumber);
-        return p.CustomProperties.TryGetValue("Eliminated", out object e) && e is bool b && b;
+        // [G5] 매직 스트링 대신 상수 사용 — 키 오타/리네이밍 누락 방지.
+        return p.CustomProperties.TryGetValue(NetworkPlayerSync.ELIMINATED_KEY, out object e) && e is bool b && b;
     }
 
     private static bool IsBotEliminated(int viewId)
     {
         foreach (var bot in EntityRegistry.Bots)
         {
+            // [Y2] IsEliminated 단일 플래그가 아니라 합성 술어 IsOutOfPlay
+            // (= IsEliminated || IsBeingAbsorbed)를 본다. 흡수 애니메이션이 도는 동안
+            // (IsBeingAbsorbed=true, IsEliminated는 흡수 경로에서 켜지지 않음) 그 봇은
+            // 이미 '판 밖'인데, IsEliminated만 보면 리더보드/결과에 생존자로 남는다. (G6)
             if (bot != null && bot.photonView != null && bot.photonView.ViewID == viewId)
-                return bot.IsEliminated;
+                return bot.IsOutOfPlay;
         }
         return false;
     }

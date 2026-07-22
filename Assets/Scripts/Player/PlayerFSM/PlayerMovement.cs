@@ -163,7 +163,10 @@ public class PlayerMovement : MonoBehaviour
         currentState = newState;
         currentState?.Enter();
 
-        Debug.Log($"[Player] 상태 변경 완료");
+#if UNITY_EDITOR
+        // [N1/U7] 상태 전환 로그는 에디터 전용 + 어느 상태인지 포함 (빌드 로그 스파이크 방지)
+        Debug.Log($"[Player] 상태 변경 → {newState?.GetType().Name}");
+#endif
     }
 
     // -----------------------------------------------------------------------

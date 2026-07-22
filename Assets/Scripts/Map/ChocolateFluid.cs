@@ -129,7 +129,9 @@ public class ChocolateFluid : MonoBehaviour
         NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (netPlayer != null)
         {
+#if UNITY_EDITOR
             if (debugLogTriggers) Debug.Log($"[Chocolate] ENTER NetworkPlayer: {other.name}");
+#endif
             netPlayer.SyncChocolateElimination();
             return;
         }
@@ -150,11 +152,15 @@ public class ChocolateFluid : MonoBehaviour
 
         bool isAI = rb.GetComponent<AIPlayerMovement>() != null || rb.GetComponent<WanderingAI>() != null;
 
+#if UNITY_EDITOR
+        // [X5] 트리거 로그는 에디터 전용 — 빌드에서는 플래그가 켜져 있어도 문자열 보간(GC)과
+        // Debug.Log(스택트레이스 수집) 비용이 트리거마다 발생하지 않게 한다.
         if (debugLogTriggers)
         {
             string category = isEdible ? "Edible" : isAI ? "AI" : isBackgroundObject ? "BG" : isCandy ? "Candy" : "기타(무시)";
             Debug.Log($"[Chocolate] ENTER [{category}]: {other.name}의 부모 {rb.name} 진입 중!");
         }
+#endif
 
         if (isEdible || isAI || isBackgroundObject || isCandy)
         {
@@ -172,7 +178,14 @@ public class ChocolateFluid : MonoBehaviour
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
         if (navMeshAgent != null) navMeshAgent.enabled = false;
 
-        if (aiPlayer != null) aiPlayer.OnEliminated();
+        // [X1] 트리거 콜백은 모든 클라이언트에서 각자 로컬로 발화한다. 부력/물결 같은
+        // '연출'은 전 클라 실행이 정상이지만, 탈락 같은 '권위 상태 변경'은 봇의
+        // 소유자(마스터, IsMine)만 결정해야 한다 — 안 그러면 위치 보간 오차로 경계를
+        // 아슬하게 스친 봇이 클라마다 생사가 갈린다. 탈락 전파는 소유자의
+        // OnEliminated → RPC_OnEliminated(All) 단일 경로다.
+        // (사람 경로는 SyncChocolateElimination 내부 IsMine 가드로 이미 안전)
+        if (aiPlayer != null && aiPlayer.photonView != null && aiPlayer.photonView.IsMine)
+            aiPlayer.OnEliminated();
     }
 
     private static FloatData CreateFloatData(Rigidbody rb)

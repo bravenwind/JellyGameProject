@@ -325,6 +325,13 @@ public class TileCollapseManager : MonoBehaviour
         if (_tiles[x, z] == null) return;
 
         int tileKey = x * 10000 + z;
+
+        // [X3] RPC에 실려 온 마모 카운트를 전 클라이언트가 자기 dict에도 기록한다.
+        // 권위(마모 판정)는 마스터 단독이지만 근거 상태를 전 클라에 복제해 두면
+        // (1) 비마스터도 IsPositionDangerous가 실제 마모를 반영하고
+        // (2) 마스터 교체 시 새 마스터가 마지막 RPC까지의 마모를 그대로 이어받는다.
+        _tileStepCounts[tileKey] = stepCount;
+
         Renderer rend = _tiles[x, z].GetComponentInChildren<Renderer>();
         if (rend == null || rend.sharedMaterial == null) return;
 

@@ -60,8 +60,11 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
     // 현재 스폰된 젤리 목록 (MasterClient만 관리)
     private List<GameObject> _spawnedJellies = new List<GameObject>();
 
-    // 스폰 루틴 중복 실행 방지 (MasterClient 교체 시 이중 시작 차단)
-    private bool _spawnRoutineRunning = false;
+    // 스폰 루틴 중복 실행 방지 (MasterClient 교체 시 이중 시작 차단).
+    // [V6] bool 플래그 대신 코루틴 핸들 자체를 진실(source of truth)로 삼는다 —
+    // 플래그는 코루틴이 외부 요인(오브젝트 비활성화 등)으로 죽어도 true로 남아
+    // 마스터 교체 시 재시작이 영구 차단됐다. 핸들은 OnDisable에서 함께 비운다.
+    private Coroutine _spawnRoutine;
 
     // [V7] 이중 흡수 방지: 이미 흡수 판정이 확정된 젤리 ViewID (마스터만 사용).
     private readonly HashSet<int> _claimedJellies = new HashSet<int>();
@@ -82,9 +85,24 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
 
         if (PhotonNetwork.IsMasterClient)
         {
-            StartCoroutine(SpawnRoutine());
+            StartSpawnRoutineIfNeeded();
             Debug.Log("[JellyManager] MasterClient: 젤리 스폰 시작");
         }
+    }
+
+    /// <summary>스폰 루틴이 안 돌고 있을 때만 시작한다(중복 시작 차단의 단일 진입점). [V6]</summary>
+    private void StartSpawnRoutineIfNeeded()
+    {
+        if (_spawnRoutine != null) return;
+        _spawnRoutine = StartCoroutine(SpawnRoutine());
+    }
+
+    public override void OnDisable()
+    {
+        base.OnDisable();
+        // 비활성화 시 유니티가 코루틴을 끊는다 — 핸들도 함께 비워
+        // 재활성/마스터 교체 시 스폰이 다시 시작될 수 있게 한다. [V6]
+        _spawnRoutine = null;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -93,10 +111,6 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
 
     private IEnumerator SpawnRoutine()
     {
-        // 중복 실행 방지: MasterClient 교체 시 OnMasterClientSwitched와 겹쳐 두 번 시작되는 것을 차단
-        if (_spawnRoutineRunning) yield break;
-        _spawnRoutineRunning = true;
-
         // 처음에 젤리를 빠르게 채움 (배치 스폰).
         // 단, MasterClient가 교체된 경우 새 마스터의 _spawnedJellies는 비어 있지만
         // 씬에는 기존 젤리가 그대로 살아있다. 실제 개수(EntityRegistry)를 기준으로
@@ -112,6 +126,11 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         while (true)
         {
             yield return new WaitForSeconds(spawnInterval);
+
+            // [V6] 게임이 끝났으면(GameOver/Result) 더 스폰하지 않는다.
+            // 결과 전환 준비 중에 젤리가 계속 생기면 파괴 이벤트/씬 전환과 경합한다.
+            // (시작 전 카운트다운 동안엔 초기 배치분으로 충분하므로 보충도 쉬어 간다)
+            if (GameState.Phase != GamePhase.Playing) continue;
 
             // 삭제된 젤리 참조 정리
             _spawnedJellies.RemoveAll(j => j == null);
@@ -350,7 +369,7 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         if (PhotonNetwork.IsMasterClient)
         {
             Debug.Log("[JellyManager] 새 MasterClient가 됨 → 스폰 루틴 이어받기");
-            StartCoroutine(SpawnRoutine());
+            StartSpawnRoutineIfNeeded();
         }
     }
 }

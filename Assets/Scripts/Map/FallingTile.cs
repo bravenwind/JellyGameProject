@@ -186,10 +186,18 @@ public class FallingTile : MonoBehaviour
         // 박스 중심을 타일 표면 위쪽에 배치 (타일 위 공간만 스캔)
         Vector3 boxCenter = transform.position + new Vector3(0f, halfExtents.y, 0f);
 
-        // 배경 오브젝트 + AI (Player/Edible 레이어) 모두 감지
-        int mask = DataManager.Instance.objectLayerMask
-            | (1 << LayerMask.NameToLayer("Player"))
-            | (1 << LayerMask.NameToLayer("Edible"));
+        // 배경 오브젝트 + AI (Player/Edible 레이어) 모두 감지.
+        // [X4/G8] 여기는 붕괴 코루틴(FallRoutine) 한복판이라 NRE가 나면 이 타일만
+        // 조용히 좀비(흔들리다 멈춘 채 영구 잔존, carve/IsOverVoid 미반영)가 된다 —
+        // 싱글톤/레이어는 없으면 건너뛰는 식으로 방어한다.
+        // (NameToLayer가 -1이면 C# 시프트 마스킹으로 1<<-1 == 1<<31이 되어
+        //  엉뚱한 31번 레이어가 마스크에 섞이는 것도 함께 차단)
+        var dm = DataManager.Instance;
+        int mask = dm != null ? dm.objectLayerMask.value : 0;
+        int playerLayer = LayerMask.NameToLayer("Player");
+        if (playerLayer >= 0) mask |= 1 << playerLayer;
+        int edibleLayer = LayerMask.NameToLayer("Edible");
+        if (edibleLayer >= 0) mask |= 1 << edibleLayer;
 
         Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, mask);
 
