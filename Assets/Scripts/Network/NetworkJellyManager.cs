@@ -127,10 +127,11 @@ public class NetworkJellyManager : MonoBehaviourPunCallbacks
         {
             yield return new WaitForSeconds(spawnInterval);
 
-            // [V6] 게임이 끝났으면(GameOver/Result) 더 스폰하지 않는다.
-            // 결과 전환 준비 중에 젤리가 계속 생기면 파괴 이벤트/씬 전환과 경합한다.
-            // (시작 전 카운트다운 동안엔 초기 배치분으로 충분하므로 보충도 쉬어 간다)
-            if (GameState.Phase != GamePhase.Playing) continue;
+            // [V6] 게임이 완전히 끝났으면(Result) 더 스폰하지 않는다 — 결과 전환 준비 중에
+            // 젤리가 계속 생기면 파괴 이벤트/씬 전환과 경합한다.
+            // ※ 'Phase != Playing'으로 걸면 안 된다: Phase는 로컬 플레이어 상태라,
+            //   마스터의 플레이어가 죽어 관전 중일 때 스폰이 통째로 멈춰버린다.
+            if (GameState.Phase == GamePhase.Result) continue;
 
             // 삭제된 젤리 참조 정리
             _spawnedJellies.RemoveAll(j => j == null);

@@ -2545,6 +2545,41 @@ S1(흡수 거부 봇 영구 재흡수 불가) · S2(보간 스케일로 보상 �
 
 ---
 
+## 2026-07-22 버그 제보 수정 (사용자 제보 — Absorb 마스터 사망 후 '심판 정지', Z4 즉시 수정)
+
+**제보**: 빌드(선입장=마스터)+에디터 2인 Absorb 테스트. 빌드 쪽 플레이어가 죽은 뒤부터
+(1) 에디터가 봇보다 커도 흡수가 안 되고, (2) 봇들이 무너진 타일 위를 걸어다님.
+
+**원인 (Z4)**: Absorb 모드 `GameOver()`가 마스터의 로컬 사망 시 `_gameRunning=false` +
+`Phase=GameOver`를 설정 — 그런데 마스터에서 이 둘은 '내 플레이어 상태'가 아니라 사실상
+**심판 서비스의 전원 스위치**였다:
+- `Phase=GameOver` → 흡수 검증 RPC(`RPC_Request(Bot)AbsorbValidation`)의 `Phase!=Playing`
+  가드에 걸려 이후 모든 흡수 요청 거부 + 흡수 봇 `PhotonNetwork.Destroy`(Phase==Playing 조건)도 차단 → 증상 (1)
+- `_gameRunning=false` → `TileCollapseManager.Update`(IsGameRunning 가드)가 **마스터에서만** 정지.
+  링 붕괴는 클라별 로컬(동기 시계) 진행이라 마스터 땅만 안 무너지고, 봇 이동은 마스터
+  NavMesh 기준이라 산 클라 화면의 구멍 위를 걷게 됨 → 증상 (2)
+- Push 모드는 같은 문제를 이미 '관전 전환(권위 시뮬레이션 유지)'으로 해결한 상태였고(GameOver
+  Push 분기 주석), Absorb 분기만 구식 로직이 남아 있었음. Y1~Y3과 같은 뿌리:
+  **"로컬 상태(Phase/_gameRunning)로 매치 전역 서비스를 게이트하면 안 된다."**
+
+**수정**:
+- `GameOver()` Absorb 분기를 Push와 동일한 관전 전환으로 — `_gameRunning`/`Phase`를 건드리지
+  않고 입력 차단+UI+동기화만. 죽은 클라도 Update가 계속 돌아 시간 종료 시 GameEndingSequence→
+  GameWin을 산 클라와 동일하게 실행(기존 NextSceneName 프리셋은 방어용으로 유지).
+- 엔딩 시퀀스 중 사망 분기의 `Phase=GameOver`도 제거(마지막 3초 심판 정지 동일 원리).
+- `_localPlayerOut` 플래그 신설 — 관전 후 시뮬레이션이 계속 돌므로 낙하 감지 등이 GameOver를
+  재호출해도 1회만 처리(StartGameInternal에서 리셋).
+- `NetworkJellyManager` 스폰 가드를 `Phase != Playing` → `Phase == Result`로 정정 —
+  07-22 V6 적용 때 넣은 가드가 같은 뿌리의 회귀(마스터 사망 시 젤리 보충 정지)를 만들 뻔한 것 자체 발견·수정.
+- 결과: `GamePhase.GameOver`를 설정하는 코드가 0곳이 됨(enum 값은 직렬화 안전을 위해 유지).
+
+**학습 포인트**: `GameState.Phase`는 "내 화면의 단계"이고, 마스터의 검증/시뮬레이션은 "매치의
+단계"를 물어야 한다. 로컬 상태를 전역 게이트로 쓰면 '죽은 심판' 문제가 생긴다 — 권위 서비스의
+정지 조건은 매치 종료(Result) 하나뿐이어야 한다. ※ 유니티 재현 테스트(마스터 먼저 사망 후
+흡수/붕괴 정상 동작) 권장.
+
+---
+
 ## 적용 상태
 
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생

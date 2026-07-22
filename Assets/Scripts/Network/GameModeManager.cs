@@ -47,6 +47,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     private bool _isEndingSequenceStarted = false;
     private bool _countdownRunning = false;
 
+    // 로컬 플레이어가 이번 판에서 탈락(관전 전환)했는지. GameOver() 중복 처리 방지용 —
+    // 관전 전환 후에도 시뮬레이션은 계속 돌므로 이 플래그가 유일한 사망 기록이다.
+    private bool _localPlayerOut = false;
+
     // 시작 카운트다운(3-2-1)이 진행 중인지. AI/입력 정지에 쓰인다.
     // GameState.Phase와 달리 '로컬 플레이어 사망'에 영향받지 않아, 카운트다운만 정확히 가린다.
     public static bool CountdownActive = false;
@@ -183,6 +187,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         GameState.ResetValues();              // Phase=None
         _gameRunning = false;
+        _localPlayerOut = false;              // 새 판 — 사망 기록 초기화
         CountdownActive = true;               // 카운트다운 시작 — 봇/입력 정지(RPC 도착 즉시)
         _gameTimer = (GameState.CurrentGameMode == GameModeType.Push) ? 0f : startTime;
 
@@ -554,6 +559,11 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         if (!_gameRunning && !_isEndingSequenceStarted) return;
 
+        // 중복 사망 처리 방지 — 관전 전환 후에도 시뮬레이션(_gameRunning)은 계속 돌므로,
+        // 낙하 감지 등이 매 프레임 GameOver를 재호출해도 한 번만 처리한다.
+        if (_localPlayerOut) return;
+        _localPlayerOut = true;
+
         // ── Push 모드(라스트 맨 스탠딩): 로컬 플레이어 사망은 '관전 전환'일 뿐 ──
         // 권위 시뮬레이션(_gameRunning / GameState.Phase)을 절대 끄지 않는다.
         // 마스터에서 이걸 끄면 타일 붕괴(UpdateStepCollapse)·전투 검증(RPC_RequestBatHit*)·
@@ -578,7 +588,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         // StopAllCoroutines로 시퀀스를 죽이면 결과 씬 전환이 영영 일어나지 않는다.
         if (_isEndingSequenceStarted)
         {
-            GameState.Phase = GamePhase.GameOver;
+            // Phase는 건드리지 않는다 — 여기서 GameOver로 바꾸면 (죽은 클라가 마스터일 때)
+            // 엔딩 카운트다운 마지막 3초 동안 흡수 검증 RPC가 전부 거부된다(아래 Absorb 분기와 동일 원리).
+            // 시퀀스 종료 시 Phase=Result는 GameEndingSequenceRoutine이 책임진다.
 
             if (_localPlayer != null)
             {
@@ -594,19 +606,21 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             return;
         }
 
-        // ── 일반 모드(Absorb): 사망 → 관전 전환 ──
-        StopAllCoroutines();
-        Time.timeScale = 1f;
+        // ── Absorb 모드: 로컬 플레이어 사망 → 관전 전환 (Push 분기와 동일 원칙) ──
+        // [중요] 권위 시뮬레이션(_gameRunning / GameState.Phase)을 절대 끄지 않는다.
+        // 죽은 클라가 '마스터'면 이 두 값이 곧 심판 서비스의 전원 스위치이기 때문:
+        //  - Phase=GameOver로 바꾸면 → RPC_Request(Bot)AbsorbValidation의 Phase!=Playing
+        //    가드에 걸려 이후 모든 흡수 요청이 조용히 거부되고("내가 큰데도 안 먹어짐"),
+        //    흡수 확정 봇의 PhotonNetwork.Destroy(Phase==Playing 조건)도 함께 차단된다.
+        //  - _gameRunning=false로 끄면 → TileCollapseManager.Update(IsGameRunning 가드)가
+        //    마스터에서만 멈춘다. 링 붕괴는 클라별 로컬(동기 시계) 진행이라, 마스터 땅만
+        //    멀쩡히 남고 봇들(마스터 NavMesh 기준 이동)이 산 클라 화면의 구멍 위를 걸어다닌다.
+        // 입력만 차단하고 시뮬레이션을 유지하면, 죽은 클라도 Update가 계속 돌아 시간 종료 시
+        // GameEndingSequence→GameWin을 산 클라와 똑같이 정상 실행한다(관전 연출 일관).
 
-        _gameRunning = false;
-        GameState.Phase = GamePhase.GameOver;
-
-        // [중요] 사망한 클라는 _gameRunning=false라 Update가 멈춰, 게임 종료 시 GameEndingSequence
-        // /GameWin을 실행하지 못한다. 그러면 LoadingSceneController.NextSceneName이 설정되지 않은 채
-        // AutomaticallySyncScene으로 로딩 씬에 끌려와, NextSceneName=null → 게임 씬으로 폴백되어
-        // 결과용 로딩 화면(toMainOrResultPanel) 대신 잘못된 패널/빈 화면이 뜬다.
-        // → 관전 전환 시점에 결과 씬을 로딩 타겟으로 미리 지정해, 종료 시 올바른 로딩 화면을 거쳐
-        //   결과 씬으로 가도록 한다. (Push는 RPC_PushModeGameEnd(All)로 사망자도 실행돼 이 문제가 없다.)
+        // 방어적 프리셋: 어떤 이유로든 이 클라가 GameWin에 못 도달해도(예외 등)
+        // AutomaticallySyncScene에 끌려갈 때 올바른 결과 로딩 화면을 거치도록 미리 지정.
+        // (GameWin이 정상 실행되면 같은 값으로 다시 세팅되므로 무해)
         LoadingSceneController.NextSceneName = RESULT_SCENE_NAME_ABSORB;
         LoadingSceneController.AllClientsLoad = true;
 
@@ -620,10 +634,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             _localPlayer.SyncColor();
             _localPlayer.SyncScale();
+            if (_localPlayer.playerController != null)
+                _localPlayer.playerController.enabled = false; // 입력만 차단(관전) — Push 분기와 동일
         }
 
         ShowResultUI($"탈락!\n{minTime}분 {secTime}초 생존");
-        Debug.Log($"[GameMode] 로컬 플레이어 탈락! 생존시간={minTime}분 {secTime}초");
+        Debug.Log($"[GameMode] Absorb 로컬 플레이어 탈락 — 관전 전환(권위 시뮬레이션 유지). 생존시간={minTime}분 {secTime}초");
     }
 
     // 💡 중복 제거: 게임 결과 UI 출력 공통화
