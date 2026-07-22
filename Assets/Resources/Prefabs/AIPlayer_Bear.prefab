@@ -329,6 +329,12 @@ MonoBehaviour:
   - Type: 9
     SynchronizeType: 0
     Name: GameFail
+  - Type: 9
+    SynchronizeType: 0
+    Name: Attack
+  - Type: 9
+    SynchronizeType: 0
+    Name: Dash
   m_SynchronizeLayers:
   - SynchronizeType: 0
     LayerIndex: 0

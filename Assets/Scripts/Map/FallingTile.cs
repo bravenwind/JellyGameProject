@@ -225,10 +225,15 @@ public class FallingTile : MonoBehaviour
 
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
 
+            if (col.GetComponent<Milk>() != null)
+            {
+                rb = transform.root.GetComponent<Rigidbody>();
+            }
+
             if (rb == null)
             {
                 AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
-                if (aiBot != null && !aiBot.IsOutOfPlay) // 탈락/흡수 판정 단일 출처 (G6)
+                if (aiBot != null && !aiBot.IsOutOfPlay)
                 {
                     PhotonView aiPV = aiBot.GetComponent<PhotonView>();
                     if (aiPV != null && !PhotonNetwork.IsMasterClient) continue;
