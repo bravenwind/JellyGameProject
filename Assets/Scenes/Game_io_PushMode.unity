@@ -3594,7 +3594,7 @@ GameObject:
   - component: {fileID: 80566157}
   - component: {fileID: 80566159}
   - component: {fileID: 80566158}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -8349,7 +8349,7 @@ GameObject:
   - component: {fileID: 177743206}
   - component: {fileID: 177743205}
   - component: {fileID: 177743202}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -11630,7 +11630,7 @@ GameObject:
   - component: {fileID: 246680591}
   - component: {fileID: 246680590}
   - component: {fileID: 246680587}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -12316,7 +12316,7 @@ GameObject:
   - component: {fileID: 257034733}
   - component: {fileID: 257034732}
   - component: {fileID: 257034729}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -15852,7 +15852,7 @@ GameObject:
   - component: {fileID: 291004847}
   - component: {fileID: 291004846}
   - component: {fileID: 291004845}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -17127,7 +17127,7 @@ GameObject:
   - component: {fileID: 296254623}
   - component: {fileID: 296254622}
   - component: {fileID: 296254621}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -21605,7 +21605,7 @@ GameObject:
   - component: {fileID: 372387922}
   - component: {fileID: 372387921}
   - component: {fileID: 372387920}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -22854,7 +22854,7 @@ GameObject:
   - component: {fileID: 376200279}
   - component: {fileID: 376200278}
   - component: {fileID: 376200277}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -24897,7 +24897,7 @@ GameObject:
   - component: {fileID: 382046843}
   - component: {fileID: 382046842}
   - component: {fileID: 382046839}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -30832,7 +30832,7 @@ GameObject:
   - component: {fileID: 483994514}
   - component: {fileID: 483994513}
   - component: {fileID: 483994512}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -34076,7 +34076,7 @@ GameObject:
   - component: {fileID: 516091909}
   - component: {fileID: 516091908}
   - component: {fileID: 516091907}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -36075,7 +36075,7 @@ GameObject:
   - component: {fileID: 529705481}
   - component: {fileID: 529705480}
   - component: {fileID: 529705479}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -39248,7 +39248,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 576996095}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -40420,7 +40420,7 @@ GameObject:
   - component: {fileID: 594213449}
   - component: {fileID: 594213448}
   - component: {fileID: 594213447}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -42113,7 +42113,7 @@ GameObject:
   - component: {fileID: 609347796}
   - component: {fileID: 609347795}
   - component: {fileID: 609347792}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -46204,7 +46204,7 @@ GameObject:
   - component: {fileID: 667102445}
   - component: {fileID: 667102444}
   - component: {fileID: 667102443}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -48448,7 +48448,7 @@ GameObject:
   - component: {fileID: 693687101}
   - component: {fileID: 693687100}
   - component: {fileID: 693687099}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -51462,6 +51462,7 @@ MonoBehaviour:
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}
   gameEndText: "\uAC8C\uC784 \uC885\uB8CC!"
+  gameStartText: "\uC2DC\uC791!"
   leaderboardContainer: {fileID: 217354872}
   leaderboardEntryPrefab: {fileID: 585618893292266002, guid: 81c991277264e1742ab43d3bb56cb6c8, type: 3}
   _gameTimer: 0
@@ -52847,7 +52848,7 @@ GameObject:
   - component: {fileID: 738259288}
   - component: {fileID: 738259287}
   - component: {fileID: 738259284}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -53594,7 +53595,7 @@ GameObject:
   - component: {fileID: 751366793}
   - component: {fileID: 751366792}
   - component: {fileID: 751366789}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -55163,7 +55164,7 @@ GameObject:
   - component: {fileID: 783019719}
   - component: {fileID: 783019718}
   - component: {fileID: 783019717}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -58023,7 +58024,7 @@ GameObject:
   - component: {fileID: 813284368}
   - component: {fileID: 813284367}
   - component: {fileID: 813284366}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -64351,7 +64352,7 @@ GameObject:
   - component: {fileID: 899739583}
   - component: {fileID: 899739582}
   - component: {fileID: 899739581}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -74497,7 +74498,7 @@ GameObject:
   - component: {fileID: 1047696581}
   - component: {fileID: 1047696580}
   - component: {fileID: 1047696579}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -76780,7 +76781,7 @@ GameObject:
   - component: {fileID: 1068967451}
   - component: {fileID: 1068967450}
   - component: {fileID: 1068967447}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -80231,7 +80232,7 @@ GameObject:
   - component: {fileID: 1108040930}
   - component: {fileID: 1108040929}
   - component: {fileID: 1108040926}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -82571,7 +82572,7 @@ GameObject:
   - component: {fileID: 1116337394}
   - component: {fileID: 1116337393}
   - component: {fileID: 1116337390}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -84826,7 +84827,7 @@ GameObject:
   - component: {fileID: 1148840647}
   - component: {fileID: 1148840646}
   - component: {fileID: 1148840643}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -87530,8 +87531,6 @@ MonoBehaviour:
   scaleIncreaseTime: 1.5
   scaleDecreaseTime: 2
   IncreaseJumpForceValue: 5
-  pushJellyThreshold: 4
-  dashPushForce: 15
   batCooldown: 1.2
   batSwingDuration: 0.35
   batRange: 2
@@ -90199,7 +90198,7 @@ GameObject:
   - component: {fileID: 1238478960}
   - component: {fileID: 1238478959}
   - component: {fileID: 1238478958}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -95689,7 +95688,7 @@ GameObject:
   - component: {fileID: 1318922643}
   - component: {fileID: 1318922642}
   - component: {fileID: 1318922641}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -99053,7 +99052,7 @@ GameObject:
   - component: {fileID: 1367737289}
   - component: {fileID: 1367737288}
   - component: {fileID: 1367737287}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -103851,7 +103850,7 @@ GameObject:
   - component: {fileID: 1440181480}
   - component: {fileID: 1440181479}
   - component: {fileID: 1440181476}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -104161,7 +104160,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1452315180}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -105206,7 +105205,7 @@ GameObject:
   - component: {fileID: 1472324219}
   - component: {fileID: 1472324218}
   - component: {fileID: 1472324217}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -106493,7 +106492,7 @@ GameObject:
   - component: {fileID: 1490355908}
   - component: {fileID: 1490355907}
   - component: {fileID: 1490355904}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -118205,7 +118204,7 @@ GameObject:
   - component: {fileID: 1683441943}
   - component: {fileID: 1683441942}
   - component: {fileID: 1683441939}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -120489,7 +120488,7 @@ GameObject:
   - component: {fileID: 1717299850}
   - component: {fileID: 1717299849}
   - component: {fileID: 1717299848}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -122098,7 +122097,7 @@ GameObject:
   - component: {fileID: 1722144696}
   - component: {fileID: 1722144695}
   - component: {fileID: 1722144694}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -124391,7 +124390,7 @@ GameObject:
   - component: {fileID: 1739816183}
   - component: {fileID: 1739816182}
   - component: {fileID: 1739816181}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -127167,7 +127166,7 @@ GameObject:
   - component: {fileID: 1783919735}
   - component: {fileID: 1783919734}
   - component: {fileID: 1783919733}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -128365,7 +128364,7 @@ GameObject:
   - component: {fileID: 1786110051}
   - component: {fileID: 1786110053}
   - component: {fileID: 1786110052}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -128870,7 +128869,7 @@ GameObject:
   - component: {fileID: 1793062186}
   - component: {fileID: 1793062185}
   - component: {fileID: 1793062184}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -132317,7 +132316,7 @@ GameObject:
   - component: {fileID: 1839979935}
   - component: {fileID: 1839979934}
   - component: {fileID: 1839979931}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -136043,7 +136042,7 @@ GameObject:
   - component: {fileID: 1861802968}
   - component: {fileID: 1861802970}
   - component: {fileID: 1861802969}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -138534,7 +138533,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1893106218}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -139240,7 +139239,7 @@ GameObject:
   - component: {fileID: 1908593410}
   - component: {fileID: 1908593409}
   - component: {fileID: 1908593406}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -140463,7 +140462,7 @@ GameObject:
   - component: {fileID: 1912742557}
   - component: {fileID: 1912742556}
   - component: {fileID: 1912742555}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -144792,7 +144791,7 @@ GameObject:
   - component: {fileID: 1951726718}
   - component: {fileID: 1951726720}
   - component: {fileID: 1951726719}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -148692,7 +148691,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2006645681}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -150733,7 +150732,7 @@ GameObject:
   - component: {fileID: 2054148255}
   - component: {fileID: 2054148254}
   - component: {fileID: 2054148253}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -153077,7 +153076,7 @@ GameObject:
   - component: {fileID: 2097052401}
   - component: {fileID: 2097052400}
   - component: {fileID: 2097052399}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -155387,7 +155386,7 @@ GameObject:
   - component: {fileID: 2115809910}
   - component: {fileID: 2115809909}
   - component: {fileID: 2115809908}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -157239,7 +157238,7 @@ GameObject:
   - component: {fileID: 2126553827}
   - component: {fileID: 2126553826}
   - component: {fileID: 2126553825}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}

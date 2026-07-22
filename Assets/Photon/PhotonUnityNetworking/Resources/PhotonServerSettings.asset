@@ -66,6 +66,8 @@ MonoBehaviour:
   - RPC_OnEliminated
   - RPC_PlayBotAttack
   - RPC_PlayBotDash
+  - RPC_ConfirmEat
+  - RPC_RequestEatJelly
   DisableAutoOpenWizard: 1
   ShowSettings: 1
   DevRegionSetOnce: 0

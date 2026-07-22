@@ -3956,7 +3956,7 @@ GameObject:
   - component: {fileID: 80566157}
   - component: {fileID: 80566159}
   - component: {fileID: 80566158}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -9443,7 +9443,7 @@ GameObject:
   - component: {fileID: 177743204}
   - component: {fileID: 177743203}
   - component: {fileID: 177743202}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -9504,7 +9504,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &177743204
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -13669,7 +13669,7 @@ GameObject:
   - component: {fileID: 246680589}
   - component: {fileID: 246680588}
   - component: {fileID: 246680587}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -13730,7 +13730,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &246680589
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -14518,7 +14518,7 @@ GameObject:
   - component: {fileID: 257034731}
   - component: {fileID: 257034730}
   - component: {fileID: 257034729}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -14579,7 +14579,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &257034731
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -18510,7 +18510,7 @@ GameObject:
   - component: {fileID: 291004845}
   - component: {fileID: 291004844}
   - component: {fileID: 291004843}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -18544,7 +18544,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &291004844
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -19655,7 +19655,7 @@ GameObject:
   - component: {fileID: 296254623}
   - component: {fileID: 296254622}
   - component: {fileID: 296254621}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -24652,7 +24652,7 @@ GameObject:
   - component: {fileID: 372387922}
   - component: {fileID: 372387921}
   - component: {fileID: 372387920}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -25901,7 +25901,7 @@ GameObject:
   - component: {fileID: 376200279}
   - component: {fileID: 376200278}
   - component: {fileID: 376200277}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -27946,7 +27946,7 @@ GameObject:
   - component: {fileID: 382046841}
   - component: {fileID: 382046840}
   - component: {fileID: 382046839}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -28007,7 +28007,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &382046841
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -34715,7 +34715,7 @@ GameObject:
   - component: {fileID: 483994514}
   - component: {fileID: 483994513}
   - component: {fileID: 483994512}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -37868,7 +37868,7 @@ GameObject:
   - component: {fileID: 516091909}
   - component: {fileID: 516091908}
   - component: {fileID: 516091907}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -39766,7 +39766,7 @@ GameObject:
   - component: {fileID: 529705481}
   - component: {fileID: 529705480}
   - component: {fileID: 529705479}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -43363,7 +43363,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 576996095}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44608,7 +44608,7 @@ GameObject:
   - component: {fileID: 594213447}
   - component: {fileID: 594213446}
   - component: {fileID: 594213445}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -44642,7 +44642,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &594213446
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -46338,7 +46338,7 @@ GameObject:
   - component: {fileID: 609347794}
   - component: {fileID: 609347793}
   - component: {fileID: 609347792}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -46399,7 +46399,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &609347794
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -50809,7 +50809,7 @@ GameObject:
   - component: {fileID: 667102443}
   - component: {fileID: 667102442}
   - component: {fileID: 667102447}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -51802,7 +51802,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!1001 &672347742
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -53385,7 +53385,7 @@ GameObject:
   - component: {fileID: 693687101}
   - component: {fileID: 693687100}
   - component: {fileID: 693687099}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -56770,6 +56770,7 @@ MonoBehaviour:
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}
   gameEndText: "\uAC8C\uC784 \uC885\uB8CC!"
+  gameStartText: "\uC2DC\uC791!"
   leaderboardContainer: {fileID: 217354872}
   leaderboardEntryPrefab: {fileID: 585618893292266002, guid: 81c991277264e1742ab43d3bb56cb6c8, type: 3}
   _gameTimer: 0
@@ -58094,7 +58095,7 @@ GameObject:
   - component: {fileID: 738259286}
   - component: {fileID: 738259285}
   - component: {fileID: 738259284}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -58155,7 +58156,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &738259286
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -58779,7 +58780,7 @@ GameObject:
   - component: {fileID: 751366791}
   - component: {fileID: 751366790}
   - component: {fileID: 751366789}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -58840,7 +58841,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &751366791
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -60544,7 +60545,7 @@ GameObject:
   - component: {fileID: 783019719}
   - component: {fileID: 783019718}
   - component: {fileID: 783019717}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -63366,7 +63367,7 @@ GameObject:
   - component: {fileID: 813284368}
   - component: {fileID: 813284367}
   - component: {fileID: 813284366}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -70816,7 +70817,7 @@ GameObject:
   - component: {fileID: 899739583}
   - component: {fileID: 899739582}
   - component: {fileID: 899739581}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -82470,7 +82471,7 @@ GameObject:
   - component: {fileID: 1047696581}
   - component: {fileID: 1047696580}
   - component: {fileID: 1047696579}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -84986,7 +84987,7 @@ GameObject:
   - component: {fileID: 1068967449}
   - component: {fileID: 1068967448}
   - component: {fileID: 1068967447}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -85047,7 +85048,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1068967449
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -88866,7 +88867,7 @@ GameObject:
   - component: {fileID: 1108040928}
   - component: {fileID: 1108040927}
   - component: {fileID: 1108040926}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -88927,7 +88928,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1108040928
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -91384,7 +91385,7 @@ GameObject:
   - component: {fileID: 1116337392}
   - component: {fileID: 1116337391}
   - component: {fileID: 1116337390}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -91445,7 +91446,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1116337392
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -93699,7 +93700,7 @@ GameObject:
   - component: {fileID: 1148840645}
   - component: {fileID: 1148840644}
   - component: {fileID: 1148840643}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -93760,7 +93761,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1148840645
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -96570,8 +96571,6 @@ MonoBehaviour:
   scaleIncreaseTime: 1.5
   scaleDecreaseTime: 2
   IncreaseJumpForceValue: 5
-  pushJellyThreshold: 4
-  dashPushForce: 15
   batCooldown: 1.2
   batSwingDuration: 0.35
   batRange: 2
@@ -99347,7 +99346,7 @@ GameObject:
   - component: {fileID: 1238478960}
   - component: {fileID: 1238478959}
   - component: {fileID: 1238478958}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -105717,7 +105716,7 @@ GameObject:
   - component: {fileID: 1318922643}
   - component: {fileID: 1318922642}
   - component: {fileID: 1318922641}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -109515,7 +109514,7 @@ GameObject:
   - component: {fileID: 1367737289}
   - component: {fileID: 1367737288}
   - component: {fileID: 1367737287}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -114160,7 +114159,7 @@ GameObject:
   - component: {fileID: 1440181478}
   - component: {fileID: 1440181477}
   - component: {fileID: 1440181476}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -114221,7 +114220,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1440181478
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -114736,7 +114735,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1452315180}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -115908,7 +115907,7 @@ GameObject:
   - component: {fileID: 1472324219}
   - component: {fileID: 1472324218}
   - component: {fileID: 1472324217}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -117277,7 +117276,7 @@ GameObject:
   - component: {fileID: 1490355906}
   - component: {fileID: 1490355905}
   - component: {fileID: 1490355904}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -117338,7 +117337,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1490355906
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -129480,7 +129479,7 @@ GameObject:
   - component: {fileID: 1683441941}
   - component: {fileID: 1683441940}
   - component: {fileID: 1683441939}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -129541,7 +129540,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1683441941
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -132035,7 +132034,7 @@ GameObject:
   - component: {fileID: 1717299848}
   - component: {fileID: 1717299847}
   - component: {fileID: 1717299846}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -132069,7 +132068,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1717299847
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -133811,7 +133810,7 @@ GameObject:
   - component: {fileID: 1722144696}
   - component: {fileID: 1722144695}
   - component: {fileID: 1722144694}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -136185,7 +136184,7 @@ GameObject:
   - component: {fileID: 1739816181}
   - component: {fileID: 1739816180}
   - component: {fileID: 1739816179}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -136219,7 +136218,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1739816180
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -139691,7 +139690,7 @@ GameObject:
   - component: {fileID: 1783919733}
   - component: {fileID: 1783919732}
   - component: {fileID: 1783919731}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -139725,7 +139724,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1783919732
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -140924,7 +140923,7 @@ GameObject:
   - component: {fileID: 1786110051}
   - component: {fileID: 1786110053}
   - component: {fileID: 1786110052}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -141495,7 +141494,7 @@ GameObject:
   - component: {fileID: 1793062186}
   - component: {fileID: 1793062185}
   - component: {fileID: 1793062184}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -145182,7 +145181,7 @@ GameObject:
   - component: {fileID: 1839979933}
   - component: {fileID: 1839979932}
   - component: {fileID: 1839979931}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk4 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -145243,7 +145242,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1839979933
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -148768,7 +148767,7 @@ GameObject:
   - component: {fileID: 1861802968}
   - component: {fileID: 1861802970}
   - component: {fileID: 1861802969}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -151397,7 +151396,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1893106218}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -152534,7 +152533,7 @@ GameObject:
   - component: {fileID: 1908593408}
   - component: {fileID: 1908593407}
   - component: {fileID: 1908593406}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2 (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -152595,7 +152594,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &1908593408
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -153792,7 +153791,7 @@ GameObject:
   - component: {fileID: 1912742557}
   - component: {fileID: 1912742556}
   - component: {fileID: 1912742555}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -158399,7 +158398,7 @@ GameObject:
   - component: {fileID: 1951726718}
   - component: {fileID: 1951726720}
   - component: {fileID: 1951726719}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -162855,7 +162854,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2006645681}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milks
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -165262,7 +165261,7 @@ GameObject:
   - component: {fileID: 2054148255}
   - component: {fileID: 2054148254}
   - component: {fileID: 2054148253}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -168108,7 +168107,7 @@ GameObject:
   - component: {fileID: 2097052399}
   - component: {fileID: 2097052398}
   - component: {fileID: 2097052403}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (1)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -169329,7 +169328,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!4 &2098601348 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 941911484880754229, guid: 0648316cca5296443a92268e85e7496a, type: 3}
@@ -170497,7 +170496,7 @@ GameObject:
   - component: {fileID: 2115809908}
   - component: {fileID: 2115809907}
   - component: {fileID: 2115809906}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk (2)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -170531,7 +170530,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e14298c63a53c604c943092cbdf6113d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  respawnTime: 7
+  speedSlowMultiplier: 0.5
 --- !u!64 &2115809907
 MeshCollider:
   m_ObjectHideFlags: 0
@@ -172459,7 +172458,7 @@ GameObject:
   - component: {fileID: 2126553827}
   - component: {fileID: 2126553826}
   - component: {fileID: 2126553825}
-  m_Layer: 0
+  m_Layer: 12
   m_Name: Milk2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
