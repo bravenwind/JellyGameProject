@@ -249,16 +249,20 @@ public class ChocolateFluid : MonoBehaviour
         _processedBodies.Remove(rb);
         _floatData.Remove(rb);
 
+        AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
+
         int bgLayer = LayerMask.NameToLayer("BackGroundObject");
         bool isBackgroundObject = (bgLayer >= 0) && (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
-        if (other.CompareTag("Edible") || isBackgroundObject)
+        // [MAP-3] AI(봇)도 damping 복원 대상에 포함한다. 예전엔 Edible/배경만 복원해서, 탈락 RPC가
+        // 도착하기 전에 부력에 튕겨 초콜릿을 빠져나간 봇의 Rigidbody에 chocolateViscosity(기본 5)가
+        // 영구 잔존했다 → 이후 그 봇이 다시 물리 낙하할 때 과감쇠로 궤적이 비정상적으로 느려진다.
+        if (other.CompareTag("Edible") || isBackgroundObject || (aiPlayer != null && !aiPlayer.IsEliminated))
         {
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
             if (isBackgroundObject) rb.useGravity = true;
         }
 
-        AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
         if (aiPlayer != null && aiPlayer.IsEliminated) return;
 
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();

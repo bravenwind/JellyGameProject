@@ -7,9 +7,18 @@ public class PlayerBridge : MonoBehaviour
     private PlayerAbsorber _absorber;
     private PlayerMovement _playerController;
     private LevelUpFloaterPool _levelUpPool;
+    private NetworkPlayerSync _netSync;
+
+    // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
+    // PlayerScaleController.Start는 소유 무관하게 OnScaleInit을 발화한다. 아래 핸들러들이 전역 정적
+    // GameState(PlayerCurrentScale/DetectRadius/색 — 클라당 1개)를 쓰므로, 원격 플레이어 스폰마다
+    // 로컬 HUD/감지반경/동기화 색이 남의 값으로 오염됐다. 소유자일 때만 전역 상태를 쓰도록 가드한다.
+    // (netSync가 없으면 오프라인/레거시로 보고 허용)
+    private bool IsLocalOwner => _netSync == null || (_netSync.photonView != null && _netSync.photonView.IsMine);
 
     private void Awake()
     {
+        _netSync = GetComponent<NetworkPlayerSync>();
         _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
         _colorVisual = GetComponentInChildren<PlayerColorVisual>();
         _absorber = GetComponentInChildren<PlayerAbsorber>();
@@ -79,6 +88,7 @@ public class PlayerBridge : MonoBehaviour
 
     private void HandleScaleInit(float scaleValue)
     {
+        if (!IsLocalOwner) return; // [W6] 원격 아바타는 전역 GameState/HUD를 건드리지 않는다
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = scaleValue;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
@@ -108,6 +118,7 @@ public class PlayerBridge : MonoBehaviour
 
     private void HandleScaleCompleted(float scaleValue)
     {
+        if (!IsLocalOwner) return; // [W6] 원격 아바타의 성장 완료가 로컬 전역 상태를 오염시키지 않게
         if (_playerController != null)
         {
             _playerController.jumpForce = scaleValue >= DataManager.Instance.jumpScaleThreshold
@@ -119,15 +130,15 @@ public class PlayerBridge : MonoBehaviour
         GameState.PlayerCurrentScale = scaleValue;
 
         GameState.CurrentScore = DataManager.Instance.ScoreFromScale(scaleValue);
-        var netSync = GetComponent<NetworkPlayerSync>();
-        if (netSync != null && netSync.photonView.IsMine)
-            netSync.SyncScore(GameState.CurrentScore);
+        if (_netSync != null && _netSync.photonView.IsMine)
+            _netSync.SyncScore(GameState.CurrentScore);
 
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
     private void HandleScaleReset()
     {
+        if (!IsLocalOwner) return; // [W6]
         PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
         GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = 1f;
@@ -138,6 +149,9 @@ public class PlayerBridge : MonoBehaviour
 
     private void HandleColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor)
     {
+        // [W6] 원격 아바타의 색은 색 스트림(_networkColor)이 담당한다. 여기서 전역
+        // GameState.CurrentDisplayColor(로컬 플레이어 색·SyncColor 소스)를 덮으면 내 색이 남의 색으로 샌다.
+        if (!IsLocalOwner) return;
         GameState.CurrentRYBColor = ryb;
         GameState.CurrentDisplayColor = displayColor;
         PlayerEvents.OnColorChanged?.Invoke(dominantType, ryb);

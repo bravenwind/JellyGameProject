@@ -191,12 +191,21 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (ScaleCtrl != null)
             ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
 
-        StartCoroutine(InitAndRun());
+        _initCoroutine = StartCoroutine(InitAndRun());
     }
+
+    // [BOT-1] InitAndRun 코루틴 핸들. 탈락/흡수가 확정되면 이 코루틴을 명시적으로 멈춰야 한다 —
+    // enabled=false는 이미 실행 중인 코루틴을 멈추지 못해(O5와 동일), NavMesh 탐색(최대 5초)
+    // 도중에 탈락 RPC가 와도 코루틴이 계속 진행해 Agent를 다시 켜고 FSM을 재기동 → 죽은 봇이
+    // 되살아나 배회하는 문제가 있었다.
+    private Coroutine _initCoroutine;
 
     /// <summary>NavMesh 위에 스폰 확정 후 FSM 시작</summary>
     private IEnumerator InitAndRun()
     {
+        // [BOT-1] 이미 판 밖이면 시작조차 하지 않는다(마스터 교체 시점에 이미 탈락/흡수된 봇 방어).
+        if (IsEliminated || IsBeingAbsorbed) { _initCoroutine = null; yield break; }
+
         Agent.enabled = false;
 
         NavFilter = new NavMeshQueryFilter
@@ -237,8 +246,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (!foundOnNavMesh)
         {
             Debug.LogWarning($"[AIBot] {name} NavMesh 위치 탐색 실패 - Agent 비활성 유지");
+            _initCoroutine = null;
             yield break;
         }
+
+        // [BOT-1] 탐색 대기(최대 5초) 동안 탈락/흡수가 확정됐으면 여기서 중단 — Agent를 다시 켜지 않는다.
+        if (IsEliminated || IsBeingAbsorbed) { _initCoroutine = null; yield break; }
 
         Agent.enabled = true;
 
@@ -256,6 +269,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             yield break;
         }
 
+        // [BOT-1] isOnNavMesh 대기 동안 탈락/흡수됐으면 FSM을 기동하지 않는다.
+        if (IsEliminated || IsBeingAbsorbed) { _initCoroutine = null; yield break; }
+
         if (NavMesh.SamplePosition(transform.position, out NavMeshHit warpHit, 5f, NavFilter)
             || NavMesh.SamplePosition(transform.position, out warpHit, 5f, NavMesh.AllAreas))
             Agent.Warp(warpHit.position);
@@ -268,6 +284,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         else
             ChangeState(WanderState);
         StartCoroutine(StateEvalLoop());
+        _initCoroutine = null;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -682,6 +699,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (IsEliminated) return;
         IsEliminated = true;
 
+        // [BOT-1] 마스터 승계 초기화 코루틴이 진행 중이면 멈춘다 — 안 그러면 그 코루틴이
+        // Agent를 다시 켜고 FSM을 재기동해 방금 탈락시킨 봇이 되살아난다(enabled=false로는 안 멈춤).
+        if (_initCoroutine != null) { StopCoroutine(_initCoroutine); _initCoroutine = null; }
+
         if (Agent != null) Agent.enabled = false;
         _currentState?.Exit();
         _currentState = null;
@@ -703,6 +724,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     {
         if (IsBeingAbsorbed) return;
         IsBeingAbsorbed = true;
+
+        // [BOT-1] 승계 초기화 코루틴 중단 — InitAndRun과 흡수 연출이 같은 Agent/transform을 다투지 않게.
+        if (_initCoroutine != null) { StopCoroutine(_initCoroutine); _initCoroutine = null; }
+
 #if UNITY_EDITOR
         Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어 흡수됨."); // [S10] 빌드 로그 스파이크 방지
 #endif
@@ -755,7 +780,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public override void OnMasterClientSwitched(Player newMasterClient)
     {
         if (!PhotonNetwork.IsMasterClient) return;
-        if (IsBeingAbsorbed) return;
+        // [BOT-1/MAP-2] 이미 판 밖(흡수 중 또는 탈락)인 봇은 제어를 이어받지 않는다 —
+        // InitAndRun이 그 봇을 NavMesh로 되돌려 탈락/흡수를 취소하고 되살리는 것을 막는다.
+        // (예전엔 IsBeingAbsorbed만 봐서, 탈락한 봇이 마스터 교체 시 부활했다.)
+        if (IsOutOfPlay) return;
 
         Debug.Log($"[AIBot] {name} — 새 MasterClient가 AI 제어 이어받기");
 
@@ -767,7 +795,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (ScaleCtrl != null)
             ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
 
-        StartCoroutine(InitAndRun());
+        // [BOT-2] 비마스터 시절 RemoveCloth로 제거된 Cloth를 대칭 복구 — 안 그러면 새 마스터
+        // 화면에서만 이 봇이 젤리 출렁임 없이 뻣뻣하게 보인다(다음 성장 전까지).
+        GetComponentInChildren<SoftBody3D>()?.RequestRebuildCloth();
+
+        if (_initCoroutine != null) StopCoroutine(_initCoroutine);
+        _initCoroutine = StartCoroutine(InitAndRun());
     }
 
     // ─────────────────────────────────────────────────────────

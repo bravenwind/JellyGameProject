@@ -2,8 +2,9 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 using Photon.Pun;
+using Photon.Realtime;
 
-public class AIWaypointPatrol : MonoBehaviourPun, IPunObservable
+public class AIWaypointPatrol : MonoBehaviourPunCallbacks, IPunObservable
 {
     [Header("Settings")]
     public Transform[] waypoints;
@@ -61,6 +62,24 @@ public class AIWaypointPatrol : MonoBehaviourPun, IPunObservable
     {
         NetworkNavMeshHelper.SerializeTransform(stream, transform, agent,
             ref _networkPosition, ref _networkRotation, ref _networkIsMoving);
+    }
+
+    // [JL-3] 마스터 교체 시 소유권 재평가. 이게 없으면 _isMine이 Start의 1회 값에 굳어,
+    // 새 마스터가 돼도 agent가 비활성인 채 순찰이 재개되지 않고 정지 좌표만 브로드캐스트된다.
+    // (WanderingAI와 동일 패턴 — 획득/상실 양방향 재평가)
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        if (agent == null || waypoints == null || waypoints.Length == 0) return;
+        if (photonView.IsMine == _isMine) return;
+
+        _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
+            ref _networkPosition, ref _networkRotation);
+
+        if (_isMine)
+        {
+            if (!agent.enabled) agent.enabled = true;
+            MoveToNextWaypoint();
+        }
     }
 
     void MoveToNextWaypoint()

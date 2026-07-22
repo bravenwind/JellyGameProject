@@ -2580,6 +2580,59 @@ S1(흡수 거부 봇 영구 재흡수 불가) · S2(보간 스케일로 보상 �
 
 ---
 
+## 2026-07-22 마스터/비마스터 권위 로직 전면 감사 + 수정 (사용자 제보 "젤리 임베딩" + "마스터 관련 버그 다수") — Z5
+
+5개 서브시스템(젤리 생명주기 / 봇 권위 / 흡수·전투 / 맵·타일 / 게임흐름·연결)을 병렬 감사 에이전트로
+정밀 점검해 마스터/비마스터 desync·소유권·권위 버그를 도출하고, 확정된 것을 즉시 수정했다.
+**원격 컨테이너라 컴파일/실행 불가 — 유니티 컴파일 확인 + 2인(빌드+에디터) 플레이테스트 필수.**
+
+### 제보 버그 근본원인 (JL-1, 치명) — 자산 + 코드 이중 수정
+"마스터 사망 후 젤리가 땅에 박혀 소환" = **젤리 프리팹 7종 중 4종(Green/Orange/Purple/White)의
+PhotonView `ObservedComponents`가 비어 있었다**(`[]`/`[{fileID:0}]`). → 그 젤리의 `OnPhotonSerializeView`가
+아예 호출되지 않아, 비마스터 화면에서 위치 스트림이 최초 raw(리프트 안 된 임베드) 좌표에서 갱신되지
+않고 영구 정지. 마스터의 `agent.Warp`(baseOffset 리프트)는 로컬에만 적용된다. "마스터 사망 후"는
+Z4 수정이 사망 후에도 스폰을 재개시켜(그 전엔 Phase=GameOver로 스폰이 멈췄음) 원래 있던 이 자산
+버그가 처음으로 지속 노출된 것.
+- 수정 (a·자산): 4개 프리팹 `ObservedComponents`에 각자의 `WanderingAI` fileID 등록(+Red/Blue의 잔여 null 제거).
+- 수정 (b·코드): `NetworkNavMeshHelper.SetupOwnership`이 소유·비소유 **양쪽**에서 관측 컴포넌트를 자가 등록 →
+  자산이 깨져도 런타임에 스스로 치유(향후 프리팹 재발 방지). writer/reader 직렬화 순서 일치 보장.
+
+### 적용한 수정 (확정 버그)
+| ID | 심각도 | 내용 | 파일 |
+|---|---|---|---|
+| **JL-1** | 치명 | 젤리 임베딩 — ObservedComponents 자산복구 + SetupOwnership 자가등록 | 4 프리팹, NetworkNavMeshHelper |
+| **JL-2** | 높음 | WanderingAI 소유권 '상실' 경로 재평가 안 됨 → `IsMine==_isMine`이면 skip으로 교정(스플릿브레인 제거) | WanderingAI |
+| **JL-3** | 높음(잠재) | AIWaypointPatrol에 OnMasterClientSwitched 부재 → 추가(MonoBehaviourPunCallbacks化) | AIWaypointPatrol |
+| **BOT-1** | 높음 | 탈락/흡수 확정 시 InitAndRun 코루틴 미정지 → 죽은 봇 부활. 핸들 저장+StopCoroutine+진입/재개 가드 | AIPlayerMovement |
+| **BOT-2** | 낮음 | 마스터 승계 시 제거된 Cloth 미복구 → 새 마스터 화면 뻣뻣. RequestRebuildCloth 추가 | AIPlayerMovement |
+| **MAP-1** | 높음 | 마스터 교체 시 dwell/currentTile 유실 → 전 개체 동시 마모(순간 다중 붕괴). 승계 첫 패스 '마모없이 시딩' 그레이스 | TileCollapseManager |
+| **MAP-3** | 낮음 | 초콜릿 이탈 시 봇 damping 미복원 → 이후 낙하 과감쇠. AI도 복원 대상에 포함 | ChocolateFluid |
+| **CBT-1** | 치명(치트) | 배트 판정에 마스터 측 쿨다운 부재 → RPC 연사 무한성장. 공격자별 서버 쿨다운 추가 | NetworkPlayerSync |
+| **CBT-2** | 높음(치트) | 배트 플레이어 경로에 피격자 IsOutOfPlay 가드 부재(봇 경로엔 있음) → 시체 파밍. 가드 추가 | NetworkPlayerSync |
+| **CBT-3** | 낮음 | RPC_ApplyKnockback가 _isAbsorbed만 검사 → 초콜릿 탈락자 통과. IsOutOfPlay로 강화 | NetworkPlayerSync |
+| **CBT-4/W6** | 중 | 원격 아바타 PlayerBridge가 전역 GameState(스케일/감지반경/색) 오염 → IsLocalOwner 가드 | PlayerBridge |
+| **FLW-1/P1** | 중 | 재연결(PlayerTtl>0) 도입 후 로비/봇수 계산 3곳 IsInactive 미필터 → 유령 슬롯/봇 미스폰. ActivePlayerCount()로 통일 | NetworkManager |
+| **FLW-2/Y2** | 낮음~중 | SyncAllColorsForResult가 IsEliminated만 필터 → 흡수봇 색 프로퍼티 되살림. IsOutOfPlay로 | GameModeManager |
+
+### 보류/후속 (사용자 판단·큰 작업)
+- **MAP-2**(높음, 부분처리): 탈락/흡수 봇은 이제 마스터 교체 시 부활 안 함(OnMasterClientSwitched IsOutOfPlay 가드).
+  다만 '낙하 중(비탈락)' 봇이 교체되면 새 마스터의 InitAndRun이 NavMesh로 되돌려 낙하를 취소(재낙하로 복구되나
+  한 번 구제됨). 낙하 물리는 런타임 로컬 컴포넌트라 승계 불가 — 완전 해결엔 IsFalling 네트워크 플래그 설계 필요.
+- **CBT-5**(높음·구조): "Scale" 커스텀 프로퍼티를 클라가 자기보고 → 부풀리면 흡수/사거리 자동승리. 마스터가
+  성장 이력으로 상한을 두거나 Scale 변경도 마스터 승인제로 전환하는 안티치트 재설계 필요(범위 큼).
+- **JL-4**(중): `*_Patrol` 프리팹 6종의 AIWaypointPatrol 컴포넌트가 PhotonView로 잘못 교체돼 있음(에디터 복구 필요, 현 스폰 목록 밖).
+- **JL-5**(낮음): `_claimedJellies` 무한 성장(하우스키핑). **FLW-3**(낮음): ResultSyncToken write 마스터 교체 미대응(maxWait 폴백 있음).
+- 기존 백로그 재확인: **O2**(봇↔봇 이중흡수는 오탐/봇→플레이어만 실재·기적용), **O5**(코루틴 미종료 — BOT-1과 동류, StateEvalLoop도 정리 권장), **O6**(이벤트 중복구독 -= 가드) 여전히 열림.
+
+### 학습 포인트 (이번 감사의 관통 주제)
+- **"로컬 상태로 매치 전역 서비스를 게이트하지 마라"**: `GameState.Phase`/`_gameRunning`/`_isMine`은 '내 화면/내 소유'
+  상태인데, 이걸로 마스터의 심판·시뮬레이션·스트리밍을 끄면 '죽은 심판'·'박제된 봇'·'임베딩 젤리'가 나온다. (Z4·JL-1·JL-2·BOT-1 공통)
+- **"1회성 캐시(_isMine) vs 매프레임 라이브 조회(IsMasterClient)"**: 소유권은 바뀔 수 있으므로, 캐시하면 반드시
+  변경 이벤트(OnMasterClientSwitched)에서 양방향 재평가해야 한다.
+- **"자산도 코드다"**: PhotonView.ObservedComponents 같은 인스펙터 설정이 깨지면 로직이 멀쩡해도 desync. 코드에 자가치유 방어를 두면 자산 회귀에 강해진다.
+
+---
+
 ## 적용 상태
 
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생

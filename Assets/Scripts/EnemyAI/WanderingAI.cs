@@ -116,7 +116,11 @@ public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
     /// </summary>
     public override void OnMasterClientSwitched(Player newMasterClient)
     {
-        if (!photonView.IsMine || _isMine) return;
+        // [JL-2] 소유권이 '바뀐' 경우에만 재평가한다. 예전 조건(!IsMine || _isMine)은
+        // 소유권을 '얻는' 새 마스터만 통과시키고, 소유권을 '잃는' 옛 마스터는 즉시 return시켜
+        // _isMine이 true로 굳고 agent가 계속 로컬 구동되는 스플릿브레인을 남겼다.
+        // IsMine과 캐시된 _isMine이 다르면(획득이든 상실이든) 항상 재평가한다.
+        if (photonView.IsMine == _isMine) return;
 
         _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
             ref _networkPosition, ref _networkRotation);
@@ -129,6 +133,8 @@ public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
             // NavMesh 밖이면 Update()의 복구 로직이 가장 가까운 지점으로 Warp한다. 여기선 이동만 재개.
             MoveToRandomPosition();
         }
+        // 소유권 상실 시엔 SetupOwnership이 agent.enabled=false + 스트림 위치 캐싱까지 처리했으므로
+        // 이후 Update()가 원격 보간 모드로 전환된다(추가 처리 불필요).
     }
 
     IEnumerator WaitAndMove()

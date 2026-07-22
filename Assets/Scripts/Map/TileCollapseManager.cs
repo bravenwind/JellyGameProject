@@ -161,8 +161,21 @@ public class TileCollapseManager : MonoBehaviour
         return Mathf.Min(x, z, _width - 1 - x, _height - 1 - z);
     }
 
+    // [MAP-1] 마스터 승계 감지. 새로 마스터가 된 클라는 _entityCurrentTile/_entityDwellTime
+    // (체류 마모 상태)가 비어 있어, 그대로 두면 첫 UpdateStepCollapse에서 맵 위 전 개체의
+    // "이전 칸 없음(-1)→현재 칸" 전이로 오인해 모두의 현재 타일을 동시에 한 번씩 마모시킨다
+    // (임계 직전 타일들이 마스터 교체 순간 동시다발 붕괴). 승계 직후 첫 패스는 마모 없이
+    // 현재 위치만 시딩해, 그 다음부터 정상적인 '이동 감지' 마모가 이뤄지게 한다.
+    // (_tileStepCounts 자체는 X3로 RPC를 통해 전 클라에 복제되므로 마모 카운트는 승계됨.)
+    private bool _wasMaster = false;
+    private bool _needsStepGrace = false;
+
     private void Update()
     {
+        bool isMaster = PhotonNetwork.IsMasterClient;
+        if (isMaster && !_wasMaster) _needsStepGrace = true; // 방금 마스터가 됨(게임 시작 포함)
+        _wasMaster = isMaster;
+
         if (GameModeManager.Instance == null || !GameModeManager.Instance.IsGameRunning) return;
 
         if (GameState.CurrentGameMode == GameModeType.Push)
@@ -202,6 +215,15 @@ public class TileCollapseManager : MonoBehaviour
         if (!PhotonNetwork.IsMasterClient) return;
         if (_stepX == 0f || _stepZ == 0f) return;
 
+        // [MAP-1] 마스터 승계 직후 그레이스: 현재 위치만 시딩하고 이번 패스는 마모하지 않는다.
+        if (_needsStepGrace)
+        {
+            SeedEntityTilesNoWear();
+            _needsStepGrace = false;
+            _stepProcessTimer = 0f;
+            return;
+        }
+
         _stepProcessTimer += Time.deltaTime;
         if (_stepProcessTimer < STEP_PROCESS_INTERVAL) return;
         float dt = _stepProcessTimer;
@@ -218,6 +240,30 @@ public class TileCollapseManager : MonoBehaviour
             if (bot == null || bot.IsEliminated) continue;
             TryStepAt(bot.transform.position, bot.photonView.ViewID, dt);
         }
+    }
+
+    // [MAP-1] 현재 각 개체가 서 있는 칸을 마모 없이 기록만 한다(마스터 승계 그레이스용).
+    private void SeedEntityTilesNoWear()
+    {
+        foreach (var player in EntityRegistry.Players)
+        {
+            if (player == null || player.IsOutOfPlay) continue;
+            SeedTile(player.transform.position, player.photonView.ViewID);
+        }
+        foreach (var bot in EntityRegistry.Bots)
+        {
+            if (bot == null || bot.IsEliminated) continue;
+            SeedTile(bot.transform.position, bot.photonView.ViewID);
+        }
+    }
+
+    private void SeedTile(Vector3 worldPos, int entityID)
+    {
+        int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
+        int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
+        if (x < 0 || x >= _width || z < 0 || z >= _height) return;
+        _entityCurrentTile[entityID] = x * 10000 + z;
+        _entityDwellTime[entityID] = 0f;
     }
 
     private void TryStepAt(Vector3 worldPos, int entityID, float dt)

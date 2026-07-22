@@ -710,11 +710,12 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     [PunRPC]
     public void RPC_ApplyKnockback(float dirX, float dirZ, float force)
     {
-        // [U3] stale/전환 중 RPC 방어 — 게임이 진행 중이 아니거나 이미 흡수된 상태면
-        // 강제 넉백 상태 전이를 하지 않는다. (봇 쪽 AIPlayerMovement.RPC_ApplyKnockback의
-        // IsEliminated/IsBeingAbsorbed 가드와 대칭을 맞춘 것)
+        // [U3/CBT-3] stale/전환 중 RPC 방어 — 게임이 진행 중이 아니거나 이미 '판 밖'이면
+        // 강제 넉백 상태 전이를 하지 않는다. _isAbsorbed 단독이 아니라 IsOutOfPlay를 쓴다:
+        // 초콜릿 탈락(Eliminated=true, _isAbsorbed=false)한 플레이어도 걸러야 하기 때문.
+        // (봇 쪽 AIPlayerMovement.RPC_ApplyKnockback의 IsEliminated/IsBeingAbsorbed 가드와 대칭)
         if (GameState.Phase != GamePhase.Playing) return;
-        if (_isAbsorbed) return;
+        if (IsOutOfPlay) return;
         if (playerController == null) return;
         Vector3 dir = new Vector3(dirX, 0f, dirZ).normalized;
         playerController.ApplyKnockback(dir, force);
@@ -762,6 +763,19 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
             bat.gameObject.SetActive(false);
     }
 
+    // [CBT-1] 마스터가 추적하는 이 공격자의 마지막 배트 명중 승인 시각(마스터 로컬 시간).
+    // 클라가 PlayerAttackState를 거치지 않고 RPC를 반복 발사해도 마스터가 쿨다운을 강제한다.
+    private float _lastBatHitAuthTime = -999f;
+
+    /// <summary>[CBT-1] 마스터 측 배트 쿨다운 검사+갱신. 쿨다운 내 재요청이면 false(거부).</summary>
+    private bool TryConsumeBatCooldown(DataManager dm)
+    {
+        // 여유 5%: 정상 클라의 네트워크 지연/프레임 오차로 정당한 스윙이 거부되지 않게.
+        if (Time.time - _lastBatHitAuthTime < dm.batCooldown * 0.95f) return false;
+        _lastBatHitAuthTime = Time.time;
+        return true;
+    }
+
     [PunRPC]
     public void RPC_RequestBatHitPlayer(int victimViewID)
     {
@@ -773,6 +787,14 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
         var dm = DataManager.Instance;
         if (dm == null) return; // [S8] 씬 전환 경계 stale RPC 방어
+
+        // [CBT-2] 이미 판 밖(초콜릿 탈락/흡수)인 피격자는 때릴 수 없다 — 봇 경로엔 있던 가드가
+        // 플레이어 경로엔 없어, 관전 중인 '시체'를 계속 때려 batHitGrowth를 무한 파밍할 수 있었다.
+        var victimSync = victimPV.GetComponent<NetworkPlayerSync>();
+        if (victimSync != null && victimSync.IsOutOfPlay) return;
+
+        // [CBT-1] 마스터 측 쿨다운 — 스크립트로 RPC를 연사해 무한 성장하는 것을 차단.
+        if (!TryConsumeBatCooldown(dm)) return;
 
         float attackerScale = GetAuthorityScale(photonView);
         float victimScale = GetAuthorityScale(victimPV);
@@ -813,6 +835,9 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 
         var dm = DataManager.Instance;
         if (dm == null) return; // [S8] 씬 전환 경계 stale RPC 방어
+
+        // [CBT-1] 배트 쿨다운은 대상(플레이어/봇) 무관하게 '공격자' 기준 하나 — 여기서도 강제.
+        if (!TryConsumeBatCooldown(dm)) return;
 
         float attackerScale = GetAuthorityScale(photonView);
         float botScale = GetBotAuthorityScale(aiBot);

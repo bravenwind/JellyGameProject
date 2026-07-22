@@ -295,9 +295,21 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         BroadcastPlayerCount();
     }
 
+    /// <summary>
+    /// [FLW-1/P1] 실제 접속 중인 플레이어 수. PlayerTtl>0(재연결 대비) 도입 후 Room.PlayerCount에는
+    /// '끊겨서 자리만 보존된'(IsInactive) 플레이어도 포함되므로, 매칭/봇수 계산은 이 값을 써야 한다.
+    /// 안 그러면 순단 유령이 (a) 인원 미달인데 카운트다운을 시작시키거나 (b) botCount를 적게 계산해
+    /// 빈 슬롯을 남긴다.
+    /// </summary>
+    private static int ActivePlayerCount()
+    {
+        if (PhotonNetwork.CurrentRoom == null) return 0;
+        return PhotonNetwork.PlayerList.Count(p => !p.IsInactive);
+    }
+
     private void BroadcastPlayerCount()
     {
-        int count = PhotonNetwork.CurrentRoom?.PlayerCount ?? 0;
+        int count = ActivePlayerCount();
         PhotonNetwork.RaiseEvent(
             EVENT_PLAYER_COUNT, count,
             new RaiseEventOptions { Receivers = ReceiverGroup.All },
@@ -308,7 +320,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     private void CheckAndStartCountdown()
     {
         if (!PhotonNetwork.IsMasterClient || _isCountingDown) return;
-        if (PhotonNetwork.CurrentRoom.PlayerCount >= minPlayersPerRoom)
+        if (ActivePlayerCount() >= minPlayersPerRoom)
         {
             _isCountingDown = true;
             StartCoroutine(CountdownCoroutine());
@@ -330,7 +342,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // GameModeManager/LoadingSceneController가 각자 책임진다.
         if (SceneManager.GetActiveScene().name != "Main") return;
 
-        if (PhotonNetwork.CurrentRoom.PlayerCount < minPlayersPerRoom)
+        if (ActivePlayerCount() < minPlayersPerRoom)
         {
             if (!PhotonNetwork.CurrentRoom.IsOpen)
             {
@@ -371,8 +383,9 @@ public class NetworkManager : MonoBehaviourPunCallbacks
 
         yield return new WaitForSeconds(1.5f); // 텍스트 보여주는 시간
 
-        // 변경
-        botCount = maxPlayersPerRoom - PhotonNetwork.CurrentRoom.PlayerCount;
+        // [FLW-1] 봇 수 = 최대인원 - '실제 접속 중' 인원. Room.PlayerCount(끊긴 자리 포함)로 계산하면
+        // 매칭 중 순단한 유령 슬롯만큼 봇을 덜 스폰해 사람도 봇도 없는 빈 자리가 그 판 내내 남는다.
+        botCount = maxPlayersPerRoom - ActivePlayerCount();
 
         LoadingSceneController.NextSceneName =
             (GameState.CurrentGameMode == GameModeType.Push)

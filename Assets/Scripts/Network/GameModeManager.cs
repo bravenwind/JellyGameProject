@@ -537,7 +537,11 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             foreach (var bot in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
             {
-                if (bot == null || bot.IsEliminated) continue;
+                // [FLW-2] IsEliminated 단독이 아니라 IsOutOfPlay(=Eliminated||BeingAbsorbed).
+                // DestroyAbsorbedBots가 흡수 봇의 ClearBotProperties로 색 프로퍼티를 방금 지웠는데,
+                // Destroy는 프레임 끝까지 지연되어 이 루프에 그 봇이 아직 잡힌다. IsEliminated만 보면
+                // 흡수 중(=IsBeingAbsorbed) 봇을 통과시켜 방금 지운 Color_* 프로퍼티를 되살린다.
+                if (bot == null || bot.IsOutOfPlay) continue;
                 var aiSync = bot.GetComponent<AIPlayerSync>();
                 if (aiSync == null) continue;
 
