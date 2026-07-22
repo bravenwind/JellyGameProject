@@ -2429,7 +2429,56 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 
 ---
 
-## 적용 상태
+## 2026-07-22 백로그 전수 오탐 검증 (사용자 요청) — 미적용 99건 판정 + 치명도 우선순위
+
+사용자 요청("적용 안 한 리뷰 전체를 면밀히 검토해 오탐 여부 판단, 치명 순 정렬")으로
+미적용 백로그 **99건**(N6·O7·P5·Q7·R9·S9·T7·U7·V9·W10·X12·Y9·G2)을 9개 병렬 검증
+에이전트로 전수 재검증했다. 각 에이전트는 "주장을 적극 반박하라"는 적대적 관점으로 현재
+코드·씬 GUID·프리팹 YAML·git 히스토리·Photon PUN 소스까지 대조했다. Y 시리즈는 도출
+당사자 편향을 배제하기 위해 별도 에이전트가 반박 전담.
+
+> 모델 메모: Fable 5로 시작했으나 사용량 한도로 6개 그룹이 중단돼 Sonnet으로 재실행,
+> 3개 그룹(T/R/Q·S)은 한도 전 완료. 종합·판정 조정은 Fable 5(본 세션)가 수행.
+
+### 판정 요약
+- **완전 오탐 2건**: R9(SpriteRenderer뿐이라 죽은 분기), Y8(NextSceneManager는 빌드 4씬 실부착 — 도출 시 GUID grep head 절단 실수. 대신 Z1 신규 발견으로 반전)
+- **무효화·정리만 2건**: R8/T5(GameTimer 빌드 밖 확정 — 널가드 불필요, Legacy 정리 결정만)
+- **부분정정 ~10건**: O2(봇↔봇 반박·봇→플레이어만 실재), X2(빌드 젤리 전부 Wandering → 잠복 강등), Q5(증상 경로 정정), R5(4원화→실경합 1시나리오), R6(Camera.main은 2020.2+ 캐시), T3(트리거 경로 데드), T7(영구소실 과장→Z2로 정정), W2(부수주장 SceneLoader 반박·핵심 확정), G5(일부 상수화됨), W8(드리프트 정도 과장)
+- **신규 발견 3건**: Z1(커튼 조기파괴 레이스), Z2(_isRebuilding 영구 고착), Z3(데드 이벤트+중복구독)
+- **통합 2건**: G8=X4(동일 라인), N4=U2·N1=U7(동일 코드 중복 항목)
+- **나머지 ~85건 실재 확정** (다수는 낮음/정리성으로 치명도 재조정)
+
+### 치명도 우선순위 (실재 확정분)
+
+**■ 1군 — 치명 (클라 간 상태 분기·게임 진행 불가, 최우선 5건)**
+1. **X1** 초콜릿 봇 탈락 소유권 게이트 부재 → 클라 간 봇 생사 분기 (발현 빈도 최고 — 경계 스침마다)
+2. **P1** 재연결이 룸 미복귀 → 게임 중 일시 끊김 시 **영구 고립** (ReconnectAndRejoin/PlayerTtl 부재 + 마스터 복귀 후 잡는 폴백도 없음을 재확정)
+3. **Y2** 흡수 중 봇이 스코어보드 생존자 집계 + Result 파괴봇 룸프롭 잔존 → 유령 시상대 (검증에서 **강화**: IsEliminated가 흡수 경로에선 아예 안 켜짐 + 흡수 경로에 ClearBotProperties 호출 전무)
+4. **Y1** Absorb 종료가 클라별 로컬 타이머 (검증에서 승격: GameState.Phase가 순수 로컬 static + Absorb엔 종료 RPC 대칭 부재 재확인)
+5. **Y3** RPC_PushModeGameEnd `!_gameRunning` 가드 → 카운트다운 지연 클라 스트랜딩 (마스터의 3초 유예는 타 클라를 보호하지 않음 확인. 빈도 낮음)
+
+**■ 2군 — 높음 (악용 가능·주요 기능 정지 2건)**
+6. **U2(=N4)** 배트 히트 마스터 검증에 거리·호 게이트 부재 — 임의 ViewID 원거리 넉백+공짜 성장
+7. **W1(=V3 뿌리)** DataManager.Awake→GameState.Reset()이 이벤트 4종 말소 → 씬 로드 인터리브에 따라 HUD 영구동결 (+Push 모드 오독 레이스). `ResetValues()` 호출로 교체하는 **한 줄 수정**이 V3까지 동시 해소
+
+**■ 3군 — 중 (실사용 영향·조건부 발현 13건)**
+S1(흡수 거부 봇 영구 재흡수 불가) · S2(보간 스케일로 보상 계산) · S6(흡수/대쉬 RPC 거리 미검증, U2 동족) · U3(플레이어 넉백 RPC 무가드 — 봇과 비대칭) · O2정정판(봇→플레이어 이중 보상) · X3(타일 마모 마스터 로컬 전용, **한 줄 수정**) · X4(=G8, 붕괴 코루틴 무가드 NRE→좀비 타일) · V6(스폰 코루틴 영구 차단+Phase 가드 부재) · W5(HUD 초기 시딩 없음 — 매 판 첫 흡수까지 플레이스홀더, 체감형) · W6(원격 PlayerBridge 전역 오염 — 현재 은폐) · W3(missions[1] 매직 인덱스 — 라이브 코드, 현재 배열 3이라 안전) · T1(Cloth softness 맵 소실 — 프리팹 실측 확정) · T2(Cloth 재빌드 경합)
+
+**■ 4군 — 낮음 (성능·정리·표시·잠재 방어, ~65건)**
+- 성능/GC: O1, U5, S4, S5, Q1, R1, X5
+- 데드코드/고아(설계 결정): U1, S3, V1·V4·V5, W2핵심·W4·W7, X6·X7·X8·X10·X11, T6, Y5·Y9, R8/T5
+- 표시/UX: Q3·Q4·Q6·Q7, N5, P5, W8·W9·W10, Y4·Y6, X9, R3
+- 인코딩(일괄 재작성): N6, R7, U7(=N1), V10일부, X12
+- 잠재 방어/관찰: N2·N3, O3~O7, P2~P4, Q5, R2·R4·R5·R6, T3·T4·T7(→Z2), U4·U6, V2·V8·V9, S7·S8·S10, Y7, G5, Z3
+
+### 권장 적용 묶음 (승인 시)
+- **A. 네트워크 권위 일괄**: X1 + U2/N4 + S6 + U3 (+O2정정판) — "권위 행위엔 소유자/거리 게이트" 한 원칙으로 NetworkPlayerSync·AIPlayerMovement·ChocolateFluid 동시 수술
+- **B. 종료·결과 정합성**: Y2 + Y1 + Y3 (+Y4·Y5 겸사) — GameModeManager/ScoreboardSnapshot/AIPlayerSync
+- **C. 연결 안정성**: P1 — ReconnectAndRejoin+PlayerTtl 설계 결정 필요(재입장 정책)
+- **D. 한 줄/저위험 즉효**: W1(Reset→ResetValues) · X3(dict 기록 1줄) · X4=G8(널 가드) · V6(핸들 진실+Phase 가드) · W5(OnEnable 시딩) · Z1(NextSceneManager 제거)
+- **E. 레거시 대청소(사용자 결정)**: 4군 데드코드+인코딩 일괄
+
+
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
 - [x] F2  (2026-06-04 적용) — NetworkManager 씬 결정을 GameState.CurrentGameMode 기준으로 통일
 - [x] F3  (**사용자** 직접 적용, 2026-06-13 확인) — OnStartButtonClicked 길이 검사가
@@ -2447,7 +2496,7 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
         전환해 붕괴 타일별 머티리얼 인스턴스 복제/배칭 깨짐 제거(FallingTile.cs).
 - [x] G4  (2026-06-17 적용) — OffScreenPlayerIndicator.GetColor 봇 색 조회를 .material→sharedMaterial로
         변경(읽기 전용 인스턴스 복제 제거). 리더보드 GameModeManager.GetBotColor와 동일 패턴으로 정합.
-- [ ] G5  (대기)
+- [ ] G5  (2026-07-22 검증: **부분실재** — ELIMINATED_KEY는 NetworkPlayerSync 안에서만 상수화(4곳), ScoreboardSnapshot:105·GameModeManager:713은 여전히 "Eliminated" 리터럴. "_FresnelColor" 4개 파일 산재, 애니 파라미터 문자열 10곳+ 미상수화. 낮음·정리성)
 - [x] G6  (2026-06-17 적용) — 탈락/흡수 판정을 IsOutOfPlay 단일 헬퍼로 통일:
         AIPlayerMovement.IsOutOfPlay(=IsEliminated||IsBeingAbsorbed), NetworkPlayerSync.IsOutOfPlay
         (=IsAbsorbed || owner "Eliminated" 룸프롭, ELIMINATED_KEY 상수화). 인디케이터(사람/봇)·FallingTile·
@@ -2456,7 +2505,7 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 - [x] G7  (2026-06-17 적용) — TileCollapseManager가 NavCarve_* 오브젝트를 _carveObjects 목록으로 소유,
         RegisterCarveObject/ClearCarveObjects 추가 + OnDestroy에서 명시적 정리. FallingTile.CarveNavMesh가
         생성 즉시 매니저에 등록(FallingTile.cs, TileCollapseManager.cs).
-- [ ] G8  (대기)
+- [x] G8  (2026-07-22 검증: **X4로 통합 종결** — 동일 라인(FallingTile의 무가드 DataManager.Instance, 172→190 라인 드리프트)이 한 번도 수정된 적 없음을 git log --follow로 확인. X4 수정 시 함께 해소)
 - [x] H1  (2026-06-12 적용, 커밋 fbcd419) — GameState.ResetValues에서 이벤트 null 대입 제거,
         정리는 Reset()(SubsystemRegistration)에만 유지. 코드 확인됨(GameState.cs:96-110).
 - [x] H2  (2026-06-12 적용, 커밋 fbcd419) — NetworkManager.OnMasterClientSwitched 추가 →
@@ -2501,7 +2550,7 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 - [ ] N5  (대기 — 2026-06-25 도출, 인스펙터 jumpForce가 Start에서 originalJumpForce로 항상 덮어써짐 — 표시 혼란, 동작 정상)
 - [ ] N6  (대기 — 2026-06-25 도출, 플레이어 FSM 한글 주석 mojibake — M4와 묶어 UTF-8 재작성)
 - [ ] O1  (대기 — 2026-06-27 도출, AIDetector 캐시가 null 결과 미캐싱 → '대상 없음'에서 매 호출 전체 재스캔, **우선 권장**)
-- [ ] O2  (대기 — 2026-06-27 도출, 봇 OnTriggerEnter 흡수 동일프레임 double-eat + 플레이어 검증RPC 경로와 규율 불일치 — L1·N4 묶음, **확인 필요**)
+- [ ] O2  (2026-07-22 검증: **부분정정** — 봇↔봇 double-eat은 오탐(PUN 소스 확인: RpcTarget.All 로컬 실행은 동기 즉시라 같은 프레임 가드 성립). 봇→**플레이어** 경로(AIPlayerMovement:618-629)만 클레임 가드 부재로 두 봇 동시 트리거 시 GrowByAbsorbing 이중 실행 실재(중). 규율 불일치(S7)는 유효)
 - [ ] O3  (대기 — 2026-06-27 도출, 먹이 탐색 로직 이원화 AIDetector↔AIPushSurviveState.FindNearestTarget — 판정 단일 출처화 리팩터링)
 - [ ] O4  (대기 — 2026-06-27 도출, 상태 전이 주체 3원화 StateEvalLoop/Update긴급/상태Update — 동작 정상·설계 관찰)
 - [ ] O5  (대기 — 2026-06-27 도출, 탈락 봇 StateEvalLoop 코루틴 미종료 무한 공회전 — enabled=false는 코루틴 안 멈춤)
@@ -2526,8 +2575,8 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 - [ ] R5  (대기 — 2026-07-04 도출, 카메라 orthographicSize 라이터 4원화: ProcessCameraQueue(큐)/ChangeCameraSizeToLevel(큐 우회)/SetOrthographicSizeDirect/PlayerExternalEventLinker.ChangeCameraOrthoSize — 겹치면 Lerp 경합·비결정. 단일 큐/목표상태로 통일 권장. 아키텍처)
 - [ ] R6  (대기 — 2026-07-04 도출, MainCamera_Action이 Camera.main.orthographicSize를 곳곳 무가드 반복 접근(SetOrthographicSizeDirect만 가드) → 씬 전환 중 코루틴 NRE + 태그 스캔 반복. _cam 캐시+null 가드, **우선 권장**)
 - [ ] R7  (대기 — 2026-07-04 도출, TopDownCameraFollow.cs/GameTimer.cs 한글 주석 mojibake(Header/Tooltip 포함 → 에디터 필드설명 깨짐). M4/N6와 묶어 UTF-8 재작성)
-- [ ] R8  (대기 — 2026-07-04 도출, GameTimer.GameFail 종료경로 전부 무가드+timeScale=0 → 참조 미할당 시 소프트프리즈(K4 연장선). 멀티 씬 사용 여부 확인 후 데드코드 정리 or 널가드, **확인 필요**)
-- [ ] R9  (대기 — 2026-07-04 도출, MinimapArrow.SetColor:41 r.material.color 인스턴스 복제(G3/G4/K1 테마) → MaterialPropertyBlock tint 권장. 화살표 소수라 미미, 죽은 분기 여부 확인 겸)
+- [ ] R8  (2026-07-22 검증: **무효화·정리만** — GameTimer GUID가 빌드 6씬 0건 확정(Game/MaterialTest만). 도달불가 레거시라 널가드 불필요, T5/X6/Y9와 묶어 Legacy 정리 결정만 남음)
+- [x] R9  (2026-07-22 검증: **오탐 종결** — MinimapArrow.prefab 렌더러가 SpriteRenderer 단 1개뿐이라 :40 `is SpriteRenderer → continue`에 항상 걸려 .material 분기가 한 번도 실행 안 되는 죽은 분기. 수정 불필요)
 - [ ] S1  (대기 — 2026-07-07 도출, NetworkPlayerSync.OnTriggerEnter:355 _absorbedBotIds를 MC 검증 *전* 사전 등록 → 크기 동률 등으로 흡수 거부돼도 세트에 남아 그 봇을 영구히 다시 못 먹음. 사전 Add 제거, 확정 등록은 RPC_BotAbsorbConfirmed:509에만. **우선 권장**·버그)
 - [ ] S2  (대기 — 2026-07-07 도출, RPC_GetAbsorbed:539·545가 점수/성장을 피흡수자 *보간 중* transform.localScale.x로 계산 → 권위 Scale 미사용, 클라별 보상 어긋남. GetAuthorityScale(photonView)로 교체(BotAbsorbConfirmed는 이미 권위값 사용). **우선 권장**·버그)
 - [ ] S3  (대기 — 2026-07-07 도출, 플레이어 리스폰 시스템 전체 미배선 — respawnDelay/Respawn()/RPC_OnRespawn 존재하나 Respawn() 호출처 0. _isAbsorbed·_absorbedBotIds 리셋이 한 판 내 절대 실행 안 됨. 리스폰 넣을지/삭제할지 **설계 결정·사용자 확인**. J4/M1 반쪽구현 테마)
@@ -2542,7 +2591,7 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 - [ ] T2  (대기 — 2026-07-09 도출, 연속 스케일 큐에서 이전 ScaleTo의 RequestRebuildCloth 코루틴이 다음 ScaleTo Lerp 도중 Cloth를 재-enable → 찌그러짐 방지 무력화(연속 흡수 시). 재빌드를 ProcessScaleQueue 종료 시 1회로 이동 권장(T1 빈도도 완화). **확인 필요**)
 - [ ] T3  (대기 — 2026-07-09 도출, DisableCloth/RemoveCloth가 진행 중 EnableAndRebuildCloth 코루틴 미취소 → 꺼야 할 때(GameFail 등, yield null은 timeScale=0에도 진행) Cloth가 되살아남. 진입부 StopCoroutine+_isRebuilding=false로 '끄기가 만들기를 이긴다' 불변식 확립. T2 근본)
 - [ ] T4  (대기 — 2026-07-09 도출, Update가 매 프레임 Cloth 파라미터 5종+useGravity=true 무조건 재기록 → ApplyClothSettings의 useGravity=false 죽은 대입+중력정책 모순. 값 변경 시로 제한+정책 단일화, 동작 불변. S5 테마)
-- [ ] T5  (대기 — 2026-07-09 도출, GameTimer.GameFail 종료경로 전부 무가드+timeScale=0 후 소프트프리즈+주석 mojibake — K4/R8 재확인, 젤리 관점 T3와 결합(DisableCloth만·rebuild 취소 없음). 사용 여부 확인 후 데드코드 정리 or 널가드+T3, **확인 필요**)
+- [ ] T5  (2026-07-22 검증: **무효화·정리만** — R8과 동일 종결. GameTimer 빌드 6씬 GUID 0건 확정, 도달불가 레거시. Legacy 정리 결정만 남음)
 - [ ] T6  (대기 — 2026-07-09 도출, JellyMesh_Legacy 4종 중 AddSpringJoint/JellyLine2D/JellyMeshver2 GUID 참조 0, JellyMesh.cs만 3DTestScene(Legacy/Test) 2씬 잔존. 구버전 스프링/2D 젤리 데드코드(M1/J4 테마). 씬 빌드 포함 여부 확인 후 사용자 확인·정리)
 - [ ] T7  (대기 — 2026-07-09 도출, RequestRebuildCloth/EnableAndRebuildCloth가 비활성 시 재빌드 조용히 버림+재시도 경로 없음 → 재활성 시 Cloth 영구 소실. 현재 리스폰 미배선(S3)이라 시나리오 부재·잠재. S3 리스폰과 묶어 OnEnable 재시도 결정, 관찰)
 - [ ] U1  (대기 — 2026-07-11 도출, 대쉬-충돌 서브시스템 완전 고아 — RPC_RequestDashHitPlayer/Bot(NetworkPlayerSync:668/704) 호출자 0 + dashPushForce(DataManager:53) 그 핸들러에서만 읽힘. PlayerDashState는 "순수 이동기" 선언. 대쉬 밀치기 반쪽삭제(M1/S3/J4 테마). 삭제 or 대쉬어택 복구 **설계 결정·사용자 확인**)
@@ -2573,9 +2622,9 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 - [ ] W9  (대기 — 2026-07-16 도출, StageTitleUI 주석 mojibake(ISO-8859 확인, UIManager/GameTimer도)+뒤집힌 "FadeIn/FadeOut" 문자열 API(Fade는 FadeOut=나타남)+uiManager/fadeCanvasGroup 무가드 NRE. 살릴 시 enum FadeDirection 교체+가드+UTF-8, 버릴 시 Legacy. 빌드 밖(W2). M4/N6/R7/U7·V1)
 - [ ] W10 (대기 — 2026-07-16 도출, LevelUI DataManager.Instance 무가드 시딩+min==max 0나눗셈 fillAmount=NaN(ValidateSettings가 min>max만 교정, Q7 미적용 잔여)+needJellyText/currentLevelText 라벨-내용 불일치+CurrentStatusUI만 레거시 Text. range>0 가드+[FormerlySerializedAs] 리네임+TMP 통일. Q7/G8/N5)
 - [ ] X1  (대기 — 2026-07-18 도출·**검증완료·즉시수정후보**, ChocolateFluid 봇 경로(137-176)에 Milk J2식 IsMine 게이트 부재 → 원격 클라도 rb 물리개조+OnEliminated 로컬 실행(비마스터 폴백 657) → 클라 간 봇 생사 분기(유령 탈락봇/EntityRegistry 오염). **블랭킷 return 금물**(부력·물결 연출은 전 클라 정상) → 권위 행위(OnEliminated)만 소유자 게이트로 수술적 수정. **사용자 승인 대기**. J2/G6 테마)
-- [ ] X2  (대기 — 2026-07-18 도출, 초콜릿이 네트워크 젤리를 로컬 SetActive(false)(167/192-205)로 제거 → 마스터 권위 삭제(NetworkJellyManager RPC_DestroyJelly) 우회 → 클라 간 젤리 존재 불일치+비활성 PhotonView 누수. OnTriggerExit(243) damping 하드코딩 0.05 복원(config↔런타임 혼동, Milk J3 대비). 삭제를 NetworkJellyManager 단일경로로+damping 대칭복원. H6/O3/R1/S7 단일출처)
+- [ ] X2  (2026-07-22 검증: **부분정정·잠복 강등** — 빌드 씬/머신 스폰 젤리가 전부 `*_Wandering` 변종(WanderingAI 부착)이라 ChocolateFluid의 isAI 판정에 걸려 로컬 SetActive(false) 분기가 현재 실행 안 됨. 코드 잔존이라 NonAI 젤리 추가 시 즉시 재발하는 잠복 + damping 0.05 하드코딩(:243)은 실재(전 클라 동일이라 desync 아님). 원문의 RPC_DestroyJelly 참조는 S9+V7로 폐기된 구 API — 정리 시 RequestEatJelly 계열 기준으로)
 - [ ] X3  (대기 — 2026-07-18 도출·**검증완료**, TileCollapseManager 마모상태(_tileStepCounts 등)가 마스터 로컬에만 존재. DarkenStepTile(322)이 RPC로 실려온 stepCount를 색 계산에만 쓰고 dict 미기록 → 비마스터 위험판정 불능+마스터 교체 시 마모 전량 리셋(닳은 타일이 새 타일화). **한 줄 수정**: DarkenStepTile에 `_tileStepCounts[tileKey]=stepCount;`. 권위=마스터·근거상태=전 클라 복제 원칙)
-- [ ] X4  (대기 — 2026-07-18 도출·**검증완료**, FallingTile.AwakePhysicsOnTile(190-192) 무가드 DataManager.Instance가 **붕괴 코루틴 한복판** → NRE 시 코루틴 조용히 사망 → 논리상 사라진 타일이 물리적으론 흔들리다 멈춘 채 영구잔존+carve/MarkCellCollapsed 미실행+IsOverVoid 어긋남. 1<<NameToLayer(-1)=1<<31 마스크 오염도. dm null 가드+NameToLayer 음수검사. G8/L2/S8/V10. _lastOverlapResult 죽은 필드)
+- [ ] X4  (대기 — 2026-07-18 도출·**검증완료**, FallingTile.AwakePhysicsOnTile(190-192) 무가드 DataManager.Instance가 **붕괴 코루틴 한복판** → NRE 시 코루틴 조용히 사망 → 논리상 사라진 타일이 물리적으론 흔들리다 멈춘 채 영구잔존+carve/MarkCellCollapsed 미실행+IsOverVoid 어긋남. 1<<NameToLayer(-1)=1<<31 마스크 오염도. dm null 가드+NameToLayer 음수검사. G8/L2/S8/V10. _lastOverlapResult 죽은 필드. **2026-07-22: git log --follow로 G8(06-09)과 동일 라인 미수정 승계 확인 — G8은 X4로 통합 종결, 한 번 수정으로 둘 다 해소**)
 - [ ] X5  (대기 — 2026-07-18 도출, ChocolateFluid debugLogTriggers 기본 true(33) → 빌드에서 트리거마다 문자열 보간(GC)+Debug.Log(153-157). 기본 false+#if UNITY_EDITOR. N1/O7/S10/U7/K3 로그 스파이크 계열, FallingTile G3 누락 경로)
 - [ ] X6  (대기 — 2026-07-18 도출·레거시, ClearJudge 빌드 씬 부재(Legacy/Game/MaterialTest만)+JudgeClear 전체 주석으로 클리어판정 도달불가(98-115)+Update 매 프레임 Debug.Log(91-95)+무가드 싱글톤. Legacy 이동 or 복구/삭제 결단. M1/S3/U1/V1 반쪽구현·N1 로그)
 - [ ] X7  (대기 — 2026-07-18 도출, FixBounds 프로젝트 참조 0건 완전 고아+GetComponent<MeshFilter>().mesh null체크 순서 역전 NRE+.mesh 인스턴스 복제(G3/K1 메쉬판)+bounds 10000 컬링 무력화. 삭제 권장. M1 고아)
@@ -2591,7 +2640,10 @@ LoadResultSceneAfterSync/동기화 토큰/SyncAllColorsForResult/UpdateLeaderboa
 - [ ] Y5  (대기 — 2026-07-21 도출, `GameWin`(433-436) `finalRank` 계산 후 미사용 데드변수(+GetLocalPlayerRank는 닉네임비교 Q4). 삭제 or actorNumber 기반 재작성해 Y6 결과 피드백으로 승격)
 - [ ] Y6  (대기 — 2026-07-21 도출, 결과 씬이 Top3만(GatherTopEntries `.Take(3)` 169)이라 4위 이하/중간탈락자는 결과에서 자기 순위 피드백 전무(인게임 Q3 미표시까지 겹침). "You: N위·M초" 오버레이(actorNumber 식별, 데이터는 룸프롭에 존재). Y5 finalRank 재활용. UX)
 - [ ] Y7  (대기 — 2026-07-21 도출·**검증완료**, 종료용 룸프로퍼티(PushSurvivorActors 729/ResultSyncToken 476/Bot*_*)가 명시 정리 없음 → 콜드스타트 재시작은 새 룸이라 잠복이나 '방 유지 재경기' 추가 시 지난 판 생존자/봇 유입. StartGameInternal 마스터가 키+전 봇 ClearBotProperties 일괄 정리. '쓰기 짝엔 지우기 짝')
-- [ ] Y8  (대기 — 2026-07-21 도출·**검증완료·레거시**, NextSceneManager(guid 6e2cfff…)가 Legacy 씬에만 부착·빌드 6씬 부재 → 결과 커튼 정리 실경로는 LoadingSceneController.ExitRoutine(177-196) 단독. 하드코딩 1.0s Destroy+주석 mojibake(M4). 삭제 or Legacy 격리. M1/X6/X8 동거 테마)
+- [x] Y8  (2026-07-22 검증: **원 판정 오탐 종결·Z1로 대체** — NextSceneManager는 실제로 빌드 4씬(Game_io×2, GameResult×2)의 Canvas에 부착돼 있음(07-21 GUID grep이 head 절단으로 Legacy 매치만 보고 오판). 죽은 코드가 아니라 살아있는 코드였고, 오히려 커튼 조기 파괴 레이스(Z1) 발견으로 이어짐)
+- [ ] Z1  (신규 — 2026-07-22 검증 중 발견·**확인 필요**, NextSceneManager(빌드 4씬 Canvas 실부착)가 씬 로드 1.0s 후 FindAnyObjectByType<LoadingBGSlideAni>의 root를 강제 Destroy — 로컬 캔버스엔 LoadingBGSlideAni가 없어 반드시 DontDestroyOnLoad로 넘어온 LoadingSceneController 커튼을 잡음 → ExitRoutine(minDisplayTime 2s+슬라이드 아웃) 자체 파괴와 **이중 파괴 경쟁**. 타겟 씬 로드가 빠르면 커튼이 슬라이드 없이 1s에 하드컷될 수 있음. 수정 방향: NextSceneManager 제거(정리는 ExitRoutine 단일 출처) or 1.0s 하드코딩 제거)
+- [ ] Z2  (신규 — 2026-07-22 T7 검증 중 발견·잠재, SoftBody3D 재빌드 2프레임 대기 중 SetActive(false)(NetworkPlayerSync:583 사망 경로)로 코루틴이 죽으면 `_isRebuilding=true`가 리셋 라인(:166/:180)에 도달 못 해 **영구 고착** → 이후 모든 RequestRebuildCloth가 :144에서 무한 반환. 현재는 흡수=탈락이라 재활성 경로가 없어 잠복, S3 리스폰 배선 시 실버그화. T7 원문("영구 소실")의 정정판)
+- [ ] Z3  (신규 — 2026-07-22 R 검증 중 발견·정리, 데드 이벤트 2종: PlayerEvents.OnCameraLevelChanged/OnPlayDingEffect는 Invoke 지점 전무(P키 디버그가 PlayDing 유일 트리거 — R3 뒷받침). OnCameraOrthoSizeChanged는 MainCamera_Action:41+PlayerExternalEventLinker:17 중복 구독으로 같은 대입 2회. R3/R5 정리 시 함께)
 - [ ] Y9  (대기 — 2026-07-21 도출·확인필요·레거시, 별점 결과 경로 GameTimer→ResultStarsUI→ClearJudge가 멀티 결과씬(GameResultManager 시상대)과 분리·셋 다 빌드 씬 부재. shipped 흐름에서 별점 UI 전량 데드. 살릴지(오프라인) 버릴지 결단. R8/T5/X6/M1/K3/K4 반쪽구현 한 묶음)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
