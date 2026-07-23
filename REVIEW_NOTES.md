@@ -2633,6 +2633,135 @@ Z4 수정이 사망 후에도 스폰을 재개시켜(그 전엔 Phase=GameOver�
 
 ---
 
+## 2026-07-23 루틴 — 게임 진입/매칭/룸 라이프사이클 **재리뷰** (연결→로비→방→카운트다운→로딩 핸드오프 + 끊김/재연결 복구, AA1~AA6 도출) · **Fable 5 지정(이번에도 미가용)**
+
+리뷰 대상: `NetworkManager`(StartConnect/OnConnectedToMaster/JoinOrCreateRoom/OnJoinedRoom/
+CheckAndStartCountdown/CountdownCoroutine/OnDisconnected/ReconnectCoroutine/OnJoinRoomFailed/
+OnLeftRoom/CancelMatching/GoToMainMenu/PrepareSpawnSlots/SpawnLocalPlayer/SpawnBots),
+`LobbyController`(매칭 UI·이벤트 수신·가짜 카운터·매칭 취소), `LoadingSceneController`(로딩 핸드오프·
+마스터 교체 재트리거), `AutoConnectForTest`(에디터 전용).
+
+이 시퀀스는 06-30 루틴에서 P1~P5로 한 번 리뷰했고, 07-22에 P1(재연결 룸 복귀/PlayerTtl)이 적용됐다.
+이번 재리뷰는 **P1 적용 후 남은 잔여 결함**과 **적용된 코드 자체에 새로 생긴 경합**을 짚는다.
+P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워크 단일출처 부재)·P5(spawnPoints null화)와
+중복되는 관찰은 아래에서 해당 항목을 참조로만 남기고 새 항목으로 다시 세우지 않았다.
+
+> **모델 메모**: 지침상 이번 루틴도 **Fable 5**로 수행 예정이었으나, 07-21 루틴과 동일하게 이 환경에서
+> Fable 5 서브에이전트 실행이 크레딧 문제로 거부되는 상태라 리뷰는 오케스트레이터 모델(Opus)로 수행했다.
+> 네트워크 고위험 항목(AA1·AA3)은 실제 코드 라인·콜백 순서·플래그 흐름을 교차검증했다. 모두 **도출만**
+> 했고 게임 코드는 수정하지 않았다(지침: 사용자 승인 후 적용). Fable 5 크레딧 상태는 사용자 확인 필요.
+
+### [AA1] (네트워크·버그 / 중·확인필요) 일시 끊김이 마스터의 `CountdownCoroutine`를 멈추지 않음 — 좀비 코루틴이 재연결 후 잘못된 `LoadLevel`을 쏨 + 이중 카운트다운
+- 위치: `NetworkManager.cs:359-396`(`CountdownCoroutine`), `:410-441`(`OnDisconnected` — transient 분기 `429-434`가
+  `ReconnectCoroutine`만 시작하고 코루틴 정지·`_isCountingDown` 리셋을 **안 함**), 대비 `:707-733`(`CancelMatching`은
+  `StopAllCoroutines()`로 정지), 마스터 승계 재시작 `:337-357`(`OnMasterClientSwitched`)
+- 원인: 매칭 카운트다운은 **마스터에서만** 도는 코루틴이다. 마스터가 매칭 중(Main 씬) `ClientTimeout` 등
+  일시 끊김을 당하면 `OnDisconnected`의 transient 분기는 `ReconnectCoroutine`만 예약할 뿐, **돌고 있던
+  `CountdownCoroutine`은 그대로 살아 있다**(NetworkManager는 `DontDestroyOnLoad`라 파괴되지 않고, 네트워크
+  끊김은 코루틴을 멈추지 않는다). 동시에 서버는 마스터를 남은 활성 클라로 재지정 → 그 새 마스터의
+  `OnMasterClientSwitched`가 `CheckAndStartCountdown`로 **두 번째 카운트다운**을 처음부터 시작한다.
+- 영향: (1) 구 마스터의 좀비 코루틴이 끊긴 상태로 `RaiseEvent`(무의미) 후 마지막에
+  `PhotonNetwork.LoadLevel(loadingSceneName)`을 호출한다. 이 시점에 `ReconnectAndRejoin`으로 방에
+  **비마스터**로 복귀해 있으면 비마스터가 `LoadLevel`을 부르는 꼴 → PUN이 거부/경고(정의되지 않은 흐름),
+  아직 재연결 전이면 그냥 버려짐. (2) 남은 클라 입장에선 카운트다운 숫자가 리셋되어 3-2-1이 두 번
+  도는 것처럼 보인다(연출 꼬임). 현재는 매칭 단계라 치명적 데드락까진 아니지만, "끊김/승계 시 구 주체의
+  진행 코루틴은 반드시 죽는다"는 불변식이 없다.
+- 제안: 코루틴 핸들을 필드로 잡아(`_countdownCo`) `OnDisconnected` 진입부(특히 Main 씬/카운트다운 중)에서
+  `StopCoroutine(_countdownCo)` + `_isCountingDown=false`로 명시 정지. 재시작은 새 마스터의
+  `OnMasterClientSwitched`(H2 경로)가 이미 책임지므로 구 마스터는 조용히 물러나면 된다. `LoadLevel` 직전에
+  `if (!PhotonNetwork.IsMasterClient || !PhotonNetwork.InRoom) yield break;` 가드를 두면 이중 안전.
+- 학습 포인트: **네트워크 이벤트(끊김·마스터 교체)와 로컬 코루틴 생명주기는 별개다.** Photon이 나를
+  마스터에서 내려도, 내 `StartCoroutine`은 스스로 죽지 않는다. "권위를 잃으면 권위 기반 코루틴도 멈춘다"를
+  코드로 강제하지 않으면 '유령 권위자'가 뒤늦게 명령을 쏜다. S7·V6('코루틴 핸들을 진실로')·H2와 한 테마.
+
+### [AA2] (정직화·데드코드 / 하) `noPlayerConnectTimeSeconds` 직렬화 필드가 선언만 되고 어디서도 안 읽힘
+- 위치: `NetworkManager.cs:61-62`(`[Tooltip("매칭 타이머")] public float noPlayerConnectTimeSeconds = 10.0f;`) —
+  프로젝트 전체 grep 결과 **참조 0건**(이 선언 한 줄뿐)
+- 원인: 예전에 "실플레이어가 N초 안에 안 들어오면 봇으로 채워 강제 시작" 같은 매칭 타임아웃을 의도해
+  만든 필드로 보이나, 지금의 매칭은 `minPlayersPerRoom` 도달 → `matchBufferSeconds` 대기 →
+  카운트다운, 그리고 봇 충원은 카운트다운 종료 시 `botCount = maxPlayersPerRoom - ActivePlayerCount()`로
+  처리된다. 이 필드가 끼어들 자리가 없어졌다.
+- 영향: 인스펙터에서 "매칭 타이머"를 조정해도 아무 동작이 안 바뀐다(거짓 손잡이). 코드를 처음 읽는
+  사람이 "이 값이 매칭 시작 타이밍을 정하나?" 하고 오해한다.
+- 제안: 삭제(가장 정직). 되살릴 계획이면 실제로 `CountdownCoroutine`/`CheckAndStartCountdown`에 배선.
+  P5·N5 '거짓 인스펙터 필드' 테마, M1 반쪽구현 계열. 동작 불변이라 저위험 정리 후보.
+- 학습 포인트: `[SerializeField]`/`public` 필드는 "인터페이스 약속"이다. 읽히지 않는 설정값은 문서화된
+  거짓말이 되어 유지보수자를 오도한다. IDE의 '사용처 찾기(Find Usages)'로 0건이면 지우거나 배선하라.
+
+### [AA3] (네트워크·경합 / 중·확인필요) `OnConnectedToMaster`의 '고립 방지' 복귀가 진행 중인 `ReconnectAndRejoin`을 앞질러 취소할 여지
+- 위치: `NetworkManager.cs:199-220`(`OnConnectedToMaster` — `_wantsToJoin==false` && 현재 씬이 Main/Loading이
+  아니면 `LoadingSceneController.LoadMainViaLoading()`), 트리거 경로 `:443-456`(`ReconnectCoroutine` →
+  `ReconnectAndRejoin()` 실패 시 `ConnectUsingSettings()`)
+- 원인: P1(07-22 적용)에서 "재연결됐지만 룸 복귀 경로가 없으면 메인으로 돌려보내 고립을 막는다"를
+  `OnConnectedToMaster`에 넣었다. 판정 조건이 "`_wantsToJoin`이 false이고 게임/로딩 씬이면 즉시 메인 복귀".
+  그런데 이 콜백은 **마스터 서버에 붙었을 때** 불린다. 표준 PUN2에서 `ReconnectAndRejoin()`은 게임 서버로
+  직접 재접속해 방으로 바로 복귀하므로 `OnConnectedToMaster`를 안 거치는 게 정상이라 현재는 잠복이다.
+  하지만 리전/서버 구성·타이밍에 따라 마스터 서버를 한 번 경유하는 흐름이 되면, `ReconnectAndRejoin`이
+  **성공 직전**인데 `OnConnectedToMaster`가 먼저 발화 → `_wantsToJoin=false`(OnJoinedRoom에서 이미 꺼짐) +
+  게임 씬 → **곧 성공할 재입장을 취소하고 메인으로 튕겨** 버릴 수 있다.
+- 영향: "일시 끊김 후 같은 방 복귀"라는 P1의 본래 목적을 스스로 무너뜨리는 드문 경합. 재현이 환경
+  의존적이라 검증이 어렵고, 안정 네트워크의 핵심 경로라 위험도는 중.
+- 제안: 고립 복귀를 무조건 트리거하지 말고, **재입장 시도가 없음이 확정된 경우로 한정**한다.
+  예: `ReconnectCoroutine`에서 `ReconnectAndRejoin()`이 false를 반환해 `ConnectUsingSettings()` 폴백으로
+  넘어갈 때만 `_isolationFallback=true` 같은 플래그를 세우고, `OnConnectedToMaster`는 그 플래그일 때만
+  메인 복귀. 또는 마스터 서버 도착 후 짧게 유예를 두고 `InRoom`/재입장 진행 여부를 확인 후 복귀.
+- 학습 포인트: **"안전망"이 정상 복구 경로와 경합하면 안 된다.** 고립 방지처럼 방어적으로 넣은 코드도
+  발화 조건이 넓으면 '치료가 병을 만드는' 상황이 된다. 콜백은 여러 흐름(정상 연결·폴백 재연결·재입장
+  경유)에서 공유되므로, "왜 이 콜백에 왔는가"를 플래그로 구분해 의도한 경로에서만 동작시켜야 한다.
+
+### [AA4] (안정성·일관성 / 하) `GoToMainMenu`의 `Disconnect`가 `DisconnectByClientLogic`이 transient가 아님에 암묵 의존 + `CancelMatching`과 비대칭(코루틴 미정지)
+- 위치: `NetworkManager.cs:739-761`(`GoToMainMenu` — `Disconnect()` 호출, `_isCancellingMatch` 미설정,
+  `StopAllCoroutines()` 미호출), 대비 `:707-733`(`CancelMatching` — `_isCancellingMatch=true` + `StopAllCoroutines()`),
+  분류표 `:424-441`(`OnDisconnected`의 `isTransient` 집합)
+- 원인: `GoToMainMenu`는 재시작/메인복귀를 '콜드 스타트'로 통일하려고 `Disconnect()`한다(의도 자체는 좋음,
+  주석 상세). 그 결과 끊김 원인은 `DisconnectByClientLogic`이고, 이건 `isTransient` 집합(ClientTimeout·
+  ServerTimeout·Exception·ExceptionOnConnect)에 없어서 `OnDisconnected`의 else 분기로 가 `LoadMainViaLoading()`.
+  즉 **정상 동작하지만 그 정상성이 "분류표에 이 원인이 빠져 있다"는 사실에 암묵 의존**한다. 또
+  `CancelMatching`은 `StopAllCoroutines()`로 진행 코루틴을 확실히 죽이는데 `GoToMainMenu`는 안 한다.
+- 영향: 훗날 누가 `isTransient`에 `DisconnectByClientLogic`을 추가하면, 메인복귀가 곧바로 재연결 루프로
+  바뀌어 메인으로 못 나간다(잠재 회귀). 현재는 무해. AA1과 묶으면 "끊기 직전 코루틴 정리"가 두 경로에서
+  일관되지 않다는 같은 뿌리.
+- 제안: `GoToMainMenu`도 명시적으로 의도를 표하도록 정리 — 끊기 전에 `_wantsToJoin=false`(이미 함)와 함께
+  진행 코루틴 정지를 한 곳으로 모으고, 메인복귀 의도 플래그(예: `_isReturningToMain`)로 `OnDisconnected`가
+  원인 분류와 무관하게 확정적으로 메인 복귀하게 하면 분류표 변경에 강해진다. 저위험.
+- 학습 포인트: **"지금 맞으니 됐다"와 "왜 맞는지가 국소적으로 보장된다"는 다르다.** 옆 함수(분류표)의
+  현재 내용에 정확성이 걸려 있으면, 그 함수를 고치는 사람은 이 의존을 모른다. 의도(메인복귀·매칭취소)를
+  플래그로 명시하면 원격 결합(coupling)을 끊어 회귀에 강해진다. `CancelMatching`↔`GoToMainMenu` 대칭성도 같은 맥락.
+
+### [AA5] (안정성·일관성 / 하) `LobbyController`가 `NetworkManager.Instance`를 곳에 따라 무가드 역참조 — 널이면 매칭 화면 NRE
+- 위치: `LobbyController.cs:62`(`Start`에서 `NetworkManager.Instance.maxPlayersPerRoom` 무가드),
+  `:406`(`UpdatePlayerCountUI`도 무가드), 대비 `:274`(`NetworkManager.Instance?.StartConnect` — 여긴 `?.` 가드)
+- 원인: 같은 클래스가 어떤 줄은 `?.`로 가드하고 어떤 줄은 직접 역참조한다. `NetworkManager`는
+  `DontDestroyOnLoad` 싱글톤이라 정상 흐름(초기 씬에서 생성)에선 Main 씬 진입 시 항상 존재한다. 하지만
+  Main을 첫 씬으로 단독 실행하거나(에디터에서 Main만 Play), 재연결 실패 후 씬 재구성 등 경계에서
+  `Instance`가 아직/이미 null이면 `Start`가 통째로 NRE로 죽어 매칭 UI 초기화가 멈춘다.
+- 영향: 드문 진입 경로에서 로비 화면이 초기화되지 않아 시작 버튼 흐름이 죽는다(F4의 로비판). 상시 버그는
+  아니고 진입 순서 의존.
+- 제안: `var nm = NetworkManager.Instance; if (nm != null) { ... nm.maxPlayersPerRoom ... }` 또는 `?.`+널기본값.
+  근본적으론 P4('UI와 네트워크 상태 단일 출처 부재')의 하위 증상 — 매칭 상태/최대인원을 UI가 직접
+  싱글톤에서 긁지 말고 이벤트/조회 API로 받는 구조가 이상적.
+- 학습 포인트: **널 가드는 "이 참조가 절대 널이 아니다"를 증명할 수 있을 때만 생략한다.** 같은 파일 안에서
+  가드 유무가 뒤섞이면, 읽는 사람은 "여긴 왜 가드하고 여긴 왜 안 하지?"를 매번 추론해야 한다. 일관성
+  자체가 방어다. F4·W6 널가드 테마.
+
+### [AA6] (UX·시퀀스 / 하) 매칭 중 마스터 승계 시 카운트다운이 `matchBufferSeconds`(6s)+3-2-1을 처음부터 재생
+- 위치: `NetworkManager.cs:337-357`(`OnMasterClientSwitched` → `CheckAndStartCountdown`),
+  `:359-362`(`CountdownCoroutine`가 항상 `WaitForSeconds(matchBufferSeconds)`부터 시작),
+  수신측 `LobbyController.cs:114-133`(`ShowCountdown` — `_countdownStarted`가 true면 완료연출은 생략하나 숫자는 다시 3부터)
+- 원인: H2에서 "마스터가 카운트다운 중 이탈하면 새 마스터가 이어받는다"를 넣었는데, '이어받기'가 아니라
+  '처음부터 다시 시작'이다. 새 마스터는 남은 시간을 모르므로(카운트다운 경과가 마스터 로컬 상태였음)
+  6초 버퍼부터 통째로 재생한다.
+- 영향: 매칭 막바지에 마스터가 빠지면 남은 클라들의 "매칭 완료!/3-2-1"이 멈췄다가 6초 뒤 3부터 다시
+  뜬다 — 다 된 밥에 시간이 되감기는 체감. 기능상 결함은 아니고 연출 일관성/체감 문제.
+- 제안: 카운트다운 경과를 룸 프로퍼티(예: `CountdownEndTime` = 서버시간 기준 종료 시각)로 공유해 승계
+  시 남은 시간만 이어가게 하면 되감김이 사라진다. Y1의 '서버권위 클럭' 발상과 동형(표시는 로컬,
+  기준 시각은 룸 권위). 저위험·연출 개선.
+- 학습 포인트: **로컬 코루틴에만 담긴 '진행 상태'는 그 코루틴이 죽으면 함께 증발한다.** 이어받아야 하는
+  진행도(카운트다운 잔여·타이머)는 승계자가 읽을 수 있는 공유 권위값(룸 프로퍼티/서버 시각)에 둬야
+  '재시작'이 아닌 '이어받기'가 된다. AA1(코루틴 생명주기)·Y1(서버 클럭)과 한 묶음.
+
+---
+
 ## 적용 상태
 
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
@@ -2801,6 +2930,13 @@ Z4 수정이 사망 후에도 스폰을 재개시켜(그 전엔 Phase=GameOver�
 - [ ] Z2  (신규 — 2026-07-22 T7 검증 중 발견·잠재, SoftBody3D 재빌드 2프레임 대기 중 SetActive(false)(NetworkPlayerSync:583 사망 경로)로 코루틴이 죽으면 `_isRebuilding=true`가 리셋 라인(:166/:180)에 도달 못 해 **영구 고착** → 이후 모든 RequestRebuildCloth가 :144에서 무한 반환. 현재는 흡수=탈락이라 재활성 경로가 없어 잠복, S3 리스폰 배선 시 실버그화. T7 원문("영구 소실")의 정정판)
 - [ ] Z3  (신규 — 2026-07-22 R 검증 중 발견·정리, 데드 이벤트 2종: PlayerEvents.OnCameraLevelChanged/OnPlayDingEffect는 Invoke 지점 전무(P키 디버그가 PlayDing 유일 트리거 — R3 뒷받침). OnCameraOrthoSizeChanged는 MainCamera_Action:41+PlayerExternalEventLinker:17 중복 구독으로 같은 대입 2회. R3/R5 정리 시 함께) **→ 2026-07-22 부분적용**(중복 구독 제거 적용, 데드 이벤트 선언 정리는 보류)
 - [ ] Y9  (대기 — 2026-07-21 도출·확인필요·레거시, 별점 결과 경로 GameTimer→ResultStarsUI→ClearJudge가 멀티 결과씬(GameResultManager 시상대)과 분리·셋 다 빌드 씬 부재. shipped 흐름에서 별점 UI 전량 데드. 살릴지(오프라인) 버릴지 결단. R8/T5/X6/M1/K3/K4 반쪽구현 한 묶음)
+
+- [ ] AA1 (신규 — 2026-07-23 도출·확인필요, 일시 끊김이 마스터 `CountdownCoroutine`를 안 멈춤 → 좀비 코루틴이 재연결 후 비마스터로서 `LoadLevel` 스팸 + 새 마스터의 재시작과 이중 카운트다운. 코루틴 핸들 필드화+`OnDisconnected`에서 `StopCoroutine`+`_isCountingDown=false`, `LoadLevel` 직전 마스터/InRoom 가드. S7/V6/H2 '코루틴 핸들을 진실로' 테마. **중·우선 권장**)
+- [ ] AA2 (신규 — 2026-07-23 도출, `NetworkManager.noPlayerConnectTimeSeconds`(:62) 참조 0건 거짓 인스펙터 필드 — 매칭 타임아웃 구설계 잔존. 삭제 or 배선. P5/N5 '거짓 필드'·M1 반쪽구현. 동작 불변 저위험 정리)
+- [ ] AA3 (신규 — 2026-07-23 도출·확인필요, P1(07-22 적용) 고립복귀가 `OnConnectedToMaster`(:210-219)에서 발화조건 넓음(`_wantsToJoin==false`+게임씬) → 마스터 서버 경유형 `ReconnectAndRejoin` 성공 직전을 앞질러 메인으로 튕길 여지. 표준 PUN2는 게임서버 직접복귀라 잠복이나 환경의존. 폴백 확정 플래그로 한정. **중**·네트워크 핵심경로)
+- [ ] AA4 (신규 — 2026-07-23 도출, `GoToMainMenu`(:739-761) `Disconnect`가 `DisconnectByClientLogic`∉transient에 암묵 의존 + `CancelMatching`과 달리 `StopAllCoroutines` 미호출(비대칭). 메인복귀 의도 플래그로 분류표 변경에 강건화. AA1과 동근. 저위험)
+- [ ] AA5 (신규 — 2026-07-23 도출, `LobbyController`가 `NetworkManager.Instance`를 `Start:62`/`UpdatePlayerCountUI:406`에서 무가드 역참조(대비 `:274`는 `?.`) → 진입순서 경계서 NRE로 로비 초기화 사망. 널가드 일관화. P4 하위증상·F4/W6 널가드 테마. 저위험)
+- [ ] AA6 (신규 — 2026-07-23 도출, 매칭 중 마스터 승계 시 카운트다운이 `matchBufferSeconds`(6s)+3-2-1을 처음부터 재생(H2가 '이어받기' 아닌 '재시작'). 룸프로퍼티 `CountdownEndTime`(서버시각) 공유로 잔여시간 이어가기. Y1 서버클럭 동형. 연출 개선·저위험)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
