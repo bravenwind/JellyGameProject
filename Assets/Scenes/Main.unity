@@ -3588,6 +3588,7 @@ MonoBehaviour:
   phase1EndScaleMul: 1
   phase1Ease: 9
   phase2Duration: 2
+  phase2ShakeDuration: 0.6
   shakeStrength: {x: 0.1, y: 0.1, z: 0}
   shakeVibrato: 5
   shakeRandomness: 30
@@ -7048,7 +7049,7 @@ MonoBehaviour:
   botPrefabName: AIPlayer_Bear
   botCount: 10
   prefabFolder: Prefabs/
-  minPlayersPerRoom: 2
+  minPlayersPerRoom: 1
   matchBufferSeconds: 6
   maxPlayersPerRoom: 10
   noPlayerConnectTimeSeconds: 10
@@ -9770,7 +9771,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.392}
+  m_Color: {r: 1, g: 1, b: 1, a: 0}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1

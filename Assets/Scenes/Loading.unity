@@ -794,6 +794,7 @@ MonoBehaviour:
   phase1EndScaleMul: 1
   phase1Ease: 9
   phase2Duration: 2
+  phase2ShakeDuration: 0.6
   shakeStrength: {x: 0.1, y: 0.1, z: 0}
   shakeVibrato: 5
   shakeRandomness: 30
@@ -901,12 +902,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 590189160}
-  leftPos: {x: -1200, y: 0}
+  leftPos: {x: -3400, y: 0}
   centerPos: {x: 0, y: 0}
-  rightPos: {x: 1200, y: 0}
-  inDuration: 0.35
-  holdSeconds: 5
-  outDuration: 0.35
+  rightPos: {x: 3400, y: 0}
+  inDuration: 0.5
+  holdSeconds: 2
+  outDuration: 0.5
   inEase: 9
   outEase: 8
   ignoreTimeScale: 1
@@ -2001,7 +2002,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1230933019
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2077,9 +2078,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   target: {fileID: 1230933021}
-  leftPos: {x: -1200, y: 0}
+  leftPos: {x: -3400, y: 0}
   centerPos: {x: 0, y: 0}
-  rightPos: {x: 1200, y: 0}
+  rightPos: {x: 3400, y: 0}
   inDuration: 0.35
   holdSeconds: 5
   outDuration: 0.35
