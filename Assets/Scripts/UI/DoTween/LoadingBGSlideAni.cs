@@ -41,6 +41,7 @@ public class LoadingBGSlideAni : MonoBehaviour
     private Action _onSlideInStarted; // 왼->센터 이동이 '끝난'(등장 완료) 순간. 완전판에서 씬 로드 트리거에 쓴다.
     private Action _onExitStarted;
     private Action _onExited;
+    private float _slideInDelay;      // 왼->센터 시작 '전' 유예(초). 인스턴스화/씬 히칭이 지나간 뒤 슬라이드인 시작.
     private bool _forceExit; // 외부에서 최소 대기를 건너뛰고 즉시 나가라는 요청(하위호환)
 
     private Coroutine _routine;
@@ -71,12 +72,13 @@ public class LoadingBGSlideAni : MonoBehaviour
     /// isNextSceneReady()가 true가 되고 holdSeconds가 지나야 센터->오른쪽으로 나간다.
     /// </summary>
     public void SetExitCondition(Func<bool> isNextSceneReady, Action onExitStarted = null, Action onExited = null,
-                                 Action onSlideInDone = null)
+                                 Action onSlideInDone = null, float slideInDelay = 0f)
     {
         _isNextSceneReady = isNextSceneReady;
         _onExitStarted = onExitStarted;
         _onExited = onExited;
         _onSlideInStarted = onSlideInDone;
+        _slideInDelay = slideInDelay;
     }
 
     public void Play()
@@ -93,6 +95,16 @@ public class LoadingBGSlideAni : MonoBehaviour
     {
         // 시작 위치
         target.anchoredPosition = leftPos;
+
+        // [끊김 회피] 슬라이드인 시작 '전' 유예. 커튼 인스턴스화/씬 히칭이 지나가길 기다렸다가 등장한다.
+        // 이 동안 커튼은 leftPos(화면 밖)라, 완전판(출발 씬 스폰)에선 출발 씬이 그대로 보인다(검은 화면 없음).
+        // 유예 0(기존 born-in-Loading 경로)에선 즉시 등장 → 검은 프레임 없음.
+        float pre = 0f;
+        while (pre < _slideInDelay)
+        {
+            pre += ignoreTimeScale ? Time.unscaledDeltaTime : Time.deltaTime;
+            yield return null;
+        }
 
         // 1) 왼 -> 센터 (등장)
         yield return MoveTo(centerPos, inDuration, inEase);

@@ -18,6 +18,11 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
              "그 끊김과 겹치지 않고 매끄럽게 나가게 한다.")]
     [SerializeField] private float settleAfterLoad = 0.35f;
 
+    [Tooltip("완전판(출발 씬 스폰)에서 슬라이드인(왼→센터)을 시작하기 '전' 유예. 커튼 프리팹 인스턴스화로 " +
+             "프레임이 튀는 구간을 넘긴 뒤 등장시켜, 슬라이드인이 그 히칭과 겹치지 않게 한다. 유예 중엔 커튼이 " +
+             "화면 밖(leftPos)이라 출발 씬이 그대로 보인다(검은 화면 없음).")]
+    [SerializeField] private float departureSlideInDelay = 0.15f;
+
     // [통합] 예전엔 '최소 표시시간'을 컨트롤러의 minDisplayTime과 커튼 애니의 holdSeconds 두 곳에서
     // 따로 관리했다. 이제는 **활성 패널(toGamePanel/toMainOrResultPanel)의 LoadingBGSlideAni.holdSeconds**
     // 하나로 통일한다 — 이 값이 (a)커튼 최소 표시시간이자 (b)게임/로컬 전환에서 다음 씬 로드를 미루는
@@ -110,13 +115,11 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         AllClientsLoad = false;
         LocalLoad = false;
 
-        ApplyTransitionPanels();
-        ApplyModeTipPanels();
+        // [중요] 커튼 애니 설정은 패널을 '활성화하기 전에' 끝낸다. 패널을 SetActive하면 애니 OnEnable→Play가
+        // 즉시 돌며 슬라이드인 유예(_slideInDelay)를 읽으므로, 그 전에 값이 주입돼 있어야 유예가 적용된다.
+        ResolveActivePanel();
 
-        // 커튼 애니(LoadingBGSlideAni)에게 "언제 나갈지"를 위임한다.
-        //   나가는 조건 = (holdSeconds 최소 표시시간 경과) && (다음 씬 준비 완료 = _targetSceneLoaded)
-        // 애니가 왼->센터 등장 후 위 조건이 될 때까지 센터에서 대기하다가 센터->오른쪽으로 나간다.
-        // ApplyTransitionPanels가 활성화한 패널의 애니를 잡는다(비활성 포함 탐색). 없으면 인스펙터 bgSlide.
+        // 활성화할 패널 안의 애니를 (비활성 포함) 미리 잡는다. 없으면 인스펙터 bgSlide.
         _slide = (_activePanel != null) ? _activePanel.GetComponentInChildren<LoadingBGSlideAni>(true) : null;
         if (_slide == null) _slide = bgSlide;
         if (_slide != null)
@@ -126,9 +129,15 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
                 onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
                 onExited: OnCurtainExited,           // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
                 // 완전판: 출발 씬 위에서 슬라이드인이 끝난 순간에 비로소 도착 씬을 로드한다(로드-애니 분리).
-                onSlideInDone: _departureIntro ? OnDepartureSlideInDone : (System.Action)null
+                onSlideInDone: _departureIntro ? OnDepartureSlideInDone : (System.Action)null,
+                // 완전판에서만 슬라이드인 유예 적용(인스턴스화 히칭 회피). 기존 경로는 0(검은 프레임 없음).
+                slideInDelay: _departureIntro ? departureSlideInDelay : 0f
             );
         }
+
+        // 이제 패널을 실제로 켠다 → 애니 OnEnable→Play가 위에서 주입한 설정(유예 포함)으로 재생된다.
+        ActivateTransitionPanels();
+        ApplyModeTipPanels();
     }
 
     // 커튼이 센터->오른쪽으로 나가기 '시작'할 때(=화면이 드러나기 시작). 결과 씬 시퀀스는 이때부터 진행된다.
@@ -200,7 +209,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     //   • 그 외(결과 씬·메인 복귀 등)     → 게임에서 빠져나옴 → toMainOrResultPanel (슬라이드+페이드)
     // 각 패널의 애니메이션(LoadingBGSlideAni / LoadingCenterMultiAni)은 패널이 켜질 때
     // 자기 OnEnable에서 스스로 재생되므로, 여기서는 올바른 패널을 SetActive만 하면 된다.
-    private void ApplyTransitionPanels()
+    // 어떤 패널을 쓸지 결정만 한다(활성화는 하지 않음 — 애니 설정을 먼저 끝내기 위해 분리).
+    private void ResolveActivePanel()
     {
         bool enteringGame =
             _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
@@ -208,9 +218,13 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
         _enteringGame = enteringGame;
         _activePanel = enteringGame ? toGamePanel : toMainOrResultPanel;
+    }
 
-        if (toGamePanel != null) toGamePanel.SetActive(enteringGame);
-        if (toMainOrResultPanel != null) toMainOrResultPanel.SetActive(!enteringGame);
+    // 결정된 패널을 실제로 켠다(SetActive) → 이때 애니 OnEnable→Play가 재생된다.
+    private void ActivateTransitionPanels()
+    {
+        if (toGamePanel != null) toGamePanel.SetActive(_enteringGame);
+        if (toMainOrResultPanel != null) toMainOrResultPanel.SetActive(!_enteringGame);
     }
 
     // 게임 씬으로 입장하는 로딩일 때만 모드별 조작 팁을 띄운다.
