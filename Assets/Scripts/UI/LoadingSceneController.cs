@@ -8,9 +8,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Header("애니메이션")]
     [SerializeField] private LoadingBGSlideAni bgSlide;
 
-    [Header("설정")]
-    [Tooltip("로딩 화면이 최소한 보여지는 시간 (너무 빨리 사라지는 것 방지)")]
-    [SerializeField] private float minDisplayTime = 2f;
+    // [통합] 예전엔 '최소 표시시간'을 컨트롤러의 minDisplayTime과 커튼 애니의 holdSeconds 두 곳에서
+    // 따로 관리했다. 이제는 **활성 패널(toGamePanel/toMainOrResultPanel)의 LoadingBGSlideAni.holdSeconds**
+    // 하나로 통일한다 — 이 값이 (a)커튼 최소 표시시간이자 (b)게임/로컬 전환에서 다음 씬 로드를 미루는
+    // 기준(loadAfter)이다. 패널마다 holdSeconds가 달라도 전환에 맞는 값이 자동으로 쓰인다.
+    // 커튼 애니가 아예 없는 예외 경우에만 아래 FALLBACK_HOLD_SECONDS를 쓴다.
+    private const float FALLBACK_HOLD_SECONDS = 2f;
 
     [Header("모드별 조작 팁")]
     [Tooltip("Push 모드로 입장할 때 활성화할 키 설명 패널")]
@@ -187,22 +190,20 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // 게임 씬(메인→인게임): 마스터만 LoadLevel, 나머지는 AutomaticallySyncScene으로 자동 이동
         // 결과 씬(인게임→결과): 모든 클라이언트가 각자 LoadLevel (마스터 탈락 데드락 방지)
         //
-        // [중요] 네트워크 결과 전환(_allClientsLoad)만 로드를 미루지 않고 '즉시' 시작한다.
+        // [중요] 네트워크 결과 전환(_allClientsLoad)만 로드를 미루지 않고 '즉시' 시작한다(loadAfter=0).
         // 그래야 결과 씬이 로딩 커튼 뒤에서 미리 준비(Start/포디움 스폰)돼, 커튼이 사라질 때 곧바로
-        // 보인다. 미루면 결과 씬 로드가 LoadingCenterMultiAni의 고정 fade-out보다 늦어질 때(특히 사망
-        // 비마스터 클라의 지연 로드) 커튼은 사라졌는데 결과는 아직 안 떠 '유니티 기본 빈 배경(회색)'이
-        // 보인다.
+        // 보인다(결과 카메라 시퀀스는 IsPresenting 신호로 커튼이 걷힌 뒤에 시작 — AB2).
         //
-        // 반대로 로컬 로드(_localLoad, 메인 복귀)는 minDisplayTime까지 '미뤄야' 한다. LoadLevel(비동기)과
-        // 달리 SceneManager.LoadScene은 동기라 호출 즉시(=loadAfter=0이면 1프레임 만에) 씬이 교체되고,
-        // Main 씬의 UI가 곧바로 커튼 위로 그려져 커튼이 '잠깐 번쩍'하고 사라진 것처럼 보인다(사용자 제보).
-        // 게임 입장(카운트다운) 전환도 기존대로 minDisplayTime 뒤 로드한다 — 일찍 로드하면 3-2-1
-        // 카운트다운이 커튼 뒤에서 시작돼 일부를 놓치기 때문.
+        // 반대로 게임 입장/로컬 메인복귀는 로드를 '미뤄야' 한다.
+        //   • 게임 입장: 일찍 로드하면 게임 씬의 3-2-1 카운트다운(StartCountdownRoutine)이 커튼 뒤에서
+        //     시작돼 일부를 놓친다. 그래서 커튼 표시시간이 끝날 무렵에 로드한다.
+        //   • 로컬 메인복귀: SceneManager.LoadScene은 동기라 즉시(=loadAfter=0) 씬이 교체되고 Main UI가
+        //     커튼 위로 바로 그려져 '번쩍'한다(사용자 제보). 그래서 표시시간이 지난 뒤 로드한다.
         //
-        // ※ minDisplayTime은 여기서 '언제 로드를 트리거할지'만 정한다. '커튼이 언제 나갈지'는
-        //   커튼 애니(LoadingBGSlideAni)가 holdSeconds(최소 표시시간) && _targetSceneLoaded(씬 준비)로
-        //   스스로 판단한다(Awake의 SetExitCondition). 즉 실제 표시시간의 하한은 애니의 holdSeconds다.
-        float loadAfter = (_enteringGame || _localLoad) ? minDisplayTime : 0f;
+        // ※ [통합] 미루는 기준을 '활성 패널 커튼의 holdSeconds'로 통일했다(옛 minDisplayTime 폐지).
+        //   같은 holdSeconds가 (a)커튼 최소 표시시간이자 (b)로드 지연 기준이라, 값이 전환마다 딱 하나다.
+        //   커튼이 언제 나갈지는 여전히 애니가 holdSeconds && _targetSceneLoaded(씬 준비)로 스스로 판단.
+        float loadAfter = (_enteringGame || _localLoad) ? ActiveHoldSeconds() : 0f;
         if (!_nextSceneTriggered && _elapsed >= loadAfter)
         {
             _nextSceneTriggered = true;
@@ -213,13 +214,17 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         }
 
         // 커튼 애니가 있으면 나가는 타이밍은 그 애니가 스스로 판단한다(holdSeconds && 씬 준비).
-        // 애니가 없는 예외적 경우에만 컨트롤러가 minDisplayTime 기준으로 직접 정리한다(폴백).
-        if (_slide == null && _targetSceneLoaded && _elapsed >= minDisplayTime)
+        // 애니가 없는 예외적 경우에만 컨트롤러가 직접 정리한다(폴백, FALLBACK_HOLD_SECONDS 기준).
+        if (_slide == null && _targetSceneLoaded && _elapsed >= FALLBACK_HOLD_SECONDS)
         {
             _exiting = true;
             StartCoroutine(ExitRoutine());
         }
     }
+
+    // '최소 표시시간 = 로드 지연 기준'의 단일 출처: 활성 커튼 애니의 holdSeconds.
+    // 커튼 애니가 없으면(예외) 상수 폴백을 쓴다.
+    private float ActiveHoldSeconds() => _slide != null ? _slide.holdSeconds : FALLBACK_HOLD_SECONDS;
 
     private IEnumerator ExitRoutine()
     {

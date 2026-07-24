@@ -2827,8 +2827,32 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
   씬 준비가 `holdSeconds`보다 늦어지는 드문 경우 센터 로고만 먼저 사라질 수 있다(BG 커튼은 유지되어 씬은
   안 보이므로 회색 배경은 아님). 필요 시 MultiAni도 동일하게 준비신호까지 대기시키는 후속 정리 여지.
 
-> ※ 세 수정 모두 씬 전환 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
-> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2/AB3는 신호·조건 기반이라 회귀 위험 낮음.
+### [AB4] (UI·씬전환 / 구조개선·사용자 요청) `minDisplayTime`(컨트롤러) ↔ `holdSeconds`(패널) 이중 관리 통합 → 활성 패널 `holdSeconds` 단일 출처
+- 위치: `LoadingSceneController.cs`(`minDisplayTime` 필드 삭제 → `ActiveHoldSeconds()`/`FALLBACK_HOLD_SECONDS`)
+- 질문/요청: "minDisplayTime과 holdSeconds가 뭐가 다르냐? 로딩 씬엔 메인→게임 / 게임→메인 두 애니가 있고
+  각각 holdSeconds가 다른데, minDisplayTime과 holdSeconds를 아예 통합하는 게 나을 것 같다."
+- 통합 전 역할 구분:
+  - `minDisplayTime`(컨트롤러, 1개): `loadAfter` — **언제 다음 씬 로드를 트리거**할지(게임/로컬은 미루고, 네트워크 결과는 즉시).
+  - `holdSeconds`(패널 `LoadingBGSlideAni`마다): **커튼 최소 표시시간**(AB3에서 '나가는 하한'으로 확정).
+  - 문제: 사실상 같은 "로딩 표시시간"인데 두 값으로 쪼개져 혼란 + 패널마다 다른 holdSeconds를 `loadAfter`가 못 반영.
+- 제약 확인: 게임 씬은 **자체 3-2-1 카운트다운(`GameModeManager.StartCountdownRoutine`)** 이 있어 커튼 뒤
+  조기 로드가 곤란(카운트다운이 `_gameRunning`/`Phase`/`GameStartTime`까지 좌우 — 멀티 핵심). 그래서 결과 씬처럼
+  '즉시 로드 + 신호로 연출 지연'이 아니라 **'로드를 미루는'** 방식을 게임 입장에는 유지해야 한다.
+- 수정: `minDisplayTime` 삭제. `loadAfter = (_enteringGame || _localLoad) ? ActiveHoldSeconds() : 0f`로 바꿔
+  **미루는 기준을 활성 패널 커튼의 `holdSeconds`에서 파생**. 이제 한 전환에서 (a)커튼 최소 표시시간과
+  (b)로드 지연 기준이 같은 값(그 패널의 holdSeconds) 하나다. 메인→게임/게임→메인이 각자 패널 holdSeconds를
+  자동 사용. 커튼 애니가 없는 예외 경우만 상수 `FALLBACK_HOLD_SECONDS`(2s) 사용.
+- 학습 포인트: **"의미가 같은 값은 하나로."** minDisplayTime과 holdSeconds는 표현만 달랐지 둘 다 "로딩을 얼마나
+  보여줄까"였다. 하나(패널 holdSeconds)로 모으면 튜닝 지점이 명확해지고, 패널별로 다른 값도 자연히 반영된다.
+  단, 통합 전 각 값이 '무엇을 게이트하는지'(로드 트리거 vs 커튼 퇴장)를 먼저 분리해 이해해야 안전하게 합쳐진다.
+- 후속 여지(선택): 더 이상적으로는 게임 씬도 즉시 로드(오버랩) + 카운트다운을 `IsPresenting` 신호로 지연하면
+  로드시간까지 커튼 뒤로 숨길 수 있으나, 카운트다운이 멀티 시작 로직(GameStartTime 등)과 얽혀 위험이 커
+  이번엔 '로드 지연' 방식을 유지했다(AB2 결과 씬 패턴의 게임 씬 확장은 별도 검토).
+
+> ※ 네 수정(AB1~AB4) 모두 씬 전환 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2/AB3/AB4는 신호·조건·단일출처 기반이라 회귀 위험 낮음.
+> ※ 인스펙터 조치: `LoadingSceneController`의 minDisplayTime 필드가 사라졌으니, 표시시간은 각 로딩 패널
+>   `LoadingBGSlideAni.holdSeconds`(메인→게임 / 게임→메인 각각)에서 조정한다.
 
 ---
 
