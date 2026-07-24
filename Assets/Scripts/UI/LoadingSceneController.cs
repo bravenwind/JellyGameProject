@@ -70,6 +70,15 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private LoadingBGSlideAni _slide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
     private float _targetLoadedElapsed = -1f; // 도착 씬이 로드된 시점의 _elapsed(정착 대기 계산용)
 
+    // ── 완전판(출발 씬 슬라이드인) ───────────────────────────────
+    // Resources에 이 이름의 커튼 프리팹이 있으면, '출발 씬'에서 커튼을 미리 띄워 왼->센터 슬라이드인을
+    // 재생한 뒤(끊김 없는 등장) 도착 씬을 로드한다. 프리팹이 없으면 기존 방식(Loading 씬에서 커튼 생성)으로 폴백.
+    // 프리팹 만드는 법: Loading 씬의 'Canvas' 오브젝트(LoadingSceneController+두 패널 포함)를
+    //   Assets/Resources/ 로 드래그해 'LoadingCurtain.prefab'으로 저장.
+    private const string CURTAIN_RESOURCE_PATH = "LoadingCurtain";
+    private static bool _pendingDepartureIntro; // 다음 Instantiate가 '출발 씬 슬라이드인' 모드임을 알리는 플래그
+    private bool _departureIntro;                // 이 인스턴스가 출발 씬에서 미리 떠 슬라이드인부터 하는지
+
     private void Awake()
     {
         if (_instance != null)
@@ -78,6 +87,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
             return;
         }
         _instance = this;
+        _departureIntro = _pendingDepartureIntro; // 출발 씬에서 미리 띄워진 커튼인지
+        _pendingDepartureIntro = false;
         DontDestroyOnLoad(gameObject);
         IsPresenting = true; // 커튼이 뜨는 순간부터 걷힐 때까지 유지
         BringLoadingCanvasToFront(); // 다음 씬 UI에 가려지지 않도록 최상단 정렬
@@ -113,7 +124,9 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
             _slide.SetExitCondition(
                 isNextSceneReady: IsTargetSettled,   // 도착 씬 로드 + 정착 대기까지 끝나야 나간다(끊김 회피)
                 onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
-                onExited: OnCurtainExited            // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
+                onExited: OnCurtainExited,           // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
+                // 완전판: 출발 씬 위에서 슬라이드인이 끝난 순간에 비로소 도착 씬을 로드한다(로드-애니 분리).
+                onSlideInDone: _departureIntro ? OnDepartureSlideInDone : (System.Action)null
             );
         }
     }
@@ -129,6 +142,20 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private void OnCurtainExited()
     {
         Destroy(gameObject);
+    }
+
+    // [완전판] 출발 씬 위에서 슬라이드인(왼->센터)이 끝난 순간 호출.
+    // 이제 비로소 도착 씬을 로드한다 → 슬라이드인은 로드와 겹치지 않았고, 무거운 씬 언로드/로드는
+    // '센터에 정지한 커튼' 뒤에서 진행돼 가려진다. 로컬 복귀는 중간 Loading 씬 없이 도착 씬을 바로 로드한다
+    // (상주 커튼 자체가 로딩 화면 역할). 이후 정착 대기 → 슬라이드아웃(도착 씬 위, 매끄럽게)은 기존과 동일.
+    private void OnDepartureSlideInDone()
+    {
+        if (_nextSceneTriggered) return;
+        _nextSceneTriggered = true;
+        if (_localLoad)
+            SceneManager.LoadScene(_targetScene);
+        else if (_allClientsLoad || PhotonNetwork.IsMasterClient)
+            PhotonNetwork.LoadLevel(_targetScene);
     }
 
     /// <summary>
@@ -147,7 +174,25 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
         NextSceneName = "Main";
         LocalLoad = true;
+
+        // [완전판] 출발 씬(게임/결과)에서 커튼을 미리 띄워 왼->센터 슬라이드인을 재생한 뒤 Main을 로드한다.
+        // 커튼이 센터에 정지한 채로 무거운 게임 씬 언로드가 지나가므로 슬라이드인이 끊기지 않는다.
+        if (TryBeginDepartureIntro())
+            return;
+
+        // 폴백: 커튼 프리팹(Resources/LoadingCurtain)이 없으면 기존 방식(Loading 씬에서 커튼 생성).
         SceneManager.LoadScene("Loading");
+    }
+
+    // Resources의 커튼 프리팹을 '출발 씬'에 띄워 슬라이드인부터 시작한다. 성공 시 true, 프리팹 없으면 false(폴백).
+    private static bool TryBeginDepartureIntro()
+    {
+        if (_instance != null) return false;                  // 이미 커튼이 떠 있으면 중복 방지 → 폴백
+        var prefab = Resources.Load<GameObject>(CURTAIN_RESOURCE_PATH);
+        if (prefab == null) return false;                     // 프리팹 미설정 → 폴백
+        _pendingDepartureIntro = true;
+        Instantiate(prefab);                                  // Awake가 departure-intro로 셋업 + 슬라이드인 시작
+        return true;
     }
 
     // 전환 방향에 맞는 로딩 패널을 켠다(로딩 씬은 하나로 유지하고 패널만 바꿔 끼우는 방식).
@@ -221,8 +266,10 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // ※ [통합] 미루는 기준을 '활성 패널 커튼의 holdSeconds'로 통일했다(옛 minDisplayTime 폐지).
         //   같은 holdSeconds가 (a)커튼 최소 표시시간이자 (b)로드 지연 기준이라, 값이 전환마다 딱 하나다.
         //   커튼이 언제 나갈지는 여전히 애니가 holdSeconds && _targetSceneLoaded(씬 준비)로 스스로 판단.
+        // [완전판] 출발 씬 슬라이드인 모드에선 로드 트리거를 타이머가 아니라 '슬라이드인 완료 콜백'
+        // (OnDepartureSlideInDone)이 담당하므로, 여기 타이머 기반 로드는 건너뛴다.
         float loadAfter = (_enteringGame || _localLoad) ? ActiveHoldSeconds() : 0f;
-        if (!_nextSceneTriggered && _elapsed >= loadAfter)
+        if (!_departureIntro && !_nextSceneTriggered && _elapsed >= loadAfter)
         {
             _nextSceneTriggered = true;
             if (_localLoad)

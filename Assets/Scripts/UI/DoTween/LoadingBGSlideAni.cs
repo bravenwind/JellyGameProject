@@ -38,6 +38,7 @@ public class LoadingBGSlideAni : MonoBehaviour
     //   • _onExited         : 센터->오른쪽 이동이 '끝난' 순간(커튼이 완전히 빠짐).
     // ─────────────────────────────────────────────────────────
     private Func<bool> _isNextSceneReady;
+    private Action _onSlideInStarted; // 왼->센터 이동이 '끝난'(등장 완료) 순간. 완전판에서 씬 로드 트리거에 쓴다.
     private Action _onExitStarted;
     private Action _onExited;
     private bool _forceExit; // 외부에서 최소 대기를 건너뛰고 즉시 나가라는 요청(하위호환)
@@ -69,11 +70,13 @@ public class LoadingBGSlideAni : MonoBehaviour
     /// 나가는 조건과 콜백을 주입한다. 반드시 이 애니가 켜지기 직전/직후에 호출해 둔다.
     /// isNextSceneReady()가 true가 되고 holdSeconds가 지나야 센터->오른쪽으로 나간다.
     /// </summary>
-    public void SetExitCondition(Func<bool> isNextSceneReady, Action onExitStarted = null, Action onExited = null)
+    public void SetExitCondition(Func<bool> isNextSceneReady, Action onExitStarted = null, Action onExited = null,
+                                 Action onSlideInDone = null)
     {
         _isNextSceneReady = isNextSceneReady;
         _onExitStarted = onExitStarted;
         _onExited = onExited;
+        _onSlideInStarted = onSlideInDone;
     }
 
     public void Play()
@@ -93,6 +96,10 @@ public class LoadingBGSlideAni : MonoBehaviour
 
         // 1) 왼 -> 센터 (등장)
         yield return MoveTo(centerPos, inDuration, inEase);
+
+        // 등장(왼->센터)이 끝난 순간 알림. 완전판(출발 씬 슬라이드인)에서 이 시점에 씬 로드를 시작한다
+        // → 슬라이드인은 로드와 겹치지 않고(출발 씬 위에서) 끝난 뒤에 로드가 돌아 끊김이 사라진다.
+        _onSlideInStarted?.Invoke();
 
         // 2) 센터에서 대기 — (holdSeconds 경과) && (다음 씬 준비됨) 이 둘 다 true여야 나간다.
         //    holdSeconds는 '최소 표시 시간', 씬 준비는 '조기 종료 방지'. 둘의 AND라 항상 max로 걸린다.
