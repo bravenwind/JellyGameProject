@@ -2757,6 +2757,7 @@ MonoBehaviour:
   bgSlide: {fileID: 3004678215206512855}
   loadingSortingOrder: 32000
   settleAfterLoad: 0.35
+  departureSlideInDelay: 0.5
   pushModeTipPanel: {fileID: 7888946579234686552}
   absorbModeTipPanel: {fileID: 1745318450509228496}
   toGamePanel: {fileID: 886834610328274414}
