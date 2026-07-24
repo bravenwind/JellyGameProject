@@ -42,6 +42,13 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private GameObject _activePanel;
     private bool _enteringGame; // 타겟이 게임 씬(입장)인지. 결과/메인(퇴장) 전환과 로드 타이밍을 구분.
 
+    /// <summary>
+    /// 로딩 커튼이 화면에 떠 있는 동안 true. 커튼이 걷히기 시작(ExitRoutine 진입)하면 false로 내린다.
+    /// 다음 씬(특히 결과 씬)의 연출이 "커튼이 걷힌 뒤"에 시작되도록 대기 신호로 쓴다.
+    /// 커튼이 아예 없는 진입(직접 로드/테스트)에서는 계속 false라 대기 없이 바로 진행된다.
+    /// </summary>
+    public static bool IsPresenting { get; private set; }
+
     private static LoadingSceneController _instance;
     private bool _targetSceneLoaded;
     private float _elapsed;
@@ -57,6 +64,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         }
         _instance = this;
         DontDestroyOnLoad(gameObject);
+        IsPresenting = true; // 커튼이 뜨는 순간부터 걷힐 때까지 유지
         SceneManager.sceneLoaded += OnSceneLoaded;
 
         // 정적 설정값을 인스턴스로 캡처한 뒤 비워둔다 (다음 로딩 진입 시 기본값으로 복귀).
@@ -150,14 +158,19 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // 게임 씬(메인→인게임): 마스터만 LoadLevel, 나머지는 AutomaticallySyncScene으로 자동 이동
         // 결과 씬(인게임→결과): 모든 클라이언트가 각자 LoadLevel (마스터 탈락 데드락 방지)
         //
-        // [중요] 결과/메인(게임에서 퇴장) 전환은 로드를 minDisplayTime까지 미루지 않고 '즉시' 시작한다.
-        // 그래야 결과 씬이 로딩 커튼 뒤에서 미리 준비(Start/카메라 시퀀스)돼, 커튼이 사라질 때 곧바로
+        // [중요] 네트워크 결과 전환(_allClientsLoad)만 로드를 미루지 않고 '즉시' 시작한다.
+        // 그래야 결과 씬이 로딩 커튼 뒤에서 미리 준비(Start/포디움 스폰)돼, 커튼이 사라질 때 곧바로
         // 보인다. 미루면 결과 씬 로드가 LoadingCenterMultiAni의 고정 fade-out보다 늦어질 때(특히 사망
         // 비마스터 클라의 지연 로드) 커튼은 사라졌는데 결과는 아직 안 떠 '유니티 기본 빈 배경(회색)'이
-        // 보인다. 게임 입장(카운트다운) 전환은 기존대로 minDisplayTime 뒤 로드한다 — 일찍 로드하면
-        // 3-2-1 카운트다운이 커튼 뒤에서 시작돼 일부를 놓치기 때문. 커튼 자체는 두 경우 모두
+        // 보인다.
+        //
+        // 반대로 로컬 로드(_localLoad, 메인 복귀)는 minDisplayTime까지 '미뤄야' 한다. LoadLevel(비동기)과
+        // 달리 SceneManager.LoadScene은 동기라 호출 즉시(=loadAfter=0이면 1프레임 만에) 씬이 교체되고,
+        // Main 씬의 UI가 곧바로 커튼 위로 그려져 커튼이 '잠깐 번쩍'하고 사라진 것처럼 보인다(사용자 제보).
+        // 게임 입장(카운트다운) 전환도 기존대로 minDisplayTime 뒤 로드한다 — 일찍 로드하면 3-2-1
+        // 카운트다운이 커튼 뒤에서 시작돼 일부를 놓치기 때문. 커튼 자체는 모든 경우
         // minDisplayTime + 타겟 로드 완료까지 유지된다(아래 ExitRoutine 조건).
-        float loadAfter = _enteringGame ? minDisplayTime : 0f;
+        float loadAfter = (_enteringGame || _localLoad) ? minDisplayTime : 0f;
         if (!_nextSceneTriggered && _elapsed >= loadAfter)
         {
             _nextSceneTriggered = true;
@@ -176,6 +189,9 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
     private IEnumerator ExitRoutine()
     {
+        // 커튼이 걷히기 시작하는 순간 신호를 내린다 → 결과 씬 등 다음 씬 연출이 이제부터 진행된다.
+        IsPresenting = false;
+
         // 활성 패널을 통째로 오른쪽으로 밀어내며 나간다.
         // 패널 컨테이너 자체를 LoadingBGSlideAni의 슬라이드 대상(target)으로 두면, 패널 안 모든
         // UI(키 팁 등)가 함께 빠져 '일부만 남는' 문제가 없다. 슬라이드가 끝난 뒤 캔버스를 정리한다.
@@ -211,6 +227,11 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        if (_instance == this) _instance = null;
+        if (_instance == this)
+        {
+            _instance = null;
+            // ExitRoutine을 거치지 않고 파괴되는 경로(중복 인스턴스/강제 정리)에서도 신호가 걸리지 않게 안전 해제.
+            IsPresenting = false;
+        }
     }
 }

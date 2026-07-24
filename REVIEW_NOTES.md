@@ -2633,7 +2633,7 @@ Z4 수정이 사망 후에도 스폰을 재개시켜(그 전엔 Phase=GameOver�
 
 ---
 
-## 2026-07-23 루틴 — 게임 진입/매칭/룸 라이프사이클 **재리뷰** (연결→로비→방→카운트다운→로딩 핸드오프 + 끊김/재연결 복구, AA1~AA6 도출) · **Fable 5 지정(이번에도 미가용)**
+## 2026-07-24 루틴 — 게임 진입/매칭/룸 라이프사이클 **재리뷰** (연결→로비→방→카운트다운→로딩 핸드오프 + 끊김/재연결 복구, AA1~AA6 도출) · **Fable 5 지정(이번에도 미가용)**
 
 리뷰 대상: `NetworkManager`(StartConnect/OnConnectedToMaster/JoinOrCreateRoom/OnJoinedRoom/
 CheckAndStartCountdown/CountdownCoroutine/OnDisconnected/ReconnectCoroutine/OnJoinRoomFailed/
@@ -2759,6 +2759,50 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 - 학습 포인트: **로컬 코루틴에만 담긴 '진행 상태'는 그 코루틴이 죽으면 함께 증발한다.** 이어받아야 하는
   진행도(카운트다운 잔여·타이머)는 승계자가 읽을 수 있는 공유 권위값(룸 프로퍼티/서버 시각)에 둬야
   '재시작'이 아닌 '이어받기'가 된다. AA1(코루틴 생명주기)·Y1(서버 클럭)과 한 묶음.
+
+---
+
+## 2026-07-24 버그 제보 수정 (사용자 제보 — 로딩 화면 2건, 즉시 수정 · AB1/AB2)
+
+리뷰 시퀀스(로딩 핸드오프)와 직결된 두 UX 버그를 사용자가 제보 → 즉시 수정했다.
+
+### [AB1] (UI·씬전환 / 중·즉시수정) '다시하기'로 메인 복귀 시 로딩 화면이 '번쩍'하고 곧바로 메인으로
+- 위치: `LoadingSceneController.cs`(`Update`의 로드 트리거·`loadAfter`), `LoadMainViaLoading`(`LocalLoad=true`),
+  대비 결과 전환 `GameModeManager.cs:446-447/628-629/826-827`(`AllClientsLoad=true` → `PhotonNetwork.LoadLevel`)
+- 제보: "다시하기 버튼을 눌러 Main 씬으로 갈 때 로딩 화면이 제대로 작동하지 않고 잠깐 보였다가 바로 메인으로 감."
+- 원인: 다시하기(`GameModeManager.OnClickRestartButton` → `NetworkManager.GoToMainMenu` → `Disconnect` →
+  `OnDisconnected` → `LoadMainViaLoading`)는 **로컬 로드**(`LocalLoad=true`) 경로다. 로딩씬 `Update`의
+  `loadAfter`가 "게임 입장이면 minDisplayTime, 그 외엔 0"이라, 로컬 로드는 **frame 1에 곧바로**
+  `SceneManager.LoadScene("Main")`을 부른다. 그런데 `SceneManager.LoadScene`은 **동기**라 그 프레임 끝에
+  씬이 교체되고 Main UI가 커튼 위로 즉시 그려진다 → 커튼이 한 프레임 번쩍하고 사라진 것처럼 보인다.
+  결과 전환은 `AllClientsLoad`(네트워크 `LoadLevel`, **비동기**)라 로드 동안 로딩씬이 계속 렌더돼 이 문제가
+  없었다 — 즉 로컬/네트워크 로드의 동기·비동기 차이가 비대칭 증상을 만들었다.
+- 수정: `loadAfter = (_enteringGame || _localLoad) ? minDisplayTime : 0f`. 로컬 로드도 게임 입장처럼
+  `minDisplayTime`(2s)까지 로드를 미뤄, 커튼이 로딩씬에서 온전히 표시된 뒤 Main으로 교체되게 했다.
+  네트워크 결과 전환(`_allClientsLoad`)만 기존대로 즉시 로드(커튼 뒤 미리 준비)를 유지한다.
+- 학습 포인트: **동기 로드(`SceneManager.LoadScene`)와 비동기 로드(`PhotonNetwork.LoadLevel`/`LoadSceneAsync`)는
+  '이전 화면이 언제까지 보이는가'가 다르다.** 동기 로드는 호출 프레임에 화면이 갈아엎어지므로, 표시시간을
+  보장하려면 로드 호출 자체를 미뤄야 한다. 같은 "로딩 커튼" 코드라도 로드 방식이 다르면 타이밍 설계가 달라진다.
+
+### [AB2] (UI·결과씬 / 하·UX·즉시수정) 결과 씬 카메라 시퀀스가 로딩 커튼 뒤에서 진행돼 앞부분(3위·2위)을 놓침
+- 위치: `GameResultManager.cs:Start`(즉시 `PlayCameraSequence` 시작), `LoadingSceneController`
+  (결과 씬은 커튼 뒤에서 미리 로드됨 — `_allClientsLoad`는 `loadAfter=0`)
+- 제보: "결과 씬에서, 로딩 UI가 끝나고 나서 결과 씬의 시퀀스가 진행되었으면 좋겠어."
+- 원인: 결과 씬은 회색 배경 방지를 위해 **커튼 뒤에서 미리 로드**된다(의도). 그런데 `GameResultManager.Start`가
+  포디움 스폰 직후 바로 `PlayCameraSequence`(3위→2위→1위 포커싱, 랭크당 `cameraTransitionDuration`+
+  `focusHoldDuration`≈3.7s)를 시작해, 커튼이 걷히기 전(≈2s)에 3위·2위 포커싱이 흘러가 버린다 → 커튼이
+  걷히면 이미 시퀀스 중반이라 앞부분을 못 본다.
+- 수정: `LoadingSceneController`에 정적 신호 `IsPresenting`(커튼이 떠 있는 동안 true, `ExitRoutine` 진입 시
+  false) 추가. `GameResultManager`는 포디움/카메라는 **여전히 커튼 뒤에서 미리 준비**하되(회색 방지 유지),
+  카메라 시퀀스만 `PlayCameraSequenceWhenCurtainGone`으로 감싸 `IsPresenting`이 false가 될 때(커튼이 걷히기
+  시작) 시작한다. 커튼이 없는 진입(직접 로드/테스트)에선 `IsPresenting`이 false라 즉시 진행되고, 신호 유실
+  대비 `curtainWaitTimeout`(6s) 안전장치를 뒀다.
+- 학습 포인트: **"미리 로드해서 준비"와 "지금 연출 시작"은 분리해야 한다.** 커튼 뒤 프리로드의 장점(즉시 표시)은
+  살리되, 사용자에게 보여야 하는 연출은 화면이 실제로 드러난 시점에 트리거해야 한다. 준비(Start)와
+  발화(시퀀스)를 신호(`IsPresenting`)로 갈라 두 요구를 동시에 만족시켰다.
+
+> ※ 두 수정 모두 씬 전환 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2는 `IsPresenting` 신호 기반이라 회귀 위험 낮음.
 
 ---
 
@@ -2931,12 +2975,12 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 - [ ] Z3  (신규 — 2026-07-22 R 검증 중 발견·정리, 데드 이벤트 2종: PlayerEvents.OnCameraLevelChanged/OnPlayDingEffect는 Invoke 지점 전무(P키 디버그가 PlayDing 유일 트리거 — R3 뒷받침). OnCameraOrthoSizeChanged는 MainCamera_Action:41+PlayerExternalEventLinker:17 중복 구독으로 같은 대입 2회. R3/R5 정리 시 함께) **→ 2026-07-22 부분적용**(중복 구독 제거 적용, 데드 이벤트 선언 정리는 보류)
 - [ ] Y9  (대기 — 2026-07-21 도출·확인필요·레거시, 별점 결과 경로 GameTimer→ResultStarsUI→ClearJudge가 멀티 결과씬(GameResultManager 시상대)과 분리·셋 다 빌드 씬 부재. shipped 흐름에서 별점 UI 전량 데드. 살릴지(오프라인) 버릴지 결단. R8/T5/X6/M1/K3/K4 반쪽구현 한 묶음)
 
-- [ ] AA1 (신규 — 2026-07-23 도출·확인필요, 일시 끊김이 마스터 `CountdownCoroutine`를 안 멈춤 → 좀비 코루틴이 재연결 후 비마스터로서 `LoadLevel` 스팸 + 새 마스터의 재시작과 이중 카운트다운. 코루틴 핸들 필드화+`OnDisconnected`에서 `StopCoroutine`+`_isCountingDown=false`, `LoadLevel` 직전 마스터/InRoom 가드. S7/V6/H2 '코루틴 핸들을 진실로' 테마. **중·우선 권장**)
-- [ ] AA2 (신규 — 2026-07-23 도출, `NetworkManager.noPlayerConnectTimeSeconds`(:62) 참조 0건 거짓 인스펙터 필드 — 매칭 타임아웃 구설계 잔존. 삭제 or 배선. P5/N5 '거짓 필드'·M1 반쪽구현. 동작 불변 저위험 정리)
-- [ ] AA3 (신규 — 2026-07-23 도출·확인필요, P1(07-22 적용) 고립복귀가 `OnConnectedToMaster`(:210-219)에서 발화조건 넓음(`_wantsToJoin==false`+게임씬) → 마스터 서버 경유형 `ReconnectAndRejoin` 성공 직전을 앞질러 메인으로 튕길 여지. 표준 PUN2는 게임서버 직접복귀라 잠복이나 환경의존. 폴백 확정 플래그로 한정. **중**·네트워크 핵심경로)
-- [ ] AA4 (신규 — 2026-07-23 도출, `GoToMainMenu`(:739-761) `Disconnect`가 `DisconnectByClientLogic`∉transient에 암묵 의존 + `CancelMatching`과 달리 `StopAllCoroutines` 미호출(비대칭). 메인복귀 의도 플래그로 분류표 변경에 강건화. AA1과 동근. 저위험)
-- [ ] AA5 (신규 — 2026-07-23 도출, `LobbyController`가 `NetworkManager.Instance`를 `Start:62`/`UpdatePlayerCountUI:406`에서 무가드 역참조(대비 `:274`는 `?.`) → 진입순서 경계서 NRE로 로비 초기화 사망. 널가드 일관화. P4 하위증상·F4/W6 널가드 테마. 저위험)
-- [ ] AA6 (신규 — 2026-07-23 도출, 매칭 중 마스터 승계 시 카운트다운이 `matchBufferSeconds`(6s)+3-2-1을 처음부터 재생(H2가 '이어받기' 아닌 '재시작'). 룸프로퍼티 `CountdownEndTime`(서버시각) 공유로 잔여시간 이어가기. Y1 서버클럭 동형. 연출 개선·저위험)
+- [ ] AA1 (신규 — 2026-07-24 도출·확인필요, 일시 끊김이 마스터 `CountdownCoroutine`를 안 멈춤 → 좀비 코루틴이 재연결 후 비마스터로서 `LoadLevel` 스팸 + 새 마스터의 재시작과 이중 카운트다운. 코루틴 핸들 필드화+`OnDisconnected`에서 `StopCoroutine`+`_isCountingDown=false`, `LoadLevel` 직전 마스터/InRoom 가드. S7/V6/H2 '코루틴 핸들을 진실로' 테마. **중·우선 권장**)
+- [ ] AA2 (신규 — 2026-07-24 도출, `NetworkManager.noPlayerConnectTimeSeconds`(:62) 참조 0건 거짓 인스펙터 필드 — 매칭 타임아웃 구설계 잔존. 삭제 or 배선. P5/N5 '거짓 필드'·M1 반쪽구현. 동작 불변 저위험 정리)
+- [ ] AA3 (신규 — 2026-07-24 도출·확인필요, P1(07-22 적용) 고립복귀가 `OnConnectedToMaster`(:210-219)에서 발화조건 넓음(`_wantsToJoin==false`+게임씬) → 마스터 서버 경유형 `ReconnectAndRejoin` 성공 직전을 앞질러 메인으로 튕길 여지. 표준 PUN2는 게임서버 직접복귀라 잠복이나 환경의존. 폴백 확정 플래그로 한정. **중**·네트워크 핵심경로)
+- [ ] AA4 (신규 — 2026-07-24 도출, `GoToMainMenu`(:739-761) `Disconnect`가 `DisconnectByClientLogic`∉transient에 암묵 의존 + `CancelMatching`과 달리 `StopAllCoroutines` 미호출(비대칭). 메인복귀 의도 플래그로 분류표 변경에 강건화. AA1과 동근. 저위험)
+- [ ] AA5 (신규 — 2026-07-24 도출, `LobbyController`가 `NetworkManager.Instance`를 `Start:62`/`UpdatePlayerCountUI:406`에서 무가드 역참조(대비 `:274`는 `?.`) → 진입순서 경계서 NRE로 로비 초기화 사망. 널가드 일관화. P4 하위증상·F4/W6 널가드 테마. 저위험)
+- [ ] AA6 (신규 — 2026-07-24 도출, 매칭 중 마스터 승계 시 카운트다운이 `matchBufferSeconds`(6s)+3-2-1을 처음부터 재생(H2가 '이어받기' 아닌 '재시작'). 룸프로퍼티 `CountdownEndTime`(서버시각) 공유로 잔여시간 이어가기. Y1 서버클럭 동형. 연출 개선·저위험)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.

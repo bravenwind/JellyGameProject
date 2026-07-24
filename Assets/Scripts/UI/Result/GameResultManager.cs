@@ -51,6 +51,9 @@ public class GameResultManager : MonoBehaviour
     [Tooltip("가상 카메라 FoV")]
     public float virtualCameraFov = 40f;
 
+    [Tooltip("로딩 커튼이 걷힐 때까지 카메라 시퀀스 시작을 대기하는 최대 시간(신호 유실 대비 안전장치)")]
+    public float curtainWaitTimeout = 6f;
+
     [Header("색상")]
     [Tooltip("저장된 색상이 없을 때 사용할 기본 색")]
     public Color fallbackColor = Color.white;
@@ -90,7 +93,26 @@ public class GameResultManager : MonoBehaviour
 
         SpawnPodium(top);
         BuildVirtualCameras();
-        StartCoroutine(PlayCameraSequence());
+        // 포디움/카메라는 커튼 뒤에서 미리 준비해 두되(회색 배경 방지), 카메라 시퀀스는
+        // 로딩 커튼이 완전히 걷힌 뒤에 시작한다 → 3위→2위→1위 포커싱을 처음부터 보게 된다.
+        StartCoroutine(PlayCameraSequenceWhenCurtainGone());
+    }
+
+    /// <summary>
+    /// 로딩 커튼(LoadingSceneController)이 걷힐 때까지 기다렸다가 카메라 시퀀스를 시작한다.
+    /// 결과 씬은 커튼 뒤에서 미리 로드되므로, 대기 없이 바로 시작하면 3위·2위 포커싱이
+    /// 커튼에 가려진 채 흘러가 버린다. 커튼이 없는 진입(직접 로드/테스트)에서는
+    /// IsPresenting이 false라 즉시 진행되고, 신호가 유실돼도 curtainWaitTimeout 후 진행된다.
+    /// </summary>
+    private IEnumerator PlayCameraSequenceWhenCurtainGone()
+    {
+        float waited = 0f;
+        while (LoadingSceneController.IsPresenting && waited < curtainWaitTimeout)
+        {
+            waited += Time.unscaledDeltaTime;
+            yield return null;
+        }
+        yield return PlayCameraSequence();
     }
 
     // ──────────────────────────────────────────────
