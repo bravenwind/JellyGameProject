@@ -193,6 +193,10 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         CountdownActive = true;               // 카운트다운 시작 — 봇/입력 정지(RPC 도착 즉시)
         _gameTimer = (GameState.CurrentGameMode == GameModeType.Push) ? 0f : startTime;
 
+        // 카운트다운 동안에도 타이머 UI가 인스펙터 하드코딩 값이 아니라 실제 게임 시간(gameDuration에서 파생된
+        // _gameTimer)을 보여주도록 즉시 1회 갱신한다. 이후엔 Update가 매 프레임 갱신한다.
+        UpdateGameTimerUI();
+
         if (gameResultPanel != null)
             gameResultPanel.SetActive(false);
 

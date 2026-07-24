@@ -53,24 +53,39 @@ public class LoadingCenterMultiAni : MonoBehaviour
 
     private readonly List<Sequence> runningSeqs = new List<Sequence>();
 
+    // [동기화] 부모 BG 슬라이드. Phase3(사라짐)를 BG의 센터->오른쪽(퇴장) 시작에 맞춰 재생하기 위해 구독한다.
+    private LoadingBGSlideAni _bgSlide;
+    private bool _exitPlayed;
+
     private void OnEnable()
     {
+        // BG 슬라이드의 '퇴장 시작'에 Phase3를 맞추기 위해 구독(재생 여부와 무관하게 먼저 건다).
+        _bgSlide = GetComponentInParent<LoadingBGSlideAni>();
+        if (_bgSlide != null) _bgSlide.ExitStarted += OnBGExitStarted;
+
         if (!playOnEnable) return;
+        _exitPlayed = false;
         RunAll();
     }
 
     private void OnDisable()
     {
+        if (_bgSlide != null)
+        {
+            _bgSlide.ExitStarted -= OnBGExitStarted;
+            _bgSlide = null;
+        }
         KillAll();
         RestoreAll();
     }
 
+    // 등장(Phase1) + 젤리 흔들림(Phase2)까지만 재생하고, 그 뒤엔 '센터에서 가만히 유지'한다.
+    // Phase3(사라짐)는 여기서 붙이지 않는다 → BG 슬라이드아웃이 시작될 때 OnBGExitStarted→PlayPhase3로 재생해
+    // BG 커튼(센터->오)과 '동시에' 사라지게 한다. (예전엔 phase2Duration=holdSeconds 고정이라 BG보다 먼저 사라졌다.)
     public void RunAll()
     {
         PrepareTargets();
         KillAll();
-
-        phase2Duration = GetComponentInParent<LoadingBGSlideAni>().holdSeconds;
 
         for (int i = 0; i < targets.Count; i++)
         {
@@ -83,14 +98,12 @@ public class LoadingCenterMultiAni : MonoBehaviour
             if (t.delay > 0f)
                 seq.AppendInterval(t.delay);
 
-            // Init 상태: Phase1을 할 거면 startAlpha/scale로 세팅
-            // Phase1을 안 하면 현재 상태를 유지하고, phase2/3가 켜져 있으면 그때만 조작
+            // Phase 1: Fade In + Shrink (등장 — BG의 왼->센터 동안)
             if (t.doPhase1)
             {
                 if (t.group != null) t.group.alpha = phase1StartAlpha;
                 t.rect.localScale = t.baseScale * phase1StartScaleMul;
 
-                // Phase 1
                 if (t.group != null)
                     seq.Append(t.group.DOFade(phase1EndAlpha, phase1Duration).SetEase(phase1Ease));
                 else
@@ -99,8 +112,7 @@ public class LoadingCenterMultiAni : MonoBehaviour
                 seq.Join(t.rect.DOScale(t.baseScale * phase1EndScaleMul, phase1Duration).SetEase(phase1Ease));
             }
 
-            // Phase 2 시간 구간은 전체 연출 길이 맞추기 위해 항상 확보
-            // 단, doPhase2가 false면 그냥 가만히 유지
+            // Phase 2: 처음에만 흔들고(phase2ShakeDuration) 진정된 채 '가만히 유지'. 고정 대기 시간을 두지 않는다.
             if (t.doPhase2)
             {
                 seq.AppendCallback(() =>
@@ -108,10 +120,7 @@ public class LoadingCenterMultiAni : MonoBehaviour
                     Vector3 shakeBase = t.doPhase1 ? (t.baseScale * phase1EndScaleMul) : t.rect.localScale;
                     t.rect.localScale = shakeBase;
 
-                    // 흔드는 시간은 phase2Duration이 아니라 phase2ShakeDuration. 처음에만 흔들고
-                    // (shakeFadeOut으로 점점 약해지며) 진정된 뒤, 남은 시간은 아래 AppendInterval로 가만히 머문다.
-                    float shakeDur = Mathf.Min(phase2ShakeDuration, phase2Duration);
-                    Tween shake = t.rect.DOShakeScale(shakeDur, shakeStrength, shakeVibrato, shakeRandomness, shakeFadeOut, shakeRandomnessMode)
+                    Tween shake = t.rect.DOShakeScale(phase2ShakeDuration, shakeStrength, shakeVibrato, shakeRandomness, shakeFadeOut, shakeRandomnessMode)
                         .SetUpdate(ignoreTimeScale)
                         .OnComplete(() =>
                         {
@@ -125,18 +134,37 @@ public class LoadingCenterMultiAni : MonoBehaviour
                 });
             }
 
-            seq.AppendInterval(phase2Duration);
+            // (Phase3 없음 — 여기서 시퀀스가 끝나면 타깃은 등장 완료 상태로 센터에서 유지된다.)
+            runningSeqs.Add(seq);
+        }
+    }
 
-            // Phase 3
-            if (t.doPhase3)
-            {
-                if (t.group != null)
-                    seq.Append(t.group.DOFade(phase3EndAlpha, phase3Duration).SetEase(phase3Ease));
-                else
-                    seq.AppendInterval(phase3Duration);
+    // BG 커튼이 센터->오른쪽으로 나가기 시작할 때 호출 → 센터 이미지도 Phase3(커지며 사라짐)로 동시에 퇴장.
+    private void OnBGExitStarted()
+    {
+        if (_exitPlayed) return;
+        _exitPlayed = true;
+        PlayPhase3();
+    }
 
-                seq.Join(t.rect.DOScale(t.baseScale * phase3EndScaleMul, phase3Duration).SetEase(phase3Ease));
-            }
+    private void PlayPhase3()
+    {
+        KillAll(); // 유지 중이던 등장/흔들림 시퀀스 정지
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            TargetUI t = targets[i];
+            if (t.rect == null || !t.doPhase3) continue;
+
+            Sequence seq = DOTween.Sequence();
+            if (ignoreTimeScale) seq.SetUpdate(true);
+
+            if (t.group != null)
+                seq.Append(t.group.DOFade(phase3EndAlpha, phase3Duration).SetEase(phase3Ease));
+            else
+                seq.AppendInterval(phase3Duration);
+
+            seq.Join(t.rect.DOScale(t.baseScale * phase3EndScaleMul, phase3Duration).SetEase(phase3Ease));
 
             runningSeqs.Add(seq);
         }

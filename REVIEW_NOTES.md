@@ -3010,7 +3010,20 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 - 학습 포인트: **연출은 '트리거 시점'에 즉시 시작해야 보인다.** 비동기 콜백(끊김) 뒤로 미루면 지연·경합으로
   '안 일어난 것처럼' 보인다. 입장(즉시 스폰)과 복귀(지연 스폰)의 비대칭이 정확히 그 증상을 만들었다.
 
-> ※ 열둘 수정(AB1~AB12) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+### [AB13] (UI 3건 수정 · 사용자 제보)
+- **1) LoadingCenterMultiAni가 BG 슬라이드보다 먼저 사라짐** (`LoadingCenterImageAni.cs`, `LoadingBGSlideAni.cs`):
+  센터 애니가 `phase2Duration = holdSeconds` 고정 타임라인이라, 커튼(BG)의 동적 hold(AB3/AB7/AB8)보다 먼저
+  Phase3(사라짐)가 돌았다. → 센터 애니를 등장(Phase1)+흔들림(Phase2)까지만 재생 후 '센터에서 유지'하고,
+  BG의 `ExitStarted` 이벤트(센터→오 시작)에 맞춰 `PlayPhase3`로 사라지게 동기화. LoadingBGSlideAni에
+  `public event ExitStarted` 추가. 이제 등장(흔들림)→유지→BG와 동시 퇴장 순서가 지켜진다.
+- **2) 매칭 완료 시 매칭 취소 버튼 비활성화** (`LobbyController.cs`): `cancelMatchingButton` 필드 추가. 매칭 시작/
+  메인 씬 활성화(`Start`, 매칭 패널 오픈) 시 `interactable=true`, 매칭 완료(첫 카운트다운=`ShowCountdown`) 시 false.
+- **3) 게임 카운트다운 중 타이머 UI가 인스펙터 하드코딩 값** (`GameModeManager.cs`): `UpdateGameTimerUI`가
+  게임 진행(Update) 중에만 호출돼 카운트다운 동안엔 인스펙터 텍스트가 보였다. → `StartGameInternal`에서
+  `_gameTimer` 설정 직후 `UpdateGameTimerUI()` 1회 호출 → 카운트다운부터 실제 게임 시간(Absorb=gameDuration,
+  Push=00:00 카운트업 시작) 표시.
+
+> ※ 열셋 수정(AB1~AB13) 모두 씬 전환/시작 타이밍/UI라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
 > AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2~AB7·AB9는 신호·조건·단일출처·정렬·유예 기반이라 회귀 위험 낮음.
 > AB5는 게임 시작 로직(카운트다운) 진입부만 대기 추가라 멀티 동기 모델(카운트다운=클라 로컬)은 불변.
 > AB8/AB9는 **폴백 안전**(프리팹 없으면 기존 동작). 로컬 복귀부터 완전판 활성화.

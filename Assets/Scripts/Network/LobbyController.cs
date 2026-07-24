@@ -17,6 +17,9 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
     public Button startButton;
     public GameObject warningText;
 
+    [Tooltip("매칭 취소 버튼 — 매칭 완료(카운트다운 시작) 시 비활성화, 메인 씬 활성화/매칭 시작 시 활성화")]
+    public Button cancelMatchingButton;
+
     [Header("모드 선택 패널")]
     public GameObject buttonSelectionPanel;
 
@@ -76,6 +79,9 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
         warningText?.SetActive(false);
 
+        // 메인 씬 활성화 시 매칭 취소 버튼을 활성화(다시 매칭할 수 있는 상태).
+        if (cancelMatchingButton != null) cancelMatchingButton.interactable = true;
+
         startButton.onClick.AddListener(OnStartButtonClicked);
     }
 
@@ -122,6 +128,9 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
         if (!_countdownStarted)
         {
             _countdownStarted = true;
+
+            // 매칭 완료 → 이제 취소 불가. 매칭 취소 버튼 비활성화.
+            if (cancelMatchingButton != null) cancelMatchingButton.interactable = false;
 
             // 가짜 카운터 중지
             if (_fakeCounterCoroutine != null)
@@ -267,6 +276,9 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
             seq.AppendCallback(() =>
             {
                 matchingPanel.gameObject.SetActive(true);
+
+                // 매칭 시작 → 취소 가능 상태로(이전 매칭에서 비활성화됐을 수 있으므로 복원).
+                if (cancelMatchingButton != null) cancelMatchingButton.interactable = true;
 
                 if (_matchingTextCoroutine != null) StopCoroutine(_matchingTextCoroutine);
                 _matchingTextCoroutine = StartCoroutine(AnimateMatchingText());

@@ -31,6 +31,10 @@ public class LoadingBGSlideAni : MonoBehaviour
     // 외부(LoadingSceneController)가 슬라이드아웃 종료 타이밍을 알 수 있도록 노출
     public float OutDuration => outDuration;
 
+    // 센터->오른쪽(퇴장) 이동을 '시작'하는 순간 발생. 자식 LoadingCenterMultiAni가 이 시점에
+    // Phase3(사라짐)를 재생해 BG 슬라이드와 동시에 나가도록 동기화하는 데 쓴다.
+    public event System.Action ExitStarted;
+
     // ─────────────────────────────────────────────────────────
     // 나가는 조건 / 콜백 (LoadingSceneController가 주입)
     //   • _isNextSceneReady : 다음 씬이 준비됐는지. null이면(단독 사용/테스트) 시간 조건만으로 나간다.
@@ -127,6 +131,7 @@ public class LoadingBGSlideAni : MonoBehaviour
 
         // 3) 센터 -> 오른쪽 (퇴장)
         _onExitStarted?.Invoke();
+        ExitStarted?.Invoke(); // 자식 센터 애니가 이때 Phase3(사라짐)를 시작 → BG와 동시 퇴장
         yield return MoveTo(rightPos, outDuration, outEase);
 
         if (deactivateAfterOut && gameObject != null)
