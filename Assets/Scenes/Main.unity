@@ -13301,6 +13301,7 @@ MonoBehaviour:
   nicknameMaxLength: 10
   startButton: {fileID: 808887912}
   warningText: {fileID: 671469448}
+  cancelMatchingButton: {fileID: 2074633554}
   buttonSelectionPanel: {fileID: 428356029}
   matchingPanel: {fileID: 419462143}
   matchingStatusText: {fileID: 102455056}

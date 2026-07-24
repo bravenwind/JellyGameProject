@@ -1024,7 +1024,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &5517717092854384459
 RectTransform:
   m_ObjectHideFlags: 0
@@ -3559,7 +3559,7 @@ MonoBehaviour:
     group: {fileID: 0}
     delay: 0
     doPhase1: 1
-    doPhase2: 0
+    doPhase2: 1
     doPhase3: 1
     baseScale: {x: 0, y: 0, z: 0}
   - rect: {fileID: 2676537735351087138}
