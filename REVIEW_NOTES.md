@@ -2965,7 +2965,30 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 - 학습 포인트: **커튼을 '씬 상주 오버레이'로 두면, 씬 로드를 커튼의 정지 구간에 몰아넣고 애니(인/아웃)를
   로드가 없는 출발/도착 씬에 각각 배치할 수 있다.** 씬 로드 순서(LoadLevel)는 그대로라 네트워크 동기 불변.
 
-> ※ 열 수정(AB1~AB10) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+### [AB11] (전환 부드럽게 / 완전판 완결) 전 전환·양 모드·전 클라 departure-intro 적용
+- 위치: `NetworkManager.cs`(EVENT_BEGIN_CURTAIN, CountdownCoroutine), `LobbyController.cs`(EVENT 처리),
+  `GameModeManager.cs`(LoadResultSceneAfterSync)
+- 요청: 게임→결과 / 게임→메인 / 결과→메인 전부 메인→게임처럼 완전판 적용(두 모드 다) + 네트워크 완벽 연동.
+- 적용 매핑:
+  - **메인→게임(양 모드)**: 마스터는 `TryBeginDepartureIntro`로 Main에서 스폰+슬라이드인 후 Loading→게임 주도.
+    **비마스터**는 마스터가 쏜 `EVENT_BEGIN_CURTAIN`(Others)을 받아 각자 Main에서 스폰+슬라이드인(로드는 마스터가
+    주도, 자기 커튼은 따라감). → 전 클라가 출발 씬(Main)에서 슬라이드인. (모드는 GameState.CurrentGameMode로 결정)
+  - **게임→결과(양 모드)**: `LoadResultSceneAfterSync`(Absorb=GameWin/Push=RPC_PushModeGameEnd 둘 다 경유,
+    AllClientsLoad)가 동기화 토큰 대기 후 `TryBeginDepartureIntro`. GameWin/RPC가 전 클라 실행이라 각 클라가
+    독립적으로 게임 씬(출발)에서 슬라이드인 → Loading → 결과 씬. 마스터/비마스터 조율 불필요. 토큰 대기가 스폰
+    '전'이라 봇 색 누락 없음. 결과 카메라 시퀀스는 IsPresenting(AB2)로 커튼 걷힌 뒤 시작.
+  - **게임/결과→메인(양 모드)**: `LoadMainViaLoading`(로컬·단일 클라, AB8/AB10)로 이미 적용 — 출발 씬 슬라이드인
+    → Loading → Main. 모드 무관.
+- 네트워크 정합: 씬 로드 순서(LoadLevel/AutoSync)는 기존과 동일(마스터 주도=입장, 전 클라=결과), 커튼은 그
+  타이밍에 얹은 오버레이라 동기 모델 불변. 비마스터 슬라이드인 완료 전 끌려가도 남은 슬라이드인은 '가벼운
+  Loading 씬' 위에서 도므로 매끄러움(무거운 로드는 hold 구간).
+- 폴백 안전: 모든 진입점이 `TryBeginDepartureIntro()` 실패(프리팹 없음) 시 기존 `LoadLevel`로 폴백.
+  `Resources/LoadingCurtain` 프리팹이 전 전환의 완전판 킬스위치.
+- 학습 포인트: **동일한 '상주 커튼 + departure-intro' 메커니즘을, 전환마다 다른 로드 드라이버(입장=마스터,
+  결과=전 클라, 복귀=로컬)에 얹기만 하면 된다.** 신호(EVENT/AllClientsLoad/LocalLoad)로 '누가 로드를 트리거하나'만
+  구분하고, 커튼의 인/hold/아웃 로직은 공통 재사용.
+
+> ※ 열하나 수정(AB1~AB11) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
 > AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2~AB7·AB9는 신호·조건·단일출처·정렬·유예 기반이라 회귀 위험 낮음.
 > AB5는 게임 시작 로직(카운트다운) 진입부만 대기 추가라 멀티 동기 모델(카운트다운=클라 로컬)은 불변.
 > AB8/AB9는 **폴백 안전**(프리팹 없으면 기존 동작). 로컬 복귀부터 완전판 활성화.

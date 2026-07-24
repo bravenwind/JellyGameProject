@@ -106,6 +106,11 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
             case NetworkManager.EVENT_GAME_START:
                 ShowGameStart();
                 break;
+            case NetworkManager.EVENT_BEGIN_CURTAIN:
+                // [완전판] 비마스터도 Main(출발 씬)에서 로딩 커튼 슬라이드인을 시작한다(로드는 마스터가 주도).
+                // 프리팹 없으면 no-op → 마스터의 LoadLevel(Loading)에 끌려가 기존 방식(Loading 커튼)으로 폴백.
+                LoadingSceneController.TryBeginDepartureIntro();
+                break;
         }
     }
 

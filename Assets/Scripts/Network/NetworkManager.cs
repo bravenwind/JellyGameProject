@@ -86,6 +86,8 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     public const byte EVENT_COUNTDOWN = 11;
     public const byte EVENT_GAME_START = 12;
     public const byte EVENT_PLAYER_COUNT = 13;
+    // [완전판] 전 클라가 Main(출발 씬)에서 로딩 커튼 슬라이드인을 시작하도록 하는 신호(마스터→비마스터).
+    public const byte EVENT_BEGIN_CURTAIN = 14;
 
     private bool _isCountingDown = false;
     private bool _wantsToJoin = false;
@@ -392,10 +394,16 @@ public class NetworkManager : MonoBehaviourPunCallbacks
                 ? gamePushModeSceneName
                 : gameAbsorbModeSceneName;
 
-        // [완전판] 마스터가 Main(출발 씬)에서 커튼을 미리 띄워 슬라이드인 → 센터 상태로 Loading 진입 →
-        // hold → 게임 씬 로드 → 슬라이드아웃(게임 씬)까지 커튼이 주도한다. 슬라이드인/아웃이 씬 로드와
-        // 겹치지 않아 끊김이 사라진다. 프리팹(Resources/LoadingCurtain)이 없으면 기존 방식으로 폴백.
-        // (멀티플레이 비마스터는 마스터의 LoadLevel(Loading)에 끌려와 Loading 씬 커튼을 쓴다 — 후속 동기화 대상)
+        // [완전판] 전 클라가 Main(출발 씬)에서 커튼 슬라이드인을 시작한다:
+        //   • 비마스터: EVENT_BEGIN_CURTAIN 신호로 각자 Main에서 커튼 스폰+슬라이드인(따라만 감, 로드는 마스터 주도).
+        //   • 마스터: 직접 스폰 + 슬라이드인 후 커튼이 Loading→게임 로드를 주도.
+        // 슬라이드인/아웃이 씬 로드와 겹치지 않아 끊김이 사라진다. 프리팹이 없으면 기존 방식으로 폴백.
+        PhotonNetwork.RaiseEvent(
+            EVENT_BEGIN_CURTAIN, null,
+            new RaiseEventOptions { Receivers = ReceiverGroup.Others },
+            ExitGames.Client.Photon.SendOptions.SendReliable
+        );
+
         if (!LoadingSceneController.TryBeginDepartureIntro())
             PhotonNetwork.LoadLevel(loadingSceneName);
     }

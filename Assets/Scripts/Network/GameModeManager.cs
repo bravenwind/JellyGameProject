@@ -524,9 +524,12 @@ public class GameModeManager : MonoBehaviourPunCallbacks
             yield return null;
         }
 
-        // 결과 씬으로 바로 가지 않고 로딩 화면(Loading 씬)을 거친다.
-        // 로딩 타겟(RESULT_SCENE_NAME)은 GameWin에서 LoadingSceneController에 지정해 두었다.
-        PhotonNetwork.LoadLevel(NetworkManager.Instance.loadingSceneName);
+        // [완전판] 결과 전환도 게임 씬(출발)에서 커튼 슬라이드인 후 센터 상태로 Loading→결과 씬으로 간다.
+        // GameWin/RPC_PushModeGameEnd는 전 클라에서 실행되고 AllClientsLoad=true라, 각 클라가 자기 커튼을 스폰해
+        // 독립적으로 진행한다(마스터/비마스터 조율 불필요). 동기화 토큰 대기는 위에서 이미 끝났으므로 색 누락 없음.
+        // 프리팹(Resources/LoadingCurtain)이 없으면 기존 방식(Loading 씬에서 커튼 생성)으로 폴백.
+        if (!LoadingSceneController.TryBeginDepartureIntro())
+            PhotonNetwork.LoadLevel(NetworkManager.Instance.loadingSceneName);
     }
 
     /// <summary>현재 룸에 기록된 결과 동기화 토큰 값. 없으면 0.</summary>
