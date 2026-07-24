@@ -392,7 +392,12 @@ public class NetworkManager : MonoBehaviourPunCallbacks
                 ? gamePushModeSceneName
                 : gameAbsorbModeSceneName;
 
-        PhotonNetwork.LoadLevel(loadingSceneName);
+        // [완전판] 마스터가 Main(출발 씬)에서 커튼을 미리 띄워 슬라이드인 → 센터 상태로 Loading 진입 →
+        // hold → 게임 씬 로드 → 슬라이드아웃(게임 씬)까지 커튼이 주도한다. 슬라이드인/아웃이 씬 로드와
+        // 겹치지 않아 끊김이 사라진다. 프리팹(Resources/LoadingCurtain)이 없으면 기존 방식으로 폴백.
+        // (멀티플레이 비마스터는 마스터의 LoadLevel(Loading)에 끌려와 Loading 씬 커튼을 쓴다 — 후속 동기화 대상)
+        if (!LoadingSceneController.TryBeginDepartureIntro())
+            PhotonNetwork.LoadLevel(loadingSceneName);
     }
 
     /// <summary>

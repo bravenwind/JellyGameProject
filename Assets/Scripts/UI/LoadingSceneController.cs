@@ -83,6 +83,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private const string CURTAIN_RESOURCE_PATH = "LoadingCurtain";
     private static bool _pendingDepartureIntro; // 다음 Instantiate가 '출발 씬 슬라이드인' 모드임을 알리는 플래그
     private bool _departureIntro;                // 이 인스턴스가 출발 씬에서 미리 떠 슬라이드인부터 하는지
+    private bool _loadingRequested;             // (완전판) 슬라이드인 후 Loading 씬 로드를 이미 요청했는지
+    private bool _inLoadingScene;               // (완전판) 커튼이 센터 상태로 Loading 씬에 도착했는지
 
     private void Awake()
     {
@@ -154,17 +156,19 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     }
 
     // [완전판] 출발 씬 위에서 슬라이드인(왼->센터)이 끝난 순간 호출.
-    // 이제 비로소 도착 씬을 로드한다 → 슬라이드인은 로드와 겹치지 않았고, 무거운 씬 언로드/로드는
-    // '센터에 정지한 커튼' 뒤에서 진행돼 가려진다. 로컬 복귀는 중간 Loading 씬 없이 도착 씬을 바로 로드한다
-    // (상주 커튼 자체가 로딩 화면 역할). 이후 정착 대기 → 슬라이드아웃(도착 씬 위, 매끄럽게)은 기존과 동일.
+    // 이제 '센터 상태로' Loading 씬으로 전환한다(커튼은 DontDestroy로 유지 → 센터에 정지한 채 넘어감).
+    // 무거운 출발 씬 언로드는 정지한 커튼 뒤에서 진행돼 가려진다. 이후 Loading에서 hold → 도착 씬 로드 →
+    // 슬라이드아웃(도착 씬 위)으로 이어진다. 즉 슬라이드인/아웃은 각각 출발/도착 씬(한가한 구간)에서만 돈다.
     private void OnDepartureSlideInDone()
     {
-        if (_nextSceneTriggered) return;
-        _nextSceneTriggered = true;
+        if (_loadingRequested) return;
+        _loadingRequested = true;
+        string loadingScene = (NetworkManager.Instance != null)
+            ? NetworkManager.Instance.loadingSceneName : "Loading";
         if (_localLoad)
-            SceneManager.LoadScene(_targetScene);
+            SceneManager.LoadScene(loadingScene);                 // 로컬 복귀: 로컬 로드
         else if (_allClientsLoad || PhotonNetwork.IsMasterClient)
-            PhotonNetwork.LoadLevel(_targetScene);
+            PhotonNetwork.LoadLevel(loadingScene);                // 네트워크: 마스터(또는 전 클라)만
     }
 
     /// <summary>
@@ -193,8 +197,13 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         SceneManager.LoadScene("Loading");
     }
 
-    // Resources의 커튼 프리팹을 '출발 씬'에 띄워 슬라이드인부터 시작한다. 성공 시 true, 프리팹 없으면 false(폴백).
-    private static bool TryBeginDepartureIntro()
+    /// <summary>
+    /// Resources의 커튼 프리팹을 '출발 씬'에 띄워 슬라이드인부터 시작한다(완전판). 성공 시 true, 프리팹 없으면 false(폴백).
+    /// 호출 전에 NextSceneName/AllClientsLoad/LocalLoad를 원하는 전환에 맞게 세팅해 둔다(로컬 복귀·게임 입장 공용).
+    ///  • 로컬 복귀: NextSceneName="Main", LocalLoad=true 로 호출.
+    ///  • 게임 입장: NextSceneName=게임씬(또는 비움→룸모드 기본값)으로 호출(마스터가). 커튼이 Loading→게임을 주도.
+    /// </summary>
+    public static bool TryBeginDepartureIntro()
     {
         if (_instance != null) return false;                  // 이미 커튼이 떠 있으면 중복 방지 → 폴백
         var prefab = Resources.Load<GameObject>(CURTAIN_RESOURCE_PATH);
@@ -248,7 +257,17 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        if (scene.name == "Loading") return;
+        if (scene.name == "Loading")
+        {
+            // [완전판] 출발 씬에서 슬라이드인을 마친 커튼이 '센터 상태로' Loading 씬에 도착.
+            // 여기서부터 Loading hold(holdSeconds) → 도착 씬 로드 → 슬라이드아웃(도착 씬)으로 이어진다.
+            if (_departureIntro && !_inLoadingScene)
+            {
+                _inLoadingScene = true;
+                _elapsed = 0f; // Loading hold 기준을 'Loading 진입 시점'으로 리셋
+            }
+            return;
+        }
         _targetSceneLoaded = true;
         if (_targetLoadedElapsed < 0f) _targetLoadedElapsed = _elapsed; // 정착 대기의 기준 시각
     }
@@ -280,10 +299,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // ※ [통합] 미루는 기준을 '활성 패널 커튼의 holdSeconds'로 통일했다(옛 minDisplayTime 폐지).
         //   같은 holdSeconds가 (a)커튼 최소 표시시간이자 (b)로드 지연 기준이라, 값이 전환마다 딱 하나다.
         //   커튼이 언제 나갈지는 여전히 애니가 holdSeconds && _targetSceneLoaded(씬 준비)로 스스로 판단.
-        // [완전판] 출발 씬 슬라이드인 모드에선 로드 트리거를 타이머가 아니라 '슬라이드인 완료 콜백'
-        // (OnDepartureSlideInDone)이 담당하므로, 여기 타이머 기반 로드는 건너뛴다.
+        // 도착 씬 로드 트리거.
+        // [완전판] departure-intro는 '센터 상태로 Loading 씬에 도착한 뒤'(_inLoadingScene)에만 도착 씬을
+        //   로드한다(그 전 Main→Loading 전환은 OnDepartureSlideInDone이 담당). born-in-Loading은 즉시(기존).
         float loadAfter = (_enteringGame || _localLoad) ? ActiveHoldSeconds() : 0f;
-        if (!_departureIntro && !_nextSceneTriggered && _elapsed >= loadAfter)
+        bool canLoadArrival = !_departureIntro || _inLoadingScene;
+        if (canLoadArrival && !_nextSceneTriggered && _elapsed >= loadAfter)
         {
             _nextSceneTriggered = true;
             if (_localLoad)

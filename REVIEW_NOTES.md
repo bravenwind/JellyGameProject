@@ -2944,7 +2944,28 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 - 학습 포인트: **트윈은 '무거운 단발 작업'(로드/인스턴스화)과 같은 프레임에 시작하지 마라.** 시작 직전에 유예를
   둬 히칭 프레임을 흘려보내면, 같은 트윈이라도 매끄럽게 재생된다. 슬라이드'아웃'(AB7)·'인'(AB9) 모두 같은 원리.
 
-> ※ 아홉 수정(AB1~AB9) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+### [AB10] (전환 부드럽게 / 완전판 2단계) departure-intro를 'Loading 씬 경유'로 통일 + 게임 입장(메인→게임) 적용
+- 위치: `LoadingSceneController.cs`(`OnDepartureSlideInDone`→Loading 로드, `_inLoadingScene`/`_loadingRequested`,
+  Update 게이트, `TryBeginDepartureIntro` public화), `NetworkManager.cs`(`CountdownCoroutine`)
+- 지적: 사용자 — "왼→센터가 여전히 Loading 씬에서 일어남. 이건 Loading 씬 '전'(출발 씬)에 일어나고, **센터 상태로
+  Loading 씬에 진입**해야 한다." → AB8은 로컬 복귀만, 그것도 Loading 씬을 건너뛰어 모델과 불일치. 게임 입장은
+  미적용이라 born-in-Loading(슬라이드인이 Loading 씬에서 발생) 그대로였음.
+- 수정(모델대로 통일): departure-intro가 이제 **Loading 씬을 경유**한다.
+  - 출발 씬에서 슬라이드인(왼→센터) → `OnDepartureSlideInDone`이 **Loading 씬**을 로드(센터 정지 커튼이 그대로
+    넘어감, 무거운 출발 씬 언로드는 커튼 뒤에 가림) → `OnSceneLoaded("Loading")`에서 `_inLoadingScene`=true,
+    `_elapsed`=0(Loading hold 기준) → Update가 `_inLoadingScene` 이후 holdSeconds 지나면 **도착 씬** 로드 →
+    도착 씬에서 정착 대기 → 슬라이드아웃. 즉 슬라이드인/아웃은 각각 출발/도착 씬(한가한 구간)에서만 돈다.
+  - **게임 입장(메인→게임)**: 마스터 `CountdownCoroutine`이 `LoadLevel(Loading)` 대신 `TryBeginDepartureIntro()`
+    호출 → 마스터가 Main에서 커튼 슬라이드인 후 커튼이 Loading→게임을 주도. 프리팹 없으면 기존 방식 폴백.
+  - 로컬 복귀(결과/게임→메인)도 같은 경유 경로로 통일(AB8의 'Loading 건너뛰기'에서 변경).
+- 범위/한계: 멀티플레이 **비마스터**는 마스터의 `LoadLevel(Loading)`에 끌려와 Loading 씬 커튼을 쓰므로(슬라이드인이
+  Loading에서 발생) 아직 완전판 미적용 — 솔로(=마스터)와 마스터엔 적용됨. 전 클라 동기화(EVENT로 비마스터도
+  Main에서 스폰)는 후속. 결과 전환(게임→결과)도 현재는 born-in-Loading — 후속 적용 대상.
+- 폴백 안전: `Resources/LoadingCurtain` 없으면 입장/복귀 모두 기존 동작. 프리팹이 킬스위치.
+- 학습 포인트: **커튼을 '씬 상주 오버레이'로 두면, 씬 로드를 커튼의 정지 구간에 몰아넣고 애니(인/아웃)를
+  로드가 없는 출발/도착 씬에 각각 배치할 수 있다.** 씬 로드 순서(LoadLevel)는 그대로라 네트워크 동기 불변.
+
+> ※ 열 수정(AB1~AB10) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
 > AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2~AB7·AB9는 신호·조건·단일출처·정렬·유예 기반이라 회귀 위험 낮음.
 > AB5는 게임 시작 로직(카운트다운) 진입부만 대기 추가라 멀티 동기 모델(카운트다운=클라 로컬)은 불변.
 > AB8/AB9는 **폴백 안전**(프리팹 없으면 기존 동작). 로컬 복귀부터 완전판 활성화.
