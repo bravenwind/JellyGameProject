@@ -2801,8 +2801,34 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
   살리되, 사용자에게 보여야 하는 연출은 화면이 실제로 드러난 시점에 트리거해야 한다. 준비(Start)와
   발화(시퀀스)를 신호(`IsPresenting`)로 갈라 두 요구를 동시에 만족시켰다.
 
-> ※ 두 수정 모두 씬 전환 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
-> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2는 `IsPresenting` 신호 기반이라 회귀 위험 낮음.
+### [AB3] (UI·씬전환 / 구조개선·사용자 요청) 로딩 커튼 '나가는 타이밍'을 `holdSeconds`(최소 표시시간) && '다음 씬 준비'로 애니가 자체 판단
+- 위치: `LoadingBGSlideAni.cs`(전면 개편), `LoadingSceneController.cs`(`SetExitCondition` 주입·ExitRoutine 폴백화)
+- 요청: "`LoadingBGSlideAni.holdSeconds`는 '로딩 화면이 최소 이 시간은 떠 있어야 한다'는 뜻으로 쓰고, 실제
+  로드 시엔 왼→센터 후 `(holdSeconds 경과 && 다음 씬 준비됨)==true`가 되면 센터→오로 나가게 바꿔줘."
+- 기존 문제: 커튼 나가는 타이밍이 **이원화**돼 있었다. ① `LoadingBGSlideAni`가 OnEnable에서 고정 타임라인
+  (in→`AppendInterval(holdSeconds)`→out)으로 스스로 나가고, ② 동시에 `LoadingSceneController.ExitRoutine`이
+  `_targetSceneLoaded && _elapsed>=minDisplayTime`가 되면 `SkipHoldAndExit()`로 또 나갔다. 두 시계가 경쟁 →
+  `holdSeconds`가 '고정 대기'라 씬이 아직 준비 안 됐어도 그냥 나가버릴 수 있었다(회색 배경 위험).
+- 수정:
+  - `LoadingBGSlideAni`를 코루틴 기반으로 재작성. 왼→센터(in) 후, **`held>=holdSeconds && isNextSceneReady()`**
+    가 될 때까지 센터에서 대기하다가 센터→오(out). `holdSeconds`는 이제 명확히 '최소 표시시간'.
+  - '다음 씬 준비' 판정은 `LoadingSceneController`가 `SetExitCondition(() => _targetSceneLoaded, …)`으로 주입.
+    커튼이 나가기 '시작'할 때 `onExitStarted`(→`IsPresenting=false`, 결과 씬 시퀀스 개시 신호/ AB2와 연결),
+    다 나간 뒤 `onExited`(→로딩 컨트롤러 정리)로 콜백. 나가는 시계를 **애니 단일 출처**로 통일.
+  - 컨트롤러의 `minDisplayTime`은 이제 '언제 로드를 트리거할지(loadAfter)'에만 관여하고, '언제 나갈지'는
+    애니의 `holdSeconds`가 하한. 애니가 없는 예외 경우만 컨트롤러 `ExitRoutine`이 폴백으로 정리.
+  - 주입 타이밍 안전: `Awake`가 `ApplyTransitionPanels()`로 패널을 켜면 애니 `Play` 코루틴은 첫 in-이동의
+    `yield`에서 즉시 일시정지하고 `Awake`가 이어서 `SetExitCondition`을 호출하므로, 대기 루프가 돌기 전에
+    조건이 항상 주입된다(레이스 없음). 조건 미주입(단독 사용/테스트) 시엔 시간 조건만으로 나간다.
+- 학습 포인트: **"최소 표시시간"과 "준비 완료"는 AND로 묶어야 한다.** 하나만 쓰면 (시간만) 씬이 안 떴는데
+  커튼이 걷히거나(회색), (준비만) 너무 빨리 깜빡인다. 또 같은 일을 두 곳(애니+컨트롤러)이 각자 판단하면
+  경쟁이 생기므로 '나가는 결정'은 한 곳(애니)이 소유하고 나머지는 신호/콜백으로 협력해야 한다.
+- 남은 관찰: `LoadingCenterMultiAni`(센터 로고 페이드)는 여전히 `phase2Duration=holdSeconds` 고정 타임라인이라,
+  씬 준비가 `holdSeconds`보다 늦어지는 드문 경우 센터 로고만 먼저 사라질 수 있다(BG 커튼은 유지되어 씬은
+  안 보이므로 회색 배경은 아님). 필요 시 MultiAni도 동일하게 준비신호까지 대기시키는 후속 정리 여지.
+
+> ※ 세 수정 모두 씬 전환 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2/AB3는 신호·조건 기반이라 회귀 위험 낮음.
 
 ---
 

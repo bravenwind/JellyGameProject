@@ -54,6 +54,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private float _elapsed;
     private bool _exiting;
     private bool _nextSceneTriggered; // 추가: LoadLevel 중복 호출 방지
+    private LoadingBGSlideAni _slide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
 
     private void Awake()
     {
@@ -85,6 +86,34 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
         ApplyTransitionPanels();
         ApplyModeTipPanels();
+
+        // 커튼 애니(LoadingBGSlideAni)에게 "언제 나갈지"를 위임한다.
+        //   나가는 조건 = (holdSeconds 최소 표시시간 경과) && (다음 씬 준비 완료 = _targetSceneLoaded)
+        // 애니가 왼->센터 등장 후 위 조건이 될 때까지 센터에서 대기하다가 센터->오른쪽으로 나간다.
+        // ApplyTransitionPanels가 활성화한 패널의 애니를 잡는다(비활성 포함 탐색). 없으면 인스펙터 bgSlide.
+        _slide = (_activePanel != null) ? _activePanel.GetComponentInChildren<LoadingBGSlideAni>(true) : null;
+        if (_slide == null) _slide = bgSlide;
+        if (_slide != null)
+        {
+            _slide.SetExitCondition(
+                isNextSceneReady: () => _targetSceneLoaded,
+                onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
+                onExited: OnCurtainExited            // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
+            );
+        }
+    }
+
+    // 커튼이 센터->오른쪽으로 나가기 '시작'할 때(=화면이 드러나기 시작). 결과 씬 시퀀스는 이때부터 진행된다.
+    private void OnCurtainExitStarted()
+    {
+        _exiting = true;      // Update의 로드/종료 처리를 멈추고, 마스터 교체 재트리거도 막는다.
+        IsPresenting = false; // 결과 씬 등 다음 씬 연출 대기 해제 신호
+    }
+
+    // 커튼이 완전히 빠진 뒤 로딩 컨트롤러(및 커튼 캔버스)를 정리한다.
+    private void OnCurtainExited()
+    {
+        Destroy(gameObject);
     }
 
     /// <summary>
@@ -168,8 +197,11 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // 달리 SceneManager.LoadScene은 동기라 호출 즉시(=loadAfter=0이면 1프레임 만에) 씬이 교체되고,
         // Main 씬의 UI가 곧바로 커튼 위로 그려져 커튼이 '잠깐 번쩍'하고 사라진 것처럼 보인다(사용자 제보).
         // 게임 입장(카운트다운) 전환도 기존대로 minDisplayTime 뒤 로드한다 — 일찍 로드하면 3-2-1
-        // 카운트다운이 커튼 뒤에서 시작돼 일부를 놓치기 때문. 커튼 자체는 모든 경우
-        // minDisplayTime + 타겟 로드 완료까지 유지된다(아래 ExitRoutine 조건).
+        // 카운트다운이 커튼 뒤에서 시작돼 일부를 놓치기 때문.
+        //
+        // ※ minDisplayTime은 여기서 '언제 로드를 트리거할지'만 정한다. '커튼이 언제 나갈지'는
+        //   커튼 애니(LoadingBGSlideAni)가 holdSeconds(최소 표시시간) && _targetSceneLoaded(씬 준비)로
+        //   스스로 판단한다(Awake의 SetExitCondition). 즉 실제 표시시간의 하한은 애니의 holdSeconds다.
         float loadAfter = (_enteringGame || _localLoad) ? minDisplayTime : 0f;
         if (!_nextSceneTriggered && _elapsed >= loadAfter)
         {
@@ -180,7 +212,9 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
                 PhotonNetwork.LoadLevel(_targetScene);
         }
 
-        if (_targetSceneLoaded && _elapsed >= minDisplayTime)
+        // 커튼 애니가 있으면 나가는 타이밍은 그 애니가 스스로 판단한다(holdSeconds && 씬 준비).
+        // 애니가 없는 예외적 경우에만 컨트롤러가 minDisplayTime 기준으로 직접 정리한다(폴백).
+        if (_slide == null && _targetSceneLoaded && _elapsed >= minDisplayTime)
         {
             _exiting = true;
             StartCoroutine(ExitRoutine());
