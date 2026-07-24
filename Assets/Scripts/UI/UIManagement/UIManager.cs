@@ -172,7 +172,7 @@ public class UIManager : MonoBehaviour
             if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
                 NetworkManager.Instance.GoToMainMenu();
             else
-                SceneManager.LoadScene("Main");
+                LoadingSceneController.LoadMainViaLoading(); // 룸 밖이어도 출발 씬에서 커튼 슬라이드인 경유
         }
     }
 
@@ -202,6 +202,6 @@ public class UIManager : MonoBehaviour
         if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
             NetworkManager.Instance.GoToMainMenu();
         else
-            SceneManager.LoadScene("Main");
+            LoadingSceneController.LoadMainViaLoading(); // 룸 밖이어도 출발 씬에서 커튼 슬라이드인 경유
     }
 }

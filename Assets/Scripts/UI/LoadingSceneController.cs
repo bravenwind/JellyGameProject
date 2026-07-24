@@ -178,6 +178,10 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     /// </summary>
     public static void LoadMainViaLoading()
     {
+        // 이미 커튼 전환이 진행 중이면(중복 트리거: GoToMainMenu가 먼저 시작 + OnDisconnected 재호출 등)
+        // 아무것도 더 하지 않는다 → 진행 중인 슬라이드인이 폴백 LoadScene에 끊기지 않게.
+        if (_instance != null) return;
+
         string cur = SceneManager.GetActiveScene().name;
         if (cur == "Main" || cur == "Loading")
         {
@@ -195,6 +199,21 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
         // 폴백: 커튼 프리팹(Resources/LoadingCurtain)이 없으면 기존 방식(Loading 씬에서 커튼 생성).
         SceneManager.LoadScene("Loading");
+    }
+
+    /// <summary>
+    /// 메인 복귀 커튼(departure-intro)을 '현재 씬'에서 즉시 시작한다 — 입장처럼 출발 씬 위에서 슬라이드인.
+    /// GoToMainMenu가 Disconnect '전에' 불러, 끊김 콜백을 기다리지 않고 곧바로 출발 씬에서 슬라이드인하게 한다.
+    /// 커튼이 이후 Loading→Main 로컬 전환을 주도한다. 성공(프리팹 있음) 시 true, 아니면 false(호출측 폴백).
+    /// </summary>
+    public static bool TryBeginReturnIntro()
+    {
+        if (_instance != null) return false;
+        string cur = SceneManager.GetActiveScene().name;
+        if (cur == "Main" || cur == "Loading") return false; // 이미 메인/로딩이면 커튼 불필요
+        NextSceneName = "Main";
+        LocalLoad = true;
+        return TryBeginDepartureIntro();
     }
 
     /// <summary>

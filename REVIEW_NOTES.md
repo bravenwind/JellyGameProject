@@ -2988,7 +2988,29 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
   결과=전 클라, 복귀=로컬)에 얹기만 하면 된다.** 신호(EVENT/AllClientsLoad/LocalLoad)로 '누가 로드를 트리거하나'만
   구분하고, 커튼의 인/hold/아웃 로직은 공통 재사용.
 
-> ※ 열하나 수정(AB1~AB11) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+### [AB12] (버그수정) 게임/결과→메인 복귀 시 출발 씬 슬라이드인이 안 보이던 문제
+- 위치: `NetworkManager.cs`(GoToMainMenu/OnDisconnected/`_returningViaCurtain`), `LoadingSceneController.cs`
+  (`TryBeginReturnIntro`, LoadMainViaLoading `_instance` 가드), `UIManager.cs`(룸 밖 분기)
+- 제보: "게임/결과 → 메인 갈 때 출발 씬에서 왼→센터가 안 일어남."
+- 원인 2가지:
+  1. **지연 스폰**: 복귀는 `GoToMainMenu`→`Disconnect()`→(비동기)`OnDisconnected`→`LoadMainViaLoading`에서야 커튼을
+     스폰했다. 입장은 커튼을 '즉시' 스폰(출발 씬 위)하는데, 복귀는 끊김 콜백을 기다리느라 출발 씬 슬라이드인이
+     제때/제 위치에서 안 보였다.
+  2. **룸 밖 우회**: 결과 씬 메인 버튼(`UIManager.OnClick_MainMenuButton`)이 `!InRoom`이면
+     `SceneManager.LoadScene("Main")`을 직접 호출 → 커튼 자체를 건너뜀.
+- 수정:
+  - `GoToMainMenu`가 Disconnect '전에' `TryBeginReturnIntro()`로 **출발 씬(현재 씬)에서 즉시 커튼 슬라이드인**을
+    시작(입장과 동일). 커튼이 Loading→Main 로컬 전환을 주도하고, 콜드 스타트를 위해 함께 Disconnect한다.
+    `_returningViaCurtain` 플래그로 `OnDisconnected`가 다시 `LoadMainViaLoading`을 부르지 않게 억제.
+  - `UIManager`의 룸 밖 분기를 `SceneManager.LoadScene("Main")` → `LoadingSceneController.LoadMainViaLoading()`로
+    바꿔 룸 안/밖 모두 출발 씬 커튼 경유.
+  - `LoadMainViaLoading` 진입부에 `if (_instance != null) return;` 가드 — 중복 트리거 시 폴백 LoadScene가
+    진행 중 슬라이드인을 끊지 않게.
+- 폴백 안전: 프리팹 없으면 `TryBeginReturnIntro`=false → 기존(디스커넥트 후 born-in-Loading) 동작.
+- 학습 포인트: **연출은 '트리거 시점'에 즉시 시작해야 보인다.** 비동기 콜백(끊김) 뒤로 미루면 지연·경합으로
+  '안 일어난 것처럼' 보인다. 입장(즉시 스폰)과 복귀(지연 스폰)의 비대칭이 정확히 그 증상을 만들었다.
+
+> ※ 열둘 수정(AB1~AB12) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
 > AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2~AB7·AB9는 신호·조건·단일출처·정렬·유예 기반이라 회귀 위험 낮음.
 > AB5는 게임 시작 로직(카운트다운) 진입부만 대기 추가라 멀티 동기 모델(카운트다운=클라 로컬)은 불변.
 > AB8/AB9는 **폴백 안전**(프리팹 없으면 기존 동작). 로컬 복귀부터 완전판 활성화.

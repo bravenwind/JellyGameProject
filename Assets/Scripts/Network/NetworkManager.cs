@@ -92,6 +92,7 @@ public class NetworkManager : MonoBehaviourPunCallbacks
     private bool _isCountingDown = false;
     private bool _wantsToJoin = false;
     private bool _isCancellingMatch = false;
+    private bool _returningViaCurtain = false; // 메인 복귀 커튼이 이미 전환을 주도 중인지(OnDisconnected 재로드 억제)
     private int _reconnectAttempts = 0;
     private const int MaxReconnectAttempts = 3;
 
@@ -449,7 +450,11 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         {
             _reconnectAttempts = 0;
             _isCountingDown = false;
-            LoadingSceneController.LoadMainViaLoading();
+            // 메인 복귀 커튼이 GoToMainMenu에서 이미 시작돼 Loading→Main을 주도 중이면 재로드하지 않는다.
+            if (_returningViaCurtain)
+                _returningViaCurtain = false;
+            else
+                LoadingSceneController.LoadMainViaLoading();
         }
     }
 
@@ -761,13 +766,19 @@ public class NetworkManager : MonoBehaviourPunCallbacks
         // 큐가 멈춘 채 시작되어 모든 동기화가 깨진다(서로 안 보임/타일 desync/젤리 늦게 소환).
         // 완전히 Disconnect 했다가 다음 게임에서 새로 연결하면, 첫 게임과 동일한 콜드 스타트가
         // 되어 항상 깨끗한 상태로 시작된다. → 재시작 경로를 콜드 스타트로 통일한다.
+        // [완전판] 출발 씬(현재 씬)에서 '즉시' 커튼 슬라이드인을 시작한다 — 입장과 동일하게 출발 씬 위에서.
+        // 예전엔 Disconnect 후 OnDisconnected 콜백에서야 커튼을 띄워, 끊김 지연 동안 출발 씬 슬라이드인이
+        // 보이지 않았다. 커튼이 이후 Loading→Main 로컬 전환을 주도하고, 콜드 스타트를 위해 함께 Disconnect한다.
+        // 프리팹이 없으면(폴백) 기존처럼 Disconnect 후 LoadMainViaLoading으로 처리한다.
+        _returningViaCurtain = LoadingSceneController.TryBeginReturnIntro();
+
         if (PhotonNetwork.IsConnected)
         {
             // 멈춰 있을 수 있는 큐를 풀어 끊김 처리가 정상 진행되게 한다.
             PhotonNetwork.IsMessageQueueRunning = true;
-            PhotonNetwork.Disconnect(); // OnDisconnected → LoadingSceneController.LoadMainViaLoading()
+            PhotonNetwork.Disconnect(); // OnDisconnected: 커튼이 이미 주도 중이면 재로드 억제, 아니면 LoadMainViaLoading
         }
-        else
+        else if (!_returningViaCurtain)
         {
             LoadingSceneController.LoadMainViaLoading();
         }
