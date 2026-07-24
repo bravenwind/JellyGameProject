@@ -2849,10 +2849,41 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
   로드시간까지 커튼 뒤로 숨길 수 있으나, 카운트다운이 멀티 시작 로직(GameStartTime 등)과 얽혀 위험이 커
   이번엔 '로드 지연' 방식을 유지했다(AB2 결과 씬 패턴의 게임 씬 확장은 별도 검토).
 
-> ※ 네 수정(AB1~AB4) 모두 씬 전환 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
-> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2/AB3/AB4는 신호·조건·단일출처 기반이라 회귀 위험 낮음.
-> ※ 인스펙터 조치: `LoadingSceneController`의 minDisplayTime 필드가 사라졌으니, 표시시간은 각 로딩 패널
->   `LoadingBGSlideAni.holdSeconds`(메인→게임 / 게임→메인 각각)에서 조정한다.
+### [AB5] (게임 시작 시퀀스 / 사용자 요청) 게임 3-2-1 카운트다운을 '로딩 UI가 걷힌 뒤'에 시작하도록 게이트
+- 위치: `GameModeManager.cs`(`StartCountdownRoutine` 진입부에 `IsPresenting` 대기 추가, `countdownCurtainTimeout` 필드)
+- 요청 시퀀스: 메인 → 매칭 → (매칭 3-2-1) → 로딩 씬 → **로딩 UI 사라진 뒤 게임 3-2-1 시작(그동안 조작 불가)** → 게임 시작.
+- 시퀀스 실측(코드 추적):
+  1. 매칭 3-2-1: `NetworkManager.CountdownCoroutine`이 `EVENT_COUNTDOWN`(3/2/1)+`EVENT_GAME_START` →
+     `LobbyController`가 Main 씬에서 표시 → `LoadLevel(Loading)`. **정상 작동**.
+  2. 로딩 씬: `LoadingSceneController`가 `toGamePanel` 커튼 표시, `loadAfter=holdSeconds`에 게임 씬 로드,
+     커튼은 `holdSeconds && 씬 준비`까지 유지(AB3/AB4). **정상 작동**.
+  3. 게임 카운트다운: 게임 씬 로드 시 `GameModeManager.Start→SpawnAndStartGame→RPC_StartGame→StartGameInternal`
+     (`CountdownActive=true`,`InputLocked=true`) → `StartCountdownRoutine`. **문제**: 예전엔 씬 로드 즉시
+     3-2-1이 떠, 커튼(로딩 UI)이 아직 걷히기 전(뒤)에서 카운트다운이 시작될 수 있었다.
+- 수정: `StartCountdownRoutine`이 3-2-1을 띄우기 전에 `while (LoadingSceneController.IsPresenting) yield`로
+  **커튼이 걷힐 때까지 대기**(입력·봇은 `InputLocked/CountdownActive`로 계속 정지). 커튼이 없거나 신호 유실 시
+  `countdownCurtainTimeout`(6s) 후 진행. 결과 씬(AB2)과 동일한 `IsPresenting` 게이트 패턴을 게임 시작에 적용.
+- 결과: "로딩 UI 사라짐(커튼 걷히기 시작) → 게임 3-2-1 → 시작"이 순서대로 보장된다. 각 클라가 자기 커튼 기준으로
+  대기하므로 로컬 연출이 항상 온전히 보인다(카운트다운은 원래도 클라 로컬 진행이라 동기 모델 불변).
+- 학습 포인트: **"준비"와 "연출 시작"의 분리(AB2)를 게임 시작에도 재사용.** 씬을 미리 로드해도 사용자에게
+  보여야 하는 연출(카운트다운)은 화면이 드러난 시점(IsPresenting=false)에 트리거해야 순서가 지켜진다.
+
+### [AB6] (UI 정렬 / 사용자 요청) 로딩 커튼 캔버스를 다른 모든 UI 위에 강제 정렬
+- 위치: `LoadingSceneController.cs`(`BringLoadingCanvasToFront`, `loadingSortingOrder=32000`)
+- 요청: "로딩 UI가 캔버스에 있는 다른 어떤 UI들보다 위에 있도록."
+- 원인: 로딩 씬은 `DontDestroyOnLoad`로 다음 씬 위에 겹쳐 표시되는데, 다음 씬(게임/메인)의 오버레이 캔버스가
+  같거나 높은 `sortingOrder`면 로딩 커튼이 그 아래로 가려질 수 있다. AB1(메인복귀 번쩍)의 한 원인이기도 하다.
+- 수정: `Awake`에서 커튼 루트 캔버스의 `sortingOrder`를 `loadingSortingOrder`(32000)로 올려 오버레이 최상단 고정.
+- 학습 포인트: **오버레이 캔버스는 `sortingOrder`가 큰 것이 위.** DontDestroyOnLoad로 씬을 넘나드는 UI는
+  다음 씬 UI에 가려지지 않도록 정렬 순서를 코드에서 명시적으로 최상단에 두는 게 안전하다.
+
+> ※ 여섯 수정(AB1~AB6) 모두 씬 전환/시작 타이밍이라 유니티 에디터 플레이테스트로 최종 확인 필요(이 환경에선 실행 불가).
+> AB1은 로컬/네트워크 로드 비대칭이 근거상 명확, AB2~AB6은 신호·조건·단일출처·정렬 기반이라 회귀 위험 낮음.
+> AB5는 게임 시작 로직(카운트다운) 진입부만 대기 추가라 멀티 동기 모델(카운트다운=클라 로컬)은 불변.
+> ※ 인스펙터 조치: (a) 표시시간은 각 로딩 패널 `LoadingBGSlideAni.holdSeconds`(메인→게임 / 게임→메인)에서 조정
+>   (옛 minDisplayTime 폐지). (b) 로딩 커튼 최상단 정렬은 `loadingSortingOrder`(기본 32000)로 조정 가능.
+> ※ 미세 조정 여지: AB5의 게이트는 커튼이 '걷히기 시작'(onExitStarted, 슬라이드아웃 시작)할 때 풀린다.
+>   커튼이 '완전히' 사라진 뒤에 카운트다운을 시작하려면 신호를 onExited로 옮기면 된다(0.35s 차이).
 
 ---
 

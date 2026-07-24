@@ -8,6 +8,10 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Header("애니메이션")]
     [SerializeField] private LoadingBGSlideAni bgSlide;
 
+    [Header("정렬")]
+    [Tooltip("로딩 커튼이 다른 모든 UI(다음 씬 포함) 위에 그려지도록 하는 캔버스 정렬 순서(클수록 위).")]
+    [SerializeField] private int loadingSortingOrder = 32000;
+
     // [통합] 예전엔 '최소 표시시간'을 컨트롤러의 minDisplayTime과 커튼 애니의 holdSeconds 두 곳에서
     // 따로 관리했다. 이제는 **활성 패널(toGamePanel/toMainOrResultPanel)의 LoadingBGSlideAni.holdSeconds**
     // 하나로 통일한다 — 이 값이 (a)커튼 최소 표시시간이자 (b)게임/로컬 전환에서 다음 씬 로드를 미루는
@@ -69,6 +73,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         _instance = this;
         DontDestroyOnLoad(gameObject);
         IsPresenting = true; // 커튼이 뜨는 순간부터 걷힐 때까지 유지
+        BringLoadingCanvasToFront(); // 다음 씬 UI에 가려지지 않도록 최상단 정렬
         SceneManager.sceneLoaded += OnSceneLoaded;
 
         // 정적 설정값을 인스턴스로 캡처한 뒤 비워둔다 (다음 로딩 진입 시 기본값으로 복귀).
@@ -225,6 +230,24 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     // '최소 표시시간 = 로드 지연 기준'의 단일 출처: 활성 커튼 애니의 holdSeconds.
     // 커튼 애니가 없으면(예외) 상수 폴백을 쓴다.
     private float ActiveHoldSeconds() => _slide != null ? _slide.holdSeconds : FALLBACK_HOLD_SECONDS;
+
+    // 로딩 커튼 캔버스를 다른 모든 UI(다음 씬 UI 포함) 위에 그려지도록 최상단 정렬 순서로 올린다.
+    // 로딩 씬은 DontDestroyOnLoad로 다음 씬 위에 겹쳐 있으므로, 다음 씬 캔버스에 가려지지 않으려면 필수.
+    // 루트 캔버스의 sortingOrder가 오버레이 캔버스들 간 그리기 순서를 정한다(클수록 위).
+    private void BringLoadingCanvasToFront()
+    {
+        Canvas any = GetComponent<Canvas>();
+        if (any == null) any = GetComponentInChildren<Canvas>(true);
+        if (any == null) any = GetComponentInParent<Canvas>();
+        if (any == null)
+        {
+            Debug.LogWarning("[Loading] 커튼 캔버스를 찾지 못해 정렬 순서를 올리지 못했습니다.");
+            return;
+        }
+
+        Canvas root = any.rootCanvas != null ? any.rootCanvas : any;
+        root.sortingOrder = loadingSortingOrder;
+    }
 
     private IEnumerator ExitRoutine()
     {

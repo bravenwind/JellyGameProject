@@ -22,6 +22,8 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     [Header("UI 연결 — 중앙 카운트다운")]
     public TextMeshProUGUI centerCountdownText;
+    [Tooltip("게임 3-2-1 시작 전, 로딩 커튼이 걷힐 때까지 기다리는 최대 시간(신호 유실 대비 안전장치)")]
+    public float countdownCurtainTimeout = 6f;
 
     [Header("UI 연결 — 전체 게임")]
     public TextMeshProUGUI gameTimerText;
@@ -203,6 +205,17 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         _countdownRunning = true;
         PlayerMovement.InputLocked = true;    // 이동/대쉬/공격/점프 차단(로컬). Idle 애니는 유지.
+
+        // [순서 보장] 로딩 커튼(로딩 UI)이 완전히 걷힐 때까지 기다렸다가 3-2-1을 시작한다.
+        //   → "로딩 UI 사라짐 → 게임 카운트다운 시작" 순서가 지켜진다(사용자 요청 시퀀스).
+        // 대기 중에도 CountdownActive/InputLocked가 true라 조작·봇은 계속 정지 상태.
+        // 커튼이 없거나(직접 로드/테스트) 신호가 유실돼도 countdownCurtainTimeout 후 진행한다.
+        float curtainGuard = 0f;
+        while (LoadingSceneController.IsPresenting && curtainGuard < countdownCurtainTimeout)
+        {
+            curtainGuard += Time.unscaledDeltaTime;
+            yield return null;
+        }
 
         if (centerCountdownText != null)
             centerCountdownText.gameObject.SetActive(true);
