@@ -12,6 +12,12 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     [Tooltip("로딩 커튼이 다른 모든 UI(다음 씬 포함) 위에 그려지도록 하는 캔버스 정렬 순서(클수록 위).")]
     [SerializeField] private int loadingSortingOrder = 32000;
 
+    [Header("전환 부드럽게")]
+    [Tooltip("도착 씬이 로드된 뒤, 슬라이드아웃(센터→오른쪽)을 시작하기 전에 커튼을 '정지 상태'로 더 붙잡는 시간. " +
+             "도착 씬의 무거운 초기화(스폰/타일 등)로 프레임이 튀는 구간을 정지된 커튼 뒤에 숨겨, 슬라이드아웃이 " +
+             "그 끊김과 겹치지 않고 매끄럽게 나가게 한다.")]
+    [SerializeField] private float settleAfterLoad = 0.35f;
+
     // [통합] 예전엔 '최소 표시시간'을 컨트롤러의 minDisplayTime과 커튼 애니의 holdSeconds 두 곳에서
     // 따로 관리했다. 이제는 **활성 패널(toGamePanel/toMainOrResultPanel)의 LoadingBGSlideAni.holdSeconds**
     // 하나로 통일한다 — 이 값이 (a)커튼 최소 표시시간이자 (b)게임/로컬 전환에서 다음 씬 로드를 미루는
@@ -62,6 +68,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private bool _exiting;
     private bool _nextSceneTriggered; // 추가: LoadLevel 중복 호출 방지
     private LoadingBGSlideAni _slide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
+    private float _targetLoadedElapsed = -1f; // 도착 씬이 로드된 시점의 _elapsed(정착 대기 계산용)
 
     private void Awake()
     {
@@ -104,7 +111,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         if (_slide != null)
         {
             _slide.SetExitCondition(
-                isNextSceneReady: () => _targetSceneLoaded,
+                isNextSceneReady: IsTargetSettled,   // 도착 씬 로드 + 정착 대기까지 끝나야 나간다(끊김 회피)
                 onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
                 onExited: OnCurtainExited            // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
             );
@@ -184,7 +191,13 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     {
         if (scene.name == "Loading") return;
         _targetSceneLoaded = true;
+        if (_targetLoadedElapsed < 0f) _targetLoadedElapsed = _elapsed; // 정착 대기의 기준 시각
     }
+
+    // 도착 씬이 '로드됐고' + '정착 시간(settleAfterLoad)까지 지났는지'.
+    // 슬라이드아웃은 이 조건이 참일 때만 시작해, 도착 씬 초기화의 프레임 끊김과 겹치지 않는다.
+    private bool IsTargetSettled()
+        => _targetSceneLoaded && (_elapsed - _targetLoadedElapsed) >= settleAfterLoad;
 
     private void Update()
     {
