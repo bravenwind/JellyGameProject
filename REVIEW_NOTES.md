@@ -3035,6 +3035,125 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 
 ---
 
+## 2026-07-25 루틴 — 로딩 커튼 / departure-intro 씬 핸드오프 서브시스템 신규 심층 리뷰 (출발 씬 슬라이드인 → Loading 경유 → 도착 씬 슬라이드아웃, 마스터/비마스터 커튼 조율, AC1~AC5 도출) · **Fable 5 지정(이번에도 미가용)**
+
+리뷰 대상: `LoadingSceneController`(Awake 셋업·정적 전환 채널·OnDepartureSlideInDone·Update 로드 트리거·
+OnMasterClientSwitched 재트리거·TryBeginDepartureIntro/TryBeginReturnIntro/LoadMainViaLoading),
+`LoadingBGSlideAni`(슬라이드인 유예→인→hold→아웃 코루틴·SetExitCondition·ExitStarted 이벤트),
+`LoadingCenterImageAni`(LoadingCenterMultiAni — Phase1/2 유지 후 BG ExitStarted에 맞춰 Phase3),
+발신 경로 `NetworkManager.CountdownCoroutine`(EVENT_BEGIN_CURTAIN + TryBeginDepartureIntro)·
+`GameModeManager`(GameWin/GameOver/LoadResultSceneAfterSync/PushModeEndSequence)·`LobbyController.OnEvent`.
+
+이 서브시스템은 AB8~AB13(2026-07-24)에서 '로딩 커튼 완전판(departure-intro)'으로 대거 신설·확장됐고,
+그동안은 사용자 제보 버그를 즉시 고치는 방식(AB 계열)으로만 다뤄져 **구조적 루틴 리뷰를 아직 받지 않았다**.
+직전 루틴(AA, 07-24)은 매칭/룸 라이프사이클을 다뤘으므로, 이번엔 그 다음 단계인 '씬 전환 커튼 핸드오프'의
+아키텍처·데드락·네트워크 조율을 새로 짚는다. 모두 **도출만** 했고 코드는 수정하지 않았다(지침: 승인 후 적용).
+
+> **모델 메모**: 지침상 이번 루틴도 **Fable 5**로 수행 예정이었으나, 07-21·07-24와 동일하게 이 환경에서
+> Fable 5 서브에이전트 실행이 "requires usage credits"로 거부되는 상태로 추정돼(크레딧 미보유), 리뷰는
+> 오케스트레이터 모델(claude-opus-4-8)로 수행했다. 데드락 후보(AC1)는 실제 콜백 순서·플래그(_loadingRequested/
+> _nextSceneTriggered/_inLoadingScene)·게이트(canLoadArrival)를 코드 라인으로 교차검증했다. Fable 5 크레딧
+> 상태는 사용자 확인 필요.
+
+### [AC1] (네트워크·버그 / 중·확인필요) departure-intro 게임 입장 슬라이드인 도중 마스터 이탈 시 Main→Loading 로드가 영구 중단(데드락 창)
+- 위치: `LoadingSceneController.cs:162-172`(`OnDepartureSlideInDone` — 비마스터도 `_loadingRequested=true`를 세우나
+  로드는 안 함), `:324-333`(Update 도착-로드 게이트 `canLoadArrival = !_departureIntro || _inLoadingScene`),
+  `:390-401`(`OnMasterClientSwitched` — `!_nextSceneTriggered`면 조기 return, 즉 '도착 로드' 단계만 재트리거),
+  발신 `NetworkManager.cs:402-409`(`CountdownCoroutine` — `RaiseEvent(EVENT_BEGIN_CURTAIN, Others)` + 마스터
+  `TryBeginDepartureIntro`, 이때 `AllClientsLoad`/`LocalLoad`는 default false).
+- 원인: 완전판 게임 입장에서 **Main→Loading 전환을 오직 커튼 슬라이드인 완료 콜백(`OnDepartureSlideInDone`)이
+  주도**한다. 이 콜백은 비마스터에서도 불리는데, 로드는 안 하면서도 `_loadingRequested=true`를 먼저 세운다.
+  한편 Update의 도착-로드 게이트(`canLoadArrival`)는 커튼이 **Loading에 도착한 뒤**(`_inLoadingScene=true`)에만
+  열리므로, Loading 진입 '전' 단계엔 Update 폴백이 아예 없다. 마스터 승계 재트리거(`OnMasterClientSwitched`)도
+  `_nextSceneTriggered`(도착 로드 단계) 조건이라 이 pre-Loading 단계를 커버하지 못한다.
+- 영향: 게임 입장 시 마스터가 'Main 슬라이드인'(≈0.5s = departureSlideInDelay 0.15 + inDuration 0.35) 구간에
+  이탈하고, 승계된 새 마스터가 **이미 슬라이드인을 마쳐 `_loadingRequested=true`** 인 상태라면 → 그 클라의
+  `OnDepartureSlideInDone`은 가드에 막혀 다시 안 불리고, Update도 (아직 Loading 미도착이라) 안 움직인다.
+  결국 **아무도 `LoadLevel(Loading)`을 발행하지 않아** 전원이 Main 씬에 커튼 센터인 채 영구 정지(앱 재시작 필요).
+  창은 좁지만 안정 네트워크 핵심 경로의 하드 데드락이다. (반대로 승계자의 슬라이드인이 '아직' 안 끝났으면,
+  완료 시 `OnDepartureSlideInDone`에서 `IsMasterClient==true`가 되어 자연 치유된다 — 그래서 '이미 끝난' 경우만 위험.)
+- 제안: (a) `OnDepartureSlideInDone`에서 `_loadingRequested=true`를 **실제 로드를 발행할 때만** 세운다(비마스터는
+  세우지 않음) → 승계 후 그 클라가 마스터로서 로드를 발행할 여지를 남긴다. (b) `OnMasterClientSwitched`에
+  'pre-Loading departure' 재트리거를 추가: `_departureIntro && !_inLoadingScene && 슬라이드인 완료`면 새 마스터가
+  즉시 `LoadLevel(loading)`. (c) 또는 Main→Loading 로드에도 Update 기반 폴백(타임아웃 후 마스터가 발행)을 둬 이중화.
+- 학습 포인트: **권위 기반 진행(누가 씬 로드를 발행하나)은 '모든 단계에서' 마스터 승계를 견뎌야 한다.** 도착 단계는
+  `_nextSceneTriggered`+`OnMasterClientSwitched`로 방어됐지만, AB8에서 새로 낀 'Main 슬라이드인' 단계엔 같은
+  안전망이 없다. 진행 상태를 **1-shot 콜백 한 번**에만 걸면, 그 콜백을 이미 지나친 승계자에겐 회복 트리거가 없다.
+  AA1(좀비 카운트다운 코루틴)·H2(승계 카운트다운 재개)·Y1(서버 권위 클럭)과 한 테마 — "진행도는 승계자가
+  '다시 밟을 수 있는' 형태여야 한다".
+
+### [AC2] (아키텍처 / 중·저) `LoadingSceneController`의 정적 필드가 전환 인자를 나르는 '암묵 전역 우편함' — 전환 중첩/폴백 시 클로버링 위험
+- 위치: `LoadingSceneController.cs:51-55`(static `NextSceneName`/`AllClientsLoad`/`LocalLoad`), `:104-118`(Awake가
+  캡처 후 즉시 비움), 발신처 다수 — `NetworkManager.CountdownCoroutine:393`·`GameModeManager.GameWin:463-464`·
+  `GameOver:648-649`·`PushModeEndSequence:846-847`·`LoadMainViaLoading:192-193`·`TryBeginReturnIntro:214-216`.
+- 원인: 전환 파라미터(목표 씬·로드 방식)를 **정적 필드에 써두고**, 곧이어 커튼 `Instantiate`→`Awake`가 이를
+  인스턴스(`_targetScene`/`_allClientsLoad`/`_localLoad`)로 캡처한 뒤 정적 필드를 리셋한다. 즉 함수 인자를
+  '전역 우편함'에 넣어 전달하는 패턴. `Instantiate`가 `Awake`를 동기 호출하므로 정상 흐름에선 (설정→스폰→캡처)가
+  끊김 없이 이어져 동작하지만, 발신처가 6곳+으로 흩어져 "지금 이 값이 누구 것인가"가 코드상 추적 불가.
+- 영향: 두 전환이 겹치거나(예: 결과 전환 발행 직후 끊김으로 메인복귀가 재발행), 프리팹 없음 폴백 경로에서
+  정적 필드가 이미 다음 값으로 덮이면 잘못된 씬/로드 방식으로 진입할 수 있다. 실버그로 관측되진 않았으나
+  정확성의 불변식이 오로지 '호출 순서의 동기성'에만 걸려 있어 취약(AC1의 조율 부재와 같은 결). P4('UI/네트워크
+  단일 출처 부재')의 씬전환판.
+- 제안: 전환 요청을 파라미터 객체(`struct LoadingRequest { string targetScene; LoadMode mode; }`)로 묶어
+  `TryBeginDepartureIntro(req)` 인자로 직접 전달. 관측용 `IsPresenting`만 정적으로 남기고, 설정성 정적
+  (`NextSceneName`/`AllClientsLoad`/`LocalLoad`)은 제거. 발신처는 "우편함 채우고 스폰" 대신 "요청 만들어 넘김".
+- 학습 포인트: **정적 가변 필드는 '보이지 않는 함수 인자'다.** 동기 핸드오프라 지금은 맞아도, 발신처가 늘수록
+  추론 비용과 중첩 위험이 커진다. 인자는 인자로 넘겨라(파라미터 객체) — 소유권과 수명이 코드에 드러난다.
+
+### [AC3] (일관성·널가드 / 하) `LoadingSceneController`가 `NetworkManager.Instance`를 어떤 줄은 무가드·어떤 줄은 가드 (같은 파일 내 비일관, AA5와 동형)
+- 위치: 무가드 — `Awake:110-112`(`NetworkManager.Instance.gamePushModeSceneName/...gameAbsorbModeSceneName`),
+  `ResolveActivePanel:244-245`, `ApplyModeTipPanels:266-267`. 대비 가드 — `OnDepartureSlideInDone:166`
+  (`NetworkManager.Instance != null ? ... : "Loading"`).
+- 원인: 같은 클래스가 한 곳은 `!= null` 삼항으로 가드하고 세 곳은 직접 역참조한다. `NetworkManager`는
+  `DontDestroyOnLoad` 싱글톤이라 정상 흐름(초기 씬 생성)에선 항상 존재하지만, Loading/게임 씬 단독 실행(에디터
+  테스트)·재연결 실패 후 재구성 등 경계에서 `Instance`가 아직/이미 null이면 **커튼 `Awake` 전체가 NRE로 죽어
+  씬 전환이 통째로 멈춘다**(로딩 화면이 안 걷혀 게임 카운트다운도 `countdownCurtainTimeout` 6s 뒤에야 진행).
+- 영향: 드문 진입 경로에서 전환 초기화가 죽는다(AA5의 로딩판, F4/W6 널가드 테마). 상시 버그는 아니고 진입순서 의존.
+- 제안: `var nm = NetworkManager.Instance;` 로 한 번 잡고 null이면 안전 기본(씬 이름 상수—AC4 참조)로 폴백.
+  근본적으론 씬 이름을 싱글톤 필드가 아니라 상수(AC4)로 두면 이 `Instance` 의존 자체가 사라진다.
+- 학습 포인트: **널 가드 유무는 파일 안에서 일관돼야 한다.** 같은 참조를 어디선 가드하고 어디선 안 하면, 읽는
+  사람이 매번 "여긴 왜?"를 추론해야 한다 — 일관성 자체가 방어다. AA5(LobbyController 동일 증상)와 한 묶음.
+
+### [AC4] (유지보수·단일출처 / 하) 씬 이름 `"Main"`/`"Loading"` 리터럴이 5개 파일에 산재 + `loadingSceneName` 필드가 있는데도 하드코딩 혼재
+- 위치: `"Main"` — `NetworkManager.cs:218,346`, `LoadingSceneController.cs:186,188,192,214`, `SceneLoader.cs:15`,
+  `UIManager.cs:171`(주석). `"Loading"` — `NetworkManager.cs:71`(필드 `loadingSceneName`)+`:218`,
+  `LoadingSceneController.cs:167,186,201,213,279`.
+- 원인: 씬 이름이 필드(`loadingSceneName`)와 문자열 리터럴로 뒤섞여 있다. `"Main"`은 아예 대응 필드조차 없어 전부 리터럴.
+- 영향: 씬을 리네이밍하면 **컴파일러가 못 잡는 조용한 실패**(오타/누락 시 런타임에야 발견). 특히 인스펙터에서
+  `loadingSceneName`을 바꿔도 코드에 박힌 `cur == "Loading"` 비교/`SceneManager.LoadScene("Loading")`는 안
+  바뀌어 로직이 어긋난다(거짓 손잡이). 두 출처가 갈라져 있다는 사실 자체가 버그의 씨앗.
+- 제안: `public static class SceneNames { public const string Main = "Main"; public const string Loading = "Loading"; }`
+  로 상수화하고 모든 비교/로드가 이를 참조(또는 기존 필드 하나로 통일하되 하드코딩 제거). 게임 씬 이름은 이미
+  NetworkManager 필드가 있으니 정합만 맞추면 된다.
+- 학습 포인트: **매직 스트링은 타입 안전이 없는 '숨은 결합'.** 단일 출처 상수로 모으면 리네이밍이 컴파일 타임에
+  강제돼 조용한 런타임 실패가 사라진다. G5(문자열 키 산재 — ELIMINATED_KEY/애니 파라미터)와 한 테마.
+
+### [AC5] (UX·시퀀스 / 하) 비마스터 커튼 슬라이드인이 마스터의 `LoadLevel`과 비동기 — 마스터가 먼저 로드하면 비마스터 커튼이 센터 도달 전 씬이 스왑돼 전환이 살짝 노출
+- 위치: `NetworkManager.cs:402-409`(마스터가 `RaiseEvent(EVENT_BEGIN_CURTAIN, Others)` 후 자기 `TryBeginDepartureIntro`),
+  `LobbyController.cs:115-119`(비마스터가 신호 받고 각자 커튼 슬라이드인 시작), `LoadingSceneController.cs:162-172`
+  (마스터 커튼만 슬라이드인 완료 시 `LoadLevel(Loading)`), 슬라이드인 시간 `LoadingBGSlideAni.cs:106-114`
+  (`_slideInDelay`+`inDuration`).
+- 원인: departure-intro의 목적은 '커튼이 센터에 **정지한 뒤**' 무거운 씬 스왑을 그 뒤에 숨기는 것이다. 그런데 각
+  클라의 커튼은 독립 코루틴이고, Main→Loading 로드 시점은 오직 **마스터 커튼**의 슬라이드인 완료로 정해진다.
+  마스터 커튼이 비마스터보다 조금 빨리 센터에 닿으면 마스터가 `LoadLevel(Loading)`을 쏘고 `AutomaticallySyncScene`이
+  비마스터를 끌어가는데, 그 순간 비마스터 커튼이 아직 센터 전(예: 60%)이면 씬 스왑이 커튼에 **완전히 가려지지
+  않아** 한 프레임 노출될 수 있다.
+- 영향: 드물고 미세한 연출 노출('번쩍'). 기능 결함은 아니며, 슬라이드인 시간 편차 + 네트워크 지터에 비례.
+  AC1의 데드락과 **같은 뿌리**(커튼 진행이 클라별 로컬이고 조율 권위가 없음)에서 나오는 가벼운 증상.
+- 제안: (a) 마스터가 로드 발행 전 최소 대기 = 자기 슬라이드인 총시간 + 소량 마진을 보장(간단, 권장). (b) 전 클라
+  '슬라이드인 완료' 배리어(각자 준비 신호를 마스터가 모아 로드) — 매칭 단계 UX엔 과설계일 수 있음. 근본적으론
+  AC1과 함께 '커튼 전환 상태를 룸 권위(서버시각/카운트)로 조율'하는 방향.
+- 학습 포인트: **"각자 알아서 연출"은 단순하지만, 한 클라(마스터)가 전역 시점(씬 로드)을 정하면 다른 클라의 로컬
+  연출 진척과 어긋난다.** 동시성 연출을 완전히 가리려면 '가장 느린 클라 기준'의 배리어가 필요하다. AC1(데드락)·
+  AC5(미세 노출)는 한 원인의 양면.
+
+> ※ 참고: AA2(`noPlayerConnectTimeSeconds` 미사용 직렬화 필드)는 이번 grep에서도 참조 0건 재확인 — 여전히 미적용(도출 상태 유지).
+> ※ 이번 5건 모두 씬 전환/네트워크 조율이라 최종 확인은 유니티 멀티 클라이언트 플레이테스트 필요(이 환경에선 실행 불가).
+>   AC1은 콜백/플래그 흐름상 근거가 명확한 데드락 창(마스터 승계 타이밍 의존)이라 우선순위 최상.
+>   AC2~AC4는 정리성(아키텍처/일관성/단일출처)이라 동작 불변 저위험, AC5는 연출 미세개선.
+
+---
+
 ## 적용 상태
 
 - [x] F1  (2026-06-04 적용) — LoadingSceneController 기본 씬을 GameState.CurrentGameMode에서 파생
@@ -3210,6 +3329,11 @@ P2(가상 스폰 클라별 Random)·P3(botCount 필드 오염)·P4(UI/네트워�
 - [ ] AA4 (신규 — 2026-07-24 도출, `GoToMainMenu`(:739-761) `Disconnect`가 `DisconnectByClientLogic`∉transient에 암묵 의존 + `CancelMatching`과 달리 `StopAllCoroutines` 미호출(비대칭). 메인복귀 의도 플래그로 분류표 변경에 강건화. AA1과 동근. 저위험)
 - [ ] AA5 (신규 — 2026-07-24 도출, `LobbyController`가 `NetworkManager.Instance`를 `Start:62`/`UpdatePlayerCountUI:406`에서 무가드 역참조(대비 `:274`는 `?.`) → 진입순서 경계서 NRE로 로비 초기화 사망. 널가드 일관화. P4 하위증상·F4/W6 널가드 테마. 저위험)
 - [ ] AA6 (신규 — 2026-07-24 도출, 매칭 중 마스터 승계 시 카운트다운이 `matchBufferSeconds`(6s)+3-2-1을 처음부터 재생(H2가 '이어받기' 아닌 '재시작'). 룸프로퍼티 `CountdownEndTime`(서버시각) 공유로 잔여시간 이어가기. Y1 서버클럭 동형. 연출 개선·저위험)
+- [ ] AC1 (신규 — 2026-07-25 도출, **중·확인필요**. departure-intro 게임 입장 'Main 슬라이드인' 구간(≈0.5s)에 마스터 이탈 시, 슬라이드인 이미 마친 승계자는 `OnDepartureSlideInDone`(1-shot, `_loadingRequested` 가드)이 재발화 안 되고 Update 게이트(`canLoadArrival=_inLoadingScene`)도 안 열려 아무도 `LoadLevel(Loading)` 미발행 → 전원 Main 정지 데드락. 수정: 비마스터는 `_loadingRequested` 안 세움 + `OnMasterClientSwitched`에 pre-Loading 재트리거 추가. AA1/H2/Y1 테마)
+- [ ] AC2 (신규 — 2026-07-25 도출, `LoadingSceneController` 정적 필드(`NextSceneName`/`AllClientsLoad`/`LocalLoad`)가 전환 인자를 나르는 암묵 전역 채널 — 발신처 6곳+, 정확성이 '호출순서 동기성'에만 의존해 중첩/폴백 시 클로버링 위험. 파라미터 객체(`LoadingRequest`)로 인자화, `IsPresenting`만 정적 유지. P4 씬전환판·저위험 정리)
+- [ ] AC3 (신규 — 2026-07-25 도출, `LoadingSceneController`가 `NetworkManager.Instance`를 `Awake:110`/`ResolveActivePanel:244`/`ApplyModeTipPanels:266` 무가드, `OnDepartureSlideInDone:166`만 가드(비일관) → 경계서 커튼 Awake NRE로 전환 정지. 널가드 일관화(또는 AC4 상수화로 의존 제거). AA5 동형·저위험)
+- [ ] AC4 (신규 — 2026-07-25 도출, 씬 이름 `"Main"`/`"Loading"` 리터럴 5개 파일 산재 + `loadingSceneName` 필드 있는데 하드코딩 혼재 → 리네이밍이 컴파일러에 안 잡히는 조용한 실패. `SceneNames` 상수 클래스로 단일출처화. G5 문자열키 테마·저위험 정리)
+- [ ] AC5 (신규 — 2026-07-25 도출, 비마스터 커튼 슬라이드인이 마스터 `LoadLevel`과 비동기 → 마스터가 먼저 로드 시 비마스터 커튼 센터 도달 전 씬 스왑돼 전환 미세 노출. 마스터가 로드 전 슬라이드인 총시간 보장(간단) 또는 완료 배리어. AC1과 동근(조율 권위 부재)·연출 미세개선)
 
 > ※ 위 H1·H2·H6은 06-12 fix 커밋(fbcd419)에서 적용됐으나 당시 이 표가 갱신되지 않아
 > 06-13 루틴에서 코드 대조 후 정합화함. H3·H5는 사용자가 직접 적용한 것을 06-13 루틴이 확인.
