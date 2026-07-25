@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -46,10 +46,9 @@ namespace SocketPractice
         // ─────────────────────────────────────────────
         public static void RunHost()
         {
-            TcpListener listener = new TcpListener(IPAddress.Any, Port);
-            listener.Start();
+            TcpListener listener = NetHelper.StartHostListener(Port);
+            if (listener == null) return;
 
-            Console.WriteLine("[호스트] " + Port + "번 포트에서 대기 중.");
             Console.WriteLine("[호스트] 클라를 여러 개 띄워서 접속해 보세요. (Ctrl+C로 종료)");
 
             while (true)
@@ -169,10 +168,9 @@ namespace SocketPractice
         // ─────────────────────────────────────────────
         public static void RunClient(string ip)
         {
-            TcpClient hostConn = new TcpClient();      // 내가 호스트와 맺을 연결
-            Console.WriteLine("[클라] " + ip + ":" + Port + " 접속 시도...");
-            hostConn.Connect(ip, Port);
-            Console.WriteLine("[클라] 접속 성공!");
+            TcpClient hostConn = NetHelper.ConnectToHost(ip, Port);
+            if (hostConn == null) return;
+
             Console.WriteLine("       /eat jelly_7  = 젤리 먹었다고 호스트에 요청");
             Console.WriteLine("       그 외 입력    = 채팅,   /quit = 종료");
 

@@ -21,9 +21,9 @@ namespace SocketPractice
 
         public static void RunHost()
         {
-            TcpListener listener = new TcpListener(IPAddress.Any, Port);
-            listener.Start();
-            Console.WriteLine("[호스트] " + Port + "번 포트 대기 중 (프레이밍 적용)...");
+            TcpListener listener = NetHelper.StartHostListener(Port);
+            if (listener == null) return;
+            Console.WriteLine("[호스트] (프레이밍 적용 버전)");
 
             TcpClient clientConn = listener.AcceptTcpClient();   // 접속해 온 클라와의 연결
             Console.WriteLine("[호스트] 접속됨: " + clientConn.Client.RemoteEndPoint);
@@ -55,10 +55,10 @@ namespace SocketPractice
 
         public static void RunClient(string ip)
         {
-            TcpClient hostConn = new TcpClient();      // 내가 호스트와 맺을 연결
-            Console.WriteLine("[클라] " + ip + ":" + Port + " 접속 시도...");
-            hostConn.Connect(ip, Port);
-            Console.WriteLine("[클라] 접속 성공! (/burst = 3개 연속 전송, /quit = 종료)");
+            TcpClient hostConn = NetHelper.ConnectToHost(ip, Port);
+            if (hostConn == null) return;
+
+            Console.WriteLine("       /burst = 3개 연속 전송,   /quit = 종료");
 
             NetworkStream stream = hostConn.GetStream();
 

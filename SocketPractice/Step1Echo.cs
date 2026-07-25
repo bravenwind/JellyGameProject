@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -37,10 +37,9 @@ namespace SocketPractice
         // ─────────────────────────────────────────────
         public static void RunHost()
         {
-            // IPAddress.Any = 이 PC의 모든 네트워크 카드에서 수신 (LAN 접속 받으려면 Any)
-            TcpListener listener = new TcpListener(IPAddress.Any, Port);
-            listener.Start();
-            Console.WriteLine("[호스트] " + Port + "번 포트에서 대기 중... 클라 접속을 기다립니다.");
+            // 포트 열기(이미 사용 중 등) 실패도 안내 메시지로 처리한다
+            TcpListener listener = NetHelper.StartHostListener(Port);
+            if (listener == null) return;
 
             // 누군가 접속할 때까지 여기서 멈춰서 기다린다(블로킹).
             // 리턴값 = "접속해 온 그 클라와의 연결" (내가 아니라 상대방을 가리키는 손잡이)
@@ -67,7 +66,6 @@ namespace SocketPractice
                 string text = Encoding.UTF8.GetString(buffer, 0, n);
                 Console.WriteLine("[호스트] 받음(" + n + "바이트): \"" + text + "\"");
 
-                // 클라와 똑같은 Send 헬퍼를 쓴다(같은 일을 두 방식으로 쓰지 않도록)
                 Send(stream, "echo: " + text);
             }
 
@@ -81,10 +79,12 @@ namespace SocketPractice
         // ─────────────────────────────────────────────
         public static void RunClient(string ip)
         {
-            TcpClient hostConn = new TcpClient();     // 호스트와 맺을 연결
-            Console.WriteLine("[클라] " + ip + ":" + Port + " 로 접속 시도...");
-            hostConn.Connect(ip, Port);              // 연결 성립(3-way handshake는 TCP가 알아서)
-            Console.WriteLine("[클라] 접속 성공! 메시지를 입력하세요.");
+            // 접속 실패 시 예외 덤프 대신 원인별 안내를 보여준다
+            // (연결 성립 자체는 TCP의 3-way handshake가 알아서 처리)
+            TcpClient hostConn = NetHelper.ConnectToHost(ip, Port);
+            if (hostConn == null) return;
+
+            Console.WriteLine("       메시지를 입력하세요.");
             Console.WriteLine("       /burst = 3개 빠르게 연속 전송(뭉침 실험)   /quit = 종료");
 
             NetworkStream stream = hostConn.GetStream();
@@ -99,7 +99,7 @@ namespace SocketPractice
                     while (true)
                     {
                         int n = stream.Read(buffer, 0, buffer.Length);
-                        if (n <= 0) break;           // 상대가 곱게 끊음(정상 종료)
+                        if (n <= 0) break;           // 상대가 정상 종료
                         Console.WriteLine("  <- " + Encoding.UTF8.GetString(buffer, 0, n));
                     }
                 }
