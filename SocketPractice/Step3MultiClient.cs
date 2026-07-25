@@ -16,6 +16,11 @@ namespace SocketPractice
     ///   · 결과를 전원에게 브로드캐스트                     (RpcTarget.All)
     ///   · 같은 젤리에 두 명이 달려들면 선착 1명만 승자      (_claimedJellies 선점 가드)
     ///
+    /// ★ 1단계와 달리 여기서는 호스트도 스레드를 쓴다.
+    ///   클라가 여러 명이면 각자가 독립적인 이벤트 소스이므로,
+    ///   "한 명의 Read를 기다리는 동안 다른 사람 메시지를 못 받는" 일을 막아야 한다.
+    ///   즉 스레드 개수 = 동시에 기다려야 하는 대상의 수.
+    ///
     /// 클라 명령:  /eat jelly_7   (젤리 먹었다고 주장)   /quit
     ///            그 외 입력은 채팅으로 전원에게 전달
     /// </summary>
@@ -23,10 +28,11 @@ namespace SocketPractice
     {
         const int Port = 7779;
 
+        /// <summary>접속한 클라 한 명의 정보. Conn = 그 사람과의 연결(수화기).</summary>
         class ClientInfo
         {
             public int Id;
-            public TcpClient Tcp;
+            public TcpClient Conn;
             public NetworkStream Stream;
         }
 
@@ -49,11 +55,11 @@ namespace SocketPractice
             while (true)
             {
                 // 접속을 계속 받아들인다 (Photon이 해주던 '룸 입장' 역할)
-                TcpClient tcp = listener.AcceptTcpClient();
+                TcpClient clientConn = listener.AcceptTcpClient();
 
                 ClientInfo info = new ClientInfo();
-                info.Tcp = tcp;
-                info.Stream = tcp.GetStream();
+                info.Conn = clientConn;
+                info.Stream = clientConn.GetStream();
 
                 lock (_lock)
                 {
@@ -61,10 +67,10 @@ namespace SocketPractice
                     _clients.Add(info);
                 }
 
-                Console.WriteLine("[호스트] P" + info.Id + " 접속 (" + tcp.Client.RemoteEndPoint + "), 현재 " + ClientCount() + "명");
+                Console.WriteLine("[호스트] P" + info.Id + " 접속 (" + clientConn.Client.RemoteEndPoint + "), 현재 " + ClientCount() + "명");
 
                 // 클라 한 명당 수신 스레드 하나
-                Thread t = new Thread(delegate () { ClientLoop(info); });
+                Thread t = new Thread(() => ClientLoop(info));
                 t.IsBackground = true;
                 t.Start();
             }
@@ -85,14 +91,14 @@ namespace SocketPractice
                     HandleMessage(me, msg);
                 }
             }
-            catch
+            catch (Exception e)
             {
-                // 연결 끊김
+                Console.WriteLine("[호스트] P" + me.Id + " 수신 종료: " + e.Message);
             }
             finally
             {
                 lock (_lock) { _clients.Remove(me); }
-                try { me.Stream.Close(); me.Tcp.Close(); } catch { }
+                try { me.Stream.Close(); me.Conn.Close(); } catch { }
 
                 Console.WriteLine("[호스트] P" + me.Id + " 퇴장, 남은 " + ClientCount() + "명");
                 Broadcast("LEAVE P" + me.Id + " 님이 나갔습니다.");
@@ -108,7 +114,7 @@ namespace SocketPractice
                 bool isWinner;
 
                 // ★ 선착 1명만 승자 — 게임의 _claimedJellies 와 같은 원리.
-                //   여러 스레드가 동시에 들어오므로 lock 이 반드시 필요하다.
+                //   여러 수신 스레드가 동시에 들어오므로 lock 이 반드시 필요하다.
                 lock (_lock)
                 {
                     isWinner = !_claimed.Contains(jelly);
@@ -123,7 +129,7 @@ namespace SocketPractice
                 }
                 else
                 {
-                    // 늦은 요청은 조용히 거절 (요청자에게만)
+                    // 늦은 요청은 요청자에게만 거절 통보 (특정 Owner 대상 RPC에 해당)
                     SendTo(from, "DENY " + jelly + " (이미 먹힌 젤리)");
                     Console.WriteLine("[호스트] 판정: P" + from.Id + " 의 " + jelly + " 요청 거절(중복)");
                 }
@@ -163,16 +169,16 @@ namespace SocketPractice
         // ─────────────────────────────────────────────
         public static void RunClient(string ip)
         {
-            TcpClient client = new TcpClient();
+            TcpClient hostConn = new TcpClient();      // 내가 호스트와 맺을 연결
             Console.WriteLine("[클라] " + ip + ":" + Port + " 접속 시도...");
-            client.Connect(ip, Port);
+            hostConn.Connect(ip, Port);
             Console.WriteLine("[클라] 접속 성공!");
             Console.WriteLine("       /eat jelly_7  = 젤리 먹었다고 호스트에 요청");
             Console.WriteLine("       그 외 입력    = 채팅,   /quit = 종료");
 
-            NetworkStream stream = client.GetStream();
+            NetworkStream stream = hostConn.GetStream();
 
-            Thread receiver = new Thread(delegate ()
+            Thread receiver = new Thread(() =>
             {
                 try
                 {
@@ -182,7 +188,10 @@ namespace SocketPractice
                         Console.WriteLine("  <- " + msg);
                     }
                 }
-                catch { Console.WriteLine("[클라] 호스트와 연결이 끊어졌습니다."); }
+                catch (Exception e)
+                {
+                    Console.WriteLine("[클라] 호스트와 연결이 끊어졌습니다: " + e.Message);
+                }
             });
             receiver.IsBackground = true;
             receiver.Start();
@@ -200,15 +209,15 @@ namespace SocketPractice
                     else
                         MessageIO.Send(stream, line);
                 }
-                catch
+                catch (Exception e)
                 {
-                    Console.WriteLine("[클라] 전송 실패 - 연결이 끊긴 것 같습니다.");
+                    Console.WriteLine("[클라] 전송 실패: " + e.Message);
                     break;
                 }
             }
 
             stream.Close();
-            client.Close();
+            hostConn.Close();
         }
     }
 }

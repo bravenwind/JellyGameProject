@@ -11,6 +11,9 @@ namespace SocketPractice
     /// 1단계에서 /burst 하면 "HELLOWORLDBYE"로 뭉쳐 보였다.
     /// 여기서 /burst 하면 항상 HELLO / WORLD / BYE 세 개로 정확히 나뉜다.
     /// 이 차이를 눈으로 확인하는 것이 2단계의 목표.
+    ///
+    /// 여기서는 호스트와 클라가 같은 MessageIO.Send / Receive 를 쓴다.
+    /// 연결이 맺어진 뒤에는 양쪽이 대칭이기 때문에 이렇게 공용으로 쓸 수 있다.
     /// </summary>
     static class Step2Framing
     {
@@ -22,17 +25,17 @@ namespace SocketPractice
             listener.Start();
             Console.WriteLine("[호스트] " + Port + "번 포트 대기 중 (프레이밍 적용)...");
 
-            TcpClient client = listener.AcceptTcpClient();
-            Console.WriteLine("[호스트] 접속됨: " + client.Client.RemoteEndPoint);
+            TcpClient clientConn = listener.AcceptTcpClient();   // 접속해 온 클라와의 연결
+            Console.WriteLine("[호스트] 접속됨: " + clientConn.Client.RemoteEndPoint);
 
-            NetworkStream stream = client.GetStream();
+            NetworkStream stream = clientConn.GetStream();
             int count = 0;
 
             try
             {
                 while (true)
                 {
-                    // 한 번 호출 = 정확히 메시지 하나
+                    // 한 번 호출 = 정확히 메시지 하나 (길이를 먼저 읽어 그만큼만 잘라내므로)
                     string msg = MessageIO.Receive(stream);
                     count++;
                     Console.WriteLine("[호스트] 메시지 #" + count + ": \"" + msg + "\"");
@@ -42,24 +45,25 @@ namespace SocketPractice
             }
             catch (Exception e)
             {
-                Console.WriteLine("[호스트] 종료 - " + e.Message);
+                Console.WriteLine("[호스트] 수신 종료 - " + e.Message);
             }
 
             stream.Close();
-            client.Close();
+            clientConn.Close();
             listener.Stop();
         }
 
         public static void RunClient(string ip)
         {
-            TcpClient client = new TcpClient();
+            TcpClient hostConn = new TcpClient();      // 내가 호스트와 맺을 연결
             Console.WriteLine("[클라] " + ip + ":" + Port + " 접속 시도...");
-            client.Connect(ip, Port);
+            hostConn.Connect(ip, Port);
             Console.WriteLine("[클라] 접속 성공! (/burst = 3개 연속 전송, /quit = 종료)");
 
-            NetworkStream stream = client.GetStream();
+            NetworkStream stream = hostConn.GetStream();
 
-            Thread receiver = new Thread(delegate ()
+            // 키보드 입력(메인)과 수신을 동시에 기다려야 하므로 스레드를 하나 더 쓴다
+            Thread receiver = new Thread(() =>
             {
                 try
                 {
@@ -69,7 +73,11 @@ namespace SocketPractice
                         Console.WriteLine("  <- " + msg);
                     }
                 }
-                catch { Console.WriteLine("[클라] 수신 종료"); }
+                catch (Exception e)
+                {
+                    Console.WriteLine("[클라] 수신 중단: " + e.Message);
+                }
+                Console.WriteLine("[클라] 수신 종료");
             });
             receiver.IsBackground = true;
             receiver.Start();
@@ -92,7 +100,7 @@ namespace SocketPractice
             }
 
             stream.Close();
-            client.Close();
+            hostConn.Close();
         }
     }
 }
