@@ -41,15 +41,22 @@ namespace SocketPractice
         static readonly object _lock = new object();
         static int _nextId = 1;
 
+        // 부하 테스트용: 메시지마다 콘솔에 찍으면 '콘솔 출력'이 병목이 되어
+        // 네트워크 성능이 아니라 화면 출력 속도를 재게 된다. 그래서 끌 수 있게 한다.
+        static bool _quiet = false;
+
         // ─────────────────────────────────────────────
         // 호스트
         // ─────────────────────────────────────────────
-        public static void RunHost()
+        public static void RunHost(bool quiet = false)
         {
+            _quiet = quiet;
+
             TcpListener listener = NetHelper.StartHostListener(Port);
             if (listener == null) return;
 
             Console.WriteLine("[호스트] 클라를 여러 개 띄워서 접속해 보세요. (Ctrl+C로 종료)");
+            if (_quiet) Console.WriteLine("[호스트] quiet 모드 — 메시지 단위 로그를 끕니다(부하 테스트용).");
 
             while (true)
             {
@@ -86,7 +93,7 @@ namespace SocketPractice
                 while (true)
                 {
                     string msg = MessageIO.Receive(me.Stream);
-                    Console.WriteLine("[호스트] P" + me.Id + " -> \"" + msg + "\"");
+                    if (!_quiet) Console.WriteLine("[호스트] P" + me.Id + " -> \"" + msg + "\"");
                     HandleMessage(me, msg);
                 }
             }
@@ -124,13 +131,13 @@ namespace SocketPractice
                 {
                     // 판정 결과는 전원에게 (RpcTarget.All)
                     Broadcast("RESULT " + jelly + " -> 승자 P" + from.Id);
-                    Console.WriteLine("[호스트] 판정: " + jelly + " 는 P" + from.Id + " 의 것!");
+                    if (!_quiet) Console.WriteLine("[호스트] 판정: " + jelly + " 는 P" + from.Id + " 의 것!");
                 }
                 else
                 {
                     // 늦은 요청은 요청자에게만 거절 통보 (특정 Owner 대상 RPC에 해당)
                     SendTo(from, "DENY " + jelly + " (이미 먹힌 젤리)");
-                    Console.WriteLine("[호스트] 판정: P" + from.Id + " 의 " + jelly + " 요청 거절(중복)");
+                    if (!_quiet) Console.WriteLine("[호스트] 판정: P" + from.Id + " 의 " + jelly + " 요청 거절(중복)");
                 }
                 return;
             }
