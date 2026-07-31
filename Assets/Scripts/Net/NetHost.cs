@@ -40,8 +40,15 @@ namespace JellyNet
         public IReadOnlyList<Peer> Peers { get { return _peers; } }
 
         public Action<string> OnLog;
-        /// <summary>클라에서 메시지가 왔을 때. (보낸 사람, 리더)</summary>
-        public Action<Peer, NetReader> OnMessage;
+
+        /// <summary>여기서 처리하지 않는 메시지를 상위로 넘긴다. (보낸 사람, 타입, 리더)</summary>
+        public Action<Peer, MsgType, NetReader> OnMessage;
+
+        /// <summary>새 클라가 접속했을 때. 게임 오브젝트 스폰 등을 여기서 한다.</summary>
+        public Action<Peer> OnPeerJoined;
+
+        /// <summary>클라가 나갔을 때. 그 사람 소유 오브젝트 정리 등.</summary>
+        public Action<Peer> OnPeerLeft;
 
         // ─────────────────────────────────────────────
         public bool Start(int port)
@@ -109,6 +116,9 @@ namespace JellyNet
                 _w.WriteInt(p.Id);
                 _w.End();
                 Broadcast(_w);
+
+                // 게임 계층에 알림 (오브젝트 스폰, 기존 상태 전송 등)
+                if (OnPeerJoined != null) OnPeerJoined(p);
             }
 
             // ── 2) 각 클라의 수신 처리 ──
@@ -122,6 +132,9 @@ namespace JellyNet
                 {
                     _peers.RemoveAt(i);
                     Log("P" + p.Id + " 퇴장 (" + p.Conn.LastError + ") — 남은 " + _peers.Count + "명");
+
+                    // 게임 계층이 먼저 정리(소유 오브젝트 파괴 등)
+                    if (OnPeerLeft != null) OnPeerLeft(p);
 
                     _w.Begin(MsgType.PlayerLeft);
                     _w.WriteInt(p.Id);
@@ -163,8 +176,8 @@ namespace JellyNet
                     }
 
                 default:
-                    // 3단계에서 추가할 메시지들은 상위(NetManager)로 넘긴다
-                    if (OnMessage != null) OnMessage(from, r);
+                    // 게임 계층(NetWorld 등)이 처리할 메시지들
+                    if (OnMessage != null) OnMessage(from, type, r);
                     break;
             }
         }
@@ -181,15 +194,24 @@ namespace JellyNet
 
         public void Broadcast(NetWriter w)
         {
+            // ★ 반드시 매개변수 w를 보낼 것. 필드 _w를 보내면 호스트가 마지막으로 쓴
+            //   엉뚱한 메시지가 나간다(B-2에서는 항상 _w == w 라 증상이 없었다).
             for (int i = 0; i < _peers.Count; i++)
             {
-                SendTo(_peers[i], _w);
+                SendTo(_peers[i], w);
             }
         }
 
         public void SendTo(Peer p, NetWriter w)
         {
             p.Conn.Send(w);
+        }
+
+        /// <summary>보낸 사람만 빼고 전원에게. 위치 중계에 쓴다(자기 위치를 되돌려받을 필요 없음).</summary>
+        public void BroadcastExcept(Peer except, NetWriter w)
+        {
+            for (int i = 0; i < _peers.Count; i++)
+                if (_peers[i] != except) _peers[i].Conn.Send(w);
         }
 
         void Log(string msg)

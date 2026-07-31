@@ -39,6 +39,9 @@ namespace JellyNet
         public bool Alive { get; private set; }
         public string LastError { get; private set; }
 
+        /// <summary>디버깅용: 켜면 수신 처리 과정을 한 줄씩 찍는다. 원인 파악 후 끌 것.</summary>
+        public static bool Trace = false;
+
         public FramedConnection(TcpClient tcp)
         {
             _tcp = tcp;
@@ -55,6 +58,10 @@ namespace JellyNet
             if (!Alive) return;
             try
             {
+                // 디버깅: 무엇을 누가 보내는지. 스택 트레이스에 호출자가 찍힌다.
+                if (Trace && w.Length >= 5)
+                    UnityEngine.Debug.Log("[Trace] 송신 type=" + w.Buffer[4] + " 총" + w.Length + "바이트");
+
                 _stream.Write(w.Buffer, 0, w.Length);
             }
             catch (Exception e)
@@ -110,6 +117,10 @@ namespace JellyNet
 
                     if (_len - offset - 4 < bodyLen) break;   // 본문이 아직 다 안 왔다 → 다음 프레임에
 
+                    if (Trace)
+                        UnityEngine.Debug.Log("[Trace] 처리 type=" + _buf[offset + 4]
+                            + " bodyLen=" + bodyLen + " offset=" + offset + " _len=" + _len);
+
                     if (!NetSim.Enabled)
                     {
                         // 평소 경로: 복사 없이 버퍼 구간을 그대로 넘긴다(할당 0)
@@ -132,6 +143,12 @@ namespace JellyNet
                     int rest = _len - offset;
                     if (rest > 0) Buffer.BlockCopy(_buf, offset, _buf, 0, rest);
                     _len = rest;
+
+                    if (Trace) UnityEngine.Debug.Log("[Trace] 정리 offset=" + offset + " → 남은 _len=" + _len);
+                }
+                else if (Trace && _len > 0)
+                {
+                    UnityEngine.Debug.Log("[Trace] ★진행 없음! _len=" + _len + " (같은 데이터를 다음 프레임에 또 봄)");
                 }
             }
             catch (Exception e)

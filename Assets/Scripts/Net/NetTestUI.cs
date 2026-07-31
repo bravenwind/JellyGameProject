@@ -19,9 +19,37 @@ namespace JellyNet
         string _chatText = "";
         Vector2 _scroll;
 
+        // ★ OnGUI는 한 프레임에 여러 번 호출된다(Layout / Repaint / 입력 이벤트).
+        //   그 안에서 연결을 맺거나 끊으면 UI 구조가 도중에 바뀌어 IMGUI가 꼬이고,
+        //   같은 동작이 여러 번 실행될 수 있다.
+        //   그래서 버튼은 '요청'만 기록하고, 실제 실행은 Update()에서 한 번만 한다.
+        enum PendingAction { None, StartHost, Join, Shutdown, Ping }
+        PendingAction _pending = PendingAction.None;
+        string _pendingChat;
+
         void Awake()
         {
             _net = GetComponent<NetManager>();
+        }
+
+        void Update()
+        {
+            PendingAction a = _pending;
+            _pending = PendingAction.None;
+
+            switch (a)
+            {
+                case PendingAction.StartHost: _net.StartHost(); break;
+                case PendingAction.Join: _net.JoinHost(); break;
+                case PendingAction.Shutdown: _net.Shutdown(); break;
+                case PendingAction.Ping: _net.SendPing(); break;
+            }
+
+            if (_pendingChat != null)
+            {
+                _net.SendChat(_pendingChat);
+                _pendingChat = null;
+            }
         }
 
         void OnGUI()
@@ -57,7 +85,7 @@ namespace JellyNet
                 GUILayout.EndHorizontal();
 
                 if (GUILayout.Button("호스트 시작", GUILayout.Height(28)))
-                    _net.StartHost();
+                    _pending = PendingAction.StartHost;
 
                 GUILayout.Space(4);
                 GUILayout.BeginHorizontal();
@@ -66,7 +94,7 @@ namespace JellyNet
                 GUILayout.EndHorizontal();
 
                 if (GUILayout.Button("참가", GUILayout.Height(28)))
-                    _net.JoinHost();
+                    _pending = PendingAction.Join;
 
                 GUILayout.Space(2);
                 GUILayout.Label("같은 PC에서 테스트하면 127.0.0.1", MiniLabel());
@@ -74,14 +102,14 @@ namespace JellyNet
             else
             {
                 if (GUILayout.Button("연결 종료"))
-                    _net.Shutdown();
+                    _pending = PendingAction.Shutdown;
 
                 GUILayout.Space(6);
 
                 // ── 핑 ──
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button("핑 보내기", GUILayout.Width(100)))
-                    _net.SendPing();
+                    _pending = PendingAction.Ping;
 
                 if (_net.CurrentMode == NetManager.Mode.Client)
                     GUILayout.Label("최근 RTT: " + _net.Client.LastRttMs.ToString("F2") + " ms");
@@ -93,10 +121,51 @@ namespace JellyNet
                 _chatText = GUILayout.TextField(_chatText);
                 if (GUILayout.Button("전송", GUILayout.Width(60)) && _chatText.Length > 0)
                 {
-                    _net.SendChat(_chatText);
+                    _pendingChat = _chatText;   // 실제 전송은 Update()에서
                     _chatText = "";
                 }
                 GUILayout.EndHorizontal();
+            }
+
+            // ── 보간 모드 (B-3) ──
+            GUILayout.Space(8);
+            GUILayout.Label("<b>원격 캐릭터 보간</b>", RichLabel());
+            GUILayout.Label("시뮬레이션 지연을 켜고 바꿔보면 차이가 확실히 보인다.", MiniLabel());
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Toggle(NetTransform.CurrentMode == NetTransform.Mode.None, " 없음", GUILayout.Width(70)))
+                NetTransform.CurrentMode = NetTransform.Mode.None;
+            if (GUILayout.Toggle(NetTransform.CurrentMode == NetTransform.Mode.Lerp, " Lerp", GUILayout.Width(70)))
+                NetTransform.CurrentMode = NetTransform.Mode.Lerp;
+            if (GUILayout.Toggle(NetTransform.CurrentMode == NetTransform.Mode.Snapshot, " 스냅샷", GUILayout.Width(80)))
+                NetTransform.CurrentMode = NetTransform.Mode.Snapshot;
+            GUILayout.EndHorizontal();
+
+            if (NetTransform.CurrentMode == NetTransform.Mode.Snapshot)
+            {
+                GUILayout.BeginHorizontal();
+                GUILayout.Label("지연재생 " + (NetTransform.InterpDelay * 1000f).ToString("F0") + "ms", GUILayout.Width(110));
+                NetTransform.InterpDelay = GUILayout.HorizontalSlider(NetTransform.InterpDelay, 0.02f, 0.4f);
+                GUILayout.EndHorizontal();
+            }
+
+            // ── 진단: 내가 알고 있는 네트워크 오브젝트 목록 ──
+            if (NetWorld.Instance != null)
+            {
+                GUILayout.Label("네트워크 오브젝트: " + NetWorld.Instance.Objects.Count + "개  (내 번호 P" + _net.MyId + ")", MiniLabel());
+
+                foreach (var kv in NetWorld.Instance.Objects)
+                {
+                    NetIdentity id = kv.Value;
+                    if (id == null) continue;
+
+                    string mark = id.IsMine ? "★내것" : "  남의것";
+                    GUILayout.Label(
+                        "  net" + id.NetId + "  소유 P" + id.OwnerId + "  " + mark +
+                        "  pos(" + id.transform.position.x.ToString("F1") + ", " +
+                        id.transform.position.z.ToString("F1") + ")",
+                        MiniLabel());
+                }
             }
 
             // ── 네트워크 시뮬레이션 ──
@@ -130,6 +199,10 @@ namespace JellyNet
             if (GUILayout.Button("원격")) NetSim.PresetRemote();
             if (GUILayout.Button("최악")) NetSim.PresetBad();
             GUILayout.EndHorizontal();
+
+            // ── 디버그 ──
+            GUILayout.Space(6);
+            FramedConnection.Trace = GUILayout.Toggle(FramedConnection.Trace, " 수신 추적 로그(디버그)");
 
             // ── 로그 ──
             GUILayout.Space(8);

@@ -21,12 +21,14 @@ namespace JellyNet
         Pong = 5,           // 호스트 → 클라   : Ping 되돌려주기
         Chat = 6,           // 양방향          : 연결 확인용 문자열
 
-        // ── 3단계 이후 추가 예정 ──
-        // SpawnEntity    = 20,
-        // DespawnEntity  = 21,
-        // TransformUpdate= 22,
-        // StateUpdate    = 23,
-        // FullSnapshot   = 24,
+        // ── 3단계: 오브젝트 복제와 위치 동기화 ──
+        SpawnEntity = 20,     // 호스트 → 전체 : 네트워크 오브젝트 생성
+        DespawnEntity = 21,   // 호스트 → 전체 : 파괴
+        TransformUpdate = 22, // 소유자 → 호스트 → 나머지 : 위치·회전
+
+        // ── 이후 추가 예정 ──
+        // StateUpdate    = 23,   // 스케일·점수·색
+        // EatJellyRequest= 30,
     }
 
     public static class NetConfig
@@ -39,5 +41,8 @@ namespace JellyNet
 
         /// <summary>수신 누적 버퍼 초기 크기. 부족하면 자동으로 늘어난다.</summary>
         public const int RecvBufferInitial = 8 * 1024;
+
+        /// <summary>위치를 초당 몇 번 보낼지. 20Hz = 50ms 간격.</summary>
+        public const float TransformSendRate = 20f;
     }
 }

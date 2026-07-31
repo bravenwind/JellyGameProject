@@ -23,7 +23,12 @@ namespace JellyNet
         public double LastRttMs { get; private set; }
 
         public Action<string> OnLog;
-        public Action<NetReader> OnMessage;
+
+        /// <summary>여기서 처리하지 않는 메시지를 상위(게임 계층)로 넘긴다.</summary>
+        public Action<MsgType, NetReader> OnMessage;
+
+        /// <summary>Welcome을 받아 내 ID가 확정된 순간.</summary>
+        public Action OnWelcome;
 
         // ─────────────────────────────────────────────
         public bool Connect(string ip, int port)
@@ -82,6 +87,7 @@ namespace JellyNet
                 case MsgType.Welcome:
                     MyId = r.ReadInt();
                     Log("환영합니다 — 당신은 P" + MyId + " 입니다.");
+                    if (OnWelcome != null) OnWelcome();
                     break;
 
                 case MsgType.PlayerJoined:
@@ -113,7 +119,7 @@ namespace JellyNet
                     }
 
                 default:
-                    if (OnMessage != null) OnMessage(r);
+                    if (OnMessage != null) OnMessage(type, r);
                     break;
             }
         }

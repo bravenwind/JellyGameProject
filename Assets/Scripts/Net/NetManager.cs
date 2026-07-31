@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace JellyNet
@@ -35,8 +36,22 @@ namespace JellyNet
             }
         }
 
+        /// <summary>내가 호스트인가. Photon의 IsMasterClient에 해당 — 판정 권한의 기준.</summary>
+        public bool IsHost { get { return CurrentMode == Mode.Host; } }
+
         readonly List<string> _log = new List<string>();
         public IReadOnlyList<string> LogLines { get { return _log; } }
+
+        // ─────────────────────────────────────────────
+        //  게임 계층(NetWorld 등)이 구독하는 이벤트
+        //  네트워크 계층은 "무슨 일이 있었다"만 알리고, 게임 처리는 위에서 한다.
+        // ─────────────────────────────────────────────
+        public event Action OnHostStarted;
+        public event Action<NetHost.Peer> OnPeerJoined;
+        public event Action<NetHost.Peer> OnPeerLeft;
+        public event Action<NetHost.Peer, MsgType, NetReader> OnHostMessage;
+        public event Action<MsgType, NetReader> OnClientMessage;
+        public event Action OnDisconnected;
 
         // ─────────────────────────────────────────────
         void Awake()
@@ -69,6 +84,9 @@ namespace JellyNet
 
             Host = new NetHost();
             Host.OnLog = AddLog;
+            Host.OnPeerJoined = RaisePeerJoined;
+            Host.OnPeerLeft = RaisePeerLeft;
+            Host.OnMessage = RaiseHostMessage;
 
             if (!Host.Start(port))
             {
@@ -81,6 +99,8 @@ namespace JellyNet
 
             foreach (string ip in NetUtil.GetLocalIPv4List())
                 AddLog("  다른 기기에서 접속: " + ip + ":" + port);
+
+            if (OnHostStarted != null) OnHostStarted();
         }
 
         public void JoinHost()
@@ -89,6 +109,7 @@ namespace JellyNet
 
             Client = new NetClient();
             Client.OnLog = AddLog;
+            Client.OnMessage = RaiseClientMessage;
 
             if (!Client.Connect(joinIp, port))
             {
@@ -102,10 +123,20 @@ namespace JellyNet
 
         public void Shutdown()
         {
+            bool wasConnected = (Host != null || Client != null);
+
             if (Host != null) { Host.Stop(); Host = null; }
             if (Client != null) { Client.Disconnect(); Client = null; }
             CurrentMode = Mode.None;
+
+            if (wasConnected && OnDisconnected != null) OnDisconnected();
         }
+
+        // 이벤트 중계 (메서드로 두면 델리게이트가 한 번만 만들어져 할당이 적다)
+        void RaisePeerJoined(NetHost.Peer p) { if (OnPeerJoined != null) OnPeerJoined(p); }
+        void RaisePeerLeft(NetHost.Peer p) { if (OnPeerLeft != null) OnPeerLeft(p); }
+        void RaiseHostMessage(NetHost.Peer p, MsgType t, NetReader r) { if (OnHostMessage != null) OnHostMessage(p, t, r); }
+        void RaiseClientMessage(MsgType t, NetReader r) { if (OnClientMessage != null) OnClientMessage(t, r); }
 
         // ─────────────────────────────────────────────
         //  테스트용 동작
