@@ -657,8 +657,9 @@ GameObject:
   - component: {fileID: 6063311036250502434}
   - component: {fileID: 3995307752564916852}
   - component: {fileID: 3425028042987372540}
-  - component: {fileID: 726296564302732118}
   - component: {fileID: -7182702844706929862}
+  - component: {fileID: 7020069030251317666}
+  - component: {fileID: 6599323573227083387}
   m_Layer: 7
   m_Name: Jelly_Red_Patrol
   m_TagString: Edible
@@ -733,6 +734,7 @@ MonoBehaviour:
   patrolAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   jellyRenderer: {fileID: 0}
+  jellyScore: 100
 --- !u!195 &6063311036250502434
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -792,28 +794,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &726296564302732118
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5861562477808388500}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!136 &-7182702844706929862
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -837,6 +817,36 @@ CapsuleCollider:
   m_Height: 4.2
   m_Direction: 1
   m_Center: {x: 0, y: -0.32, z: 0}
+--- !u!114 &7020069030251317666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5861562477808388500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NetId: 0
+  OwnerId: 0
+  PrefabId: 0
+--- !u!114 &6599323573227083387
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5861562477808388500}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lerpSpeed: 8
+  minScale: 0.5
+  maxScale: 6
 --- !u!1 &5879747944035775713
 GameObject:
   m_ObjectHideFlags: 0

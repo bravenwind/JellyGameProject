@@ -173,7 +173,8 @@ GameObject:
   - component: {fileID: 4374242079288260326}
   - component: {fileID: 2546846293565735289}
   - component: {fileID: 2230158210206318775}
-  - component: {fileID: 2506543583547568653}
+  - component: {fileID: 6620829540706433680}
+  - component: {fileID: 4606139877603682957}
   m_Layer: 7
   m_Name: Jelly_Green_NonAI
   m_TagString: Edible
@@ -248,6 +249,7 @@ MonoBehaviour:
   patrolAI: {fileID: 0}
   spritePrefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
   jellyRenderer: {fileID: 0}
+  jellyScore: 100
 --- !u!114 &2546846293565735289
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -285,7 +287,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &2506543583547568653
+--- !u!114 &6620829540706433680
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -294,19 +296,27 @@ MonoBehaviour:
   m_GameObject: {fileID: 1333569896481833141}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
+  m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents: []
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
+  NetId: 0
+  OwnerId: 0
+  PrefabId: 0
+--- !u!114 &4606139877603682957
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1333569896481833141}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lerpSpeed: 8
+  minScale: 0.5
+  maxScale: 6
 --- !u!1 &1831933227535150796
 GameObject:
   m_ObjectHideFlags: 0

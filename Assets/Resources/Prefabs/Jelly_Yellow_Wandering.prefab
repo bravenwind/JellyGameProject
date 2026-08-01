@@ -367,8 +367,9 @@ GameObject:
   - component: {fileID: 8573331284381780740}
   - component: {fileID: 4045410066042527932}
   - component: {fileID: 2856107805081209073}
-  - component: {fileID: -60461755937143170}
   - component: {fileID: -161948593968755520}
+  - component: {fileID: 3829495091513963934}
+  - component: {fileID: 4158165123689863885}
   m_Layer: 7
   m_Name: Jelly_Yellow_Wandering
   m_TagString: Edible
@@ -520,29 +521,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &-60461755937143170
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3121453740919938520}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents:
-  - {fileID: 8573331284381780740}
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!136 &-161948593968755520
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -566,6 +544,36 @@ CapsuleCollider:
   m_Height: 4.2
   m_Direction: 1
   m_Center: {x: 0, y: -0.32, z: 0}
+--- !u!114 &3829495091513963934
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3121453740919938520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NetId: 0
+  OwnerId: 0
+  PrefabId: 0
+--- !u!114 &4158165123689863885
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3121453740919938520}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lerpSpeed: 8
+  minScale: 0.5
+  maxScale: 6
 --- !u!1 &3200118525942186543
 GameObject:
   m_ObjectHideFlags: 0
