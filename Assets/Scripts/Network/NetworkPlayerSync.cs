@@ -17,7 +17,8 @@ using Photon.Pun;
 using Photon.Realtime;
 using ExitGames.Client.Photon; // Hashtable (커스텀 프로퍼티) 사용을 위해
 
-[RequireComponent(typeof(PhotonView))]
+// [LAN 이식] RequireComponent(PhotonView) 제거 — 프리팹에서 PhotonView를 걷어내기 위함.
+// 이 스크립트의 역할은 Net/LanPlayerState·NetTransform·NetScale·PushMode로 분산 이식됨.
 public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
 // MonoBehaviourPun = PhotonView를 자동으로 캐싱해주는 MonoBehaviour
 // IPunObservable = OnPhotonSerializeView() 구현 강제 → 연속 데이터 동기화

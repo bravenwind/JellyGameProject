@@ -16,7 +16,8 @@ using Photon.Pun;
 using Photon.Realtime;
 
 [RequireComponent(typeof(NavMeshAgent))]
-[RequireComponent(typeof(PhotonView))]
+// [LAN 이식] RequireComponent(PhotonView) 제거 — 이게 있으면 프리팹에서 PhotonView를
+// 지울 수 없어 NetIdentity로 교체가 막힌다. 이 스크립트 자체는 photon 브랜치용으로 남겨둔다.
 [RequireComponent(typeof(AIDetector))]
 public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 {

@@ -135,6 +135,23 @@ namespace JellyNet
                 // 현재 크기까지 실어 보낸다 → 늦게 들어와도 커진 젤리·플레이어가 제대로 보인다
                 WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position, ScaleOf(id));
                 NetManager.Instance.Host.SendTo(peer, _w);
+
+                // 점수·색·이름도 이어서 보낸다(스폰 메시지에 다 넣으면 비대해지므로 분리)
+                LanPlayerState ps = id.GetComponent<LanPlayerState>();
+                if (ps != null)
+                {
+                    WritePlayerState(id.NetId, ps.Score, (byte)ps.Flags, ps.DisplayColor);
+                    NetManager.Instance.Host.SendTo(peer, _w);
+
+                    if (!string.IsNullOrEmpty(ps.PlayerName))
+                    {
+                        _w.Begin(MsgType.PlayerNameSet);
+                        _w.WriteInt(id.NetId);
+                        _w.WriteString(ps.PlayerName);
+                        _w.End();
+                        NetManager.Instance.Host.SendTo(peer, _w);
+                    }
+                }
             }
 
             // ② 새 플레이어의 캐릭터 생성 → 전원에게 복제
@@ -185,6 +202,39 @@ namespace JellyNet
             _w.WriteFloat(scale);
             _w.End();
             NetManager.Instance.Host.Broadcast(_w);
+        }
+
+        /// <summary>호스트 전용: 점수·탈락·색을 한 번에 알린다.</summary>
+        public void BroadcastPlayerState(int netId, int score, byte flags, Color color)
+        {
+            if (!NetManager.Instance.IsHost) return;
+
+            WritePlayerState(netId, score, flags, color);
+            NetManager.Instance.Host.Broadcast(_w);
+        }
+
+        /// <summary>호스트 전용: 닉네임을 알린다.</summary>
+        public void BroadcastPlayerName(int netId, string name)
+        {
+            if (!NetManager.Instance.IsHost) return;
+
+            _w.Begin(MsgType.PlayerNameSet);
+            _w.WriteInt(netId);
+            _w.WriteString(name);
+            _w.End();
+            NetManager.Instance.Host.Broadcast(_w);
+        }
+
+        void WritePlayerState(int netId, int score, byte flags, Color color)
+        {
+            _w.Begin(MsgType.PlayerStateUpdate);
+            _w.WriteInt(netId);
+            _w.WriteInt(score);
+            _w.WriteByte(flags);
+            _w.WriteFloat(color.r);
+            _w.WriteFloat(color.g);
+            _w.WriteFloat(color.b);
+            _w.End();
         }
 
         /// <summary>호스트 전용: 오브젝트 파괴 + 전원에게 통보.</summary>
@@ -248,6 +298,36 @@ namespace JellyNet
                         {
                             NetScale ns = id.GetComponent<NetScale>();
                             if (ns != null) ns.SetTarget(scale);
+                        }
+                        break;
+                    }
+
+                case MsgType.PlayerStateUpdate:
+                    {
+                        int netId = r.ReadInt();
+                        int score = r.ReadInt();
+                        byte flags = r.ReadByte();
+                        float cr = r.ReadFloat(), cg = r.ReadFloat(), cb = r.ReadFloat();
+
+                        NetIdentity id = Find(netId);
+                        if (id != null)
+                        {
+                            LanPlayerState ps = id.GetComponent<LanPlayerState>();
+                            if (ps != null) ps.ApplyState(score, flags, new Color(cr, cg, cb, 1f));
+                        }
+                        break;
+                    }
+
+                case MsgType.PlayerNameSet:
+                    {
+                        int netId = r.ReadInt();
+                        string name = r.ReadString();
+
+                        NetIdentity id = Find(netId);
+                        if (id != null)
+                        {
+                            LanPlayerState ps = id.GetComponent<LanPlayerState>();
+                            if (ps != null) ps.ApplyName(name);
                         }
                         break;
                     }

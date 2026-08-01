@@ -57,7 +57,14 @@ public static class PhotonToNetConverter
             // 원본 에셋을 열지 않고 먼저 훑어서 대상인지만 확인
             GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (asset == null) continue;
-            if (asset.GetComponentInChildren<PhotonView>(true) == null) { skipped++; continue; }
+
+            bool needsWork =
+                asset.GetComponentInChildren<PhotonView>(true) != null ||
+                asset.GetComponentInChildren<NetworkPlayerSync>(true) != null ||
+                asset.GetComponentInChildren<AIPlayerSync>(true) != null ||
+                asset.GetComponentInChildren<AIPlayerMovement>(true) != null;
+
+            if (!needsWork) { skipped++; continue; }
 
             List<string> changes = ConvertOne(path, apply);
             if (changes.Count == 0) { skipped++; continue; }
@@ -120,7 +127,35 @@ public static class PhotonToNetConverter
                 if (apply) Object.DestroyImmediate(tv, true);
             }
 
-            // ③ PhotonView 제거 → NetIdentity + NetScale
+            // ③ Photon 배관 게임 스크립트 제거 → LanPlayerState
+            //    이 스크립트들의 역할은 Net/ 계층으로 이미 분산 이식됐다.
+            //    프리팹에 남겨두면 photonView가 null이라 런타임 에러가 쏟아진다.
+            foreach (NetworkPlayerSync sync in root.GetComponentsInChildren<NetworkPlayerSync>(true))
+            {
+                GameObject go = sync.gameObject;
+                changes.Add("- NetworkPlayerSync (" + go.name + ")");
+
+                if (go.GetComponent<LanPlayerState>() == null)
+                {
+                    changes.Add("+ LanPlayerState (" + go.name + ")");
+                    if (apply) go.AddComponent<LanPlayerState>();
+                }
+                if (apply) Object.DestroyImmediate(sync, true);
+            }
+
+            foreach (AIPlayerSync s in root.GetComponentsInChildren<AIPlayerSync>(true))
+            {
+                changes.Add("- AIPlayerSync (" + s.gameObject.name + ")");
+                if (apply) Object.DestroyImmediate(s, true);
+            }
+
+            foreach (AIPlayerMovement s in root.GetComponentsInChildren<AIPlayerMovement>(true))
+            {
+                changes.Add("- AIPlayerMovement (" + s.gameObject.name + ")  ※ 봇은 이후 단계에서 재구현");
+                if (apply) Object.DestroyImmediate(s, true);
+            }
+
+            // ④ PhotonView 제거 → NetIdentity + NetScale
             foreach (PhotonView pv in views)
             {
                 GameObject go = pv.gameObject;

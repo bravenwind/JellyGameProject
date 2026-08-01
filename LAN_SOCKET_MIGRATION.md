@@ -13,8 +13,9 @@
 | 1 — 소켓 기초 | ✅ | `SocketPractice/` (에코·프레이밍·다중 클라·부하 테스트) |
 | 2 — Unity 네트워크 계층 | ✅ | `Assets/Scripts/Net/` 프레이밍·폴링·호스트/클라 |
 | 3 — 오브젝트 복제·위치 동기화 | ✅ | `NetIdentity` `NetWorld` `NetTransform` (보간 3모드) |
-| 4 — 흡수 모드 | 🟡 **핵심 루프만** | `AbsorbMode` `NetScale` — 4-1·4-2 완료, **4-3(색·점수)·4-4(게임 흐름) 미완** |
-| 5 — 밀치기 모드 | 🟡 **판정·넉백만** | `PushMode` `NetKnockback` — 5-1·5-2 완료, **5-3(타일)·5-4(종료) 미완** |
+| 4 — 흡수 모드 | 🟢 거의 완료 | `AbsorbMode` `NetScale` `LanPlayerState` `LanGameFlow` — **4-3 점수 ✅ / 색 ⬜**, 4-4 ✅ |
+| 5 — 밀치기 모드 | 🟡 **판정·넉백·종료** | `PushMode` `NetKnockback` — 5-1·5-2·5-4 완료, **5-3(타일 붕괴) 미완** |
+| 실제 씬 이식 | 🟢 도구 완비 | 에디터 스크립트 2종 + `MIGRATION_RUN.md` 절차서 |
 | 6 — 안정화·실기기 | ⬜ | 6-2 UDP 자동 탐색 / 6-3 실기기 2대 미완 |
 | 7 — 최적화 | ⬜ | 아래 추가 항목 참고 |
 

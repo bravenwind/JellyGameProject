@@ -29,6 +29,7 @@ namespace JellyNet
 
         NetIdentity _id;
         NetKnockback _knockback;
+        LanPlayerState _state;
         Renderer _bodyRenderer;
         Renderer _noseRenderer;
         bool _colored;
@@ -37,6 +38,7 @@ namespace JellyNet
         {
             _id = GetComponent<NetIdentity>();
             _knockback = GetComponent<NetKnockback>();
+            _state = GetComponent<LanPlayerState>();
             _bodyRenderer = GetComponent<Renderer>();
             if (_bodyRenderer == null) _bodyRenderer = GetComponentInChildren<Renderer>();
 
@@ -72,6 +74,9 @@ namespace JellyNet
             // ★ 내 것이 아니면 입력을 아예 받지 않는다.
             //   남의 캐릭터는 NetTransform이 받은 위치대로 움직인다.
             if (!_id.IsMine) return;
+
+            // 흡수당했거나 탈락한 동안에는 조작 불가
+            if (_state != null && _state.IsOutOfPlay) return;
 
             float h = Input.GetAxisRaw("Horizontal");   // A/D, ←/→
             float v = Input.GetAxisRaw("Vertical");     // W/S, ↑/↓

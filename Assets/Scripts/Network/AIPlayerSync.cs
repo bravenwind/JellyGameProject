@@ -2,7 +2,7 @@
 using Photon.Pun;
 using ExitGames.Client.Photon;
 
-[RequireComponent(typeof(PhotonView))]
+// [LAN 이식] RequireComponent(PhotonView) 제거 — 프리팹에서 PhotonView를 걷어내기 위함.
 public class AIPlayerSync : MonoBehaviourPun, IPunInstantiateMagicCallback
 {
     private string _botPrefix;

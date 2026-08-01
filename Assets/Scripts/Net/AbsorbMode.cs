@@ -37,6 +37,18 @@ namespace JellyNet
         public float jellyRadius = 0.3f;
         [Tooltip("젤리 하나당 커지는 배율")]
         public float growPerJelly = 0.12f;
+        [Tooltip("젤리 하나당 점수")]
+        public int scorePerJelly = 1;
+
+        [Header("플레이어 흡수")]
+        [Tooltip("상대를 흡수하려면 내가 이 배수보다 커야 한다. 1이면 조금만 커도 됨.")]
+        public float absorbSizeRatio = 1.15f;
+        [Tooltip("흡수 시 상대 크기의 몇 %를 흡수하는가")]
+        public float absorbGrowthRatio = 0.4f;
+        [Tooltip("흡수 시 얻는 점수 = 상대 크기 × 이 값")]
+        public int absorbScorePerScale = 10;
+        [Tooltip("흡수당한 뒤 부활까지의 시간(초)")]
+        public float respawnDelay = 3f;
 
         readonly NetWriter _w = new NetWriter();
 
@@ -48,6 +60,10 @@ namespace JellyNet
 
         float _spawnTimer;
         NetIdentity _myPlayer;
+
+        /// <summary>호스트가 관리하는 부활 예약.</summary>
+        struct PendingRespawn { public float At; public int NetId; }
+        readonly List<PendingRespawn> _respawns = new List<PendingRespawn>();
 
         public int JellyCount { get { return _jellies.Count; } }
 
@@ -125,8 +141,9 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
             if (net == null || net.CurrentMode == NetManager.Mode.None) return;
 
-            if (net.IsHost) HostSpawnTick();
+            if (net.IsHost) { HostSpawnTick(); HostRespawnTick(); }
             CheckMyEating();
+            CheckMyPlayerAbsorb();
         }
 
         // ═════════════════════════════════════════════
@@ -231,11 +248,18 @@ namespace JellyNet
         // ═════════════════════════════════════════════
         void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
         {
-            if (type != MsgType.EatJellyRequest) return;
-
-            int jellyNetId = r.ReadInt();
-            int eaterNetId = r.ReadInt();
-            ResolveEat(from.Id, jellyNetId, eaterNetId);
+            if (type == MsgType.EatJellyRequest)
+            {
+                int jellyNetId = r.ReadInt();
+                int eaterNetId = r.ReadInt();
+                ResolveEat(from.Id, jellyNetId, eaterNetId);
+            }
+            else if (type == MsgType.AbsorbPlayerRequest)
+            {
+                int victimNetId = r.ReadInt();
+                int absorberNetId = r.ReadInt();
+                ResolveAbsorbPlayer(from.Id, victimNetId, absorberNetId);
+            }
         }
 
         /// <summary>
@@ -274,8 +298,11 @@ namespace JellyNet
             // ① 젤리를 먼저 없앤다 → 이 시점부터 후발 요청은 자동 탈락
             NetWorld.Instance.HostDespawn(jellyNetId);
 
-            // ② 보상: 크기 증가 (호스트가 계산하고 StateUpdate로 전원에 방송)
+            // ② 보상: 크기 증가 + 점수 (호스트가 계산하고 방송)
             if (es != null) es.HostGrow(growPerJelly);
+
+            LanPlayerState eps = eater.GetComponent<LanPlayerState>();
+            if (eps != null) eps.HostAddScore(scorePerJelly);
 
             // ③ 확정 통보 (점수·연출용 훅. 지금은 로그만)
             _w.Begin(MsgType.EatJellyConfirm);
@@ -288,15 +315,206 @@ namespace JellyNet
         }
 
         // ═════════════════════════════════════════════
+        //  플레이어 ↔ 플레이어 흡수
+        // ═════════════════════════════════════════════
+
+        /// <summary>내 몸이 나보다 작은 상대에 닿았는지 검사 → 요청.</summary>
+        void CheckMyPlayerAbsorb()
+        {
+            if (_myPlayer == null || NetWorld.Instance == null) return;
+            if (IsOutOfPlay(_myPlayer)) return;               // 나부터 판 안에 있어야
+
+            float myScale = ScaleOf(_myPlayer);
+            Vector3 myPos = _myPlayer.transform.position;
+
+            int target = -1;
+            foreach (var kv in NetWorld.Instance.Objects)
+            {
+                NetIdentity other = kv.Value;
+                if (other == null || other == _myPlayer) continue;
+                if (IsJelly(other)) continue;
+                if (other.OwnerId == _myPlayer.OwnerId) continue;
+                if (IsOutOfPlay(other)) continue;             // 이미 흡수/탈락한 상대
+
+                float otherScale = ScaleOf(other);
+                if (myScale < otherScale * absorbSizeRatio) continue;   // 내가 충분히 커야
+
+                Vector3 d = other.transform.position - myPos;
+                d.y = 0f;
+                float touch = (myScale + otherScale) * playerRadius;
+                if (d.sqrMagnitude > touch * touch) continue;
+
+                target = other.NetId;
+                break;
+            }
+
+            if (target >= 0) RequestAbsorbPlayer(target, _myPlayer.NetId);
+        }
+
+        void RequestAbsorbPlayer(int victimNetId, int absorberNetId)
+        {
+            NetManager net = NetManager.Instance;
+
+            if (net.IsHost) { ResolveAbsorbPlayer(NetHost.HostId, victimNetId, absorberNetId); return; }
+
+            _w.Begin(MsgType.AbsorbPlayerRequest);
+            _w.WriteInt(victimNetId);
+            _w.WriteInt(absorberNetId);
+            _w.End();
+            net.Client.Send(_w);
+        }
+
+        /// <summary>
+        /// 호스트 판정. 원본 RPC_RequestAbsorbValidation의 규칙을 그대로 옮겼다.
+        ///   ① 몸이 닿았나  ② 흡수자가 충분히 큰가  ③ 둘 다 판 안에 있나
+        /// </summary>
+        void ResolveAbsorbPlayer(int requesterId, int victimNetId, int absorberNetId)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost || NetWorld.Instance == null) return;
+
+            NetIdentity victim = NetWorld.Instance.Find(victimNetId);
+            NetIdentity absorber = NetWorld.Instance.Find(absorberNetId);
+            if (victim == null || absorber == null) return;
+
+            if (absorber.OwnerId != requesterId) return;          // 소유권
+            if (victim.OwnerId == absorber.OwnerId) return;       // 자기 편
+            if (IsJelly(victim) || IsJelly(absorber)) return;     // 젤리는 대상 아님
+            if (IsOutOfPlay(victim) || IsOutOfPlay(absorber)) return;
+
+            float vScale = ScaleOf(victim);
+            float aScale = ScaleOf(absorber);
+
+            if (aScale < vScale * absorbSizeRatio) return;        // 크기 조건
+
+            // 몸이 닿는 거리인가 (지연 감안해 여유)
+            Vector3 gap = victim.transform.position - absorber.transform.position;
+            gap.y = 0f;
+            float touch = (aScale + vScale) * playerRadius * 1.5f;
+            if (gap.sqrMagnitude > touch * touch) return;
+
+            // ── 확정 ──
+            LanPlayerState vs = victim.GetComponent<LanPlayerState>();
+            LanPlayerState asx = absorber.GetComponent<LanPlayerState>();
+            NetScale vsc = victim.GetComponent<NetScale>();
+            NetScale asc = absorber.GetComponent<NetScale>();
+
+            if (vs != null) vs.HostSetFlag(PlayerFlags.Absorbed, true);
+            if (asc != null) asc.HostGrow(vScale * absorbGrowthRatio);
+            if (asx != null) asx.HostAddScore(Mathf.RoundToInt(vScale * absorbScorePerScale));
+
+            // 흡수당한 쪽은 크기를 원래대로
+            if (vsc != null) { vsc.SetTarget(1f); NetWorld.Instance.BroadcastScale(victimNetId, 1f); }
+
+            _w.Begin(MsgType.PlayerAbsorbed);
+            _w.WriteInt(victimNetId);
+            _w.WriteInt(absorberNetId);
+            _w.End();
+            net.Host.Broadcast(_w);
+
+            OnPlayerAbsorbed(victimNetId, absorberNetId);
+
+            // 부활 예약
+            PendingRespawn pr;
+            pr.At = Time.time + respawnDelay;
+            pr.NetId = victimNetId;
+            _respawns.Add(pr);
+        }
+
+        /// <summary>호스트: 예약된 부활을 처리한다.</summary>
+        void HostRespawnTick()
+        {
+            if (_respawns.Count == 0) return;
+
+            float now = Time.time;
+            for (int i = _respawns.Count - 1; i >= 0; i--)
+            {
+                if (_respawns[i].At > now) continue;
+
+                int netId = _respawns[i].NetId;
+                _respawns.RemoveAt(i);
+
+                NetIdentity id = NetWorld.Instance != null ? NetWorld.Instance.Find(netId) : null;
+                if (id == null) continue;
+
+                Vector3 pos = new Vector3(
+                    Random.Range(-spawnRangeX, spawnRangeX), spawnHeight,
+                    Random.Range(-spawnRangeZ, spawnRangeZ));
+
+                LanPlayerState ps = id.GetComponent<LanPlayerState>();
+                if (ps != null) ps.HostSetFlag(PlayerFlags.Absorbed, false);
+
+                _w.Begin(MsgType.PlayerRespawn);
+                _w.WriteInt(netId);
+                _w.WriteFloat(pos.x); _w.WriteFloat(pos.y); _w.WriteFloat(pos.z);
+                _w.End();
+                NetManager.Instance.Host.Broadcast(_w);
+
+                ApplyRespawn(netId, pos);
+            }
+        }
+
+        void OnPlayerAbsorbed(int victimNetId, int absorberNetId)
+        {
+            NetIdentity v = NetWorld.Instance.Find(victimNetId);
+            NetIdentity a = NetWorld.Instance.Find(absorberNetId);
+            NetManager.Instance.AddLog(
+                "P" + (a != null ? a.OwnerId : 0) + " 가 P" + (v != null ? v.OwnerId : 0) + " 를 흡수!");
+        }
+
+        void ApplyRespawn(int netId, Vector3 pos)
+        {
+            NetIdentity id = NetWorld.Instance != null ? NetWorld.Instance.Find(netId) : null;
+            if (id == null) return;
+
+            // 위치는 소유자만 실제로 옮긴다(그 뒤 TransformUpdate로 전파됨)
+            if (id.IsMine) id.transform.position = pos;
+
+            NetScale ns = id.GetComponent<NetScale>();
+            if (ns != null) ns.SetImmediate(1f);
+
+            NetManager.Instance.AddLog("net" + id.NetId + " 부활");
+        }
+
+        static bool IsOutOfPlay(NetIdentity id)
+        {
+            LanPlayerState ps = id.GetComponent<LanPlayerState>();
+            return ps != null && ps.IsOutOfPlay;
+        }
+
+        static float ScaleOf(NetIdentity id)
+        {
+            NetScale s = id.GetComponent<NetScale>();
+            return s != null ? s.Current : 1f;
+        }
+
+        // ═════════════════════════════════════════════
         //  클라이언트: 확정 결과 수신
         // ═════════════════════════════════════════════
         void HandleClientMessage(MsgType type, NetReader r)
         {
-            if (type != MsgType.EatJellyConfirm) return;
+            switch (type)
+            {
+                case MsgType.EatJellyConfirm:
+                    OnEatConfirmed(r.ReadInt(), r.ReadInt());
+                    break;
 
-            int eaterNetId = r.ReadInt();
-            int jellyPrefabId = r.ReadInt();
-            OnEatConfirmed(eaterNetId, jellyPrefabId);
+                case MsgType.PlayerAbsorbed:
+                    {
+                        int victimNetId = r.ReadInt();
+                        int absorberNetId = r.ReadInt();
+                        OnPlayerAbsorbed(victimNetId, absorberNetId);
+                        break;
+                    }
+
+                case MsgType.PlayerRespawn:
+                    {
+                        int netId = r.ReadInt();
+                        float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat();
+                        ApplyRespawn(netId, new Vector3(x, y, z));
+                        break;
+                    }
+            }
         }
 
         /// <summary>흡수 확정. 나중에 점수·색·이펙트를 여기에 붙인다.</summary>
