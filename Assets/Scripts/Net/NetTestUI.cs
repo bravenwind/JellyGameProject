@@ -152,19 +152,22 @@ namespace JellyNet
             // ── 진단: 내가 알고 있는 네트워크 오브젝트 목록 ──
             if (NetWorld.Instance != null)
             {
-                GUILayout.Label("네트워크 오브젝트: " + NetWorld.Instance.Objects.Count + "개  (내 번호 P" + _net.MyId + ")", MiniLabel());
+                string jellyInfo = AbsorbMode.Instance != null
+                    ? "  젤리 " + AbsorbMode.Instance.JellyCount + "개" : "";
+                GUILayout.Label("오브젝트 " + NetWorld.Instance.Objects.Count + "개" + jellyInfo
+                    + "  (내 번호 P" + _net.MyId + ")", MiniLabel());
 
+                // 플레이어만 나열 (젤리는 수십 개라 목록에서 뺀다)
                 foreach (var kv in NetWorld.Instance.Objects)
                 {
                     NetIdentity id = kv.Value;
-                    if (id == null) continue;
+                    if (id == null || id.PrefabId >= NetConfig.JellyPrefabStart) continue;
 
+                    NetScale sc = id.GetComponent<NetScale>();
+                    string size = sc != null ? ("  크기 " + sc.Current.ToString("F2")) : "";
                     string mark = id.IsMine ? "★내것" : "  남의것";
-                    GUILayout.Label(
-                        "  net" + id.NetId + "  소유 P" + id.OwnerId + "  " + mark +
-                        "  pos(" + id.transform.position.x.ToString("F1") + ", " +
-                        id.transform.position.z.ToString("F1") + ")",
-                        MiniLabel());
+
+                    GUILayout.Label("  net" + id.NetId + "  P" + id.OwnerId + "  " + mark + size, MiniLabel());
                 }
             }
 

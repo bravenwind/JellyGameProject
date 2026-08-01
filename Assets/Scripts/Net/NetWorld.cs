@@ -34,6 +34,23 @@ namespace JellyNet
 
         public IReadOnlyDictionary<int, NetIdentity> Objects { get { return _objects; } }
 
+        /// <summary>오브젝트가 생겼을 때 / 사라졌을 때. 젤리 개수 관리 등에 쓴다.</summary>
+        public event System.Action<NetIdentity> OnSpawned;
+        public event System.Action<int> OnDespawned;
+
+        /// <summary>netId로 오브젝트 찾기. 없으면 null.</summary>
+        public NetIdentity Find(int netId)
+        {
+            NetIdentity id;
+            return _objects.TryGetValue(netId, out id) ? id : null;
+        }
+
+        static float ScaleOf(NetIdentity id)
+        {
+            NetScale ns = id.GetComponent<NetScale>();
+            return ns != null ? ns.Current : 1f;
+        }
+
         // ─────────────────────────────────────────────
         void Awake()
         {
@@ -75,8 +92,13 @@ namespace JellyNet
                 }
                 if (prefabs[i].GetComponent<NetIdentity>() == null)
                     Debug.LogError("[NetWorld] '" + prefabs[i].name + "' 에 NetIdentity가 없습니다.");
-                if (prefabs[i].GetComponent<NetTransform>() == null)
+
+                // 0번(플레이어)은 움직이므로 NetTransform 필수. 젤리는 제자리라 없어도 된다.
+                if (i < NetConfig.JellyPrefabStart && prefabs[i].GetComponent<NetTransform>() == null)
                     Debug.LogError("[NetWorld] '" + prefabs[i].name + "' 에 NetTransform이 없습니다 — 위치 동기화가 전혀 안 됩니다!");
+
+                if (prefabs[i].GetComponent<NetScale>() == null)
+                    Debug.LogWarning("[NetWorld] '" + prefabs[i].name + "' 에 NetScale이 없습니다 — 흡수해도 크기가 안 변합니다.");
             }
         }
 
@@ -110,7 +132,8 @@ namespace JellyNet
             foreach (var kv in _objects)
             {
                 NetIdentity id = kv.Value;
-                WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position);
+                // 현재 크기까지 실어 보낸다 → 늦게 들어와도 커진 젤리·플레이어가 제대로 보인다
+                WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position, ScaleOf(id));
                 NetManager.Instance.Host.SendTo(peer, _w);
             }
 
@@ -129,19 +152,39 @@ namespace JellyNet
                 HostDespawn(toRemove[i]);
         }
 
-        /// <summary>호스트 전용: 오브젝트를 만들고 전원에게 복제 지시.</summary>
+        /// <summary>호스트 전용: 플레이어 캐릭터를 기본 스폰 위치에 만든다.</summary>
         public NetIdentity SpawnForOwner(int ownerId, int prefabId = 0)
+        {
+            if (!NetManager.Instance.IsHost) return null;
+            return HostSpawn(prefabId, ownerId, PickSpawnPos(_nextNetId));
+        }
+
+        /// <summary>
+        /// 호스트 전용: 원하는 위치에 오브젝트를 만들고 전원에게 복제 지시.
+        /// 젤리처럼 소유자가 없는 것은 ownerId = 0.
+        /// </summary>
+        public NetIdentity HostSpawn(int prefabId, int ownerId, Vector3 pos)
         {
             if (!NetManager.Instance.IsHost) return null;
 
             int netId = _nextNetId++;
-            Vector3 pos = PickSpawnPos(netId);
+            NetIdentity id = SpawnLocal(netId, prefabId, ownerId, pos, 1f);
 
-            NetIdentity id = SpawnLocal(netId, prefabId, ownerId, pos);
-
-            WriteSpawn(netId, prefabId, ownerId, pos);
+            WriteSpawn(netId, prefabId, ownerId, pos, 1f);
             NetManager.Instance.Host.Broadcast(_w);
             return id;
+        }
+
+        /// <summary>호스트 전용: 크기가 바뀌었음을 전원에게 알린다.</summary>
+        public void BroadcastScale(int netId, float scale)
+        {
+            if (!NetManager.Instance.IsHost) return;
+
+            _w.Begin(MsgType.StateUpdate);
+            _w.WriteInt(netId);
+            _w.WriteFloat(scale);
+            _w.End();
+            NetManager.Instance.Host.Broadcast(_w);
         }
 
         /// <summary>호스트 전용: 오브젝트 파괴 + 전원에게 통보.</summary>
@@ -191,7 +234,21 @@ namespace JellyNet
                         int prefabId = r.ReadInt();
                         int ownerId = r.ReadInt();
                         float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat();
-                        SpawnLocal(netId, prefabId, ownerId, new Vector3(x, y, z));
+                        float scale = r.ReadFloat();
+                        SpawnLocal(netId, prefabId, ownerId, new Vector3(x, y, z), scale);
+                        break;
+                    }
+
+                case MsgType.StateUpdate:
+                    {
+                        int netId = r.ReadInt();
+                        float scale = r.ReadFloat();
+                        NetIdentity id = Find(netId);
+                        if (id != null)
+                        {
+                            NetScale ns = id.GetComponent<NetScale>();
+                            if (ns != null) ns.SetTarget(scale);
+                        }
                         break;
                     }
 
@@ -214,7 +271,7 @@ namespace JellyNet
         // ═════════════════════════════════════════════
         //  공통: 실제 생성/파괴
         // ═════════════════════════════════════════════
-        NetIdentity SpawnLocal(int netId, int prefabId, int ownerId, Vector3 pos)
+        NetIdentity SpawnLocal(int netId, int prefabId, int ownerId, Vector3 pos, float scale)
         {
             if (_objects.ContainsKey(netId)) return _objects[netId];   // 중복 방지(멱등)
 
@@ -234,8 +291,13 @@ namespace JellyNet
             id.OwnerId = ownerId;
             id.PrefabId = prefabId;
 
+            NetScale ns = id.GetComponent<NetScale>();
+            if (ns != null) ns.SetImmediate(scale);
+
             _objects[netId] = id;
-            NetManager.Instance.AddLog("스폰: net" + netId + " (소유 P" + ownerId + ")");
+            NetManager.Instance.AddLog("스폰: net" + netId + " (프리팹 " + prefabId + ", 소유 P" + ownerId + ")");
+
+            if (OnSpawned != null) OnSpawned(id);
             return id;
         }
 
@@ -246,7 +308,8 @@ namespace JellyNet
 
             _objects.Remove(netId);
             if (id != null) Destroy(id.gameObject);
-            NetManager.Instance.AddLog("디스폰: net" + netId);
+
+            if (OnDespawned != null) OnDespawned(netId);
         }
 
         void ApplyTransform(NetIdentity id, Vector3 pos, float yaw)
@@ -267,13 +330,14 @@ namespace JellyNet
         // ═════════════════════════════════════════════
         //  메시지 조립 (소유자가 위치를 보낼 때도 씀)
         // ═════════════════════════════════════════════
-        void WriteSpawn(int netId, int prefabId, int ownerId, Vector3 pos)
+        void WriteSpawn(int netId, int prefabId, int ownerId, Vector3 pos, float scale)
         {
             _w.Begin(MsgType.SpawnEntity);
             _w.WriteInt(netId);
             _w.WriteInt(prefabId);
             _w.WriteInt(ownerId);
             _w.WriteFloat(pos.x); _w.WriteFloat(pos.y); _w.WriteFloat(pos.z);
+            _w.WriteFloat(scale);
             _w.End();
         }
 

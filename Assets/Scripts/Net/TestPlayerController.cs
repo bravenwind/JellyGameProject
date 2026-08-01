@@ -23,7 +23,12 @@ namespace JellyNet
         [Tooltip("캡슐은 회전해도 똑같이 생겨서 방향을 알 수 없다. 앞쪽에 작은 막대를 붙인다.")]
         public bool showNose = true;
 
+        [Header("피격 중 조작")]
+        [Tooltip("넉백으로 밀리는 동안 조작이 먹히는 비율. 0이면 완전 경직.")]
+        [Range(0f, 1f)] public float controlWhilePushed = 0.3f;
+
         NetIdentity _id;
+        NetKnockback _knockback;
         Renderer _bodyRenderer;
         Renderer _noseRenderer;
         bool _colored;
@@ -31,6 +36,7 @@ namespace JellyNet
         void Awake()
         {
             _id = GetComponent<NetIdentity>();
+            _knockback = GetComponent<NetKnockback>();
             _bodyRenderer = GetComponent<Renderer>();
             if (_bodyRenderer == null) _bodyRenderer = GetComponentInChildren<Renderer>();
 
@@ -75,8 +81,12 @@ namespace JellyNet
 
             input.Normalize();
 
+            // 밀리는 동안에는 조작이 잘 안 먹힌다 → 넉백이 눈에 확실히 보인다
+            float speed = moveSpeed;
+            if (_knockback != null && _knockback.IsBeingPushed) speed *= controlWhilePushed;
+
             // 화면 기준으로 직접 이동 (A/D만 눌러도 좌우로 움직인다)
-            transform.position += input * moveSpeed * Time.deltaTime;
+            transform.position += input * speed * Time.deltaTime;
 
             // 가는 방향을 바라보게 — 회전이 눈에 보이도록
             transform.rotation = Quaternion.LookRotation(input, Vector3.up);

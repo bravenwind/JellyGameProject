@@ -26,9 +26,18 @@ namespace JellyNet
         DespawnEntity = 21,   // 호스트 → 전체 : 파괴
         TransformUpdate = 22, // 소유자 → 호스트 → 나머지 : 위치·회전
 
+        // ── 4단계: 흡수 모드 ──
+        StateUpdate = 23,      // 호스트 → 전체 : 크기(스케일) 등 상태
+
+        EatJellyRequest = 30,  // 클라 → 호스트 : "이 젤리 먹었다" 요청(판정은 호스트가)
+        EatJellyConfirm = 31,  // 호스트 → 전체 : "누가 이겼고 보상은 이것" 확정
+
+        // ── 5단계: 밀치기 모드 ──
+        BatHitRequest = 40,    // 클라 → 호스트 : "이 상대를 때렸다" 주장(판정은 호스트)
+        Knockback = 41,        // 호스트 → 피격자 소유자에게만 : 밀려나라
+
         // ── 이후 추가 예정 ──
-        // StateUpdate    = 23,   // 스케일·점수·색
-        // EatJellyRequest= 30,
+        // TileCollapse   = 50,   // 타일 붕괴
     }
 
     public static class NetConfig
@@ -44,5 +53,8 @@ namespace JellyNet
 
         /// <summary>위치를 초당 몇 번 보낼지. 20Hz = 50ms 간격.</summary>
         public const float TransformSendRate = 20f;
+
+        /// <summary>프리팹 등록표에서 젤리가 시작되는 인덱스. 0번은 플레이어.</summary>
+        public const int JellyPrefabStart = 1;
     }
 }

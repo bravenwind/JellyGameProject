@@ -268,6 +268,8 @@ GameObject:
   - component: {fileID: 1717095757}
   - component: {fileID: 1717095756}
   - component: {fileID: 1717095759}
+  - component: {fileID: 1717095760}
+  - component: {fileID: 1717095761}
   m_Layer: 0
   m_Name: NetTest
   m_TagString: Untagged
@@ -331,7 +333,48 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   prefabs:
   - {fileID: 6770951759250364433, guid: 1b60fc99bfc6828459de7859b6e5c910, type: 3}
+  - {fileID: 5764402422269609242, guid: 662982f4668923f4f8c204e1a39bfbcc, type: 3}
+  - {fileID: 3877166049316470092, guid: faf6a3fee3917f041b558321fac61695, type: 3}
   spawnRadius: 4
+--- !u!114 &1717095760
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1717095755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7fe9a197857d1014f8f74a8cff33d92f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  spawnJelly: 1
+  spawnInterval: 1.5
+  maxJellyCount: 30
+  spawnRangeX: 18
+  spawnRangeZ: 18
+  spawnHeight: 0.5
+  playerRadius: 0.5
+  jellyRadius: 0.3
+  growPerJelly: 0.12
+--- !u!114 &1717095761
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1717095755}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 04bb1ddacf219fa4094145140fc655df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  attackKey: 32
+  batRange: 1.6
+  batPushForce: 8
+  batCooldown: 0.5
+  batHitGrowth: 0.06
+  rangeTolerance: 1.6
 --- !u!1 &1884356756
 GameObject:
   m_ObjectHideFlags: 0

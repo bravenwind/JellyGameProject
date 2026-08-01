@@ -207,6 +207,14 @@ namespace JellyNet
             p.Conn.Send(w);
         }
 
+        /// <summary>플레이어 번호로 접속을 찾는다. 호스트 자신(1번)은 소켓이 없으므로 null.</summary>
+        public Peer FindPeer(int playerId)
+        {
+            for (int i = 0; i < _peers.Count; i++)
+                if (_peers[i].Id == playerId) return _peers[i];
+            return null;
+        }
+
         /// <summary>보낸 사람만 빼고 전원에게. 위치 중계에 쓴다(자기 위치를 되돌려받을 필요 없음).</summary>
         public void BroadcastExcept(Peer except, NetWriter w)
         {
