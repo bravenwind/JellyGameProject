@@ -32,6 +32,9 @@ public class AIWaypointPatrol : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
 
+        _manualInterp = NetworkNavMeshHelper.NeedsManualInterp(this);
+        _lastPos = transform.position;
+
         _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
             ref _networkPosition, ref _networkRotation);
 
@@ -39,13 +42,24 @@ public class AIWaypointPatrol : MonoBehaviourPunCallbacks, IPunObservable
             MoveToNextWaypoint();
     }
 
+    // [LAN 이식] WanderingAI와 동일 — NetTransform이 있으면 위치는 건드리지 않는다.
+    private bool _manualInterp;
+    private Vector3 _lastPos;
+
     void Update()
     {
         if (!_isMine)
         {
-            NetworkNavMeshHelper.InterpolateRemote(transform, _networkPosition, _networkRotation);
-            if (animator != null)
-                animator.SetBool("IsMoving", _networkIsMoving);
+            if (_manualInterp)
+            {
+                NetworkNavMeshHelper.InterpolateRemote(transform, _networkPosition, _networkRotation);
+                if (animator != null) animator.SetBool("IsMoving", _networkIsMoving);
+            }
+            else if (animator != null)
+            {
+                animator.SetBool("IsMoving",
+                    NetworkNavMeshHelper.MeasureMoving(transform, ref _lastPos));
+            }
             return;
         }
 

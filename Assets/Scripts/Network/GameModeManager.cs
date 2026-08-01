@@ -420,7 +420,9 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         foreach (var nps in EntityRegistry.Players)
         {
-            if (nps != null && nps.photonView.Owner?.ActorNumber == player.ActorNumber)
+            // [LAN 이식] ActorNumber → OwnerId. 이 함수는 Photon 점수판 경로 전용이라
+            //   LAN에서는 호출되지 않는다(컴파일만 유지).
+            if (nps != null && nps.OwnerId == player.ActorNumber)
                 return nps.DisplayColor;
         }
         return Color.white;
@@ -430,7 +432,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
     {
         foreach (var bot in EntityRegistry.Bots)
         {
-            if (bot != null && bot.photonView != null && bot.photonView.ViewID == viewId)
+            if (bot != null && JellyNet.NetIdentity.IdOf(bot) == viewId)
             {
                 // 읽기 전용 조회이므로 sharedMaterial 사용 — .material은 봇마다
                 // 머티리얼 인스턴스를 복제해 배칭을 깨뜨린다(G4와 동일한 학습 포인트).
@@ -746,7 +748,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         if (NetworkManager.Instance != null)
             NetworkManager.Instance.GoToMainMenu();
         else
-            LoadingSceneController.LoadMainViaLoading();
+            JellyNet.LanSceneFlow.ToMain();   // [LAN 이식] 소켓 종료 + 상태 정리까지 함께
     }
 
     public void RegisterLocalPlayer(NetworkPlayerSync player) => _localPlayer = player;

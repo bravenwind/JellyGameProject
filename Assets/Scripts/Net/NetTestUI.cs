@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace JellyNet
 {
@@ -23,7 +23,7 @@ namespace JellyNet
         //   그 안에서 연결을 맺거나 끊으면 UI 구조가 도중에 바뀌어 IMGUI가 꼬이고,
         //   같은 동작이 여러 번 실행될 수 있다.
         //   그래서 버튼은 '요청'만 기록하고, 실제 실행은 Update()에서 한 번만 한다.
-        enum PendingAction { None, StartHost, Join, Shutdown, Ping }
+        enum PendingAction { None, StartHost, Join, Shutdown, Ping, Diagnose }
         PendingAction _pending = PendingAction.None;
         string _pendingChat;
 
@@ -43,6 +43,7 @@ namespace JellyNet
                 case PendingAction.Join: _net.JoinHost(); break;
                 case PendingAction.Shutdown: _net.Shutdown(); break;
                 case PendingAction.Ping: _net.SendPing(); break;
+                case PendingAction.Diagnose: LanDiagnostics.Dump(); break;
             }
 
             if (_pendingChat != null)
@@ -205,6 +206,9 @@ namespace JellyNet
 
             // ── 디버그 ──
             GUILayout.Space(6);
+            if (GUILayout.Button("진단 (콘솔에 상태 전부 출력)  [F1]"))
+                _pending = PendingAction.Diagnose;
+
             FramedConnection.Trace = GUILayout.Toggle(FramedConnection.Trace, " 수신 추적 로그(디버그)");
 
             // ── 로그 ──

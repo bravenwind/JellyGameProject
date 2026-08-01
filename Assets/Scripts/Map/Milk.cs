@@ -25,11 +25,14 @@ public class Milk : MonoBehaviour
 
         // 소유자만 처리한다: 사람 플레이어는 본인 클라, 봇은 마스터 클라에서만 IsMine == true.
         // (PhotonView 하나로 사람/봇을 통일해 가린다 — 원격 사본을 건드리지 않는다.) (J2)
-        PhotonView pv = other.GetComponentInParent<PhotonView>();
-        if (pv == null || !pv.IsMine) return;
+        // [LAN 이식] PhotonView → NetIdentity.
+        //   PhotonView를 걷어낸 뒤로 이 가드에서 항상 return되어 감속이 아예 안 걸렸다.
+        //   "소유자만 처리" 규칙은 그대로다 — 사람은 본인 클라, 봇은 호스트에서만 IsMine.
+        JellyNet.NetIdentity id = other.GetComponentInParent<JellyNet.NetIdentity>();
+        if (id == null || !id.IsMine) return;
 
         // 같은 대상을 이 밀크가 이미 감속 중이면(겹친 트리거/재진입) 중복 적용하지 않는다. (J3)
-        if (_slowed.ContainsKey(pv.ViewID)) return;
+        if (_slowed.ContainsKey(id.NetId)) return;
 
         PlayerMovement movement = other.GetComponentInParent<PlayerMovement>();
         AIPlayerMovement aiMovement = other.GetComponentInParent<AIPlayerMovement>();
@@ -42,7 +45,7 @@ public class Milk : MonoBehaviour
 
         // 봇은 AIPlayerMovement만 가지므로, PlayerMovement가 있으면 (로컬) 사람 플레이어다.
         bool isHuman = movement != null;
-        _slowed[pv.ViewID] = new SlowedEntity { player = movement, ai = aiMovement, isHuman = isHuman };
+        _slowed[id.NetId] = new SlowedEntity { player = movement, ai = aiMovement, isHuman = isHuman };
 
         if (isHuman && PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.isSteppingMilk = true;
@@ -52,12 +55,12 @@ public class Milk : MonoBehaviour
     {
         if (!other.CompareTag("PlayerMesh")) return;
 
-        PhotonView pv = other.GetComponentInParent<PhotonView>();
-        if (pv == null) return;
+        JellyNet.NetIdentity id = other.GetComponentInParent<JellyNet.NetIdentity>();
+        if (id == null) return;
 
         // 이 밀크가 실제로 감속시킨 대상만 복원한다(추적 여부로 판단 → enter/exit 항상 대칭). (J2/J3)
-        if (!_slowed.TryGetValue(pv.ViewID, out SlowedEntity entity)) return;
-        _slowed.Remove(pv.ViewID);
+        if (!_slowed.TryGetValue(id.NetId, out SlowedEntity entity)) return;
+        _slowed.Remove(id.NetId);
 
         RestoreSpeed(entity);
 

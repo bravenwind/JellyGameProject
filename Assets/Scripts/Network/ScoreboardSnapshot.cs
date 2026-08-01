@@ -117,7 +117,7 @@ public static class ScoreboardSnapshot
             // (= IsEliminated || IsBeingAbsorbed)를 본다. 흡수 애니메이션이 도는 동안
             // (IsBeingAbsorbed=true, IsEliminated는 흡수 경로에서 켜지지 않음) 그 봇은
             // 이미 '판 밖'인데, IsEliminated만 보면 리더보드/결과에 생존자로 남는다. (G6)
-            if (bot != null && bot.photonView != null && bot.photonView.ViewID == viewId)
+            if (bot != null && JellyNet.NetIdentity.IdOf(bot) == viewId)
                 return bot.IsOutOfPlay;
         }
         return false;

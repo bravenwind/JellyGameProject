@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: -6131042648612438735}
   - component: {fileID: 571482134129070724}
   - component: {fileID: 2154216164190401199}
+  - component: {fileID: 8861881494511466240}
   m_Layer: 7
   m_Name: Jelly_Yellow_Patrol
   m_TagString: Edible
@@ -187,6 +188,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
+  SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &2154216164190401199
@@ -204,6 +206,18 @@ MonoBehaviour:
   lerpSpeed: 8
   minScale: 0.5
   maxScale: 6
+--- !u!114 &8861881494511466240
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268259526490304970}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &359671545002097993
 GameObject:
   m_ObjectHideFlags: 0

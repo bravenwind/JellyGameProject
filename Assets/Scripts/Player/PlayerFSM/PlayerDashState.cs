@@ -21,6 +21,9 @@ public class PlayerDashState : PlayerBaseState
         if (player.jellyAnimator != null)
             player.jellyAnimator.SetTrigger("Dash");
 
+        // [LAN] 원격 화면에도 대쉬 애니메이션이 보이도록 알린다
+        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.AnimDash);
+
         NetworkPlayerSync netSync = player.GetComponent<NetworkPlayerSync>();
         if (netSync != null && netSync.photonView.IsMine)
             netSync.photonView.RPC(nameof(netSync.RPC_PlayDash), RpcTarget.Others);

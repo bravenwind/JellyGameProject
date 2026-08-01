@@ -34,6 +34,9 @@ public class PlayerAttackState : PlayerBaseState
         if (player.jellyAnimator != null)
             player.jellyAnimator.SetTrigger("Attack");
 
+        // [LAN] 원격 화면에도 공격 애니메이션이 보이도록 알린다
+        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.AnimAttack);
+
         NetworkPlayerSync netSync = player.GetComponent<NetworkPlayerSync>();
         if (netSync != null && netSync.photonView.IsMine)
             netSync.photonView.RPC(nameof(netSync.RPC_PlayAttack), RpcTarget.Others);

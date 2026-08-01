@@ -105,15 +105,11 @@ GameObject:
   m_Component:
   - component: {fileID: 7988438608829161243}
   - component: {fileID: 3495684399480202383}
-  - component: {fileID: 6478388778694794406}
   - component: {fileID: 8579281685212818753}
   - component: {fileID: 3536485665450355811}
   - component: {fileID: 5309223496067073866}
   - component: {fileID: 8452815471202114268}
   - component: {fileID: 6975552852123859224}
-  - component: {fileID: 4724251955215320959}
-  - component: {fileID: -7311416227075258711}
-  - component: {fileID: 3085157858184889901}
   - component: {fileID: 365858056229833277}
   - component: {fileID: 2786491381095114607}
   - component: {fileID: 9149948584432912989}
@@ -122,6 +118,9 @@ GameObject:
   - component: {fileID: 5823387189315086614}
   - component: {fileID: 5843230352317443643}
   - component: {fileID: 2608064871906103207}
+  - component: {fileID: 8039867223321475624}
+  - component: {fileID: 7915837810227215018}
+  - component: {fileID: 2274838090995581008}
   m_Layer: 6
   m_Name: AIPlayer_Bear
   m_TagString: Player
@@ -164,31 +163,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89bddcf7f7e8689489eae2fc575576a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &6478388778694794406
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 72e270705b28f314a8358ac2a1952ab7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 18
-  rotateSpeed: 10
-  detectRadius: 15
-  stateEvalRate: 0.4
-  baseAgentRadius: 0.77
-  baseAgentHeight: 1.51
-  batPivot: {fileID: 5781355599537278488}
-  hideBatWhenIdle: 1
-  dashSpeed: 80
-  dashDuration: 0.2
-  dashCooldown: 3
-  nameTagBillboard: {fileID: 8149866080057182332}
-  _dbg_currentState: '-'
 --- !u!114 &8579281685212818753
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -267,76 +241,6 @@ MonoBehaviour:
   softBody3D: {fileID: 7308258846642602756}
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
---- !u!114 &4724251955215320959
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 1
-  observableSearch: 2
-  ObservedComponents:
-  - {fileID: 6478388778694794406}
-  - {fileID: 0}
-  - {fileID: -7311416227075258711}
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
---- !u!114 &-7311416227075258711
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b8c4a61274f60b4ea5fb4299cfdbf14, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowLayerWeightsInspector: 1
-  ShowParameterInspector: 1
-  m_SynchronizeParameters:
-  - Type: 4
-    SynchronizeType: 2
-    Name: IsMoving
-  - Type: 9
-    SynchronizeType: 0
-    Name: Jump
-  - Type: 9
-    SynchronizeType: 0
-    Name: GameFail
-  - Type: 9
-    SynchronizeType: 0
-    Name: Attack
-  - Type: 9
-    SynchronizeType: 0
-    Name: Dash
-  m_SynchronizeLayers:
-  - SynchronizeType: 0
-    LayerIndex: 0
---- !u!114 &3085157858184889901
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9043382110e6d0b45af3b45c68f42f4c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!95 &365858056229833277
 Animator:
   serializedVersion: 7
@@ -470,6 +374,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
+  SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &2608064871906103207
@@ -487,6 +392,62 @@ MonoBehaviour:
   lerpSpeed: 8
   minScale: 0.5
   maxScale: 6
+--- !u!114 &8039867223321475624
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72e270705b28f314a8358ac2a1952ab7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moveSpeed: 6
+  rotateSpeed: 10
+  detectRadius: 15
+  stateEvalRate: 0.4
+  baseAgentRadius: 0.5
+  baseAgentHeight: 2
+  batPivot: {fileID: 5781355599537278488}
+  hideBatWhenIdle: 1
+  dashSpeed: 80
+  dashDuration: 0.2
+  dashCooldown: 3
+  nameTagBillboard: {fileID: 8149866080057182332}
+  _dbg_currentState: '-'
+--- !u!114 &7915837810227215018
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2903ce336c4bab45814e0256759068d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleSendRate: 5
+  scaleThreshold: 0.01
+--- !u!114 &2274838090995581008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1177273754728550086}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3c672c59c11756419ed8e72b795066d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleController: {fileID: 6975552852123859224}
+  colorVisual: {fileID: 8452815471202114268}
+  animator: {fileID: 365858056229833277}
+  animSendRate: 10
+  crossFade: 0.1
 --- !u!1 &1243590521275635783
 GameObject:
   m_ObjectHideFlags: 0

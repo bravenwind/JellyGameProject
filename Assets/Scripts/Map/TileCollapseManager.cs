@@ -14,8 +14,15 @@ public class TileCollapseManager : MonoBehaviour
     [Tooltip("게임 시작 후 붕괴 시작까지의 시간 (초)")]
     public float collapseStartTime = 90f;
 
-    [Tooltip("각 링 붕괴 간격 (초)")]
+    [Tooltip("각 링 붕괴 간격 (초). autoRingInterval이 켜져 있으면 자동으로 덮어쓴다.")]
     public float ringInterval = 15f;
+
+    [Header("붕괴 주기 자동 계산")]
+    [Tooltip("마지막 링이 꺼지는 시점이 '게임 종료 N초 전'이 되도록 간격을 역산한다.")]
+    public bool autoRingInterval = true;
+
+    [Tooltip("마지막 링이 다 꺼진 뒤 남길 시간 (초).")]
+    public float endMargin = 5f;
 
     [Tooltip("같은 링 내 타일 간 연쇄 딜레이 (초) — 0이면 동시에 떨어짐")]
     public float tileDelay = 0f;
@@ -96,12 +103,84 @@ public class TileCollapseManager : MonoBehaviour
         _maxRing = Mathf.Min(_width, _height) / 2;
     }
 
+    /// <summary>
+    /// 링 붕괴의 기준 시각.
+    ///
+    /// ★ [LAN 이식] 여기가 링 붕괴가 안 되던 진짜 원인이었다.
+    ///   GameModeManager는 LAN 씬에서 비활성이라 Instance가 null이고,
+    ///   그래서 이 함수가 항상 -1을 반환 → Update()가 즉시 return →
+    ///   <b>링이 단 한 번도 무너지지 않았다.</b> (에러도 안 났다)
+    ///   이제 LanGameFlow.Elapsed를 쓰고, 없으면 예전 경로로 떨어진다.
+    /// </summary>
     private float GetSyncedElapsed()
     {
+        var flow = JellyNet.LanGameFlow.Instance;
+        if (flow != null) return flow.Elapsed;
+
         if (GameModeManager.Instance == null) return -1f;
         float networked = GameModeManager.Instance.NetworkedElapsedTime;
         if (networked >= 0f) return networked;
         return GameModeManager.Instance.SurvivedTime;
+    }
+
+    /// <summary>게임이 실제로 진행 중인가. GameModeManager 대신 LanGameFlow를 먼저 본다.</summary>
+    // ═════════════════════════════════════════════════════════
+    //  붕괴 주기 역산
+    // ═════════════════════════════════════════════════════════
+    //
+    // ★ 무엇을 맞추는가
+    //   "마지막 링이 꺼질 때 게임 시간이 endMargin(5초) 남는다."
+    //
+    //   링은 collapseStartTime부터 ringInterval 간격으로 하나씩 무너지고,
+    //   마지막 링의 인덱스는 _maxRing - 1이다. 즉 마지막 링이 무너지기 시작하는 때는
+    //
+    //       collapseStartTime + (_maxRing - 1) * ringInterval
+    //
+    //   여기에 경고 흔들림(warningDuration)과 낙하(fallDuration)가 더해져야
+    //   '다 꺼진' 시점이 된다. 그 시점이 gameDuration - endMargin이어야 하므로
+    //
+    //       ringInterval = (gameDuration - endMargin - warning - fall - collapseStartTime)
+    //                      / (_maxRing - 1)
+    //
+    //   맵 크기(_maxRing)와 게임 시간이 바뀌어도 인스펙터를 다시 만질 필요가 없다.
+    private bool _intervalComputed;
+
+    private void ComputeRingInterval()
+    {
+        if (!autoRingInterval || _intervalComputed) return;
+        if (_maxRing <= 1) return;
+
+        float duration = -1f;
+        var flow = JellyNet.LanGameFlow.Instance;
+        if (flow != null) duration = flow.gameDuration;
+        else if (GameModeManager.Instance != null) duration = GameModeManager.Instance.gameDuration;
+        if (duration <= 0f) return;      // 아직 모른다 — 다음 프레임에 다시 시도
+
+        float usable = duration - endMargin - warningDuration - fallDuration - collapseStartTime;
+
+        if (usable <= 0f)
+        {
+            Debug.LogWarning("[타일] 붕괴 시작(" + collapseStartTime + "s)이 게임 시간("
+                             + duration + "s)에 비해 너무 늦어 링을 다 못 꺼뜨립니다. "
+                             + "collapseStartTime을 줄여주세요. 자동 계산을 끕니다.");
+            _intervalComputed = true;
+            return;
+        }
+
+        ringInterval = usable / (_maxRing - 1);
+        _intervalComputed = true;
+
+        Debug.Log("[타일] 링 " + _maxRing + "개 · 게임 " + duration + "s → 간격 "
+                  + ringInterval.ToString("F2") + "s "
+                  + "(마지막 링 완료 " + (duration - endMargin).ToString("F1") + "s 지점)");
+    }
+
+    private bool IsRunning()
+    {
+        var flow = JellyNet.LanGameFlow.Instance;
+        if (flow != null) return flow.Phase == GamePhase.Playing;
+
+        return GameModeManager.Instance != null && GameModeManager.Instance.IsGameRunning;
     }
 
     private void CollectTiles()
@@ -172,11 +251,18 @@ public class TileCollapseManager : MonoBehaviour
 
     private void Update()
     {
-        bool isMaster = PhotonNetwork.IsMasterClient;
+        // [LAN 이식] PhotonNetwork.IsMasterClient → NetManager.IsHost.
+        //   Photon을 껐더니 항상 false가 되어 타일이 아예 안 꺼졌다.
+        //   소켓 연결이 없으면(싱글 테스트) 예전처럼 혼자 마스터로 동작한다.
+        bool isMaster = JellyNet.NetManager.Instance == null
+                        || JellyNet.NetManager.Instance.CurrentMode == JellyNet.NetManager.Mode.None
+                        || JellyNet.NetManager.Instance.IsHost;
         if (isMaster && !_wasMaster) _needsStepGrace = true; // 방금 마스터가 됨(게임 시작 포함)
         _wasMaster = isMaster;
 
-        if (GameModeManager.Instance == null || !GameModeManager.Instance.IsGameRunning) return;
+        if (!IsRunning()) return;
+
+        ComputeRingInterval();   // 게임 시간을 알게 된 뒤 한 번만 계산된다
 
         if (GameState.CurrentGameMode == GameModeType.Push)
         {
@@ -212,7 +298,11 @@ public class TileCollapseManager : MonoBehaviour
 
     private void UpdateStepCollapse()
     {
-        if (!PhotonNetwork.IsMasterClient) return;
+        // [LAN 이식] 밟아서 마모시키는 판정은 호스트만 한다(권위 단일화).
+        if (JellyNet.NetManager.Instance != null
+            && JellyNet.NetManager.Instance.CurrentMode != JellyNet.NetManager.Mode.None
+            && !JellyNet.NetManager.Instance.IsHost) return;
+
         if (_stepX == 0f || _stepZ == 0f) return;
 
         // [MAP-1] 마스터 승계 직후 그레이스: 현재 위치만 시딩하고 이번 패스는 마모하지 않는다.
@@ -232,13 +322,13 @@ public class TileCollapseManager : MonoBehaviour
         foreach (var player in EntityRegistry.Players)
         {
             if (player == null || player.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6/K2)
-            TryStepAt(player.transform.position, player.photonView.ViewID, dt);
+            TryStepAt(player.transform.position, player.EntityId, dt);
         }
 
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot.IsEliminated) continue;
-            TryStepAt(bot.transform.position, bot.photonView.ViewID, dt);
+            TryStepAt(bot.transform.position, JellyNet.NetIdentity.IdOf(bot), dt);
         }
     }
 
@@ -248,12 +338,12 @@ public class TileCollapseManager : MonoBehaviour
         foreach (var player in EntityRegistry.Players)
         {
             if (player == null || player.IsOutOfPlay) continue;
-            SeedTile(player.transform.position, player.photonView.ViewID);
+            SeedTile(player.transform.position, player.EntityId);
         }
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot.IsEliminated) continue;
-            SeedTile(bot.transform.position, bot.photonView.ViewID);
+            SeedTile(bot.transform.position, JellyNet.NetIdentity.IdOf(bot));
         }
     }
 
@@ -352,6 +442,16 @@ public class TileCollapseManager : MonoBehaviour
         var dm = DataManager.Instance;
         int maxSteps = dm != null ? dm.stepTileStepsToCollapse : 3;
 
+        // [LAN 이식] 예전엔 GameModeManager.photonView로 RPC를 쐈는데,
+        //   그게 null이라 여기서 항상 return → 밟기 마모가 통째로 죽어 있었다.
+        if (JellyNet.NetWorld.Instance != null)
+        {
+            if (count >= maxSteps) CollapseStepTile(x, z);          // 안에서 전파까지 한다
+            else                   BroadcastDarken(x, z, count, maxSteps);
+            return;
+        }
+
+        // 예전 Photon 경로 (photon 브랜치용)
         var pv = GameModeManager.Instance?.photonView;
         if (pv == null) return;
 
@@ -363,6 +463,20 @@ public class TileCollapseManager : MonoBehaviour
         {
             pv.RPC(nameof(GameModeManager.RPC_StepTileDarken), RpcTarget.All, x, z, count, maxSteps);
         }
+    }
+
+    /// <summary>
+    /// 어두워지는 단계를 전원에게 알린다.
+    ///
+    /// ★ 왜 붕괴와 같은 메시지를 쓰는가
+    ///   붕괴는 TileCollapse 메시지가 이미 있다. 어두워지는 건 '몇 번 밟혔는지'만
+    ///   추가로 필요한데, 그건 각 클라가 스스로 셀 수 없다(자기 발밑만 알기 때문).
+    ///   그래서 호스트가 세어서 알려준다. 메시지 하나를 재활용하고 count를 실어 보낸다.
+    /// </summary>
+    private void BroadcastDarken(int x, int z, int count, int maxSteps)
+    {
+        DarkenStepTile(x, z, count, maxSteps);                       // 호스트 자기 화면
+        JellyNet.NetWorld.Instance.BroadcastTileWear(x, z, count, maxSteps);
     }
 
     public void DarkenStepTile(int x, int z, int stepCount, int maxSteps)
@@ -401,10 +515,25 @@ public class TileCollapseManager : MonoBehaviour
         rend.SetPropertyBlock(_mpb);
     }
 
+    /// <summary>
+    /// 밟아서 마모된 타일 하나를 무너뜨린다.
+    ///
+    /// [LAN 이식] 판정은 호스트만 하므로, 그 결과를 전원에게 알려야 한다.
+    ///   (링 단위 붕괴는 시간 기반이라 각자 같은 시각에 알아서 무너지지만,
+    ///    이건 플레이어가 밟은 자리라 호스트만 알 수 있다)
+    /// </summary>
     public void CollapseStepTile(int x, int z)
+    {
+        CollapseStepTile(x, z, true);
+    }
+
+    public void CollapseStepTile(int x, int z, bool broadcast)
     {
         if (x < 0 || x >= _width || z < 0 || z >= _height) return;
         if (_tiles[x, z] == null) return;
+
+        if (broadcast && JellyNet.NetWorld.Instance != null)
+            JellyNet.NetWorld.Instance.BroadcastTileCollapse(x, z);
 
         var dm = DataManager.Instance;
         float warn = dm != null ? dm.stepTileWarningDuration : 1.5f;

@@ -938,7 +938,6 @@ GameObject:
   - component: {fileID: 406705232527397100}
   - component: {fileID: 4347114462072292384}
   - component: {fileID: 2273268019720894421}
-  - component: {fileID: 3978229116318081395}
   m_Layer: 0
   m_Name: Ch14
   m_TagString: Untagged
@@ -973,6 +972,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ced574fc605f55f48b7b14823e3f1f0a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  useHybridSoftness: 1
   softness: 10
   damping: 0.01
   stretchingStiffness: 1
@@ -996,6 +996,9 @@ SkinnedMeshRenderer:
   m_ReflectionProbeUsage: 1
   m_RayTracingMode: 3
   m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -1101,18 +1104,6 @@ CapsuleCollider:
   m_Height: 143.97432
   m_Direction: 1
   m_Center: {x: 0, y: -12.983578, z: 2.3733299}
---- !u!114 &3978229116318081395
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4974999317201090135}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 546868978e4d478429744a440ca86fda, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &5051816787661490116
 GameObject:
   m_ObjectHideFlags: 0
@@ -2019,7 +2010,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8077311441284342454}
-  - component: {fileID: 2797724036108491686}
   - component: {fileID: 2703436716993309002}
   - component: {fileID: 6904788837231558698}
   m_Layer: 0
@@ -2046,26 +2036,9 @@ Transform:
   - {fileID: 2653209135951088246}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2797724036108491686
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8507767374295607283}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 430f0298cb436fe439bbd3f0d3e1b480, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  currentState: 0
-  moveSpeed: 6
-  autoRunSpeed: 8
-  rotateSpeed: 10
-  jellyAnimator: {fileID: 2703436716993309002}
 --- !u!95 &2703436716993309002
 Animator:
-  serializedVersion: 5
+  serializedVersion: 7
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -2079,6 +2052,7 @@ Animator:
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
   m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1

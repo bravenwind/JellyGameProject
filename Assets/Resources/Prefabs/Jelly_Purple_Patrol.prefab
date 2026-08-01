@@ -1075,6 +1075,7 @@ GameObject:
   - component: {fileID: 4009952453899631534}
   - component: {fileID: 1740937218955802003}
   - component: {fileID: 8270968699526624375}
+  - component: {fileID: 8247801476773113314}
   m_Layer: 7
   m_Name: Jelly_Purple_Patrol
   m_TagString: Edible
@@ -1245,6 +1246,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
+  SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &8270968699526624375
@@ -1262,6 +1264,18 @@ MonoBehaviour:
   lerpSpeed: 8
   minScale: 0.5
   maxScale: 6
+--- !u!114 &8247801476773113314
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8744689231866022924}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &9199945051190680421
 GameObject:
   m_ObjectHideFlags: 0

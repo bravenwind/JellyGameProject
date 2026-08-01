@@ -6720,15 +6720,12 @@ GameObject:
   m_Component:
   - component: {fileID: 6441700852342495856}
   - component: {fileID: 731515323225669220}
-  - component: {fileID: 8766380786082812607}
   - component: {fileID: 5491828984144486241}
   - component: {fileID: 987702381777170038}
   - component: {fileID: 3622501665991240812}
   - component: {fileID: 2453079861099940875}
   - component: {fileID: 7056015745900775666}
-  - component: {fileID: 5022122888134414337}
   - component: {fileID: 3717708261158597084}
-  - component: {fileID: 7366102969069033335}
   - component: {fileID: 1065950695206174422}
   - component: {fileID: 6662630265493023483}
   - component: {fileID: 8269618141971823586}
@@ -6737,6 +6734,9 @@ GameObject:
   - component: {fileID: 5741861544558977663}
   - component: {fileID: 3604568095480910256}
   - component: {fileID: 8486096046177473977}
+  - component: {fileID: 7849707261919531368}
+  - component: {fileID: 1704482663070147996}
+  - component: {fileID: 1801388616109071552}
   m_Layer: 6
   m_Name: AIPlayer_Alien
   m_TagString: Player
@@ -6779,31 +6779,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89bddcf7f7e8689489eae2fc575576a5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &8766380786082812607
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 72e270705b28f314a8358ac2a1952ab7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  moveSpeed: 18
-  rotateSpeed: 10
-  detectRadius: 15
-  stateEvalRate: 0.4
-  baseAgentRadius: 0.77
-  baseAgentHeight: 1.51
-  batPivot: {fileID: 5842226387178783975}
-  hideBatWhenIdle: 1
-  dashSpeed: 80
-  dashDuration: 0.2
-  dashCooldown: 3
-  nameTagBillboard: {fileID: 4303488058618368933}
-  _dbg_currentState: '-'
 --- !u!114 &5491828984144486241
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6882,31 +6857,6 @@ MonoBehaviour:
   softBody3D: {fileID: 8761763701411013942}
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
---- !u!114 &5022122888134414337
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 1
-  observableSearch: 2
-  ObservedComponents:
-  - {fileID: 8766380786082812607}
-  - {fileID: 0}
-  - {fileID: 3717708261158597084}
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
 --- !u!114 &3717708261158597084
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6940,18 +6890,6 @@ MonoBehaviour:
   m_SynchronizeLayers:
   - SynchronizeType: 0
     LayerIndex: 0
---- !u!114 &7366102969069033335
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9043382110e6d0b45af3b45c68f42f4c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!95 &1065950695206174422
 Animator:
   serializedVersion: 7
@@ -7085,6 +7023,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
+  SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &8486096046177473977
@@ -7102,6 +7041,62 @@ MonoBehaviour:
   lerpSpeed: 8
   minScale: 0.5
   maxScale: 6
+--- !u!114 &7849707261919531368
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8325633981715944675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72e270705b28f314a8358ac2a1952ab7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  moveSpeed: 6
+  rotateSpeed: 10
+  detectRadius: 15
+  stateEvalRate: 0.4
+  baseAgentRadius: 0.5
+  baseAgentHeight: 2
+  batPivot: {fileID: 0}
+  hideBatWhenIdle: 1
+  dashSpeed: 80
+  dashDuration: 0.2
+  dashCooldown: 3
+  nameTagBillboard: {fileID: 4303488058618368933}
+  _dbg_currentState: '-'
+--- !u!114 &1704482663070147996
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8325633981715944675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e2903ce336c4bab45814e0256759068d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleSendRate: 5
+  scaleThreshold: 0.01
+--- !u!114 &1801388616109071552
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8325633981715944675}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3c672c59c11756419ed8e72b795066d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleController: {fileID: 0}
+  colorVisual: {fileID: 0}
+  animator: {fileID: 0}
+  animSendRate: 10
+  crossFade: 0.1
 --- !u!1 &8733297121611419987
 GameObject:
   m_ObjectHideFlags: 0

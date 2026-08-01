@@ -67,6 +67,19 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     /// </summary>
     public static bool IsPresenting { get; private set; }
 
+    /// <summary>
+    /// 지금 커튼이 전환을 주도하고 있는가.
+    ///
+    /// ★ IsPresenting과 다르다
+    ///   IsPresenting은 "커튼이 화면을 덮고 있는가"라서, 커튼이 걷히기 시작하면
+    ///   false가 된다(도착 씬 연출을 시작해도 좋다는 신호). 하지만 그때도 커튼
+    ///   오브젝트는 아직 살아 전환을 마무리하는 중이다.
+    ///
+    ///   "새 전환을 시작해도 되는가"를 물으려면 이쪽을 봐야 한다.
+    ///   진행 중인데 또 시작하면 앞의 전환을 덮어써서 씬이 꼬인다.
+    /// </summary>
+    public static bool IsTransitioning { get { return _instance != null; } }
+
     private static LoadingSceneController _instance;
     private bool _targetSceneLoaded;
     private float _elapsed;
@@ -108,8 +121,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // 로드하는 버그를 막을 수 있다.
         _targetScene = string.IsNullOrEmpty(NextSceneName)
             ? (GameState.CurrentGameMode == GameModeType.Push
-                ? NetworkManager.Instance.gamePushModeSceneName
-                : NetworkManager.Instance.gameAbsorbModeSceneName)
+                ? PushSceneName
+                : AbsorbSceneName)
             : NextSceneName;
         _allClientsLoad = AllClientsLoad;
         _localLoad = LocalLoad;
@@ -240,12 +253,50 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     // 어떤 패널을 쓸지 결정만 한다(활성화는 하지 않음 — 애니 설정을 먼저 끝내기 위해 분리).
     private void ResolveActivePanel()
     {
-        bool enteringGame =
-            _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
-            _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
+        _enteringGame = IsGameScene(_targetScene);
+        _activePanel = _enteringGame ? toGamePanel : toMainOrResultPanel;
+    }
 
-        _enteringGame = enteringGame;
-        _activePanel = enteringGame ? toGamePanel : toMainOrResultPanel;
+    // ═══════════════════════════════════════════════════════
+    //  [LAN 이식] 게임 씬 이름을 어디서 얻는가
+    // ═══════════════════════════════════════════════════════
+    //
+    // ★ 여기가 터진 이유
+    //   원래는 NetworkManager.Instance에서 씬 이름을 읽었다. 그런데 LAN 구성에서는
+    //   그 매니저를 비활성화했으므로 Instance가 null이고, Awake에서 바로
+    //   NullReferenceException이 나면서 <b>로딩 씬에 갇혔다.</b>
+    //
+    // ★ 이름 비교 자체를 없애지 않은 이유
+    //   Photon 브랜치도 이 파일을 그대로 쓴다. 그래서 매니저가 있으면 그 값을,
+    //   없으면 아래 기본값을 쓴다. 씬 이름을 바꿨다면 인스펙터에서 채우면 된다.
+    [Header("[LAN] 게임 씬 이름 (NetworkManager가 없을 때 사용)")]
+    [SerializeField] private string lanAbsorbSceneName = "Game_io_AbsorbMode";
+    [SerializeField] private string lanPushSceneName = "Game_io_PushMode";
+
+    private string PushSceneName
+    {
+        get
+        {
+            return NetworkManager.Instance != null
+                ? NetworkManager.Instance.gamePushModeSceneName
+                : lanPushSceneName;
+        }
+    }
+
+    private string AbsorbSceneName
+    {
+        get
+        {
+            return NetworkManager.Instance != null
+                ? NetworkManager.Instance.gameAbsorbModeSceneName
+                : lanAbsorbSceneName;
+        }
+    }
+
+    private bool IsGameScene(string sceneName)
+    {
+        if (string.IsNullOrEmpty(sceneName)) return false;
+        return sceneName == PushSceneName || sceneName == AbsorbSceneName;
     }
 
     // 결정된 패널을 실제로 켠다(SetActive) → 이때 애니 OnEnable→Play가 재생된다.
@@ -262,9 +313,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     // 쓴다 — 위 _targetScene 결정과 동일한 기준이라 표시 팁과 실제 입장 씬이 항상 일치한다.
     private void ApplyModeTipPanels()
     {
-        bool enteringGame =
-            _targetScene == NetworkManager.Instance.gamePushModeSceneName ||
-            _targetScene == NetworkManager.Instance.gameAbsorbModeSceneName;
+        bool enteringGame = IsGameScene(_targetScene);
 
         bool isPush = GameState.CurrentGameMode == GameModeType.Push;
 

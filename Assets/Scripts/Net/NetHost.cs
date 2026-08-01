@@ -57,6 +57,19 @@ namespace JellyNet
             {
                 // IPAddress.Any = 모든 네트워크 카드에서 수신(LAN 접속을 받으려면 필수)
                 _listener = new TcpListener(IPAddress.Any, port);
+
+                // ★ 포트를 다시 쓸 수 있게 한다.
+                //
+                //   TCP는 리스너를 닫아도 커널이 그 포트를 잠깐(TIME_WAIT) 붙잡고 있다.
+                //   에디터에서 방을 열었다 닫았다 반복하면 그 사이에 걸려
+                //   "포트가 이미 사용 중"이 뜬다. 실제로는 아무도 안 쓰는데도.
+                //
+                //   ExclusiveAddressUse를 끄고 ReuseAddress를 켜면 재바인딩이 허용된다.
+                //   (같은 포트를 진짜로 다른 프로세스가 듣고 있으면 여전히 실패한다)
+                _listener.ExclusiveAddressUse = false;
+                _listener.Server.SetSocketOption(
+                    SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+
                 _listener.Start();
                 Running = true;
                 Log("호스트 시작 — 포트 " + port);

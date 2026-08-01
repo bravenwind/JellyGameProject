@@ -1071,9 +1071,10 @@ GameObject:
   - component: {fileID: 455319721092352760}
   - component: {fileID: 4132836385674856225}
   - component: {fileID: 1275145403139385444}
-  - component: {fileID: 3769763918499571970}
-  - component: {fileID: -4827910485375906652}
   - component: {fileID: 2438330845846580030}
+  - component: {fileID: 2407781073360813776}
+  - component: {fileID: 1120471945107026807}
+  - component: {fileID: 7510056834512985412}
   m_Layer: 7
   m_Name: AIBot
   m_TagString: Edible
@@ -1184,52 +1185,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &3769763918499571970
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8744689231866022924}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: aa584fbee541324448dd18d8409c7a41, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ObservedComponentsFoldoutOpen: 1
-  Group: 0
-  prefixField: -1
-  Synchronization: 3
-  OwnershipTransfer: 0
-  observableSearch: 2
-  ObservedComponents:
-  - {fileID: -4827910485375906652}
-  sceneViewId: 0
-  InstantiationId: 0
-  isRuntimeInstantiated: 0
---- !u!114 &-4827910485375906652
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8744689231866022924}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d3f60250cf68c464284a99e0e7e63fe9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  baseMoveSpeeed: 5
-  jellyDetectRadius: 6
-  playerDetectRadius: 12
-  jellyLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
-  minWaitTime: 0.5
-  maxWaitTime: 1.5
-  jellyRenderer: {fileID: 5882264472897607747}
-  animator: {fileID: 1275145403139385444}
-  nameTag: Bot
 --- !u!136 &2438330845846580030
 CapsuleCollider:
   m_ObjectHideFlags: 0
@@ -1253,6 +1208,49 @@ CapsuleCollider:
   m_Height: 3.6307545
   m_Direction: 1
   m_Center: {x: 8.7456176e-10, y: -0.23716712, z: -0.06375683}
+--- !u!114 &2407781073360813776
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8744689231866022924}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  NetId: 0
+  SceneNetId: 0
+  OwnerId: 0
+  PrefabId: 0
+--- !u!114 &1120471945107026807
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8744689231866022924}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  lerpSpeed: 8
+  minScale: 0.5
+  maxScale: 6
+--- !u!114 &7510056834512985412
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8744689231866022924}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &9199945051190680421
 GameObject:
   m_ObjectHideFlags: 0

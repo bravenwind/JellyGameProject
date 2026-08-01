@@ -19,12 +19,20 @@ using UnityEngine;
 /// </summary>
 public static class EntityRegistry
 {
-    private static readonly HashSet<NetworkPlayerSync> _players = new HashSet<NetworkPlayerSync>();
+    // [LAN 이식] 플레이어의 기준 컴포넌트를 NetworkPlayerSync → LanPlayerState로 교체.
+    //
+    //   ★ 이게 왜 중요했나
+    //     등록 경로가 NetworkPlayerSync.OnEnable 하나뿐이었는데, 그 컴포넌트를
+    //     프리팹에서 걷어낸 뒤로 Players가 <b>항상 0개</b>가 됐다.
+    //     그런데 링 붕괴·AI 탐지·점수판·화면밖 표시가 전부 이 목록을 순회한다.
+    //     즉 "고장"이 아니라 "아무 일도 안 일어남"으로 나타나서 원인이 안 보였다.
+    //     (링 붕괴가 IsMasterClient만 고쳐도 안 돌아갔던 진짜 이유)
+    private static readonly HashSet<JellyNet.LanPlayerState> _players = new HashSet<JellyNet.LanPlayerState>();
     private static readonly HashSet<AIPlayerMovement> _bots = new HashSet<AIPlayerMovement>();
     private static readonly HashSet<JellyObject> _jellies = new HashSet<JellyObject>();
 
     // 외부 순회용 스냅샷 (dirty일 때만 재생성)
-    private static List<NetworkPlayerSync> _playersSnapshot = new List<NetworkPlayerSync>();
+    private static List<JellyNet.LanPlayerState> _playersSnapshot = new List<JellyNet.LanPlayerState>();
     private static List<AIPlayerMovement> _botsSnapshot = new List<AIPlayerMovement>();
     private static List<JellyObject> _jelliesSnapshot = new List<JellyObject>();
 
@@ -32,13 +40,13 @@ public static class EntityRegistry
     private static bool _botsDirty = true;
     private static bool _jelliesDirty = true;
 
-    public static IReadOnlyList<NetworkPlayerSync> Players
+    public static IReadOnlyList<JellyNet.LanPlayerState> Players
     {
         get
         {
             if (_playersDirty)
             {
-                _playersSnapshot = new List<NetworkPlayerSync>(_players);
+                _playersSnapshot = new List<JellyNet.LanPlayerState>(_players);
                 _playersDirty = false;
             }
             return _playersSnapshot;
@@ -71,8 +79,8 @@ public static class EntityRegistry
         }
     }
 
-    public static void Register(NetworkPlayerSync p) { if (_players.Add(p)) _playersDirty = true; }
-    public static void Unregister(NetworkPlayerSync p) { if (_players.Remove(p)) _playersDirty = true; }
+    public static void Register(JellyNet.LanPlayerState p) { if (_players.Add(p)) _playersDirty = true; }
+    public static void Unregister(JellyNet.LanPlayerState p) { if (_players.Remove(p)) _playersDirty = true; }
 
     public static void Register(AIPlayerMovement b) { if (_bots.Add(b)) _botsDirty = true; }
     public static void Unregister(AIPlayerMovement b) { if (_bots.Remove(b)) _botsDirty = true; }

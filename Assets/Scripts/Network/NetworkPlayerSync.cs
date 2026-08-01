@@ -80,8 +80,11 @@ public class NetworkPlayerSync : MonoBehaviourPun, IPunObservable
     // ─────────────────────────────────────────────────────────
     // 레지스트리 등록
     // ─────────────────────────────────────────────────────────
-    private void OnEnable() => EntityRegistry.Register(this);
-    private void OnDisable() => EntityRegistry.Unregister(this);
+    // [LAN 이식] 등록 책임은 LanPlayerState로 넘어갔다.
+    //   EntityRegistry.Players의 원소 타입이 LanPlayerState가 되었으므로 여기선 등록하지 않는다.
+    //   (이 파일 자체는 photon 브랜치 참조용으로 남겨둔다)
+    // private void OnEnable() => EntityRegistry.Register(this);
+    // private void OnDisable() => EntityRegistry.Unregister(this);
 
     private void Awake()
     {

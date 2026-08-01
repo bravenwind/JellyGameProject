@@ -80,6 +80,7 @@ GameObject:
   - component: {fileID: 5085325459719585586}
   - component: {fileID: 6174514675424820188}
   - component: {fileID: 3515038929754815605}
+  - component: {fileID: 2058006461355948151}
   m_Layer: 7
   m_Name: Jelly_Blue_Patrol
   m_TagString: Edible
@@ -250,6 +251,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
+  SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &3515038929754815605
@@ -267,6 +269,18 @@ MonoBehaviour:
   lerpSpeed: 8
   minScale: 0.5
   maxScale: 6
+--- !u!114 &2058006461355948151
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1410694585128318572}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &1645295983972096131
 GameObject:
   m_ObjectHideFlags: 0

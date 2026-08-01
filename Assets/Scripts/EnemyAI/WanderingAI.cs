@@ -32,24 +32,67 @@ public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
 
     void Start()
     {
+        _manualInterp = NetworkNavMeshHelper.NeedsManualInterp(this);
+        _lastPos = transform.position;
+
         _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
             ref _networkPosition, ref _networkRotation);
 
         if (_isMine)
         {
+            // ★ 스폰 직후 NavMesh 안착.
+            //   AbsorbMode가 스폰 시점에 한 번 맞춰주지만, Start()는 그보다 나중에 돈다.
+            //   Instantiate 위치가 조금이라도 어긋났다면 Unity가 agent를 꺼놨을 수 있으므로
+            //   여기서 다시 확인한다. 이게 없으면 MoveToRandomPosition이 isOnNavMesh에서
+            //   그냥 false로 빠져나가고 젤리는 첫 목적지를 영영 못 받는다.
+            if (!agent.enabled) agent.enabled = true;
+            if (!agent.isOnNavMesh
+                && NavMesh.SamplePosition(transform.position, out NavMeshHit snap, 8f, NavMesh.AllAreas))
+                agent.Warp(snap.position);
+
             agent.avoidancePriority = Random.Range(0, 100);
             initialPosition = transform.position;
             MoveToRandomPosition();
         }
     }
 
+    // [LAN 이식] 원격에서 위치를 누가 모는가.
+    //   LAN에서는 NetTransform이 이미 위치를 담당한다. 여기서 _networkPosition으로
+    //   또 Lerp하면 두 시스템이 서로를 끌어당겨 젤리가 제자리에서 떤다.
+    //   (게다가 _networkPosition은 Photon 스트림 전용이라 LAN에선 갱신되지 않는다 →
+    //    스폰 좌표로 계속 되끌려가 결국 멈춘 것처럼 보인다)
+    private bool _manualInterp;
+    private Vector3 _lastPos;
+
     void Update()
     {
         if (!_isMine)
         {
-            NetworkNavMeshHelper.InterpolateRemote(transform, _networkPosition, _networkRotation);
-            if (jellyAnimController != null)
-                jellyAnimController.SetBool("IsMoving", _networkIsMoving);
+            if (_manualInterp)
+            {
+                NetworkNavMeshHelper.InterpolateRemote(transform, _networkPosition, _networkRotation);
+                if (jellyAnimController != null)
+                    jellyAnimController.SetBool("IsMoving", _networkIsMoving);
+            }
+            else if (jellyAnimController != null)
+            {
+                // 위치는 NetTransform이 몬다. 애니메이션만 실제 변위로 맞춘다.
+                jellyAnimController.SetBool("IsMoving",
+                    NetworkNavMeshHelper.MeasureMoving(transform, ref _lastPos));
+            }
+            return;
+        }
+
+        // [LAN 이식] 카운트다운·대기·종료 중에는 젤리도 멈춘다.
+        //   "다 같이 3·2·1 후 시작"인데 젤리만 먼저 돌아다니면 어색하다.
+        if (JellyNet.LanGameFlow.IsFrozen)
+        {
+            if (agent.enabled && agent.isOnNavMesh)
+            {
+                if (agent.hasPath) agent.ResetPath();
+                agent.velocity = Vector3.zero;
+            }
+            if (jellyAnimController != null) jellyAnimController.SetBool("IsMoving", false);
             return;
         }
 

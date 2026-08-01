@@ -66,7 +66,20 @@ public static class PhotonToNetConverter
 
             if (!needsWork) { skipped++; continue; }
 
-            List<string> changes = ConvertOne(path, apply);
+            List<string> changes;
+            try
+            {
+                changes = ConvertOne(path, apply);
+            }
+            catch (System.Exception e)
+            {
+                // 한 프리팹이 실패해도 나머지는 계속 처리한다
+                report.AppendLine();
+                report.AppendLine("▶ " + path);
+                report.AppendLine("    ★ 예외 발생: " + e.GetType().Name + " — " + e.Message);
+                continue;
+            }
+
             if (changes.Count == 0) { skipped++; continue; }
 
             touched++;
@@ -101,6 +114,13 @@ public static class PhotonToNetConverter
         GameObject root = PrefabUtility.LoadPrefabContents(path);
         try
         {
+            // ⓪ 깨진 스크립트 참조(Missing Script) 제거
+            //    이게 하나라도 있으면 Unity가 SaveAsPrefabAsset을 거부한다.
+            //    (저장하면 그 컴포넌트 정보가 영영 사라지므로 안전장치로 막는 것)
+            int missing = RemoveMissingScripts(root);
+            if (missing > 0)
+                changes.Add("- Missing Script " + missing + "개 (저장을 막고 있던 원인)");
+
             PhotonView[] views = root.GetComponentsInChildren<PhotonView>(true);
             PhotonTransformView[] tviews = root.GetComponentsInChildren<PhotonTransformView>(true);
 
@@ -140,6 +160,18 @@ public static class PhotonToNetConverter
                     changes.Add("+ LanPlayerState (" + go.name + ")");
                     if (apply) go.AddComponent<LanPlayerState>();
                 }
+                // 로컬/원격 구성(카메라·입력·물리·Cloth)을 담당 — 없으면 조작이 아예 안 된다
+                if (go.GetComponent<LanPlayerSetup>() == null)
+                {
+                    changes.Add("+ LanPlayerSetup (" + go.name + ")");
+                    if (apply) go.AddComponent<LanPlayerSetup>();
+                }
+                // 크기·색·애니메이션을 기존 게임 시스템에 연결
+                if (go.GetComponent<LanPlayerVisual>() == null)
+                {
+                    changes.Add("+ LanPlayerVisual (" + go.name + ")");
+                    if (apply) go.AddComponent<LanPlayerVisual>();
+                }
                 if (apply) Object.DestroyImmediate(sync, true);
             }
 
@@ -175,7 +207,12 @@ public static class PhotonToNetConverter
             }
 
             if (apply && changes.Count > 0)
-                PrefabUtility.SaveAsPrefabAsset(root, path);
+            {
+                bool ok;
+                PrefabUtility.SaveAsPrefabAsset(root, path, out ok);
+                if (!ok) changes.Add("★ 저장 실패 — 변경이 반영되지 않았습니다");
+                else changes.Add("저장 완료");
+            }
         }
         finally
         {
@@ -183,6 +220,253 @@ public static class PhotonToNetConverter
         }
 
         return changes;
+    }
+
+    /// <summary>
+    /// 플레이어 프리팹(= PlayerMovement 보유)에 네트워크 컴포넌트를 보장한다.
+    ///
+    /// ★ 왜 따로 필요한가
+    ///   변환기의 다른 단계는 "NetworkPlayerSync가 있으면"을 조건으로 삼는데,
+    ///   그건 첫 변환에서 이미 지워진다. 그래서 두 번째부터는 그 블록이 아예 안 돌아
+    ///   나중에 추가한 컴포넌트(LanPlayerVisual 등)가 영영 안 붙는다. (실제로 겪음)
+    ///   이 메뉴는 그 조건과 무관하게 '플레이어인가'만 보고 보정한다.
+    /// </summary>
+    [MenuItem("Tools/LAN 이식/⑥ 플레이어 컴포넌트 보정", false, 6)]
+    public static void FixPlayerComponents()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", SearchFolders);
+        StringBuilder sb = new StringBuilder("=== 플레이어 컴포넌트 보정 ===\n");
+        int fixedCount = 0;
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (asset == null) continue;
+            if (asset.GetComponent<NetIdentity>() == null) continue;
+            if (asset.GetComponentInChildren<PlayerMovement>(true) == null) continue;
+
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                List<string> added = new List<string>();
+
+                RemoveMissingScripts(root);
+                Need<LanPlayerSetup>(root, added);
+                Need<LanPlayerVisual>(root, added);
+                Need<LanPlayerState>(root, added);
+                Need<NetTransform>(root, added);
+                Need<NetKnockback>(root, added);
+                Need<NetScale>(root, added);
+
+                if (added.Count == 0) { sb.AppendLine("▶ " + path + "  — 이미 완비"); continue; }
+
+                bool ok;
+                PrefabUtility.SaveAsPrefabAsset(root, path, out ok);
+
+                sb.AppendLine("▶ " + path);
+                foreach (string a in added) sb.AppendLine("    + " + a);
+                sb.AppendLine("    " + (ok ? "저장 완료" : "★ 저장 실패"));
+                if (ok) fixedCount++;
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        sb.AppendLine();
+        sb.AppendLine(fixedCount + "개 프리팹 보정됨.");
+        Debug.Log(sb.ToString());
+    }
+
+    /// <summary>
+    /// AI 봇 프리팹을 LAN 구성으로 맞춘다.
+    ///
+    /// ★ 봇에 필요한 것과 그 이유
+    ///   NetIdentity   — 누구의 것인지(= 호스트 소유). 없으면 봇이 네트워크 오브젝트가 아니다
+    ///   NetTransform  — 호스트가 굴린 결과 위치를 나머지에게 전달
+    ///   LanBotSync    — 크기 스트림 + 탈락 통보 (AIPlayerSync 대체)
+    ///   LanPlayerVisual — 애니메이션(IsMoving/Dash/Attack)을 플레이어와 같은 통로로
+    ///   NetKnockback  — 배트에 맞았을 때 밀려나기 (밀치기 모드)
+    ///
+    ///   LanPlayerState는 <b>붙이지 않는다.</b> 그걸 붙이면 봇이
+    ///   EntityRegistry.Players에 등록돼 사람 플레이어로 집계된다.
+    /// </summary>
+    [MenuItem("Tools/LAN 이식/⑨ AI 봇 프리팹 보정", false, 9)]
+    public static void FixBotPrefabs()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", SearchFolders);
+        StringBuilder sb = new StringBuilder("=== AI 봇 프리팹 보정 ===\n");
+        int fixedCount = 0, found = 0;
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (asset == null) continue;
+            // ★ AIPlayerMovement로 찾으면 안 된다 — 변환 과정에서 그게 지워졌기 때문에
+            //   찾을 대상이 0개가 된다(실제로 그랬다). 봇에만 있고 살아남은
+            //   AIDetector를 표식으로 쓴다.
+            if (asset.GetComponentInChildren<AIDetector>(true) == null) continue;
+
+            found++;
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                List<string> added = new List<string>();
+
+                RemoveMissingScripts(root);
+                Need<NetIdentity>(root, added);
+                Need<NetTransform>(root, added);
+                Need<AIPlayerMovement>(root, added);   // 변환 때 지워진 두뇌를 되살린다
+                Need<LanBotSync>(root, added);
+                Need<LanPlayerVisual>(root, added);
+                Need<NetKnockback>(root, added);
+
+                // 이름표 참조를 붙여준다(원본은 인스펙터로 연결돼 있었다)
+                AIPlayerMovement ai = root.GetComponent<AIPlayerMovement>();
+                if (ai != null && ai.nameTagBillboard == null)
+                {
+                    ai.nameTagBillboard = root.GetComponentInChildren<NameTagBillboard>(true);
+                    if (ai.nameTagBillboard != null) added.Add("nameTagBillboard 연결");
+                }
+
+                if (root.GetComponent<LanPlayerState>() != null)
+                {
+                    Object.DestroyImmediate(root.GetComponent<LanPlayerState>(), true);
+                    added.Add("- LanPlayerState (봇은 사람 목록에 들어가면 안 됨)");
+                }
+
+                if (added.Count == 0) { sb.AppendLine("▶ " + path + "  — 이미 완비"); continue; }
+
+                bool ok;
+                PrefabUtility.SaveAsPrefabAsset(root, path, out ok);
+
+                sb.AppendLine("▶ " + path);
+                foreach (string a in added) sb.AppendLine("    " + (a.StartsWith("-") ? a : "+ " + a));
+                sb.AppendLine("    " + (ok ? "저장 완료" : "★ 저장 실패"));
+                if (ok) fixedCount++;
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        sb.AppendLine();
+        if (found == 0)
+            sb.AppendLine("★ AIDetector를 가진 봇 프리팹을 못 찾았습니다. "
+                          + "SearchFolders 밖에 있는지 확인해주세요.");
+        else
+            sb.AppendLine(found + "개 중 " + fixedCount + "개 보정됨. "
+                          + "이제 NetWorld.prefabs에 이 프리팹을 등록하고 "
+                          + "그 인덱스를 LanBotSpawner.botPrefabId에 적어주세요.");
+        Debug.Log(sb.ToString());
+    }
+
+    /// <summary>
+    /// 움직이는 젤리(NavMeshAgent 보유)에 NetTransform을 붙인다.
+    ///
+    /// ★ 왜 필요한가
+    ///   Wandering/Patrol 젤리는 스스로 돌아다닌다. 호스트에서만 AI를 돌리고
+    ///   그 위치를 나머지에게 보내야 모두가 같은 자리에서 본다.
+    ///   NetTransform이 없으면 각 클라의 젤리가 제각각 흩어진다.
+    /// </summary>
+    [MenuItem("Tools/LAN 이식/⑧ 움직이는 젤리에 NetTransform 부여", false, 8)]
+    public static void FixMovingJellies()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", SearchFolders);
+        StringBuilder sb = new StringBuilder("=== 움직이는 젤리 보정 ===\n");
+        int n = 0;
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (asset == null) continue;
+            if (asset.GetComponent<NetIdentity>() == null) continue;
+            if (asset.GetComponentInChildren<PlayerMovement>(true) != null) continue;   // 플레이어 제외
+            if (asset.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>(true) == null) continue;
+
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                List<string> added = new List<string>();
+                RemoveMissingScripts(root);
+                Need<NetTransform>(root, added);
+                Need<NetScale>(root, added);
+
+                if (added.Count == 0) { sb.AppendLine("▶ " + asset.name + " — 이미 완비"); continue; }
+
+                bool ok;
+                PrefabUtility.SaveAsPrefabAsset(root, path, out ok);
+                sb.AppendLine("▶ " + asset.name + "  + " + string.Join(", ", added)
+                              + "  " + (ok ? "✓" : "★저장실패"));
+                if (ok) n++;
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+        sb.AppendLine();
+        sb.AppendLine(n + "개 보정됨.");
+        Debug.Log(sb.ToString());
+    }
+
+    static void Need<T>(GameObject root, List<string> added) where T : Component
+    {
+        if (root.GetComponent<T>() != null) return;
+        root.AddComponent<T>();
+        added.Add(typeof(T).Name);
+    }
+
+    /// <summary>
+    /// 깨진 스크립트 참조를 전부 제거하고 개수를 돌려준다(자식 포함).
+    /// 삭제된 스크립트를 가리키던 컴포넌트로, 어차피 아무 동작도 하지 않는다.
+    /// </summary>
+    static int RemoveMissingScripts(GameObject root)
+    {
+        int total = 0;
+        foreach (Transform t in root.GetComponentsInChildren<Transform>(true))
+            total += GameObjectUtility.RemoveMonoBehavioursWithMissingScript(t.gameObject);
+        return total;
+    }
+
+    /// <summary>프리팹 전체에서 Missing Script만 정리한다(변환과 별개로 쓸 수 있게).</summary>
+    [MenuItem("Tools/LAN 이식/Missing Script 정리", false, 21)]
+    public static void CleanMissingScripts()
+    {
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", SearchFolders);
+        StringBuilder sb = new StringBuilder("=== Missing Script 정리 ===\n");
+        int totalPrefabs = 0, totalComps = 0;
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject root = PrefabUtility.LoadPrefabContents(path);
+            try
+            {
+                int n = RemoveMissingScripts(root);
+                if (n == 0) continue;
+
+                bool ok;
+                PrefabUtility.SaveAsPrefabAsset(root, path, out ok);
+                sb.AppendLine("▶ " + path + "  — " + n + "개 제거 " + (ok ? "✓" : "★저장실패"));
+                totalPrefabs++; totalComps += n;
+            }
+            finally { PrefabUtility.UnloadPrefabContents(root); }
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        sb.AppendLine();
+        sb.AppendLine(totalPrefabs == 0
+            ? "깨진 참조가 없습니다."
+            : "프리팹 " + totalPrefabs + "개에서 " + totalComps + "개 제거.");
+        Debug.Log(sb.ToString());
     }
 
     // ─────────────────────────────────────────────
@@ -243,6 +527,83 @@ public static class PhotonToNetConverter
         else sb.AppendLine("\n총 " + found + "개 프리팹에 PhotonView가 남아 있습니다.");
 
         Debug.Log(sb.ToString());
+    }
+
+    /// <summary>
+    /// 남은 프리팹을 '에셋 직접 편집' 방식으로 처리한다.
+    ///
+    /// LoadPrefabContents → SaveAsPrefabAsset 경로가 실패하는 프리팹이 있다.
+    /// (중첩 프리팹이 많거나 임시 씬 로드 중 컴포넌트가 예외를 던지는 경우)
+    /// 그럴 땐 에셋을 직접 열어 고치고 SetDirty + SaveAssets로 저장하는 편이 확실하다.
+    /// </summary>
+    [MenuItem("Tools/LAN 이식/⑤ 남은 것 강제 변환", false, 5)]
+    public static void ForceConvertRemaining()
+    {
+        if (!EditorUtility.DisplayDialog("강제 변환",
+                "일반 변환이 실패한 프리팹을 에셋 직접 편집 방식으로 처리합니다.\n실행할까요?",
+                "실행", "취소")) return;
+
+        string[] guids = AssetDatabase.FindAssets("t:Prefab", SearchFolders);
+        StringBuilder sb = new StringBuilder("=== 강제 변환 ===\n");
+        int done = 0;
+
+        foreach (string guid in guids)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guid);
+            GameObject asset = AssetDatabase.LoadAssetAtPath<GameObject>(path);
+            if (asset == null) continue;
+            if (asset.GetComponentInChildren<PhotonView>(true) == null) continue;
+
+            sb.AppendLine();
+            sb.AppendLine("▶ " + path);
+
+            try
+            {
+                // 루트에 붙은 것만 처리한다(중첩 자식은 그 원본 프리팹에서 처리됨)
+                StripAndAdd<PhotonTransformView>(asset, sb, typeof(NetTransform), typeof(NetKnockback));
+                StripAndAdd<NetworkPlayerSync>(asset, sb, typeof(LanPlayerState));
+                StripAndAdd<AIPlayerSync>(asset, sb);
+                StripAndAdd<AIPlayerMovement>(asset, sb);
+                StripAndAdd<PhotonView>(asset, sb, typeof(NetIdentity), typeof(NetScale));
+
+                EditorUtility.SetDirty(asset);
+                done++;
+            }
+            catch (System.Exception e)
+            {
+                sb.AppendLine("    ★ 예외: " + e.GetType().Name + " — " + e.Message);
+            }
+        }
+
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+
+        sb.AppendLine();
+        sb.AppendLine(done + "개 처리. [현황 조사]로 확인하세요.");
+        Debug.Log(sb.ToString());
+    }
+
+    /// <summary>컴포넌트 T를 지우고 대체 컴포넌트들을 붙인다(에셋 직접 편집).</summary>
+    static void StripAndAdd<T>(GameObject asset, StringBuilder sb, params System.Type[] adds)
+        where T : Component
+    {
+        T[] found = asset.GetComponentsInChildren<T>(true);
+        if (found.Length == 0) return;
+
+        foreach (T comp in found)
+        {
+            GameObject go = comp.gameObject;
+
+            foreach (System.Type add in adds)
+            {
+                if (go.GetComponent(add) != null) continue;
+                go.AddComponent(add);
+                sb.AppendLine("    + " + add.Name + " (" + go.name + ")");
+            }
+
+            sb.AppendLine("    - " + typeof(T).Name + " (" + go.name + ")");
+            Object.DestroyImmediate(comp, true);   // allowDestroyingAssets: true
+        }
     }
 
     static string GetPath(GameObject go, Transform root)

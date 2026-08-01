@@ -126,6 +126,26 @@ public class ChocolateFluid : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
+        // ═════════════════════════════════════════════
+        //  [LAN 이식] 사람 플레이어 탈락
+        // ═════════════════════════════════════════════
+        //
+        // ★ 왜 이 갈래가 필요했나
+        //   예전 코드는 NetworkPlayerSync를 찾아 SyncChocolateElimination을 불렀다.
+        //   그 컴포넌트를 걷어낸 뒤로 여기서 null이 나와 아래 Rigidbody 분기로 흘렀고,
+        //   플레이어는 그냥 '떠다니는 물체' 취급만 받았다 — <b>죽지 않았다.</b>
+        JellyNet.LanPlayerState lanPlayer = other.GetComponentInParent<JellyNet.LanPlayerState>();
+        if (lanPlayer != null)
+        {
+            // 신고는 본인만. 남의 캐릭터가 내 화면에서 스쳤다고 죽이면 안 된다.
+            if (lanPlayer.IsMine && !lanPlayer.IsOutOfPlay
+                && JellyNet.LanGameFlow.Instance != null)
+            {
+                JellyNet.LanGameFlow.Instance.ReportSelfEliminated(lanPlayer.EntityId);
+            }
+            return;
+        }
+
         NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
         if (netPlayer != null)
         {
@@ -184,8 +204,19 @@ public class ChocolateFluid : MonoBehaviour
         // 아슬하게 스친 봇이 클라마다 생사가 갈린다. 탈락 전파는 소유자의
         // OnEliminated → RPC_OnEliminated(All) 단일 경로다.
         // (사람 경로는 SyncChocolateElimination 내부 IsMine 가드로 이미 안전)
-        if (aiPlayer != null && aiPlayer.photonView != null && aiPlayer.photonView.IsMine)
-            aiPlayer.OnEliminated();
+        // ★ 봇 탈락 — 봇을 굴리는 쪽(호스트)만 결정한다.
+        //   예전엔 photonView.IsMine을 봤는데 photonView가 null이라 이 줄이
+        //   <b>한 번도 실행되지 않았다.</b> 봇은 초콜릿에서 영원히 헤엄쳤다.
+        //   OnEliminated 안에서 방송까지 처리하므로 여기서는 부르기만 하면 된다.
+        if (aiPlayer != null)
+        {
+            JellyNet.NetIdentity botId = aiPlayer.GetComponent<JellyNet.NetIdentity>();
+            bool drive = botId != null
+                ? botId.IsMineOrOffline
+                : (aiPlayer.photonView != null && aiPlayer.photonView.IsMine);
+
+            if (drive) aiPlayer.OnEliminated();
+        }
     }
 
     private static FloatData CreateFloatData(Rigidbody rb)
@@ -269,17 +300,44 @@ public class ChocolateFluid : MonoBehaviour
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
         AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
 
-        if (navMeshAgent != null)
+        // ═════════════════════════════════════════════
+        //  [LAN 이식] NavMeshAgent를 되살릴 자격
+        // ═════════════════════════════════════════════
+        //
+        // ★ 문제 두 가지가 여기서 나왔다
+        //   ① 원격에서도 agent를 켜버렸다 → 호스트가 보내주는 위치와 agent의
+        //      자체 이동이 서로를 밀어 젤리가 떨린다. 원격은 agent가 꺼져 있어야 한다.
+        //   ② SamplePosition이 실패했는데도 켰다 → "Failed to create agent because
+        //      it is not close enough to the NavMesh"가 프레임마다 쏟아진다.
+        //      NavMesh 위로 못 옮겼으면 켜지 않는 게 맞다(다음 Exit 때 다시 시도).
+        bool drives = NavDriverOf(rb);
+
+        if (navMeshAgent != null && drives)
         {
             UnityEngine.AI.NavMeshHit hit;
-            if (UnityEngine.AI.NavMesh.SamplePosition(rb.transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            bool onMesh = UnityEngine.AI.NavMesh.SamplePosition(
+                rb.transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas);
+
+            if (onMesh)
             {
                 rb.transform.position = hit.position;
+                rb.useGravity = false;
+                navMeshAgent.enabled = true;
             }
-            rb.useGravity = false;
-            navMeshAgent.enabled = true;
         }
+
+        // AI 스크립트는 원격에서도 켠다 — 이동은 안 하고 걷는 애니메이션만 맞춘다.
         if (wanderingAI != null) wanderingAI.enabled = true;
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = true;
+    }
+
+    /// <summary>이 기계가 그 오브젝트의 NavMeshAgent를 굴리는가(= 호스트이거나 오프라인).</summary>
+    private static bool NavDriverOf(Rigidbody rb)
+    {
+        JellyNet.NetIdentity id = rb.GetComponentInParent<JellyNet.NetIdentity>();
+        if (id != null) return id.IsSimulatedHere;
+
+        var net = JellyNet.NetManager.Instance;
+        return net == null || net.CurrentMode == JellyNet.NetManager.Mode.None || net.IsHost;
     }
 }

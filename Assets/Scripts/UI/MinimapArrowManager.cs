@@ -78,7 +78,7 @@ public class MinimapArrowManager : MonoBehaviour
     private void ScanAndRefresh()
     {
         // ── NetworkPlayerSync (플레이어) ──
-        var players = FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None);
+        var players = FindObjectsByType<JellyNet.LanPlayerState>(FindObjectsSortMode.None);
         foreach (var player in players)
         {
             if (player == null) continue;
@@ -86,8 +86,10 @@ public class MinimapArrowManager : MonoBehaviour
 
             if (!_arrows.ContainsKey(tf))
             {
-                // 로컬 플레이어 판별: PhotonView.IsMine
-                bool isLocal = player.photonView != null && player.photonView.IsMine;
+                // [LAN 이식] 로컬 판별을 NetIdentity로. photonView가 null이 되면서
+                //   isLocal이 항상 false가 됐고, 그래서 내 화살표까지 원격 색으로 나오고
+                //   미니맵 카메라가 아무도 따라가지 않았다.
+                bool isLocal = player.IsMine;
                 Color color  = isLocal ? localPlayerColor : remotePlayerColor;
                 if (isLocal)
                 {

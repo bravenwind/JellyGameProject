@@ -979,6 +979,7 @@ GameObject:
   - component: {fileID: -8029970029573066489}
   - component: {fileID: 6853063629690790289}
   - component: {fileID: 7831833560982480651}
+  - component: {fileID: 4284807624417594732}
   m_Layer: 7
   m_Name: Jelly_Orange_Wandering
   m_TagString: Edible
@@ -1166,6 +1167,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
+  SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &7831833560982480651
@@ -1183,6 +1185,18 @@ MonoBehaviour:
   lerpSpeed: 8
   minScale: 0.5
   maxScale: 6
+--- !u!114 &4284807624417594732
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8368899581075514795}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!1 &8593662479978070662
 GameObject:
   m_ObjectHideFlags: 0

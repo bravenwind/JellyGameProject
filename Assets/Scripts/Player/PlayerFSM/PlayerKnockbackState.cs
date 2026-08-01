@@ -18,6 +18,9 @@ public class PlayerKnockbackState : PlayerBaseState
         _elapsed = 0f;
         if (player.jellyAnimator != null)
             player.jellyAnimator.SetTrigger("Hit");
+
+        // [LAN] 원격 화면에도 피격 애니메이션이 보이도록 알린다
+        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.AnimHit);
     }
 
     public override void Update()

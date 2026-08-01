@@ -56,7 +56,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     {
         public RectTransform rect;
         public Image image;
-        public NetworkPlayerSync player; // 사람 플레이어면 설정
+        public JellyNet.LanPlayerState player; // 사람 플레이어면 설정
         public AIPlayerMovement bot;     // 봇이면 설정
         public Renderer botRenderer;     // 봇 색 조회용 캐시
     }
@@ -110,7 +110,9 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         {
             var p = players[i];
             if (p == null) continue;
-            if (p.photonView != null && p.photonView.IsMine) continue; // 내 자신 제외
+            // [LAN 이식] 예전엔 photonView.IsMine을 봤는데, photonView가 항상 null이 되면서
+            //   이 continue가 한 번도 안 걸렸다 → 내 화살표가 나에게도 표시된다.
+            if (p.IsMine) continue; // 내 자신 제외
             if (p.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6)
 
             var ind = GetOrCreate(p.transform);
@@ -219,7 +221,9 @@ public class OffScreenPlayerIndicator : MonoBehaviour
 
     private Color GetColor(Indicator ind)
     {
-        if (ind.player != null) return ind.player.DisplayColor;
+        // [LAN 이식] DisplayColor는 아무도 채우지 않는 값이라 항상 흰색이었다.
+        //   실제 렌더러 색을 읽는다(봇과 동일한 방식).
+        if (ind.player != null) return ind.player.VisualColor;
         // 읽기 전용 조회이므로 sharedMaterial 사용 — .material은 봇마다 머티리얼 인스턴스를 복제해
         // 배칭을 깨뜨린다(리더보드 GameModeManager.GetBotColor와 동일 패턴). (G4)
         if (ind.botRenderer != null && ind.botRenderer.sharedMaterial != null

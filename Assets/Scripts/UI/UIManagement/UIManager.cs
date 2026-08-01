@@ -169,10 +169,14 @@ public class UIManager : MonoBehaviour
             Time.timeScale = 1f;
             // 네트워크 게임 중이라면 방에서 먼저 나가야 함
             // LeaveRoom → NetworkManager.OnLeftRoom → SceneManager.LoadScene("Main")
+            // [LAN 이식] Photon 룸이 아니면 LAN 경로로 돌아간다.
+            //   LoadMainViaLoading만 부르면 소켓이 살아남아 다음 판에서 포트가 물리고,
+            //   지난 판의 순위·모드가 그대로 남아 새 판에 새어 들어온다.
+            //   LanSceneFlow.ToMain은 연결이 없어도 안전하다(끊을 게 없으면 그냥 지나간다).
             if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
                 NetworkManager.Instance.GoToMainMenu();
             else
-                LoadingSceneController.LoadMainViaLoading(); // 룸 밖이어도 출발 씬에서 커튼 슬라이드인 경유
+                JellyNet.LanSceneFlow.ToMain();
         }
     }
 
@@ -196,12 +200,17 @@ public class UIManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// "메인으로" 버튼. 게임 씬·결과 씬 어디서 눌러도 안전하다.
+    ///
+    /// [LAN 이식] 소켓 종료와 상태 정리를 LanSceneFlow가 함께 처리한다.
+    /// </summary>
     public void OnClick_MainMenuButton()
     {
         Time.timeScale = 1f;
         if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
             NetworkManager.Instance.GoToMainMenu();
         else
-            LoadingSceneController.LoadMainViaLoading(); // 룸 밖이어도 출발 씬에서 커튼 슬라이드인 경유
+            JellyNet.LanSceneFlow.ToMain();
     }
 }

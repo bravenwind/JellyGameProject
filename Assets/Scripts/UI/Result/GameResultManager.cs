@@ -160,6 +160,35 @@ public class GameResultManager : MonoBehaviour
         var dm = DataManager.Instance;
         float defaultScale = dm != null ? dm.startingScale : 2f;
 
+        // ═════════════════════════════════════════════
+        //  [LAN 이식] 최종 순위는 게임 씬에서 받아 왔다
+        // ═════════════════════════════════════════════
+        //
+        // ★ 여기서 다시 계산할 수 없는 이유
+        //   결과 씬에는 플레이어·봇 오브젝트가 없다. 씬을 넘기며 전부 파괴됐다.
+        //   원본이 룸 프로퍼티를 뒤진 것도 같은 이유였는데, LAN에는 룸이 없다.
+        //   대신 게임이 끝나는 순간 호스트가 순위를 한 번 방송했고,
+        //   각자 LanScoreboard에 담아 씬을 넘어왔다. 그걸 그대로 쓴다.
+        var final = JellyNet.LanScoreboard.FinalStandings;
+        if (final != null && final.Count > 0)
+        {
+            var converted = new List<ScoreboardSnapshot.Entry>();
+            for (int i = 0; i < final.Count && i < 3; i++)
+            {
+                var e = final[i];
+                converted.Add(new ScoreboardSnapshot.Entry
+                {
+                    name = e.name,
+                    isBot = e.isBot,
+                    actorNumber = e.ownerId,
+                    botViewId = e.isBot ? e.netId : 0,
+                    scale = e.scale,
+                    color = e.color.a > 0.01f ? e.color : fallbackColor
+                });
+            }
+            return converted;
+        }
+
         if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
         {
             Debug.LogWarning("[GameResult] 룸 정보 없음 — 빈 상태로 종료");

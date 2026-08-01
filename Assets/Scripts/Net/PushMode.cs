@@ -82,6 +82,9 @@ namespace JellyNet
 
             if (_localCooldown > 0f) _localCooldown -= Time.deltaTime;
 
+            // ★ 밀치기 모드이면서 진행 중일 때만 (씬이 흡수 모드면 이 컴포넌트는 잠든다)
+            if (!LanGameFlow.IsPlaying(GameModeType.Push)) return;
+
             if (!Input.GetKeyDown(attackKey)) return;
             if (_localCooldown > 0f) return;
 
@@ -118,6 +121,19 @@ namespace JellyNet
                 if (sq < best) { best = sq; found = other; }
             }
             return found;
+        }
+
+        /// <summary>
+        /// [LAN] 호스트가 굴리는 개체(AI 봇)가 때렸을 때의 진입점.
+        ///
+        /// 봇은 호스트 소유이므로 요청자도 호스트다 — 즉 검증을 우회하는 게 아니라
+        /// 요청 단계를 건너뛸 뿐이고, 아래 ResolveBatHit의 거리·크기 검사는 그대로 받는다.
+        /// </summary>
+        public void HostBatHit(int victimNetId, int attackerNetId)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost) return;
+            ResolveBatHit(NetHost.HostId, victimNetId, attackerNetId);
         }
 
         void RequestBatHit(int victimNetId, int attackerNetId)
@@ -160,6 +176,9 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
             if (net == null || !net.IsHost || NetWorld.Instance == null) return;
 
+            // ★ 호스트 재검사 — 클라가 대기/종료 중이나 다른 모드에서 요청할 수 있다
+            if (!LanGameFlow.IsPlaying(GameModeType.Push)) return;
+
             NetIdentity attacker = NetWorld.Instance.Find(attackerNetId);
             NetIdentity victim = NetWorld.Instance.Find(victimNetId);
             if (attacker == null || victim == null) return;
@@ -201,8 +220,13 @@ namespace JellyNet
             SendKnockback(victim, dir, force);
 
             // ⑧ 공격자 보상 — 크기가 클수록 이득이 줄게(역수) 해서 눈덩이를 완화
+            float growth = batHitGrowth / Mathf.Max(aScale, 1f);
+
+            // 기존 GrowByBatHit(성장량)을 전원이 부르게 한다(연출 포함)
+            NetWorld.Instance.BroadcastGrow(attackerNetId, GrowKind.BatHit, growth);
+
             NetScale asc = attacker.GetComponent<NetScale>();
-            if (asc != null) asc.HostGrow(batHitGrowth / Mathf.Max(aScale, 1f));
+            if (asc != null) asc.HostGrow(growth);
 
             net.AddLog("P" + attacker.OwnerId + " → P" + victim.OwnerId + " 배트 히트!");
         }
@@ -261,10 +285,10 @@ namespace JellyNet
         }
 
         // ─────────────────────────────────────────────
+        // 크기는 AbsorbMode와 같은 출처를 쓴다(PlayerScaleController 우선)
         static float ScaleOf(NetIdentity id)
         {
-            NetScale s = id.GetComponent<NetScale>();
-            return s != null ? s.Current : 1f;
+            return AbsorbMode.ScaleOf(id);
         }
 
         NetIdentity FindMyPlayer()
