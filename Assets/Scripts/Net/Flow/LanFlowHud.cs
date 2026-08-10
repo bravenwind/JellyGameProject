@@ -1,0 +1,115 @@
+using System.Collections;
+using DG.Tweening;
+using TMPro;
+using UnityEngine;
+
+namespace JellyNet
+{
+    //진행 상태를 화면에 그리는 일만 한다. 게임 규칙은 모른다
+    //인스펙터 참조는 씬 연결을 유지하려고 LanGameFlow에 남겨두고 여기로 넘겨받는다
+    public class LanFlowHud
+    {
+        private TextMeshProUGUI timerText;
+        private TextMeshProUGUI centerText;
+        private GameObject resultPanel;
+        private TextMeshProUGUI resultTitle;
+
+        public void Bind(TextMeshProUGUI timer, TextMeshProUGUI center,
+                         GameObject panel, TextMeshProUGUI title)
+        {
+            timerText = timer;
+            centerText = center;
+            resultPanel = panel;
+            resultTitle = title;
+        }
+
+        public void UpdateTimer(GameModeType mode, float gameDuration, float remaining)
+        {
+            if (timerText == null)
+                return;
+
+            //밀치기는 제한 시간이 없으니 경과 시간을 센다
+            float t = mode == GameModeType.Push ? gameDuration - remaining : remaining;
+
+            if (t < 0f)
+                t = 0f;
+
+            int total = Mathf.CeilToInt(t);
+            timerText.text = (total / 60).ToString("00") + ":" + (total % 60).ToString("00");
+        }
+
+        public void ShowCenter(bool on)
+        {
+            if (centerText != null)
+                centerText.gameObject.SetActive(on);
+        }
+
+        public void Pop(string text)
+        {
+            if (centerText == null)
+                return;
+
+            centerText.text = text;
+            centerText.rectTransform.localScale = Vector3.one * 1.6f;
+            centerText.rectTransform
+                .DOScale(Vector3.one, 0.35f).SetEase(Ease.OutBack).SetUpdate(true);
+        }
+
+        public void ShowEndLabel(string text)
+        {
+            if (centerText == null)
+                return;
+
+            centerText.gameObject.SetActive(true);
+            centerText.text = text;
+            centerText.transform.localScale = Vector3.one * 1.5f;
+
+            Color c = centerText.color;
+            c.a = 1f;
+            centerText.color = c;
+        }
+
+        public void FlashCountdown(MonoBehaviour owner, string text)
+        {
+            if (centerText == null || owner == null)
+                return;
+
+            centerText.text = text;
+            owner.StartCoroutine(FlashRoutine());
+        }
+
+        private const float FLASH_DURATION = 0.9f;
+
+        private IEnumerator FlashRoutine()
+        {
+            Vector3 from = Vector3.one * 0.5f;
+            Vector3 to = Vector3.one * 2.5f;
+
+            Color col = centerText.color;
+            col.a = 1f;
+
+            float t = 0f;
+
+            while (t < FLASH_DURATION)
+            {
+                t += Time.unscaledDeltaTime;
+                float k = t / FLASH_DURATION;
+
+                centerText.transform.localScale = Vector3.Lerp(from, to, k);
+                col.a = Mathf.Lerp(1f, 0f, k);
+                centerText.color = col;
+
+                yield return null;
+            }
+        }
+
+        public void ShowGameOver(string message)
+        {
+            if (resultPanel != null)
+                resultPanel.SetActive(true);
+
+            if (resultTitle != null)
+                resultTitle.text = message;
+        }
+    }
+}

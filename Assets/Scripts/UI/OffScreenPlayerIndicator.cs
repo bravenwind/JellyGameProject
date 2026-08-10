@@ -226,10 +226,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         if (ind.player != null) return ind.player.VisualColor;
         // 읽기 전용 조회이므로 sharedMaterial 사용 — .material은 봇마다 머티리얼 인스턴스를 복제해
         // 배칭을 깨뜨린다(리더보드 GameModeManager.GetBotColor와 동일 패턴). (G4)
-        if (ind.botRenderer != null && ind.botRenderer.sharedMaterial != null
-            && ind.botRenderer.sharedMaterial.HasProperty("_FresnelColor"))
-            return ind.botRenderer.sharedMaterial.GetColor("_FresnelColor");
-        return Color.white;
+        return JellyShaderProps.ReadFresnel(ind.botRenderer);
     }
 
     // ─────────────────────────────────────────────────────────

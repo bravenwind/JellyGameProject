@@ -197,6 +197,12 @@ public class PlayerMovement : MonoBehaviour
 
     public void MoveAndRotate()
     {
+        // ★ 컨트롤러가 꺼져 있으면 움직이지 않는다.
+        //   흡수 연출·발판 낙하·탈락 처리가 CharacterController를 끄는데,
+        //   FSM은 그걸 모르고 계속 Move를 부른다 → 매 프레임 에러가 쏟아진다.
+        //   끄는 쪽마다 FSM까지 챙기게 하는 것보다, 쓰는 쪽에서 한 번 막는 게 확실하다.
+        if (controller == null || !controller.enabled) return;
+
         Vector3 finalMove = inputDir * moveSpeed;
         finalMove.y = verticalVelocity;
         controller.Move(finalMove * Time.deltaTime);

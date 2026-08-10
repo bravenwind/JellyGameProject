@@ -34,7 +34,6 @@ public class LobbyController : MonoBehaviourPunCallbacks, IOnEventCallback
 
     [Header("애니메이션 설정")]
     [SerializeField] private Vector2 inputPanelLeftPos = new Vector2(-400f, 0f);
-    [SerializeField] private float slideDuration = 0.45f;
     [SerializeField] private Ease slideEase = Ease.OutCubic;
     [SerializeField] private float matchingPopDelay = 0.2f;
     [SerializeField] private float matchingPopDuration = 0.35f;

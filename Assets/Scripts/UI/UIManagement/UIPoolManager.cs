@@ -26,7 +26,7 @@ public class UIPoolManager : MonoBehaviour
 
     public List<PoolDefinition> prewarmPools;
 
-    private Dictionary<UIType, ObjectPool<Transform>> _pools = new Dictionary<UIType, ObjectPool<Transform>>();
+    private Dictionary<UIType, ComponentPool<Transform>> _pools = new Dictionary<UIType, ComponentPool<Transform>>();
     private Dictionary<UIType, Transform> _parents = new Dictionary<UIType, Transform>();
 
     void Awake()
@@ -44,7 +44,7 @@ public class UIPoolManager : MonoBehaviour
             if (def.prefab == null || _pools.ContainsKey(def.uiType)) continue;
 
             Transform parent = def.parentTransform != null ? def.parentTransform : canvasTransform;
-            _pools[def.uiType] = new ObjectPool<Transform>(def.prefab.transform, parent, def.initialSize);
+            _pools[def.uiType] = new ComponentPool<Transform>(def.prefab.transform, parent, def.initialSize);
             _parents[def.uiType] = parent;
         }
     }

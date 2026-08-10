@@ -23119,6 +23119,7 @@ GameObject:
   - component: {fileID: 336275298}
   - component: {fileID: 336275306}
   - component: {fileID: 336275297}
+  - component: {fileID: 336275307}
   m_Layer: 0
   m_Name: LanNet
   m_TagString: Untagged
@@ -23189,11 +23190,14 @@ MonoBehaviour:
   gameTimerText: {fileID: 883871039}
   centerCountdownText: {fileID: 1651101868}
   gameStartLabel: "\uC2DC\uC791!"
+  gameEndLabel: "\uAC8C\uC784 \uC885\uB8CC!"
+  endCountdownFrom: 3
+  slowDownDuration: 1.2
+  freezeHold: 1
   countdownCurtainTimeout: 6
   gameResultPanel: {fileID: 888416978}
   resultTitleText: {fileID: 722883341}
   autoLoadResultScene: 1
-  loadingScene: Loading
   resultSceneAbsorb: GameResult_AbsorbMode
   resultScenePush: GameResult_PushMode
   resultSceneDelay: 3
@@ -23215,6 +23219,9 @@ MonoBehaviour:
   batCooldown: 0.5
   batHitGrowth: 0.06
   rangeTolerance: 1.6
+  useDataManagerValues: 1
+  pushHitScore: 100
+  killCreditWindow: 5
 --- !u!114 &336275302
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23235,6 +23242,7 @@ MonoBehaviour:
   spawnHeight: 0.5
   playerRadius: 0.5
   jellyRadius: 0.3
+  eatChaseTolerance: 5
   growPerJelly: 0.12
   scorePerJelly: 1
   useDistanceEating: 0
@@ -23313,6 +23321,20 @@ MonoBehaviour:
   entryPrefab: {fileID: 585618893292266002, guid: 81c991277264e1742ab43d3bb56cb6c8, type: 3}
   displayCount: 5
   refreshRate: 4
+--- !u!114 &336275307
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 336275296}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ab6d29ddb8f4364298280c3ef286dca, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  beaconInterval: 1
+  roomTimeout: 3.5
 --- !u!1001 &337504593
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -39589,7 +39611,6 @@ RectTransform:
   - {fileID: 1982792078}
   - {fileID: 924901716}
   - {fileID: 83833908}
-  - {fileID: 1651101867}
   m_Father: {fileID: 1432361341}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -71172,7 +71193,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &888416979
 RectTransform:
   m_ObjectHideFlags: 0
@@ -97782,7 +97803,7 @@ MonoBehaviour:
     m_Bits: 128
   objectLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 4096
   missions:
   - missionName: "\uD30C\uB780\uC0C9 \uC824\uB9AC \uD761\uC218\uD558\uAE30"
     missionCleared: 0
@@ -115513,6 +115534,7 @@ RectTransform:
   - {fileID: 1399697681}
   - {fileID: 523338915}
   - {fileID: 888416979}
+  - {fileID: 1651101867}
   - {fileID: 1834091248}
   - {fileID: 1421504591}
   - {fileID: 1333299836}
@@ -129344,12 +129366,12 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1651101866}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 523338915}
+  m_Father: {fileID: 1432361341}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -153139,6 +153161,8 @@ MonoBehaviour:
   ringInterval: 15
   autoRingInterval: 1
   endMargin: 5
+  groundCheckDistance: 0.6
+  standGapDrift: 0.15
   tileDelay: 0.05
   warningDuration: 3
   fallDuration: 2

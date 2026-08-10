@@ -141,7 +141,8 @@ public class ChocolateFluid : MonoBehaviour
             if (lanPlayer.IsMine && !lanPlayer.IsOutOfPlay
                 && JellyNet.LanGameFlow.Instance != null)
             {
-                JellyNet.LanGameFlow.Instance.ReportSelfEliminated(lanPlayer.EntityId);
+                JellyNet.LanGameFlow.Instance.ReportSelfEliminated(
+                    lanPlayer.EntityId, "초콜릿에 빠졌습니다!");
             }
             return;
         }

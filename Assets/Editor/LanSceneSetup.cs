@@ -54,7 +54,7 @@ public static class LanSceneSetup
             string.CompareOrdinal(FullPath(a.transform), FullPath(b.transform)));
 
         StringBuilder log = new StringBuilder("=== 씬 오브젝트 ID 부여 ===\n");
-        int next = NetConfig.SceneIdBase;
+        int next = NetConfig.SCENE_ID_BASE;
         int changed = 0;
 
         foreach (NetIdentity id in all)
@@ -73,7 +73,7 @@ public static class LanSceneSetup
 
         log.AppendLine("씬 NetIdentity: " + all.Length + "개");
         log.AppendLine("ID 부여/변경: " + changed + "개");
-        log.AppendLine("범위: " + NetConfig.SceneIdBase + " ~ " + (next - 1));
+        log.AppendLine("범위: " + NetConfig.SCENE_ID_BASE + " ~ " + (next - 1));
         log.AppendLine();
         log.AppendLine("★ 씬을 저장하세요 (Ctrl+S). 저장 안 하면 런타임에 0으로 돌아갑니다.");
 
@@ -185,6 +185,9 @@ public static class LanSceneSetup
         Add<PushMode>(go, log);
         Add<LanGameFlow>(go, log);
         Add<LanBotSpawner>(go, log);
+        Add<LanFallOff>(go, log);
+        Add<LanDiscovery>(go, log);
+        Add<LanLeaderboardUI>(go, log);   // Container/Entry Prefab은 인스펙터에서 연결해야 한다
         Add<NetTestUI>(go, log);
         Add<LanDiagnostics>(go, log);
 
@@ -262,7 +265,18 @@ public static class LanSceneSetup
         list.Add(player);
         log.AppendLine("  [0] " + player.name + "  (플레이어)  " + AssetDatabase.GetAssetPath(player));
 
-        // 1번부터: 젤리 (NetIdentity가 붙었고 NetTransform은 없는 것 = 안 움직이는 것)
+        // ═════════════════════════════════════════════
+        //  1번부터: 움직이는 젤리
+        // ═════════════════════════════════════════════
+        //
+        // ★ 판별 기준을 NetTransform에서 컴포넌트로 바꿨다.
+        //   예전엔 "NetTransform이 있으면 제외"였는데, ⑧ 메뉴가 움직이는 젤리에
+        //   NetTransform을 붙이면서 <b>바로 그 젤리들이 전부 빠지게</b> 됐다.
+        //   (순서에 따라 결과가 달라지는 조건은 언젠가 반드시 문다)
+        //
+        //   실제로 구분하려는 건 "젤리냐 / 봇이냐 / 플레이어냐"이므로 그걸 직접 본다.
+        List<GameObject> bots = new List<GameObject>();
+
         string[] guids = AssetDatabase.FindAssets("t:Prefab", new[] { JellyFolder });
         foreach (string guid in guids)
         {
@@ -270,13 +284,15 @@ public static class LanSceneSetup
             GameObject p = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (p == null || p == player) continue;
             if (p.GetComponent<NetIdentity>() == null) continue;
-            if (p.GetComponent<NetTransform>() != null) continue;   // 움직이는 것 = 플레이어/봇
+            if (p.GetComponentInChildren<PlayerMovement>(true) != null) continue;   // 다른 플레이어 스킨
+
+            // 봇은 따로 모아 뒤에 붙인다
+            if (p.GetComponentInChildren<AIDetector>(true) != null) { bots.Add(p); continue; }
 
             // ★ 런타임에 뿌리는 젤리는 '움직이는 젤리(Wandering/Patrol)'다.
             //   맵에 미리 깔린 NonAI 젤리는 씬 오브젝트라 여기 넣지 않는다
             //   (⑦ 씬 오브젝트 ID 부여로 별도 등록된다).
-            bool moves = p.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>(true) != null;
-            if (!moves)
+            if (p.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>(true) == null)
             {
                 log.AppendLine("      (제외) " + p.name + " — 맵 배치용 정적 젤리");
                 continue;
@@ -286,10 +302,28 @@ public static class LanSceneSetup
             log.AppendLine("  [" + (list.Count - 1) + "] " + p.name + "  (움직이는 젤리)");
         }
 
+        // ═════════════════════════════════════════════
+        //  마지막: AI 봇
+        // ═════════════════════════════════════════════
+        //
+        // ★ 이게 빠져서 밀치기 씬에 봇이 안 나왔다.
+        //   LanBotSpawner는 NetWorld.prefabs에서 봇을 찾는다. 배열에 없으면
+        //   "봇 프리팹을 찾지 못했습니다" 경고만 남기고 아무것도 안 뿌린다.
+        //   흡수 씬은 손으로 넣어둬서 됐고, 밀치기 씬은 플레이어 하나뿐이었다.
+        int jellyCount = list.Count - 1;
+        foreach (GameObject b in bots)
+        {
+            list.Add(b);
+            log.AppendLine("  [" + (list.Count - 1) + "] " + b.name + "  (AI 봇)");
+        }
+
+        if (bots.Count == 0)
+            log.AppendLine("  ★ AI 봇 프리팹을 못 찾았습니다 — [⑨ AI 봇 프리팹 보정]을 먼저 돌리세요.");
+
         Undo.RecordObject(world, "Fill NetWorld prefabs");
         world.prefabs = list.ToArray();
         EditorUtility.SetDirty(world);
 
-        log.AppendLine("  총 " + list.Count + "개 (젤리 " + (list.Count - 1) + "종)");
+        log.AppendLine("  총 " + list.Count + "개 (젤리 " + jellyCount + "종, 봇 " + bots.Count + "종)");
     }
 }

@@ -244,6 +244,7 @@ public class FallingTile : MonoBehaviour
                     if (cc != null) cc.enabled = false;
 
                     rb = aiBot.gameObject.AddComponent<Rigidbody>();
+                    MakeCollidersDynamicSafe(rb);
                     rb.useGravity = true;
                     rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
                 }
@@ -253,7 +254,19 @@ public class FallingTile : MonoBehaviour
                 }
             }
 
+            // ★ [LAN 이식] 사람 플레이어는 발판이 건드리지 않는다.
+            //
+            //   원래 이 줄이 NetworkPlayerSync로 사람을 걸러냈다. 그 컴포넌트를 걷어낸 뒤로
+            //   <b>사람도 일반 물체 취급</b>이 되어, 발판이 CharacterController를 꺼버리고
+            //   Rigidbody를 붙였다. 그런데 PlayerMovement는 계속 돌기 때문에
+            //   "CharacterController.Move called on inactive controller"가 쏟아진다.
+            //   (사람의 낙하는 PlayerMovement/초콜릿 경로가 따로 처리한다)
+            if (rb.GetComponentInParent<JellyNet.LanPlayerState>() != null) continue;
             if (rb.GetComponent<NetworkPlayerSync>() != null) continue;
+
+            // 원격 오브젝트는 소유자 쪽에서만 물리를 돌린다
+            JellyNet.NetIdentity nid = rb.GetComponentInParent<JellyNet.NetIdentity>();
+            if (nid != null && !nid.IsSimulatedHere) continue;
 
             PhotonView netView = rb.GetComponent<PhotonView>();
             if (netView != null && !PhotonNetwork.IsMasterClient) continue;
@@ -263,13 +276,47 @@ public class FallingTile : MonoBehaviour
             CharacterController ccOnRb = rb.GetComponent<CharacterController>();
             if (ccOnRb != null) ccOnRb.enabled = false;
 
+            MakeCollidersDynamicSafe(rb);
+
             if (rb.isKinematic)
             {
                 rb.isKinematic = false;
-                rb.useGravity = true;
-                rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
                 rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);
             }
+
+            // 이미 non-kinematic이던 물체(NavMeshAgent가 몰던 젤리 등)는 위 분기를 타지 않아
+            // 중력이 꺼진 채 남았다. 그리고 가만히 서 있던 Rigidbody는 잠들어 있는데,
+            // 바닥 콜라이더를 끄는 건 충돌 이벤트가 아니라서 저절로 깨어나지 않는다.
+            // → 발판이 사라져도 공중에 그대로 멈춰 있게 된다.
+            rb.useGravity = true;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            rb.WakeUp();
+        }
+    }
+
+    /// <summary>
+    /// 물리를 켜기 전에 콜라이더를 정리한다.
+    ///
+    /// ★ 왜 필요한가
+    ///   유니티는 <b>오목한(concave) MeshCollider를 동적 Rigidbody에 허용하지 않는다.</b>
+    ///   그대로 두면 발판이 무너질 때마다 이 경고가 쏟아진다:
+    ///
+    ///     "Concave Mesh Colliders are not supported when used with
+    ///      dynamic Rigidbody GameObjects."
+    ///
+    ///   맵의 밀크·소품은 ProBuilder 메시라 대부분 오목하다. 그래서 발판 위에 있던
+    ///   소품이 떨어지려는 순간 걸린다. 물리가 아예 안 붙어 소품이 공중에 뜬 채 남기도 한다.
+    ///
+    ///   부서져 떨어지는 잔해에는 정밀한 충돌이 필요 없으므로 볼록 껍질로 바꾼다.
+    ///   (원래 모양은 이미 화면에서 사라지는 중이라 티가 나지 않는다)
+    /// </summary>
+    private static void MakeCollidersDynamicSafe(Rigidbody rb)
+    {
+        MeshCollider[] mcs = rb.GetComponentsInChildren<MeshCollider>(true);
+        for (int i = 0; i < mcs.Length; i++)
+        {
+            if (mcs[i] == null || mcs[i].convex) continue;
+            mcs[i].convex = true;
         }
     }
 
@@ -302,13 +349,19 @@ public class FallingTile : MonoBehaviour
         TileCollapseManager.Instance?.RegisterCarveObject(carveObj);
     }
 
+    // AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다
+    // (WanderingAI:48/173, AIWaypointPatrol:94) → 발판이 사라진 자리를 계속 걸어다닌다.
+    // agent는 자식에 달린 프리팹도 있어 GetComponentsInChildren으로 훑는다.
     private static void DisableAIOnObject(GameObject obj)
     {
-        var navAgent = obj.GetComponent<NavMeshAgent>();
-        if (navAgent != null) navAgent.enabled = false;
+        foreach (var wandering in obj.GetComponentsInChildren<WanderingAI>(true))
+            wandering.enabled = false;
 
-        var wandering = obj.GetComponent<WanderingAI>();
-        if (wandering != null) wandering.enabled = false;
+        foreach (var patrol in obj.GetComponentsInChildren<AIWaypointPatrol>(true))
+            patrol.enabled = false;
+
+        foreach (var navAgent in obj.GetComponentsInChildren<NavMeshAgent>(true))
+            navAgent.enabled = false;
     }
 
     // ─────────────────────────────────────────────────────────

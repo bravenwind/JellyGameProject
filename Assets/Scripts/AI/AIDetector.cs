@@ -83,6 +83,12 @@ public class AIDetector : MonoBehaviour
             var selfBot = p.GetComponentInParent<AIPlayerMovement>();
             if (selfBot != null && selfBot.gameObject == gameObject) continue;
 
+            // ★ 이미 판 밖인 상대는 쫓지도, 무서워하지도 않는다.
+            //   흡수당한 사람은 오브젝트가 꺼져 목록에서 빠지지만,
+            //   초콜릿·낙사로 탈락한 사람은 <b>오브젝트가 살아 있어 목록에 남는다.</b>
+            //   그대로 두면 봇이 시체를 쫓아가거나 시체를 피해 도망친다.
+            if (p.IsOutOfPlay) continue;
+
             float otherScale = p.ScaleValue;
             if (!IsScaleMatch(myScale, otherScale, biggerThanMe)) continue;
 
@@ -97,6 +103,7 @@ public class AIDetector : MonoBehaviour
         foreach (var b in EntityRegistry.Bots)
         {
             if (b == null || b.gameObject == gameObject) continue;
+            if (b.IsOutOfPlay) continue;      // 탈락·흡수 중인 봇도 대상이 아니다
 
             float otherScale = b.GetMyAuthorityScale();
             if (!IsScaleMatch(myScale, otherScale, biggerThanMe)) continue;

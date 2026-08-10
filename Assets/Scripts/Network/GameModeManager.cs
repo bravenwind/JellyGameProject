@@ -75,7 +75,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
 
     private NetworkPlayerSync _localPlayer;
     private List<LeaderboardEntry> _leaderboardEntries = new List<LeaderboardEntry>();
-    private ObjectPool<LeaderboardEntry> _leaderboardPool;
+    private ComponentPool<LeaderboardEntry> _leaderboardPool;
 
     private void Awake()
     {
@@ -86,7 +86,7 @@ public class GameModeManager : MonoBehaviourPunCallbacks
         {
             var entryComp = leaderboardEntryPrefab.GetComponent<LeaderboardEntry>();
             if (entryComp != null)
-                _leaderboardPool = new ObjectPool<LeaderboardEntry>(entryComp, leaderboardContainer, 5);
+                _leaderboardPool = new ComponentPool<LeaderboardEntry>(entryComp, leaderboardContainer, 5);
         }
 
         Time.timeScale = 1f;

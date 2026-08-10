@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class JellyColliderAbsorb : MonoBehaviour
+public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
 {
     public Transform target;          // Player
     public float destroyDistance = 0.5f;
@@ -34,6 +34,12 @@ public class JellyColliderAbsorb : MonoBehaviour
         agentAI = GetComponentInChildren<WanderingAI>();
         patrolAI = GetComponentInChildren<AIWaypointPatrol>();
 
+        ApplyOwnershipSetup();
+    }
+
+    // 풀에서 재사용될 때 Awake가 다시 돌지 않으므로 초기화를 따로 뽑아둔다
+    private void ApplyOwnershipSetup()
+    {
         if (agent != null)
             _rb.useGravity = false;
         else
@@ -74,6 +80,50 @@ public class JellyColliderAbsorb : MonoBehaviour
                 _rb.isKinematic = true;
             }
         }
+    }
+
+    public void OnTakenFromPool()
+    {
+        StopAllCoroutines();
+
+        absorbing = false;
+        target = null;
+        absorbTimer = 0f;
+
+        foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
+            r.enabled = true;
+
+        if (edibleCollider != null)
+        {
+            edibleCollider.enabled = true;
+            edibleCollider.isTrigger = false;
+        }
+
+        if (_rb != null)
+        {
+            _rb.isKinematic = false;
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
+
+        if (agentAI != null)
+            agentAI.enabled = true;
+
+        if (patrolAI != null)
+            patrolAI.enabled = true;
+
+        ApplyOwnershipSetup();
+    }
+
+    public void OnReturnedToPool()
+    {
+        StopAllCoroutines();
+
+        absorbing = false;
+        target = null;
+
+        if (agent != null && agent.enabled)
+            agent.enabled = false;
     }
 
     // 충돌 감지에서 호출할 함수
@@ -129,6 +179,37 @@ public class JellyColliderAbsorb : MonoBehaviour
         _rb.linearVelocity = dir * currentSpeed;
     }
 
+    /// <summary>
+    /// 호스트가 흡수를 거부했을 때 젤리를 되살린다.
+    ///
+    /// ★ 왜 필요한가
+    ///   반응성을 위해 <b>판정 전에 미리</b> 렌더러를 꺼서 먹은 것처럼 보여준다.
+    ///   그런데 호스트가 거부하면(선착순에서 밀렸거나 거리 초과) 되돌릴 방법이 없어서
+    ///   그 화면에만 '보이지 않는 젤리'가 남는다. 다른 사람 화면엔 멀쩡히 있으니
+    ///   원인을 찾기도 어렵다.
+    ///
+    ///   승인됐다면 호스트가 DespawnEntity로 이 오브젝트를 없앤다.
+    ///   시간이 지나도 살아 있다면 거부된 것이므로 원래대로 돌린다.
+    /// </summary>
+    private System.Collections.IEnumerator RestoreIfRejected()
+    {
+        yield return new WaitForSeconds(1.5f);
+
+        // 여기까지 왔다는 건 아직 파괴되지 않았다는 뜻 = 거부됨
+        foreach (var r in GetComponentsInChildren<Renderer>()) r.enabled = true;
+
+        absorbing = false;
+        target = null;
+        absorbTimer = 0f;
+
+        if (_rb != null)
+        {
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
+        if (edibleCollider != null) edibleCollider.isTrigger = false;
+    }
+
     // 흡수 완료 시 처리할 내용을 별도 함수로 분리
     private void CompleteAbsorption()
     {
@@ -170,6 +251,10 @@ public class JellyColliderAbsorb : MonoBehaviour
             else
             {
                 JellyNet.AbsorbMode.Instance.RequestEat(jellyId.NetId, eaterId.NetId);
+
+                // 호스트에서는 요청이 그 자리에서 처리돼 이미 풀로 돌아갔을 수 있다
+                if (isActiveAndEnabled)
+                    StartCoroutine(RestoreIfRejected());
             }
 
             return;   // 파괴는 호스트가 DespawnEntity로 지시한다

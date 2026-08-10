@@ -24,6 +24,12 @@ public class TileCollapseManager : MonoBehaviour
     [Tooltip("마지막 링이 다 꺼진 뒤 남길 시간 (초).")]
     public float endMargin = 5f;
 
+    [Tooltip("서 있을 때보다 이만큼 이상 떠 있으면 점프로 본다(마모 안 됨). 점프 높이보다 작아야 한다.")]
+    public float groundCheckDistance = 0.6f;
+
+    [Tooltip("캐릭터가 커질 때 접지 기준이 따라 올라가는 속도(초당). 0이면 안 따라간다.")]
+    public float standGapDrift = 0.15f;
+
     [Tooltip("같은 링 내 타일 간 연쇄 딜레이 (초) — 0이면 동시에 떨어짐")]
     public float tileDelay = 0f;
 
@@ -332,6 +338,57 @@ public class TileCollapseManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// 지금 실제로 그 발판을 <b>밟고 있는가</b> — 타일 윗면과의 높이 차이로 본다.
+    ///
+    /// ★ 왜 CharacterController를 안 쓰는가 (한 번 이걸로 크게 물렸다)
+    ///   isGrounded가 가장 정확해 보이지만, <b>원격 플레이어는 CharacterController가 꺼져 있다.</b>
+    ///   LanPlayerSetup이 원격 사본의 물리를 꺼서 위치 동기화와 싸우지 않게 하기 때문이다.
+    ///   그래서 그걸 기준으로 삼으면 호스트 화면에서 <b>클라이언트가 밟은 발판이 영영 안 닳는다.</b>
+    ///   NavMeshAgent도 마찬가지로 원격 봇에서는 꺼져 있다.
+    ///
+    ///   반면 '위치'는 누구에게나 동기화돼 있다. 타일 윗면에서 얼마나 떠 있는지만 보면
+    ///   로컬·원격, 사람·봇을 가리지 않고 같은 기준으로 판단할 수 있다.
+    ///
+    /// ★ 점프는 이걸로 걸러진다
+    ///   점프하면 그 순간 타일 위로 확실히 떠오른다. 허용치(groundCheckDistance)보다
+    ///   높이 뜨면 밟은 것으로 세지 않는다.
+    /// </summary>
+    // 개체별로 '서 있을 때의 높이 차이'를 관측해 기억한다.
+    private readonly Dictionary<int, float> _standGap = new Dictionary<int, float>();
+
+    private bool IsOnTile(int x, int z, float entityY, int entityID, float dt)
+    {
+        GameObject tile = _tiles[x, z];
+        if (tile == null) return false;
+
+        // ★ 절대 높이로 판단하면 안 된다 (한 번 이걸로 발판이 통째로 안 닳았다)
+        //
+        //   tile.transform.position.y 는 <b>윗면이 아니라 피벗</b>이고,
+        //   캐릭터의 position.y 도 발밑이 아니라 몸 중앙이다. 게다가 젤리는 크기가
+        //   자라면서 중앙이 위로 올라간다. 그래서 "0.8 이내" 같은 고정값을 쓰면
+        //   맵·캐릭터·크기에 따라 맞았다 틀렸다 한다.
+        //
+        //   대신 <b>서 있을 때의 간격을 관측으로 배운다.</b>
+        //   가만히 서 있는 순간의 간격이 곧 기준이고, 점프하면 그보다 확실히 커진다.
+        //   피벗이 어디에 있든, 캐릭터가 얼마나 크든 알 필요가 없다.
+        float gap = entityY - tile.transform.position.y;
+
+        float known;
+        if (!_standGap.TryGetValue(entityID, out known)) known = gap;
+
+        // 더 낮은 값이 보이면 그게 진짜 '붙어 있는' 간격이다 → 즉시 내린다.
+        if (gap < known) known = gap;
+
+        // 크기가 자라면 중앙이 올라가므로 기준도 천천히 따라 올라가야 한다.
+        // (안 그러면 커진 뒤로 영원히 '공중에 떠 있음'으로 읽힌다)
+        known += dt * standGapDrift;
+
+        _standGap[entityID] = known;
+
+        return gap <= known + groundCheckDistance;
+    }
+
     // [MAP-1] 현재 각 개체가 서 있는 칸을 마모 없이 기록만 한다(마스터 승계 그레이스용).
     private void SeedEntityTilesNoWear()
     {
@@ -363,6 +420,15 @@ public class TileCollapseManager : MonoBehaviour
 
         if (x < 0 || x >= _width || z < 0 || z >= _height) return;
         if (_tiles[x, z] == null) return;
+
+        // ★ 공중에 떠 있으면 밟은 게 아니다.
+        //   점프해서 그 위를 지나가는 것만으로 발판이 닳으면 안 된다.
+        //   체류 타이머도 함께 리셋해, 착지하는 순간부터 다시 세게 한다.
+        if (!IsOnTile(x, z, worldPos.y, entityID, dt))
+        {
+            _entityDwellTime[entityID] = 0f;
+            return;
+        }
 
         int tileKey = x * 10000 + z;
 
@@ -650,6 +716,58 @@ public class TileCollapseManager : MonoBehaviour
     /// <param name="avoidDangerous">true면 물리적으로 남아 있어도 곧 붕괴할(IsPositionDangerous)
     /// 타일은 후보에서 제외한다. Push 모드 도피처럼 '진짜 안전한' 칸이 필요할 때 사용.
     /// 허공 탈출처럼 일단 발판 있는 칸이면 되는 경우엔 false(기본).</param>
+    /// <summary>
+    /// 도망칠 발판을 고른다. <b>가까운 곳이 아니라 '살 수 있는 곳'</b>을 찾는다.
+    ///
+    /// ★ 왜 FindNearestSafeTile로는 부족한가
+    ///   그건 거리만 본다. 그래서 위협(플레이어) 바로 옆의 안전한 타일이 뽑히기도 한다.
+    ///   봇 입장에서는 무너지는 발판은 피했는데 <b>때리려는 사람 품으로 뛰어드는</b> 셈이다.
+    ///   반대로 위협만 피하면 발판 없는 허공으로 달려간다.
+    ///
+    ///   두 가지를 같이 봐야 한다:
+    ///     · 위협에서 멀어질수록 좋다
+    ///     · 지금 자리에서 너무 멀면 도착 전에 잡힌다
+    ///
+    ///   그래서 후보 타일마다 점수를 매겨 가장 높은 곳을 고른다.
+    /// </summary>
+    /// <param name="threatPos">피하고 싶은 대상의 위치. 없으면 worldPos를 넣으면 거리만 본다.</param>
+    public bool FindEscapeTile(Vector3 worldPos, Vector3 threatPos, out Vector3 safePos,
+                               int searchTiles = 6)
+    {
+        safePos = Vector3.zero;
+        if (_stepX == 0f || _stepZ == 0f) return false;
+
+        int cx = Mathf.Clamp(Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX), 0, _width - 1);
+        int cz = Mathf.Clamp(Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ), 0, _height - 1);
+
+        float best = float.MinValue;
+        bool found = false;
+
+        for (int dx = -searchTiles; dx <= searchTiles; dx++)
+        {
+            for (int dz = -searchTiles; dz <= searchTiles; dz++)
+            {
+                int tx = cx + dx, tz = cz + dz;
+                if (tx < 0 || tx >= _width || tz < 0 || tz >= _height) continue;
+                if (_tiles[tx, tz] == null) continue;
+
+                Vector3 tilePos = _tiles[tx, tz].transform.position;
+                if (IsPositionDangerous(tilePos)) continue;      // 곧 무너질 곳은 후보가 아니다
+
+                float fromThreat = Vector3.Distance(tilePos, threatPos);
+                float fromMe = Vector3.Distance(tilePos, worldPos);
+
+                // 위협에서 멀수록 +, 내게서 멀수록 −.
+                // 위협 쪽 가중치를 크게 둬서 "조금 더 뛰더라도 반대편으로" 가게 한다.
+                float score = fromThreat * 1.5f - fromMe;
+
+                if (score > best) { best = score; safePos = tilePos; found = true; }
+            }
+        }
+
+        return found;
+    }
+
     public bool FindNearestSafeTile(Vector3 worldPos, out Vector3 safePos, bool avoidDangerous = false)
     {
         safePos = Vector3.zero;

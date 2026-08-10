@@ -28,9 +28,41 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public float moveSpeed = 6f;
     public float rotateSpeed = 10f;
 
+    // ═════════════════════════════════════════════════════════
+    //  플레이어와 이동 속도 맞추기
+    // ═════════════════════════════════════════════════════════
+    //
+    // ★ 왜 코드에서 맞추는가
+    //   두 프리팹의 값이 조용히 벌어져 있었다.
+    //
+    //     NetworkPlayer_Bear.moveSpeed = 18
+    //     AIPlayer_Bear.moveSpeed      =  6      ← 3배 느림
+    //
+    //   코드 기본값은 양쪽 다 6인데, 플레이어만 인스펙터에서 올리고 봇은 잊은 것이다.
+    //   Update의 "플레이어의 이동 공식과 완벽 동기화" 주석이 말해주듯 원래 의도는
+    //   같은 속도였다 — 공식은 맞췄는데 값이 안 맞았다.
+    //
+    //   결과:
+    //     밀치기 → 봇이 도망을 못 쳐 너무 쉽게 떨어진다
+    //     흡수   → 봇이 플레이어를 영영 못 잡고, 플레이어는 봇을 마음대로 잡는다
+    //
+    //   인스펙터 숫자 두 개를 손으로 맞추는 것으로 끝내면 다음에 또 벌어진다.
+    //   플레이어 프리팹의 값을 읽어 쓰면 한쪽만 바꿔도 자동으로 따라온다.
+
+    [Header("플레이어와 속도 맞추기")]
+    [Tooltip("켜면 플레이어 프리팹의 moveSpeed를 그대로 쓴다. 위 moveSpeed 값은 무시된다.")]
+    public bool matchPlayerSpeed = true;
+
+    [Tooltip("플레이어 대비 배율. 1이면 완전히 동일. 봇을 조금 느리게 하려면 0.9 등.")]
+    public float speedRatio = 1f;
+
     [Header("AI")]
     public float detectRadius = 15f;
-    public float stateEvalRate = 0.4f;
+
+    // ★ 상태 재평가 주기.
+    //   0.4초는 흡수 모드(배회↔추격↔도주)에는 넉넉하지만 밀치기에는 느리다.
+    //   밀치기는 PushSurviveState 하나만 쓰므로 재평가가 자주 돌아도 비용이 거의 없다.
+    public float stateEvalRate = 0.15f;
 
     [Header("NavMeshAgent 기본 크기 (스케일 1 기준)")]
     public float baseAgentRadius = 0.5f;
@@ -171,6 +203,8 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         Detector.detectRadius = detectRadius;
         Detector.baseAgentRadius = baseAgentRadius;
+
+        ApplyPlayerSpeed();
 
         // [수정] NavMeshAgent가 스스로 오브젝트를 이동/회전시키지 못하게 원천 차단
         Agent.speed = moveSpeed;
@@ -414,16 +448,62 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     /// <summary>현재 상황을 평가하여 적절한 상태로 전환</summary>
     public void EvaluateAndTransition()
     {
-        if (FindThreat() != null) { ChangeState(FleeState); return; }
-
+        // ★ 밀치기 모드 판정을 위협 검사보다 <b>먼저</b> 한다.
+        //
+        //   예전엔 FindThreat()가 먼저였다. 그런데 밀치기에서는 배트를 맞히면 커지므로,
+        //   상대가 한 대만 맞혀도 그 순간부터 '나보다 큰 상대'가 된다.
+        //   그러면 봇이 PushSurviveState를 버리고 FleeState로 넘어가 <b>도망만 다닌다.</b>
+        //   공격도, 발판 회피도, 대쉬도 전부 PushSurviveState에 들어 있는데 그게 안 돈다.
+        //   "AI가 멍청해 보이는" 증상의 실체가 이것이다.
+        //
+        //   FleeState는 흡수 모드용이다 — 거기서는 큰 상대에게 먹히므로 도망이 정답이다.
+        //   밀치기에는 잡아먹히는 개념이 없고, 위험 회피는 PushSurviveState가
+        //   무너지는 발판 기준으로 이미 하고 있다.
         if (GameState.CurrentGameMode == GameModeType.Push)
         {
             ChangeState(PushSurviveState);
             return;
         }
 
+        if (FindThreat() != null) { ChangeState(FleeState); return; }
+
         if (FindTargetToChase() != null) { ChangeState(ChaseState); return; }
         ChangeState(WanderState);
+    }
+
+    /// <summary>
+    /// 플레이어의 이동 속도를 읽어 moveSpeed에 반영한다.
+    ///
+    /// ★ 어디서 읽는가
+    ///   ① 씬에 있는 내 플레이어(PlayerMovement.Local) — 가장 확실하다
+    ///   ② 없으면 NetWorld의 플레이어 프리팹(0번) — 관전자·전용 호스트에서도 동작
+    ///
+    ///   프리팹 값을 읽는 게 핵심이다. 봇 프리팹의 숫자를 손으로 맞추는 방식이면
+    ///   플레이어 속도를 조정할 때마다 두 곳을 같이 고쳐야 하고, 언젠가 또 어긋난다.
+    /// </summary>
+    private void ApplyPlayerSpeed()
+    {
+        if (!matchPlayerSpeed) return;
+
+        float speed = -1f;
+
+        if (PlayerMovement.Local != null)
+        {
+            speed = PlayerMovement.Local.moveSpeed;
+        }
+        else if (JellyNet.NetWorld.Instance != null
+                 && JellyNet.NetWorld.Instance.prefabs != null
+                 && JellyNet.NetWorld.Instance.prefabs.Length > 0
+                 && JellyNet.NetWorld.Instance.prefabs[0] != null)
+        {
+            PlayerMovement pm = JellyNet.NetWorld.Instance.prefabs[0]
+                                    .GetComponentInChildren<PlayerMovement>(true);
+            if (pm != null) speed = pm.moveSpeed;
+        }
+
+        if (speed <= 0f) return;   // 못 찾으면 인스펙터 값을 그대로 쓴다
+
+        moveSpeed = speed * Mathf.Max(0.1f, speedRatio);
     }
 
     /// <summary>밀크 등 외부 감속/복원 효과용. 봇의 실제 이동 속도는 Agent.speed인데, 이 값은
@@ -759,10 +839,10 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         JellyNet.NetIdentity victim = other.GetComponentInParent<JellyNet.NetIdentity>();
         if (victim == null || victim == _netId) return;
-        if (victim.PrefabId >= JellyNet.NetConfig.JellyPrefabStart && !victim.IsBot) return; // 젤리는 다른 경로
+        if (victim.PrefabId >= JellyNet.NetConfig.JELLY_PREFAB_START && !victim.IsBot) return; // 젤리는 다른 경로
 
         float myScale = GetMyAuthorityScale();
-        float otherScale = JellyNet.AbsorbMode.ScaleOf(victim);
+        float otherScale = JellyNet.NetEntity.ScaleOf(victim);
         if (otherScale >= myScale) return;
 
         // 호스트 판정 → 전원에게 방송. 성장도 그 안에서 확정된다.
@@ -783,6 +863,11 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (_netId != null)
         {
             if (!IsDriver) return;                       // 클라는 스스로 죽이지 않는다
+
+            // [밀치기] 나를 민 사람이 있으면 내 점수를 넘긴다. 탈락 처리 전에 해야 한다.
+            if (JellyNet.PushMode.Instance != null)
+                JellyNet.PushMode.Instance.HostReportEliminated(_netId.NetId);
+
             if (_botSync != null) _botSync.HostBroadcastEliminated();
             ApplyEliminatedLocally();
             return;
@@ -1009,7 +1094,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         // [LAN 이식] 트리거는 값이 남지 않아 폴링할 수 없다. 쏘는 쪽이 직접 알린다.
         //   플레이어 FSM(PlayerDashState)과 완전히 같은 통로.
         if (_netId != null)
-            JellyNet.LanPlayerVisual.ReportTrigger(this, JellyNet.LanPlayerVisual.AnimDash);
+            JellyNet.LanPlayerVisual.ReportTrigger(this, JellyNet.LanPlayerVisual.ANIM_DASH);
         else if (PhotonNetwork.InRoom)
             photonView.RPC(nameof(RPC_PlayBotDash), RpcTarget.Others);
         return true;
@@ -1050,7 +1135,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (_anim != null) _anim.SetTrigger("Attack");
 
         if (_netId != null)
-            JellyNet.LanPlayerVisual.ReportTrigger(this, JellyNet.LanPlayerVisual.AnimAttack);
+            JellyNet.LanPlayerVisual.ReportTrigger(this, JellyNet.LanPlayerVisual.ANIM_ATTACK);
         else if (PhotonNetwork.InRoom)
             photonView.RPC(nameof(RPC_PlayBotAttack), RpcTarget.Others);
     }

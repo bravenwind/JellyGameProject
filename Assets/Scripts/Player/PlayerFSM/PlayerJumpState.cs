@@ -13,7 +13,7 @@ public class PlayerJumpState : PlayerBaseState
         if (player.jellyAnimator != null) player.jellyAnimator.SetTrigger("Jump");
 
         // [LAN] 트리거는 값이 남지 않아 폴링할 수 없다 — 여기서 직접 알린다(소유자만 전송)
-        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.AnimJump);
+        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.ANIM_JUMP);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayJumpSound();
 
         player.verticalVelocity = player.jumpForce;

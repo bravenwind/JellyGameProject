@@ -31,9 +31,7 @@ public class LoadingCenterMultiAni : MonoBehaviour
     [SerializeField] private Ease phase1Ease = Ease.OutCubic;
 
     [Header("Phase 2: Jelly (DOShakeScale)")]
-    [Tooltip("Phase2 전체 길이(보통 로딩 대기시간으로 덮어씀). 이 시간 동안 가운데가 머문다.")]
-    [SerializeField] private float phase2Duration = 2.0f;
-    [Tooltip("실제로 흔드는 시간. phase2Duration보다 짧게 두면 처음에만 흔들리고 진정된 채 머문다.")]
+    [Tooltip("실제로 흔드는 시간. 로딩 대기시간보다 짧게 두면 처음에만 흔들리고 진정된 채 머문다.")]
     [SerializeField] private float phase2ShakeDuration = 0.6f;
     [SerializeField] private Vector3 shakeStrength = new Vector3(0.12f, 0.12f, 0f);
     [SerializeField] private int shakeVibrato = 18;
