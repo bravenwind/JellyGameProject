@@ -43,6 +43,12 @@ namespace JellyNet
         public event Action<MsgType, NetReader> OnClientMessage;
         public event Action OnDisconnected;
 
+        //호스트가 강제 종료 등으로 사라진 경우. 정상 종료(Shutdown)와 구분해야
+        //"서버와 연결이 끊겼습니다"를 띄울지 조용히 나갈지 판단할 수 있다
+        public event Action OnConnectionLost;
+
+        public bool ConnectionLost { get; private set; }
+
         [Header("씬 전환")]
         [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
         public bool persistAcrossScenes = true;
@@ -76,8 +82,20 @@ namespace JellyNet
         {
             if (Host != null)
                 Host.Poll();
-            if (Client != null)
-                Client.Poll();
+
+            if (Client == null)
+                return;
+
+            Client.Poll();
+
+            if (ConnectionLost || Client.Connected)
+                return;
+
+            ConnectionLost = true;
+            AddLog("호스트와의 연결이 끊어졌습니다.");
+
+            if (OnConnectionLost != null)
+                OnConnectionLost();
         }
 
         private void OnApplicationQuit() { Shutdown(); }
@@ -136,6 +154,8 @@ namespace JellyNet
         public void Shutdown()
         {
             bool wasConnected = (Host != null || Client != null);
+
+            ConnectionLost = false;
 
             if (Host != null)
             {

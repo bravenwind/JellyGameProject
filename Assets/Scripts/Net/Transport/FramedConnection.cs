@@ -72,6 +72,13 @@ namespace JellyNet
                     }
                     len += n;
                 }
+                //TcpClient.Connected는 마지막 입출력 시점의 상태라 상대가 조용히 닫은 건 못 잡는다
+                //읽을 게 없는데 SelectRead가 참이면 그건 FIN이 와 있다는 뜻이다
+                else if (client.Client.Poll(0, SelectMode.SelectRead))
+                {
+                    Kill("상대가 연결을 닫았습니다.");
+                    return;
+                }
 
                 if (!client.Connected)
                 {

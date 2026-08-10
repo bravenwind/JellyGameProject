@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using TMPro;
 
 namespace JellyNet
 {
@@ -20,11 +21,11 @@ namespace JellyNet
 
         [Header("HUD")]
         [Tooltip("남은 시간 표시. 기존 GameModeManager가 쓰던 텍스트를 그대로 연결한다.")]
-        public TMPro.TextMeshProUGUI gameTimerText;
+        public TextMeshProUGUI gameTimerText;
 
         [Header("카운트다운")]
         [Tooltip("화면 가운데에 3·2·1·시작!을 띄울 텍스트. 기존 GameModeManager의 것을 그대로 쓰면 된다.")]
-        public TMPro.TextMeshProUGUI centerCountdownText;
+        public TextMeshProUGUI centerCountdownText;
         public string gameStartLabel = "시작!";
         public string gameEndLabel = "게임 종료!";
 
@@ -44,14 +45,19 @@ namespace JellyNet
         [Header("게임오버 화면 (흡수당했을 때)")]
         [Tooltip("씬의 결과 패널. 기존 GameModeManager가 쓰던 것을 그대로 연결하면 된다.")]
         public GameObject gameResultPanel;
-        public TMPro.TextMeshProUGUI resultTitleText;
+        public TextMeshProUGUI resultTitleText;
+
+        [Tooltip("탈락했을 때만 나오는 '관전하기' 버튼.")]
+        public GameObject spectateButton;
+
+        [Tooltip("호스트와 연결이 끊겼을 때만 나오는 '메인으로 돌아가기' 버튼.")]
+        public GameObject returnToMainButton;
 
         [Header("결과 씬")]
         [Tooltip("테스트 중에는 꺼둔다. 켜면 종료 후 결과 씬으로 넘어간다.")]
         public bool autoLoadResultScene = true;
         public string resultSceneAbsorb = "GameResult_AbsorbMode";
         public string resultScenePush = "GameResult_PushMode";
-        public float resultSceneDelay = 3f;
 
         public GamePhase Phase { get; private set; }
         public float Remaining { get; private set; }
@@ -86,8 +92,6 @@ namespace JellyNet
         }
 
         private float survivorCheckTimer;
-        private float resultTimer;
-        private bool resultPending;
 
         private readonly LanFlowHud hud = new LanFlowHud();
 
@@ -101,7 +105,10 @@ namespace JellyNet
             Instance = this;
             Phase = GamePhase.Loading;
 
-            hud.Bind(gameTimerText, centerCountdownText, gameResultPanel, resultTitleText);
+            hud.Bind(gameTimerText, centerCountdownText, gameResultPanel, resultTitleText,
+                     spectateButton, returnToMainButton);
+
+            hud.HideResultPanel();
 
             if (LanLobby.ChosenMode.HasValue && LanLobby.ChosenMode.Value != mode)
             {
@@ -136,6 +143,7 @@ namespace JellyNet
             net.OnClientMessage += HandleClientMessage;
             net.OnHostMessage += HandleHostMessage;
             net.OnDisconnected += ResetAll;
+            net.OnConnectionLost += HandleConnectionLost;
 
             if (net.IsHost)
                 HandleHostStarted();
@@ -212,6 +220,7 @@ namespace JellyNet
             net.OnClientMessage -= HandleClientMessage;
             net.OnHostMessage -= HandleHostMessage;
             net.OnDisconnected -= ResetAll;
+            net.OnConnectionLost -= HandleConnectionLost;
         }
 
         private void ResetAll()
@@ -221,7 +230,6 @@ namespace JellyNet
             WinnerNetId = 0;
             countdownRunning = false;
             endingStarted = false;
-            resultPending = false;
             Time.timeScale = 1f;
         }
 
@@ -247,16 +255,6 @@ namespace JellyNet
 
         private void Update()
         {
-            if (resultPending)
-            {
-                resultTimer -= Time.deltaTime;
-                if (resultTimer <= 0f)
-                {
-                    resultPending = false;
-                    GoToResultScene();
-                }
-            }
-
             NetManager net = NetManager.Instance;
             if (net == null || net.CurrentMode == NetManager.Mode.None)
                 return;
@@ -509,15 +507,61 @@ namespace JellyNet
                     + (PlayerMovement.InputLocked ? "  (입력 잠금)" : "  (입력 해제)"));
         }
 
+        //탈락은 판이 아직 도는 중이다. 나가는 버튼 없이 관전만 남긴다
         public void ShowLocalGameOver(string message)
         {
-            hud.ShowGameOver(message);
+            hud.ShowGameOver(message, true, false);
 
             if (PlayerMovement.Local != null)
                 PlayerMovement.Local.enabled = false;
 
             if (NetManager.Instance != null)
                 NetManager.Instance.AddLog("게임오버: " + message.Replace("\n", " "));
+        }
+
+        public const string DISCONNECT_MESSAGE = "서버와 연결이 끊겼습니다.";
+
+        private void HandleConnectionLost()
+        {
+            SetPhaseLocal(GamePhase.GameOver);
+
+            //호스트가 사라지면 봇의 위치·애니메이션이 마지막 값에 그대로 멈춘다
+            //걷는 자세로 얼어붙지 않게 여기서 직접 내려준다
+            StopWorldAnimations();
+
+            PlayerMovement.InputLocked = true;
+
+            if (PlaySFXAudio.Instance != null)
+                PlaySFXAudio.Instance.StopWalking();
+
+            hud.ShowCenter(false);
+            hud.ShowGameOver(DISCONNECT_MESSAGE, false, true);
+        }
+
+        private static void StopWorldAnimations()
+        {
+            if (NetWorld.Instance == null)
+                return;
+
+            foreach (var kv in NetWorld.Instance.Objects)
+            {
+                NetIdentity id = kv.Value;
+                if (id == null)
+                    continue;
+
+                foreach (Animator anim in id.GetComponentsInChildren<Animator>(true))
+                    anim.SetBool("IsMoving", false);
+            }
+        }
+
+        public void OnClick_Spectate()
+        {
+            hud.HideResultPanel();
+        }
+
+        public void OnClick_ReturnToMain()
+        {
+            GoToMainMenu();
         }
 
         private void OnGameOver()
@@ -602,7 +646,12 @@ namespace JellyNet
 
         public void GoToMainMenu()
         {
-            resultPending = false;
+            if (!LanSceneFlow.CanLeaveMatch)
+            {
+                if (NetManager.Instance != null)
+                    NetManager.Instance.AddLog("경기 중에는 나갈 수 없습니다.");
+                return;
+            }
 
             LanSceneFlow.ToMain();
         }

@@ -22,6 +22,11 @@ public class MenuUI : MonoBehaviour
     public void OnToTitleBtnClicked()
     {
         PlaySFXAudio.Instance.PlayButtonClickSound();
+
+        // [LAN] 경기 중 이탈 금지. 페이드가 시작된 뒤에 막으면 화면만 까맣게 남는다.
+        if (!JellyNet.LanSceneFlow.CanLeaveMatch)
+            return;
+
         uiManager.StartCoroutine(uiManager.SceneFade("FadeOut"));
     }
 

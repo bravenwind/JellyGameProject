@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
@@ -13,14 +13,19 @@ namespace JellyNet
         private TextMeshProUGUI centerText;
         private GameObject resultPanel;
         private TextMeshProUGUI resultTitle;
+        private GameObject spectateButton;
+        private GameObject returnToMainButton;
 
         public void Bind(TextMeshProUGUI timer, TextMeshProUGUI center,
-                         GameObject panel, TextMeshProUGUI title)
+                         GameObject panel, TextMeshProUGUI title,
+                         GameObject spectate, GameObject returnToMain)
         {
             timerText = timer;
             centerText = center;
             resultPanel = panel;
             resultTitle = title;
+            spectateButton = spectate;
+            returnToMainButton = returnToMain;
         }
 
         public void UpdateTimer(GameModeType mode, float gameDuration, float remaining)
@@ -103,13 +108,27 @@ namespace JellyNet
             }
         }
 
-        public void ShowGameOver(string message)
+        //탈락은 관전만, 연결 끊김은 메인 복귀만 열어준다
+        //LAN은 이미 약속하고 모인 자리라 판이 도는 중에 나가는 길을 두지 않는다
+        public void ShowGameOver(string message, bool canSpectate, bool canReturnToMain)
         {
             if (resultPanel != null)
                 resultPanel.SetActive(true);
 
             if (resultTitle != null)
                 resultTitle.text = message;
+
+            if (spectateButton != null)
+                spectateButton.SetActive(canSpectate);
+
+            if (returnToMainButton != null)
+                returnToMainButton.SetActive(canReturnToMain);
+        }
+
+        public void HideResultPanel()
+        {
+            if (resultPanel != null)
+                resultPanel.SetActive(false);
         }
     }
 }

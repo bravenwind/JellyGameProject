@@ -207,6 +207,11 @@ public class UIManager : MonoBehaviour
     /// </summary>
     public void OnClick_MainMenuButton()
     {
+        // [LAN] 경기 중에는 호스트도 클라이언트도 나갈 수 없다. 호스트가 나가면 서버가
+        //   같이 죽어서 남은 사람들의 판이 통째로 깨지기 때문이다.
+        if (!JellyNet.LanSceneFlow.CanLeaveMatch)
+            return;
+
         Time.timeScale = 1f;
         if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
             NetworkManager.Instance.GoToMainMenu();
