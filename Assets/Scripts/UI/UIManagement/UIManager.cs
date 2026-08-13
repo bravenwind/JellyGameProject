@@ -173,10 +173,7 @@ public class UIManager : MonoBehaviour
             //   LoadMainViaLoading만 부르면 소켓이 살아남아 다음 판에서 포트가 물리고,
             //   지난 판의 순위·모드가 그대로 남아 새 판에 새어 들어온다.
             //   LanSceneFlow.ToMain은 연결이 없어도 안전하다(끊을 게 없으면 그냥 지나간다).
-            if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
-                NetworkManager.Instance.GoToMainMenu();
-            else
-                JellyNet.LanSceneFlow.ToMain();
+            JellyNet.LanSceneFlow.ToMain();
         }
     }
 
@@ -213,9 +210,6 @@ public class UIManager : MonoBehaviour
             return;
 
         Time.timeScale = 1f;
-        if (NetworkManager.Instance != null && PhotonNetwork.InRoom)
-            NetworkManager.Instance.GoToMainMenu();
-        else
-            JellyNet.LanSceneFlow.ToMain();
+        JellyNet.LanSceneFlow.ToMain();
     }
 }

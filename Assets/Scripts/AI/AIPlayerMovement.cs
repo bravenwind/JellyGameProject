@@ -124,7 +124,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public bool IsDashing => _dashTimer > 0f;
     public bool IsAttacking => _attackCoroutine != null;
 
-    private AIPlayerSync _aiSync;
 
     // ═════════════════════════════════════════════════════════
     //  [LAN 이식] 봇 권위 판정
@@ -150,9 +149,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         }
     }
 
-    /// <summary>이 봇이 현재까지 획득한 점수 (AIPlayerSync를 통해 관리)</summary>
-    public int CurrentScore => _aiSync != null ? _aiSync.CurrentScore : 0;
-
     // ─────────────────────────────────────────────────────────
     // 외부 프로퍼티
     // ─────────────────────────────────────────────────────────
@@ -161,13 +157,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
     public float GetMyAuthorityScale()
     {
-        if (_aiSync != null) return _aiSync.GetSyncedScale();
         return transform.localScale.x;
-    }
-
-    private void OnBotScaleChanged(float newScale)
-    {
-        _aiSync?.SyncScale(newScale);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -195,7 +185,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         Agent = GetComponent<NavMeshAgent>();
         ScaleCtrl = GetComponent<PlayerScaleController>();
         Detector = GetComponent<AIDetector>();
-        _aiSync = GetComponent<AIPlayerSync>();
         _netId = GetComponent<JellyNet.NetIdentity>();
         _botSync = GetComponent<JellyNet.LanBotSync>();
         CachedPath = new NavMeshPath();
@@ -257,9 +246,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             Agent.enabled = false;
             return;
         }
-
-        if (ScaleCtrl != null)
-            ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
 
         _initCoroutine = StartCoroutine(InitAndRun());
     }
@@ -627,9 +613,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     private bool IsCountdownActive()
     {
         var flow = JellyNet.LanGameFlow.Instance;
-        if (flow != null) return flow.Phase != GamePhase.Playing;
-
-        return GameModeManager.CountdownActive;
+        return flow != null && flow.Phase != GamePhase.Playing;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -661,7 +645,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             }
         }
         // 2. 살아있는 플레이어
-        foreach (var p in FindObjectsByType<NetworkPlayerSync>(FindObjectsSortMode.None))
+        foreach (var p in FindObjectsByType<JellyNet.LanPlayerState>(FindObjectsSortMode.None))
         {
             if (p == null) continue;
             pos = p.transform.position;
@@ -791,26 +775,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
 
-        // ── 더 작은 플레이어 흡수 (레거시 Photon 경로) ──
-        NetworkPlayerSync player = other.GetComponentInParent<NetworkPlayerSync>();
-        if (player != null)
-        {
-            // [O2] 이미 판 밖(흡수 처리 중 포함)인 플레이어는 건너뛴다.
-            // 같은 프레임에 봇 두 마리가 같은 플레이어에 닿으면, 첫 봇의
-            // RPC_GetAbsorbed(All)가 마스터 로컬에서 즉시 실행돼 _isAbsorbed가 켜지므로
-            // 두 번째 봇은 여기서 걸러진다 — 가드가 없으면 GrowByAbsorbing이
-            // 두 번 실행돼 두 번째 봇이 공짜 성장(이중 보상)을 얻는다.
-            if (player.IsOutOfPlay) return;
-
-            float myScale = GetMyAuthorityScale();
-            float playerScale = NetworkPlayerSync.GetPlayerSyncedScale(player.photonView.Owner);
-            if (playerScale >= myScale) return;
-
-            player.photonView.RPC("RPC_GetAbsorbed", RpcTarget.All, photonView.ViewID);
-            ScaleCtrl?.GrowByAbsorbing(playerScale);
-            return;
-        }
-
         // ── 더 작은 AI 봇 흡수 ──
         AIPlayerMovement otherBot = other.GetComponentInParent<AIPlayerMovement>();
         if (otherBot != null && otherBot != this && !otherBot.IsBeingAbsorbed)
@@ -911,11 +875,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (_anim != null) _anim.SetBool("IsMoving", false);
 
         if (nameTagBillboard != null) nameTagBillboard.gameObject.SetActive(false);
-
-        // [LAN 이식] LAN에는 지울 룸 프로퍼티가 없다. 봇 정보는 호스트 로컬 값이라
-        //   탈락과 함께 자연히 계산에서 빠진다.
-        if (_netId == null && _aiSync != null && PhotonNetwork.IsMasterClient)
-            _aiSync.ClearBotProperties();
     }
 
     /// <summary>[LAN] 호스트가 보낸 탈락 통보. NetWorld가 호출한다.</summary>
@@ -1046,9 +1005,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (absorber != null) absorber.enabled = true;
         PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
         if (absorbMgr != null) absorbMgr.enabled = true;
-
-        if (ScaleCtrl != null)
-            ScaleCtrl.OnScaleValueChanged += OnBotScaleChanged;
 
         // [BOT-2] 비마스터 시절 RemoveCloth로 제거된 Cloth를 대칭 복구 — 안 그러면 새 마스터
         // 화면에서만 이 봇이 젤리 출렁임 없이 뻣뻣하게 보인다(다음 성장 전까지).
@@ -1233,17 +1189,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
                 float g = dm.batHitGrowth / Mathf.Max(scale, 1f);
                 ScaleCtrl?.GrowByBatHit(g);
-                return true;
-            }
-
-            NetworkPlayerSync otherPlayer = hit.GetComponentInParent<NetworkPlayerSync>();
-            if (otherPlayer != null)
-            {
-                otherPlayer.photonView.RPC(nameof(NetworkPlayerSync.RPC_ApplyKnockback),
-                    otherPlayer.photonView.Owner, pushDir.x, pushDir.z, pushForce);
-
-                float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
-                ScaleCtrl?.GrowByBatHit(growth);
                 return true;
             }
 

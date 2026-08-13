@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerBridge : MonoBehaviour
 {
@@ -7,7 +7,6 @@ public class PlayerBridge : MonoBehaviour
     private PlayerAbsorber _absorber;
     private PlayerMovement _playerController;
     private LevelUpFloaterPool _levelUpPool;
-    private NetworkPlayerSync _netSync;
 
     // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
     // PlayerScaleController.Start는 소유 무관하게 OnScaleInit을 발화한다. 아래 핸들러들이 전역 정적
@@ -28,9 +27,8 @@ public class PlayerBridge : MonoBehaviour
     //   그 컴포넌트가 없어지면서 하나는 컴파일 에러, 하나는 조용히 죽어 있었다.
     private void PushScore(int score)
     {
-        if (_lanState != null) { _lanState.ReportOwnScore(score); return; }
-        if (_netSync != null && _netSync.photonView != null && _netSync.photonView.IsMine)
-            _netSync.SyncScore(score);
+        if (_lanState != null)
+            _lanState.ReportOwnScore(score);
     }
 
     private bool IsLocalOwner
@@ -38,14 +36,12 @@ public class PlayerBridge : MonoBehaviour
         get
         {
             if (_netId != null) return _netId.IsMine;
-            if (_netSync != null) return _netSync.photonView != null && _netSync.photonView.IsMine;
-            return true;   // 오프라인/레거시
+            return true;   // 오프라인
         }
     }
 
     private void Awake()
     {
-        _netSync = GetComponent<NetworkPlayerSync>();
         _netId = GetComponentInParent<JellyNet.NetIdentity>();
         _lanState = GetComponentInParent<JellyNet.LanPlayerState>();
         _scaleCtrl = GetComponentInChildren<PlayerScaleController>();

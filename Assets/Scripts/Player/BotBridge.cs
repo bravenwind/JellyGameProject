@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class BotBridge : MonoBehaviour
 {
@@ -34,7 +34,5 @@ public class BotBridge : MonoBehaviour
 
     private void HandleScaleCompleted(float scaleValue)
     {
-        AIPlayerSync aiSync = GetComponentInParent<AIPlayerSync>();
-        if (aiSync != null) aiSync.SetScoreFromScale(scaleValue);
     }
 }

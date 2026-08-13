@@ -121,12 +121,7 @@ public class TileCollapseManager : MonoBehaviour
     private float GetSyncedElapsed()
     {
         var flow = JellyNet.LanGameFlow.Instance;
-        if (flow != null) return flow.Elapsed;
-
-        if (GameModeManager.Instance == null) return -1f;
-        float networked = GameModeManager.Instance.NetworkedElapsedTime;
-        if (networked >= 0f) return networked;
-        return GameModeManager.Instance.SurvivedTime;
+        return flow != null ? flow.Elapsed : -1f;
     }
 
     /// <summary>게임이 실제로 진행 중인가. GameModeManager 대신 LanGameFlow를 먼저 본다.</summary>
@@ -156,10 +151,8 @@ public class TileCollapseManager : MonoBehaviour
         if (!autoRingInterval || _intervalComputed) return;
         if (_maxRing <= 1) return;
 
-        float duration = -1f;
         var flow = JellyNet.LanGameFlow.Instance;
-        if (flow != null) duration = flow.gameDuration;
-        else if (GameModeManager.Instance != null) duration = GameModeManager.Instance.gameDuration;
+        float duration = flow != null ? flow.gameDuration : -1f;
         if (duration <= 0f) return;      // 아직 모른다 — 다음 프레임에 다시 시도
 
         float usable = duration - endMargin - warningDuration - fallDuration - collapseStartTime;
@@ -184,9 +177,7 @@ public class TileCollapseManager : MonoBehaviour
     private bool IsRunning()
     {
         var flow = JellyNet.LanGameFlow.Instance;
-        if (flow != null) return flow.Phase == GamePhase.Playing;
-
-        return GameModeManager.Instance != null && GameModeManager.Instance.IsGameRunning;
+        return flow != null && flow.Phase == GamePhase.Playing;
     }
 
     private void CollectTiles()
@@ -508,27 +499,11 @@ public class TileCollapseManager : MonoBehaviour
         var dm = DataManager.Instance;
         int maxSteps = dm != null ? dm.stepTileStepsToCollapse : 3;
 
-        // [LAN 이식] 예전엔 GameModeManager.photonView로 RPC를 쐈는데,
-        //   그게 null이라 여기서 항상 return → 밟기 마모가 통째로 죽어 있었다.
-        if (JellyNet.NetWorld.Instance != null)
-        {
-            if (count >= maxSteps) CollapseStepTile(x, z);          // 안에서 전파까지 한다
-            else                   BroadcastDarken(x, z, count, maxSteps);
+        if (JellyNet.NetWorld.Instance == null)
             return;
-        }
 
-        // 예전 Photon 경로 (photon 브랜치용)
-        var pv = GameModeManager.Instance?.photonView;
-        if (pv == null) return;
-
-        if (count >= maxSteps)
-        {
-            pv.RPC(nameof(GameModeManager.RPC_StepTileCollapse), RpcTarget.All, x, z);
-        }
-        else
-        {
-            pv.RPC(nameof(GameModeManager.RPC_StepTileDarken), RpcTarget.All, x, z, count, maxSteps);
-        }
+        if (count >= maxSteps) CollapseStepTile(x, z);          // 안에서 전파까지 한다
+        else                   BroadcastDarken(x, z, count, maxSteps);
     }
 
     /// <summary>

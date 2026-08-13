@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using DG.Tweening;
 
 public class ProloguePanelSequence : MonoBehaviour
@@ -106,6 +106,6 @@ public class ProloguePanelSequence : MonoBehaviour
         //if (closePanelOnFinish && prologuePanel != null)
         //    prologuePanel.SetActive(false);
 
-        NetworkManager.Instance.StartConnect(nickname);
+        // [LAN] 접속은 LanLobby가 담당한다. 프롤로그는 연출만 끝내고 빠진다.
     }
 }

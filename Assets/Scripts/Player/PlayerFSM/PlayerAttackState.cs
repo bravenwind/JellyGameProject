@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using Photon.Pun;
 
 public class PlayerAttackState : PlayerBaseState
@@ -36,12 +36,6 @@ public class PlayerAttackState : PlayerBaseState
 
         // [LAN] 원격 화면에도 공격 애니메이션이 보이도록 알린다
         JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.ANIM_ATTACK);
-
-        // [LAN 이식] 공격 애니메이션 전파는 위 ReportTrigger가 담당한다.
-        //   아래 Photon RPC는 photonView가 없어 실행되지 않는다(레거시 브랜치용).
-        NetworkPlayerSync netSync = player.GetComponent<NetworkPlayerSync>();
-        if (netSync != null && netSync.photonView != null && netSync.photonView.IsMine)
-            netSync.photonView.RPC(nameof(netSync.RPC_PlayAttack), RpcTarget.Others);
 
         BatDebugVisualizer.NotifySwing(player.transform, dm.batRange * player.transform.localScale.x, halfArc, _swingDuration);
     }
@@ -101,47 +95,6 @@ public class PlayerAttackState : PlayerBaseState
             return;
         }
 
-        NetworkPlayerSync mySync = player.GetComponent<NetworkPlayerSync>();
-        if (mySync == null || mySync.photonView == null || !mySync.photonView.IsMine) return;
-
-        var dm = DataManager.Instance;
-        float scale = player.transform.localScale.x;
-        float range = dm.batRange * scale;
-        Vector3 origin = player.transform.position + Vector3.up * (player.controller.height * 0.5f * scale);
-        float halfArc = dm.batArcAngle * 0.5f;
-
-        int mask = LayerMask.GetMask("Player") | LayerMask.GetMask("Edible");
-        Collider[] hits = Physics.OverlapSphere(origin, range, mask);
-
-        foreach (var hit in hits)
-        {
-            if (hit.transform.root == player.transform.root) continue;
-
-            Vector3 toTarget = hit.transform.position - player.transform.position;
-            toTarget.y = 0f;
-            if (toTarget.sqrMagnitude < 0.001f) continue;
-
-            float angle = Vector3.Angle(player.transform.forward, toTarget);
-            if (angle > halfArc) continue;
-
-            NetworkPlayerSync otherPlayer = hit.GetComponentInParent<NetworkPlayerSync>();
-            if (otherPlayer != null)
-            {
-                _hitDetected = true;
-                mySync.photonView.RPC(nameof(mySync.RPC_RequestBatHitPlayer),
-                    RpcTarget.MasterClient, otherPlayer.photonView.ViewID);
-                return;
-            }
-
-            AIPlayerMovement aiBot = hit.GetComponentInParent<AIPlayerMovement>();
-            if (aiBot != null && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
-            {
-                _hitDetected = true;
-                mySync.photonView.RPC(nameof(mySync.RPC_RequestBatHitBot),
-                    RpcTarget.MasterClient, aiBot.photonView.ViewID);
-                return;
-            }
-        }
     }
 
     /// <summary>

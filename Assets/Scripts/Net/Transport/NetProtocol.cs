@@ -29,6 +29,7 @@ namespace JellyNet
         PlayerRespawn = 34,
         EliminateRequest = 35,
         SetMyName = 36,
+        KilledBy = 37,
 
         BatHitRequest = 40,
         Knockback = 41,

@@ -523,7 +523,15 @@ namespace JellyNet
 
         private void HandleConnectionLost()
         {
+            //판이 이미 끝났으면 호스트가 결과 씬으로 넘어가며 소켓을 닫은 것이다.
+            //정상 종료와 사고가 소켓 입장에서는 똑같이 보이므로 진행 단계로 구분한다.
+            if (Phase == GamePhase.GameOver || endingStarted)
+                return;
+
             SetPhaseLocal(GamePhase.GameOver);
+
+            if (LanSpectator.Instance != null)
+                LanSpectator.Instance.Stop();
 
             //호스트가 사라지면 봇의 위치·애니메이션이 마지막 값에 그대로 멈춘다
             //걷는 자세로 얼어붙지 않게 여기서 직접 내려준다
@@ -557,6 +565,9 @@ namespace JellyNet
         public void OnClick_Spectate()
         {
             hud.HideResultPanel();
+
+            if (LanSpectator.Instance != null)
+                LanSpectator.Instance.Begin();
         }
 
         public void OnClick_ReturnToMain()

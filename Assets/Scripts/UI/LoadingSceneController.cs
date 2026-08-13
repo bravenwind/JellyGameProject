@@ -176,8 +176,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     {
         if (_loadingRequested) return;
         _loadingRequested = true;
-        string loadingScene = (NetworkManager.Instance != null)
-            ? NetworkManager.Instance.loadingSceneName : "Loading";
+        string loadingScene = JellyNet.LanSceneFlow.LOADING_SCENE;
         if (_localLoad)
             SceneManager.LoadScene(loadingScene);                 // 로컬 복귀: 로컬 로드
         else if (_allClientsLoad || PhotonNetwork.IsMasterClient)
@@ -269,7 +268,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     // ★ 이름 비교 자체를 없애지 않은 이유
     //   Photon 브랜치도 이 파일을 그대로 쓴다. 그래서 매니저가 있으면 그 값을,
     //   없으면 아래 기본값을 쓴다. 씬 이름을 바꿨다면 인스펙터에서 채우면 된다.
-    [Header("[LAN] 게임 씬 이름 (NetworkManager가 없을 때 사용)")]
+    [Header("[LAN] 게임 씬 이름")]
     [SerializeField] private string lanAbsorbSceneName = "Game_io_AbsorbMode";
     [SerializeField] private string lanPushSceneName = "Game_io_PushMode";
 
@@ -277,9 +276,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     {
         get
         {
-            return NetworkManager.Instance != null
-                ? NetworkManager.Instance.gamePushModeSceneName
-                : lanPushSceneName;
+            return lanPushSceneName;
         }
     }
 
@@ -287,9 +284,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     {
         get
         {
-            return NetworkManager.Instance != null
-                ? NetworkManager.Instance.gameAbsorbModeSceneName
-                : lanAbsorbSceneName;
+            return lanAbsorbSceneName;
         }
     }
 

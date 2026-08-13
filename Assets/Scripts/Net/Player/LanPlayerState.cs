@@ -218,7 +218,9 @@ namespace JellyNet
         {
             if (!IsHost() || id == null)
                 return;
-            PlayerName = name ?? "";
+
+            SetName(name);
+
             if (NetWorld.Instance != null)
                 NetWorld.Instance.BroadcastPlayerName(id.NetId, PlayerName);
         }
@@ -244,8 +246,22 @@ namespace JellyNet
 
         public void ApplyName(string name)
         {
+            SetName(name);
+        }
+
+        //이름은 스폰보다 늦게 도착한다. LanPlayerSetup이 그때 붙여둔 "P1" 임시 이름을
+        //여기서 갈아끼우지 않으면 닉네임이 화면에 영영 안 뜬다
+        private void SetName(string name)
+        {
             PlayerName = name ?? "";
             gameObject.name = "Player_" + PlayerName + "_net" + (id != null ? id.NetId : 0);
+
+            if (IsMine || string.IsNullOrEmpty(PlayerName))
+                return;
+
+            NameTagBillboard tag = GetComponentInChildren<NameTagBillboard>(true);
+            if (tag != null)
+                tag.SetName(PlayerName);
         }
 
         public void SnapColorNow()

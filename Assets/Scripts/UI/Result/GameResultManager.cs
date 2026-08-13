@@ -153,88 +153,36 @@ public class GameResultManager : MonoBehaviour
     // 데이터 수집
     // ──────────────────────────────────────────────
 
-    // [H6] 수집·탈락 필터·정렬은 ScoreboardSnapshot으로 통일 (인게임 리더보드와 동일 기준).
-    // 결과 씬은 게임 오브젝트가 이미 파괴된 뒤이므로 색은 커스텀 프로퍼티에서 읽는다.
-    private List<ScoreboardSnapshot.Entry> GatherTopEntries()
+    // 최종 순위는 게임 씬에서 호스트가 방송해 준 것을 그대로 쓴다.
+    // 결과 씬에는 플레이어·봇 오브젝트가 없어서(씬을 넘기며 파괴됨) 여기서 다시 셀 수 없다.
+    private List<JellyNet.LanScoreboard.Entry> GatherTopEntries()
     {
-        var dm = DataManager.Instance;
-        float defaultScale = dm != null ? dm.startingScale : 2f;
-
-        // ═════════════════════════════════════════════
-        //  [LAN 이식] 최종 순위는 게임 씬에서 받아 왔다
-        // ═════════════════════════════════════════════
-        //
-        // ★ 여기서 다시 계산할 수 없는 이유
-        //   결과 씬에는 플레이어·봇 오브젝트가 없다. 씬을 넘기며 전부 파괴됐다.
-        //   원본이 룸 프로퍼티를 뒤진 것도 같은 이유였는데, LAN에는 룸이 없다.
-        //   대신 게임이 끝나는 순간 호스트가 순위를 한 번 방송했고,
-        //   각자 LanScoreboard에 담아 씬을 넘어왔다. 그걸 그대로 쓴다.
         var final = JellyNet.LanScoreboard.FinalStandings;
-        if (final != null && final.Count > 0)
+
+        if (final == null || final.Count == 0)
         {
-            var converted = new List<ScoreboardSnapshot.Entry>();
-            for (int i = 0; i < final.Count && i < 3; i++)
-            {
-                var e = final[i];
-                converted.Add(new ScoreboardSnapshot.Entry
-                {
-                    name = e.name,
-                    isBot = e.isBot,
-                    actorNumber = e.ownerId,
-                    botViewId = e.isBot ? e.netId : 0,
-                    scale = e.scale,
-                    color = e.color.a > 0.01f ? e.color : fallbackColor
-                });
-            }
-            return converted;
+            Debug.LogWarning("[GameResult] 최종 순위가 비어 있습니다 — 게임 씬에서 방송이 오지 않았습니다.");
+            return new List<JellyNet.LanScoreboard.Entry>();
         }
 
-        if (!PhotonNetwork.InRoom || PhotonNetwork.CurrentRoom == null)
+        var top = new List<JellyNet.LanScoreboard.Entry>();
+
+        for (int i = 0; i < final.Count && i < 3; i++)
         {
-            Debug.LogWarning("[GameResult] 룸 정보 없음 — 빈 상태로 종료");
-            return new List<ScoreboardSnapshot.Entry>();
+            var e = final[i];
+            if (e.color.a <= 0.01f)
+                e.color = fallbackColor;
+            top.Add(e);
         }
 
-        var roomProps = PhotonNetwork.CurrentRoom.CustomProperties;
-
-        // Push 모드: 마스터가 기록한 권위적 생존자 목록을 우선 사용한다.
-        // 각 클라이언트의 자기-보고("Eliminated")는 탈락 당사자 화면에서 제때 갱신되지
-        // 않을 수 있어(PUN 로컬 캐시 타이밍), 모든 클라이언트가 동일하게 읽는 룸 프로퍼티를 신뢰한다.
-        HashSet<int> survivorActors = null;
-        if (roomProps.TryGetValue(GameModeManager.PUSH_SURVIVOR_ACTORS_KEY, out object sv) && sv is int[] arr)
-            survivorActors = new HashSet<int>(arr);
-
-        Color PlayerColor(Player p) =>
-            ReadColor(p.CustomProperties, "Color_R", "Color_G", "Color_B", fallbackColor);
-        Color BotColor(string prefix, int viewId) =>
-            ReadColor(roomProps, $"{prefix}_Color_R", $"{prefix}_Color_G", $"{prefix}_Color_B", fallbackColor);
-
-        var entries = ScoreboardSnapshot.Collect(defaultScale, PlayerColor, BotColor, survivorActors);
-
-        // 폴백: 동시 탈락 등으로 표시할 엔트리가 하나도 없으면, 탈락 여부와 무관하게
-        // 플레이어를 다시 수집해 결과 씬이 빈 화면(UI만)으로 남지 않도록 한다.
-        if (entries.Count == 0)
-            entries = ScoreboardSnapshot.Collect(defaultScale, PlayerColor, BotColor,
-                                                 survivorActors: null, includeEliminatedPlayers: true);
-
-        return entries.Take(3).ToList();
-    }
-
-    private static Color ReadColor(ExitGames.Client.Photon.Hashtable props,
-                                   string rKey, string gKey, string bKey, Color fallback)
-    {
-        if (props == null) return fallback;
-        if (!props.TryGetValue(rKey, out object rv) || rv == null) return fallback;
-        if (!props.TryGetValue(gKey, out object gv) || gv == null) return fallback;
-        if (!props.TryGetValue(bKey, out object bv) || bv == null) return fallback;
-        return new Color((float)rv, (float)gv, (float)bv, 1f);
+        return top;
     }
 
     // ──────────────────────────────────────────────
     // 배치
     // ──────────────────────────────────────────────
 
-    private void SpawnPodium(List<ScoreboardSnapshot.Entry> top)
+    private void SpawnPodium(List<JellyNet.LanScoreboard.Entry> top)
     {
         int count = top.Count;
         float[] radii = new float[count];
@@ -318,9 +266,7 @@ public class GameResultManager : MonoBehaviour
 
     private void StripNetworkingAndGameplay(GameObject root)
     {
-        DestroyAll<NetworkPlayerSync>(root);
         DestroyAll<AIPlayerMovement>(root);
-        DestroyAll<AIPlayerSync>(root);
         DestroyAll<WanderingAI>(root);
         DestroyAll<AIWaypointPatrol>(root);
         DestroyAll<PlayerMovement>(root);

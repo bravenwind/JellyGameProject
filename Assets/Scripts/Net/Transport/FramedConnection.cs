@@ -60,6 +60,16 @@ namespace JellyNet
 
             try
             {
+                //TcpClient.Connected는 마지막 입출력 시점의 상태라 상대가 조용히 닫은 건 못 잡는다
+                //SelectRead는 "읽을 게 있다"와 "FIN이 왔다"에 모두 참이므로 반드시
+                //Poll을 먼저 보고 그 뒤에 Available을 확인해야 한다. 순서를 뒤집으면
+                //두 호출 사이에 도착한 패킷을 종료로 착각해 멀쩡한 연결을 끊는다
+                if (client.Client.Poll(0, SelectMode.SelectRead) && client.Available == 0)
+                {
+                    Kill("상대가 연결을 닫았습니다.");
+                    return;
+                }
+
                 int avail = client.Available;
                 if (avail > 0)
                 {
@@ -71,13 +81,6 @@ namespace JellyNet
                         return;
                     }
                     len += n;
-                }
-                //TcpClient.Connected는 마지막 입출력 시점의 상태라 상대가 조용히 닫은 건 못 잡는다
-                //읽을 게 없는데 SelectRead가 참이면 그건 FIN이 와 있다는 뜻이다
-                else if (client.Client.Poll(0, SelectMode.SelectRead))
-                {
-                    Kill("상대가 연결을 닫았습니다.");
-                    return;
                 }
 
                 if (!client.Connected)

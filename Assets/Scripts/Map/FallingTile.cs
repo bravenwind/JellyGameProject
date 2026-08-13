@@ -262,7 +262,6 @@ public class FallingTile : MonoBehaviour
             //   "CharacterController.Move called on inactive controller"가 쏟아진다.
             //   (사람의 낙하는 PlayerMovement/초콜릿 경로가 따로 처리한다)
             if (rb.GetComponentInParent<JellyNet.LanPlayerState>() != null) continue;
-            if (rb.GetComponent<NetworkPlayerSync>() != null) continue;
 
             // 원격 오브젝트는 소유자 쪽에서만 물리를 돌린다
             JellyNet.NetIdentity nid = rb.GetComponentInParent<JellyNet.NetIdentity>();
@@ -350,7 +349,7 @@ public class FallingTile : MonoBehaviour
     }
 
     // AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다
-    // (WanderingAI:48/173, AIWaypointPatrol:94) → 발판이 사라진 자리를 계속 걸어다닌다.
+    // (JellyAgentAI가 구동 권한을 잡으면 agent를 켠다) → 발판이 사라진 자리를 계속 걸어다닌다.
     // agent는 자식에 달린 프리팹도 있어 GetComponentsInChildren으로 훑는다.
     private static void DisableAIOnObject(GameObject obj)
     {

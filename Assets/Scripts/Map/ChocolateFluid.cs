@@ -147,16 +147,6 @@ public class ChocolateFluid : MonoBehaviour
             return;
         }
 
-        NetworkPlayerSync netPlayer = other.GetComponentInParent<NetworkPlayerSync>();
-        if (netPlayer != null)
-        {
-#if UNITY_EDITOR
-            if (debugLogTriggers) Debug.Log($"[Chocolate] ENTER NetworkPlayer: {other.name}");
-#endif
-            netPlayer.SyncChocolateElimination();
-            return;
-        }
-
         Rigidbody rb = other.attachedRigidbody;
         if (rb == null) return;
 

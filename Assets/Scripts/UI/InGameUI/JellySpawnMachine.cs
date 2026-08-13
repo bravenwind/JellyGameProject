@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using Photon.Pun;
@@ -61,15 +61,6 @@ public class JellySpawnMachine : MonoBehaviour
         JellySpawnData selected = PickWeighted();
         if (selected == null) return;
 
-        // 멀티플레이: MasterClient만 실제 소환, 나머지는 연출만
-        if (NetworkJellyManager.Instance != null)
-        {
-            if (PhotonNetwork.IsMasterClient)
-                NetworkJellyManager.Instance.SpawnJellyAt(selected.jellyPrefab.name, jellySpawnTransform.position);
-            return;
-        }
-
-        // 싱글플레이 fallback
         Instantiate(selected.jellyPrefab, jellySpawnTransform.position, Quaternion.identity);
     }
 

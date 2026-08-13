@@ -3,9 +3,12 @@ using UnityEngine;
 
 namespace JellyNet
 {
-    public class PushMode : MonoBehaviour
+    public class PushMode : NetGameMode<PushMode>
     {
-        public static PushMode Instance { get; private set; }
+        protected override GameModeType Mode
+        {
+            get { return GameModeType.Push; }
+        }
 
         [Header("배트")]
         public KeyCode attackKey = KeyCode.Space;
@@ -75,41 +78,7 @@ namespace JellyNet
 
         private float localCooldown;
 
-        private void Awake()
-        {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(this);
-                return;
-            }
-            Instance = this;
-        }
-
-        private void Start()
-        {
-            NetManager net = NetManager.Instance;
-            if (net == null)
-            {
-                Debug.LogError("[PushMode] NetManager가 없습니다.");
-                return;
-            }
-
-            net.OnHostMessage += HandleHostMessage;
-            net.OnClientMessage += HandleClientMessage;
-            net.OnDisconnected += ResetAll;
-        }
-
-        private void OnDestroy()
-        {
-            NetManager net = NetManager.Instance;
-            if (net == null)
-                return;
-            net.OnHostMessage -= HandleHostMessage;
-            net.OnClientMessage -= HandleClientMessage;
-            net.OnDisconnected -= ResetAll;
-        }
-
-        private void ResetAll()
+        protected override void ResetAll()
         {
             lastHitTime.Clear();
             localCooldown = 0f;
@@ -117,14 +86,13 @@ namespace JellyNet
 
         private void Update()
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || net.CurrentMode == NetManager.Mode.None)
+            if (IsOffline)
                 return;
 
             if (localCooldown > 0f)
                 localCooldown -= Time.deltaTime;
 
-            if (!LanGameFlow.IsPlaying(GameModeType.Push))
+            if (!IsPlaying)
                 return;
 
             if (PlayerMovement.Local != null)
@@ -181,9 +149,9 @@ namespace JellyNet
 
         public void HostBatHit(int victimNetId, int attackerNetId)
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost)
+            if (!IsHost)
                 return;
+
             ResolveBatHit(NetHost.HOST_ID, victimNetId, attackerNetId);
         }
 
@@ -209,7 +177,7 @@ namespace JellyNet
             net.Client.Send(w);
         }
 
-        private void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        protected override void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
         {
             if (type != MsgType.BatHitRequest)
                 return;
@@ -221,7 +189,7 @@ namespace JellyNet
 
         private void ResolveBatHit(int requesterId, int victimNetId, int attackerNetId)
         {
-            HostVerdict verdict = HostVerdict.Judge(GameModeType.Push, requesterId, attackerNetId, victimNetId);
+            HostVerdict verdict = HostVerdict.Judge(Mode, requesterId, attackerNetId, victimNetId);
 
             if (!verdict.Valid)
                 return;
@@ -292,12 +260,36 @@ namespace JellyNet
             if (victim == null || attacker == null)
                 return;
 
+            //관전 시작 화면을 가해자로 맞춰주기 위해 피해자에게만 알린다
+            SendKilledBy(victim, c.AttackerNetId);
+
             int stolen = NetEntity.ScoreOf(victim);
             if (stolen <= 0)
                 return;
 
             NetEntity.AddScore(attacker, stolen);
             net.AddLog("P" + attacker.OwnerId + " 가 떨어뜨림 — 점수 " + stolen + " 획득");
+        }
+
+        private void SendKilledBy(NetIdentity victim, int killerNetId)
+        {
+            if (victim.IsBot)
+                return;
+
+            if (victim.IsMine)
+            {
+                LanSpectator.ReportKiller(killerNetId);
+                return;
+            }
+
+            NetHost.Peer target = NetManager.Instance.Host.FindPeer(victim.OwnerId);
+            if (target == null)
+                return;
+
+            w.Begin(MsgType.KilledBy);
+            w.WriteInt(killerNetId);
+            w.End();
+            NetManager.Instance.Host.SendTo(target, w);
         }
 
 
@@ -324,8 +316,14 @@ namespace JellyNet
             net.Host.SendTo(target, w);
         }
 
-        private void HandleClientMessage(MsgType type, NetReader r)
+        protected override void HandleClientMessage(MsgType type, NetReader r)
         {
+            if (type == MsgType.KilledBy)
+            {
+                LanSpectator.ReportKiller(r.ReadInt());
+                return;
+            }
+
             if (type != MsgType.Knockback)
                 return;
 

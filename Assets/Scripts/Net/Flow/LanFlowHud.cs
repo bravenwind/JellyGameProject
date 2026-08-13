@@ -112,6 +112,8 @@ namespace JellyNet
         //LAN은 이미 약속하고 모인 자리라 판이 도는 중에 나가는 길을 두지 않는다
         public void ShowGameOver(string message, bool canSpectate, bool canReturnToMain)
         {
+            HideCooldownRings();
+
             if (resultPanel != null)
                 resultPanel.SetActive(true);
 
@@ -123,6 +125,14 @@ namespace JellyNet
 
             if (returnToMainButton != null)
                 returnToMainButton.SetActive(canReturnToMain);
+        }
+
+        //내 캐릭터가 없어진 뒤로는 읽을 쿨타임도 없다. 관전 UI와 자리도 겹친다
+        private static void HideCooldownRings()
+        {
+            foreach (CooldownRingUI ring in
+                     Object.FindObjectsByType<CooldownRingUI>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+                ring.gameObject.SetActive(false);
         }
 
         public void HideResultPanel()

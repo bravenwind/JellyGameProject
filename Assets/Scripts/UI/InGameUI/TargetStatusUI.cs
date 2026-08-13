@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 public class TargetStatusUI : MonoBehaviour
@@ -28,9 +28,6 @@ public class TargetStatusUI : MonoBehaviour
 
     private void UpdateTargetDisplay()
     {
-        if (GameModeManager.Instance == null) return;
-
-        var gm = GameModeManager.Instance;
         //string targetColorText = GameModeManager.GetColorName(gm.TargetColor);
         //Color targetRGB = RYBColor.GetTargetRGB(gm.TargetColor);
 

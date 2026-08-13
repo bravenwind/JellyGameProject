@@ -5,11 +5,26 @@ using UnityEngine.AI;
 public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
 {
     public Transform target;          // Player
-    public float destroyDistance = 0.5f;
+
+    [Header("흡수 연출")]
+    [Tooltip("빨려 들어가는 속도. 이동 거리를 이 값으로 나눠 연출 시간을 구한다.")]
+    public float absorbSpeed = 30f;
+
+    [Tooltip("연출 시간의 하한(초). 코앞에서 먹혀도 최소 이만큼은 보여준다.")]
+    public float minAbsorbTime = 0.15f;
+
+    [Tooltip("연출 시간의 상한(초). 멀리서 시작해도 이 이상 끌지 않는다.")]
+    public float maxAbsorbTime = 0.5f;
+
+    [Tooltip("끝났을 때 남는 크기 비율. 작을수록 완전히 빨려 들어간 것처럼 보인다.")]
+    [Range(0f, 0.3f)] public float endScaleRatio = 0.05f;
 
     public float absorbTimer = 0.0f;
-    public float absorbSpeed = 30f;   // [변경] 빨려 들어가는 최고 속도
-    private float _completelyAbsorbedTime = 0.6f;
+
+    private float absorbDuration = 0.3f;
+    private Vector3 absorbStartPos;
+    private Vector3 absorbStartScale;
+    private Vector3 spawnScale;
 
     private Rigidbody _rb;
     public bool absorbing = false;
@@ -27,6 +42,10 @@ public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
 
     void Awake()
     {
+        //풀에서 재사용될 때 되돌릴 기준 크기. NetScale이 스폰마다 다시 잡아주지만
+        //오프라인 경로와 거절 복구에는 여기 값이 필요하다
+        spawnScale = transform.localScale;
+
         _rb = GetComponent<Rigidbody>();
         edibleCollider = GetComponentInChildren<Collider>();
         jellyRenderer = GetComponentInChildren<Renderer>();
@@ -90,6 +109,10 @@ public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
         target = null;
         absorbTimer = 0f;
 
+        //흡수 연출이 크기를 줄여놓은 채로 반납됐을 수 있다
+        //뒤이어 NetScale이 네트워크 크기를 덮어쓰지만, 오프라인 경로에는 이 복구뿐이다
+        transform.localScale = spawnScale;
+
         foreach (Renderer r in GetComponentsInChildren<Renderer>(true))
             r.enabled = true;
 
@@ -129,54 +152,63 @@ public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
     // 충돌 감지에서 호출할 함수
     public void StartAbsorb(Transform player)
     {
-        if (absorbing) return;
+        if (absorbing || player == null) return;
 
-        _rb.useGravity = false;
         if (patrolAI != null) patrolAI.enabled = false;
         if (agentAI != null) agentAI.enabled = false;
         if (agent != null) agent.enabled = false;
 
-        _rb.isKinematic = false;
-        edibleCollider.isTrigger = true;
+        if (_rb != null)
+        {
+            _rb.useGravity = false;
 
-        _rb.linearVelocity = Vector3.zero;
-        _rb.angularVelocity = Vector3.zero;
+            //연출 동안은 transform으로 직접 몬다. 물리를 켜두면 서로 밀어내 도착 시점이 흔들린다
+            _rb.isKinematic = true;
+            _rb.linearVelocity = Vector3.zero;
+            _rb.angularVelocity = Vector3.zero;
+        }
+
+        if (edibleCollider != null)
+            edibleCollider.isTrigger = true;
 
         target = player;
         absorbing = true;
         absorbTimer = 0f;
+
+        absorbStartPos = transform.position;
+        absorbStartScale = transform.localScale;
+
+        //거리에 비례한 연출 시간. 예전엔 0.6초 고정이라 멀리서 시작하면
+        //도착 전에 시간이 끝나 젤리가 공중에서 사라졌다
+        float distance = Vector3.Distance(transform.position, player.position);
+        absorbDuration = Mathf.Clamp(distance / Mathf.Max(0.01f, absorbSpeed),
+                                     minAbsorbTime, maxAbsorbTime);
     }
 
-    void FixedUpdate()
+    private void Update()
     {
-        if (!absorbing || target == null) return;
+        if (!absorbing) return;
 
-        Vector3 toTarget = target.position - transform.position;
-        float distanceToTarget = toTarget.magnitude;
-
-        // 💡 1. 개선된 판정: 거리가 충분히 가까워지면 즉시 흡수 (비빌 필요 없음!)
-        if (distanceToTarget <= destroyDistance)
+        //먹은 쪽이 사라지면(탈락·씬 전환) 연출을 접는다
+        if (target == null)
         {
-            CompleteAbsorption();
+            absorbing = false;
             return;
         }
 
-        absorbTimer += Time.fixedDeltaTime;
+        absorbTimer += Time.deltaTime;
 
-        // 💡 2. 보험용 판정: 시간이 0.6초를 초과해도 무조건 흡수
-        if (absorbTimer >= _completelyAbsorbedTime)
-        {
+        float t = Mathf.Clamp01(absorbTimer / absorbDuration);
+
+        //등속이면 밋밋하다. 처음엔 버티다 훅 빨려드는 느낌을 준다
+        float k = t * t;
+
+        //목표를 매 프레임 다시 읽어 도망가는 플레이어도 따라간다
+        transform.position = Vector3.Lerp(absorbStartPos, target.position, k);
+        transform.localScale = absorbStartScale * Mathf.Lerp(1f, endScaleRatio, k);
+
+        if (t >= 1f)
             CompleteAbsorption();
-            return;
-        }
-
-        // ── 빨려 들어가는 연산 ──
-        Vector3 dir = toTarget.normalized;
-        float t = Mathf.Clamp01(absorbTimer / _completelyAbsorbedTime);
-        t = Mathf.Pow(t, 2.0f);
-
-        float currentSpeed = Mathf.Lerp(2f, absorbSpeed, t);
-        _rb.linearVelocity = dir * currentSpeed;
     }
 
     /// <summary>
@@ -202,12 +234,21 @@ public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
         target = null;
         absorbTimer = 0f;
 
+        // 연출로 줄여둔 크기를 되돌린다. 이게 없으면 거부된 젤리가 콩알만 하게 남는다
+        transform.localScale = absorbStartScale != Vector3.zero ? absorbStartScale : spawnScale;
+
         if (_rb != null)
         {
+            _rb.isKinematic = false;
             _rb.linearVelocity = Vector3.zero;
             _rb.angularVelocity = Vector3.zero;
         }
         if (edibleCollider != null) edibleCollider.isTrigger = false;
+
+        if (agentAI != null) agentAI.enabled = true;
+        if (patrolAI != null) patrolAI.enabled = true;
+
+        ApplyOwnershipSetup();
     }
 
     // 흡수 완료 시 처리할 내용을 별도 함수로 분리
@@ -260,22 +301,13 @@ public class JellyColliderAbsorb : MonoBehaviour, JellyNet.INetPoolable
             return;   // 파괴는 호스트가 DespawnEntity로 지시한다
         }
 
-        if (NetworkJellyManager.Instance != null)
+        // 오프라인 폴백: 네트워크가 없으면 로컬에서 바로 처리한다
+        if (target != null)
         {
-            PhotonView jellyView = GetComponent<PhotonView>();
-            PhotonView eaterView = target != null ? target.GetComponentInParent<PhotonView>() : null;
-            if (jellyView != null && eaterView != null)
-                NetworkJellyManager.Instance.RequestEatJelly(jellyView.ViewID, eaterView.ViewID);
+            PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
+            player?.AbsorbColor(GetComponent<JellyObject>().jellyType);
         }
-        else
-        {
-            // 오프라인/싱글 폴백: 네트워크 매니저가 없으면 기존처럼 로컬 처리.
-            if (target != null)
-            {
-                PlayerAbsorber player = target.GetComponentInParent<PlayerAbsorber>();
-                player?.AbsorbColor(GetComponent<JellyObject>().jellyType);
-            }
-            Destroy(gameObject);
-        }
+
+        Destroy(gameObject);
     }
 }

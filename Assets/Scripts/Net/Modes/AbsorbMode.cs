@@ -3,9 +3,12 @@ using UnityEngine;
 
 namespace JellyNet
 {
-    public class AbsorbMode : MonoBehaviour
+    public class AbsorbMode : NetGameMode<AbsorbMode>
     {
-        public static AbsorbMode Instance { get; private set; }
+        protected override GameModeType Mode
+        {
+            get { return GameModeType.Absorb; }
+        }
 
         [Header("젤리 스폰 (호스트만 수행)")]
         public bool spawnJelly = true;
@@ -64,53 +67,7 @@ namespace JellyNet
 
         public int JellyCount { get { return jellies.Count; } }
 
-        private void Awake()
-        {
-            if (Instance != null && Instance != this)
-            {
-                Destroy(this);
-                return;
-            }
-            Instance = this;
-        }
-
-        private void Start()
-        {
-            NetManager net = NetManager.Instance;
-            if (net == null)
-            {
-                Debug.LogError("[AbsorbMode] NetManager가 없습니다.");
-                return;
-            }
-
-            net.OnHostMessage += HandleHostMessage;
-            net.OnClientMessage += HandleClientMessage;
-            net.OnDisconnected += ResetAll;
-
-            if (NetWorld.Instance != null)
-            {
-                NetWorld.Instance.OnSpawned += HandleSpawned;
-                NetWorld.Instance.OnDespawned += HandleDespawned;
-            }
-        }
-
-        private void OnDestroy()
-        {
-            NetManager net = NetManager.Instance;
-            if (net != null)
-            {
-                net.OnHostMessage -= HandleHostMessage;
-                net.OnClientMessage -= HandleClientMessage;
-                net.OnDisconnected -= ResetAll;
-            }
-            if (NetWorld.Instance != null)
-            {
-                NetWorld.Instance.OnSpawned -= HandleSpawned;
-                NetWorld.Instance.OnDespawned -= HandleDespawned;
-            }
-        }
-
-        private void ResetAll()
+        protected override void ResetAll()
         {
             jellies.Clear();
             runtimeJellies.Clear();
@@ -119,7 +76,7 @@ namespace JellyNet
             spawnTimer = 0f;
         }
 
-        private void HandleSpawned(NetIdentity id)
+        protected override void HandleSpawned(NetIdentity id)
         {
             if (NetEntity.IsJelly(id))
             {
@@ -131,7 +88,7 @@ namespace JellyNet
                 myPlayer = id;
         }
 
-        private void HandleDespawned(int netId)
+        protected override void HandleDespawned(int netId)
         {
             jellies.Remove(netId);
             runtimeJellies.Remove(netId);
@@ -149,17 +106,16 @@ namespace JellyNet
 
         private void Update()
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || net.CurrentMode == NetManager.Mode.None)
+            if (IsOffline)
                 return;
 
-            if (net.IsHost && LanGameFlow.IsMode(GameModeType.Absorb))
+            if (IsHost && IsCurrentMode)
             {
                 HostSpawnTick();
                 HostRespawnTick();
             }
 
-            if (!LanGameFlow.IsPlaying(GameModeType.Absorb))
+            if (!IsPlaying)
                 return;
 
             if (useDistanceEating)
@@ -367,7 +323,7 @@ namespace JellyNet
             net.Client.Send(w);
         }
 
-        private void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        protected override void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
         {
             if (type == MsgType.EatJellyRequest)
             {
@@ -509,7 +465,7 @@ namespace JellyNet
 
         private void ResolveAbsorbPlayer(int requesterId, int victimNetId, int absorberNetId)
         {
-            HostVerdict verdict = HostVerdict.Judge(GameModeType.Absorb, requesterId, absorberNetId, victimNetId);
+            HostVerdict verdict = HostVerdict.Judge(Mode, requesterId, absorberNetId, victimNetId);
 
             if (!verdict.Valid)
                 return;
@@ -643,7 +599,12 @@ namespace JellyNet
             else
                 v.gameObject.SetActive(false);
 
-            if (v.IsMine && LanGameFlow.Instance != null)
+            if (!v.IsMine)
+                return;
+
+            LanSpectator.ReportKiller(absorberNetId);
+
+            if (LanGameFlow.Instance != null)
                 LanGameFlow.Instance.ShowLocalGameOver("흡수당했습니다!\n관전 중...");
         }
 
@@ -665,7 +626,7 @@ namespace JellyNet
 
 
 
-        private void HandleClientMessage(MsgType type, NetReader r)
+        protected override void HandleClientMessage(MsgType type, NetReader r)
         {
             switch (type)
             {

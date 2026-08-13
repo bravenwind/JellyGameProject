@@ -1,11 +1,8 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using System.Collections;
-using Photon.Pun;
-using Photon.Realtime;
 
-[RequireComponent(typeof(NavMeshAgent))]
-public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
+public class WanderingAI : JellyAgentAI
 {
     [Header("Wandering Settings")]
     public float wanderRadius = 10f;
@@ -13,235 +10,143 @@ public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
     public float maxWaitTime = 3f;
     public bool anchorToInitialPosition = false;
 
-    private NavMeshAgent agent;
-    private Vector3 initialPosition;
-    private bool isWaiting = false;
-    private float _nextDangerCheck = 0f;
-
     public Animator jellyAnimController;
 
-    private Vector3 _networkPosition;
-    private Quaternion _networkRotation;
-    private bool _networkIsMoving;
-    private bool _isMine;
+    private const float DANGER_CHECK_INTERVAL = 0.5f;
 
-    void Awake()
+    private Vector3 initialPosition;
+    private float nextDangerCheck;
+
+    protected override Animator ResolveAnimator()
     {
-        agent = GetComponent<NavMeshAgent>();
+        return jellyAnimController != null ? jellyAnimController : base.ResolveAnimator();
     }
 
-    void Start()
+    protected override void OnBecameDriver()
     {
-        _manualInterp = NetworkNavMeshHelper.NeedsManualInterp(this);
-        _lastPos = transform.position;
+        agent.avoidancePriority = Random.Range(0, 100);
+        initialPosition = transform.position;
 
-        _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
-            ref _networkPosition, ref _networkRotation);
-
-        if (_isMine)
-        {
-            // ★ 스폰 직후 NavMesh 안착.
-            //   AbsorbMode가 스폰 시점에 한 번 맞춰주지만, Start()는 그보다 나중에 돈다.
-            //   Instantiate 위치가 조금이라도 어긋났다면 Unity가 agent를 꺼놨을 수 있으므로
-            //   여기서 다시 확인한다. 이게 없으면 MoveToRandomPosition이 isOnNavMesh에서
-            //   그냥 false로 빠져나가고 젤리는 첫 목적지를 영영 못 받는다.
-            if (!agent.enabled) agent.enabled = true;
-            if (!agent.isOnNavMesh
-                && NavMesh.SamplePosition(transform.position, out NavMeshHit snap, 8f, NavMesh.AllAreas))
-                agent.Warp(snap.position);
-
-            agent.avoidancePriority = Random.Range(0, 100);
-            initialPosition = transform.position;
-            MoveToRandomPosition();
-        }
+        MoveToRandomPosition();
     }
 
-    // [LAN 이식] 원격에서 위치를 누가 모는가.
-    //   LAN에서는 NetTransform이 이미 위치를 담당한다. 여기서 _networkPosition으로
-    //   또 Lerp하면 두 시스템이 서로를 끌어당겨 젤리가 제자리에서 떤다.
-    //   (게다가 _networkPosition은 Photon 스트림 전용이라 LAN에선 갱신되지 않는다 →
-    //    스폰 좌표로 계속 되끌려가 결국 멈춘 것처럼 보인다)
-    private bool _manualInterp;
-    private Vector3 _lastPos;
-
-    void Update()
+    protected override void DriveUpdate()
     {
-        if (!_isMine)
-        {
-            if (_manualInterp)
-            {
-                NetworkNavMeshHelper.InterpolateRemote(transform, _networkPosition, _networkRotation);
-                if (jellyAnimController != null)
-                    jellyAnimController.SetBool("IsMoving", _networkIsMoving);
-            }
-            else if (jellyAnimController != null)
-            {
-                // 위치는 NetTransform이 몬다. 애니메이션만 실제 변위로 맞춘다.
-                jellyAnimController.SetBool("IsMoving",
-                    NetworkNavMeshHelper.MeasureMoving(transform, ref _lastPos));
-            }
+        if (CheckDanger())
             return;
-        }
 
-        // [LAN 이식] 카운트다운·대기·종료 중에는 젤리도 멈춘다.
-        //   "다 같이 3·2·1 후 시작"인데 젤리만 먼저 돌아다니면 어색하다.
-        if (JellyNet.LanGameFlow.IsFrozen)
-        {
-            if (agent.enabled && agent.isOnNavMesh)
-            {
-                if (agent.hasPath) agent.ResetPath();
-                agent.velocity = Vector3.zero;
-            }
-            if (jellyAnimController != null) jellyAnimController.SetBool("IsMoving", false);
+        if (isWaiting)
             return;
-        }
 
-        bool isActuallyMoving = agent.isOnNavMesh && agent.velocity.magnitude > 0.1f;
-        if (jellyAnimController != null)
-            jellyAnimController.SetBool("IsMoving", isActuallyMoving);
-
-        // NavMesh 밖에 있으면(스폰 안착 실패 / 발판 붕괴로 발 밑 NavMesh가 carve됨 등) 가장 가까운
-        // NavMesh 지점으로 Warp 복구한다. 이 복구가 없으면 한 번 NavMesh를 벗어난 젤리는 바닥에 박힌
-        // 채 영영 멈춰 있다(아래 이동 로직이 전부 isOnNavMesh를 전제로 하기 때문). 근처에 NavMesh가
-        // 없으면 복구하지 못하므로 그대로 둔다.
-        if (!agent.isOnNavMesh)
-        {
-            if (NavMesh.SamplePosition(transform.position, out NavMeshHit snap, 5f, NavMesh.AllAreas))
-                agent.Warp(snap.position);
+        if (agent.pathPending || agent.remainingDistance > agent.stoppingDistance)
             return;
-        }
 
-        // 위험 타일 위거나 위험한 곳을 향하면 즉시 새 목적지로 도망
-        if (Time.time >= _nextDangerCheck)
-        {
-            _nextDangerCheck = Time.time + 0.5f;
-            var collapse = TileCollapseManager.Instance;
-            if (collapse != null)
-            {
-                bool curDanger = collapse.IsPositionDangerous(transform.position);
-                bool destDanger = agent.hasPath && collapse.IsPositionDangerous(agent.destination);
-                if (curDanger || destDanger)
-                {
-                    isWaiting = false;
-                    // 안전한 랜덤 목적지를 못 찾으면 기존 경로(위험 방향)를 버리고 안전지대로 이동
-                    if (!MoveToRandomPosition())
-                    {
-                        agent.ResetPath();
-                        TryMoveToSafeZone(collapse);
-                    }
-                    return;
-                }
-            }
-        }
-
-        if (isWaiting) return;
-
-        if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
-        {
-            if (!agent.hasPath || agent.velocity.sqrMagnitude == 0f)
-            {
-                StartCoroutine(WaitAndMove());
-            }
-        }
+        if (!agent.hasPath || agent.velocity.sqrMagnitude == 0f)
+            StartCoroutine(WaitAndMove());
     }
 
-    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
+    //위험 타일 위에 있거나 위험한 곳을 향하고 있으면 기다리던 중이라도 즉시 새 목적지로
+    private bool CheckDanger()
     {
-        NetworkNavMeshHelper.SerializeTransform(stream, transform, agent,
-            ref _networkPosition, ref _networkRotation, ref _networkIsMoving);
-    }
+        if (Time.time < nextDangerCheck)
+            return false;
 
-    /// <summary>
-    /// [S9] 젤리는 룸 오브젝트라 마스터가 나가도 파괴되지 않고 소유권이 새 마스터로 이전된다.
-    /// 그런데 _isMine은 Start()에서 1회만 계산되므로, 새로 소유하게 된 클라가 이동 권한을 다시
-    /// 잡지 않으면 NavMeshAgent가 꺼진 채 젤리가 그대로 멈춘다(봇 AIPlayerMovement는 이미 같은
-    /// 방식으로 제어를 이어받는다). 여기서 소유권을 재평가해 이동을 재개한다.
-    /// </summary>
-    public override void OnMasterClientSwitched(Player newMasterClient)
-    {
-        // [JL-2] 소유권이 '바뀐' 경우에만 재평가한다. 예전 조건(!IsMine || _isMine)은
-        // 소유권을 '얻는' 새 마스터만 통과시키고, 소유권을 '잃는' 옛 마스터는 즉시 return시켜
-        // _isMine이 true로 굳고 agent가 계속 로컬 구동되는 스플릿브레인을 남겼다.
-        // IsMine과 캐시된 _isMine이 다르면(획득이든 상실이든) 항상 재평가한다.
-        if (photonView.IsMine == _isMine) return;
+        nextDangerCheck = Time.time + DANGER_CHECK_INTERVAL;
 
-        _isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
-            ref _networkPosition, ref _networkRotation);
+        TileCollapseManager collapse = TileCollapseManager.Instance;
+        if (collapse == null)
+            return false;
 
-        if (_isMine && agent != null)
+        bool here = collapse.IsPositionDangerous(transform.position);
+        bool ahead = agent.hasPath && collapse.IsPositionDangerous(agent.destination);
+
+        if (!here && !ahead)
+            return false;
+
+        isWaiting = false;
+
+        //안전한 무작위 목적지를 못 찾으면 위험 방향 경로를 버리고 안전지대로
+        if (!MoveToRandomPosition())
         {
-            if (!agent.enabled) agent.enabled = true;   // 원격일 때 꺼져 있던 agent 재활성
-            agent.avoidancePriority = Random.Range(0, 100);
-            initialPosition = transform.position;
-            // NavMesh 밖이면 Update()의 복구 로직이 가장 가까운 지점으로 Warp한다. 여기선 이동만 재개.
-            MoveToRandomPosition();
+            agent.ResetPath();
+            MoveToSafeZone(collapse);
         }
-        // 소유권 상실 시엔 SetupOwnership이 agent.enabled=false + 스트림 위치 캐싱까지 처리했으므로
-        // 이후 Update()가 원격 보간 모드로 전환된다(추가 처리 불필요).
+
+        return true;
     }
 
-    IEnumerator WaitAndMove()
+    private IEnumerator WaitAndMove()
     {
         isWaiting = true;
-        float waitTime = Random.Range(minWaitTime, maxWaitTime);
-        yield return new WaitForSeconds(waitTime);
+
+        yield return new WaitForSeconds(Random.Range(minWaitTime, maxWaitTime));
+
         MoveToRandomPosition();
         isWaiting = false;
     }
 
-    bool MoveToRandomPosition()
+    private bool MoveToRandomPosition()
     {
-        if (!agent.isOnNavMesh) return false;
+        if (!agent.isOnNavMesh)
+            return false;
 
         Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
-        if (TryGetRandomPointOnNavMesh(origin, wanderRadius, out Vector3 newPos))
-        {
-            NavMeshPath path = new NavMeshPath();
-            if (agent.CalculatePath(newPos, path) && path.status == NavMeshPathStatus.PathComplete)
-            {
-                var collapse = TileCollapseManager.Instance;
-                if (collapse != null && collapse.IsPathDangerous(path.corners, path.corners.Length))
-                    return false;
-                agent.SetPath(path);
-                return true;
-            }
-        }
-        return false;
+
+        if (!TryGetRandomPointOnNavMesh(origin, wanderRadius, out Vector3 newPos))
+            return false;
+
+        NavMeshPath path = new NavMeshPath();
+
+        if (!agent.CalculatePath(newPos, path) || path.status != NavMeshPathStatus.PathComplete)
+            return false;
+
+        TileCollapseManager collapse = TileCollapseManager.Instance;
+
+        if (collapse != null && collapse.IsPathDangerous(path.corners, path.corners.Length))
+            return false;
+
+        agent.SetPath(path);
+        return true;
     }
 
-    /// <summary>
-    /// 안전한 랜덤 목적지를 못 찾았을 때, 붕괴되지 않은 안전 영역 중심으로 이동.
-    /// 가장자리에서 위험을 회피하지 못해 빈 공간으로 걸어가는 것을 방지한다.
-    /// </summary>
-    void TryMoveToSafeZone(TileCollapseManager collapse)
+    //가장자리에서 회피 지점을 못 찾아 빈 공간으로 걸어가는 것을 막는다
+    private void MoveToSafeZone(TileCollapseManager collapse)
     {
-        if (!agent.isOnNavMesh || collapse == null) return;
-        if (!collapse.GetSafeBounds(out Vector3 min, out Vector3 max)) return;
+        if (!agent.isOnNavMesh || collapse == null)
+            return;
+
+        if (!collapse.GetSafeBounds(out Vector3 min, out Vector3 max))
+            return;
 
         Vector3 center = (min + max) * 0.5f;
-        if (NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, NavMesh.AllAreas))
-        {
-            NavMeshPath path = new NavMeshPath();
-            if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
-                agent.SetPath(path);
-        }
+
+        if (!NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+            return;
+
+        NavMeshPath path = new NavMeshPath();
+
+        if (agent.CalculatePath(hit.position, path) && path.status == NavMeshPathStatus.PathComplete)
+            agent.SetPath(path);
     }
 
     public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, out Vector3 result)
     {
-        var collapse = TileCollapseManager.Instance;
+        TileCollapseManager collapse = TileCollapseManager.Instance;
+        float sampleRadius = Mathf.Max(2f, range * 0.3f);
+
         for (int i = 0; i < 30; i++)
         {
             Vector2 circle = Random.insideUnitCircle * range;
             Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
 
-            float sampleRadius = Mathf.Max(2f, range * 0.3f);
-            if (NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
-            {
-                if (collapse != null && collapse.IsPositionDangerous(hit.position)) continue;
-                result = hit.position;
-                return true;
-            }
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+                continue;
+
+            if (collapse != null && collapse.IsPositionDangerous(hit.position))
+                continue;
+
+            result = hit.position;
+            return true;
         }
 
         result = center;
@@ -254,10 +159,14 @@ public class WanderingAI : MonoBehaviourPunCallbacks, IPunObservable
         return result;
     }
 
-    void OnDrawGizmosSelected()
+    private void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
-        Vector3 center = Application.isPlaying && anchorToInitialPosition ? initialPosition : transform.position;
+
+        Vector3 center = Application.isPlaying && anchorToInitialPosition
+            ? initialPosition
+            : transform.position;
+
         Gizmos.DrawWireSphere(center, wanderRadius);
     }
 }
