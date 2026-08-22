@@ -30,16 +30,6 @@ namespace JellyNet
             return (MsgType)ReadByte();
         }
 
-        public short ReadShort()
-        {
-            Need(2);
-
-            short value = (short)(buffer[position] | (buffer[position + 1] << 8));
-            position += 2;
-
-            return value;
-        }
-
         public int ReadInt()
         {
             Need(4);

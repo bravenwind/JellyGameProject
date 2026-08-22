@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using TMPro;
 
@@ -8,8 +9,17 @@ namespace JellyNet
     {
         public static LanGameFlow Instance { get; private set; }
 
-        [Header("모드")]
-        public GameModeType mode = GameModeType.Absorb;
+        //모드를 묻는 유일한 창구. 씬 안 어디서든 같은 답이 나온다.
+        //출처는 로비(LanRoomConfig.Mode)뿐이라 씬 인스펙터에는 모드 설정이 없다
+        public static GameModeType Mode
+        {
+            get { return GameState.CurrentGameMode; }
+        }
+
+        private static void ApplyMode(GameModeType m)
+        {
+            GameState.CurrentGameMode = m;
+        }
 
         [Header("진행")]
         [Tooltip("흡수 모드 제한 시간(초). 밀치기는 시간 제한 없이 생존자로 끝난다.")]
@@ -20,11 +30,11 @@ namespace JellyNet
         public int minPlayersToStart = 2;
 
         [Header("HUD")]
-        [Tooltip("남은 시간 표시. 기존 GameModeManager가 쓰던 텍스트를 그대로 연결한다.")]
+        [Tooltip("남은 시간 표시.")]
         public TextMeshProUGUI gameTimerText;
 
         [Header("카운트다운")]
-        [Tooltip("화면 가운데에 3·2·1·시작!을 띄울 텍스트. 기존 GameModeManager의 것을 그대로 쓰면 된다.")]
+        [Tooltip("화면 가운데에 3·2·1·시작!을 띄울 텍스트.")]
         public TextMeshProUGUI centerCountdownText;
         public string gameStartLabel = "시작!";
         public string gameEndLabel = "게임 종료!";
@@ -43,7 +53,7 @@ namespace JellyNet
         public float countdownCurtainTimeout = 6f;
 
         [Header("게임오버 화면 (흡수당했을 때)")]
-        [Tooltip("씬의 결과 패널. 기존 GameModeManager가 쓰던 것을 그대로 연결하면 된다.")]
+        [Tooltip("씬의 결과 패널.")]
         public GameObject gameResultPanel;
         public TextMeshProUGUI resultTitleText;
 
@@ -54,8 +64,6 @@ namespace JellyNet
         public GameObject returnToMainButton;
 
         [Header("결과 씬")]
-        [Tooltip("테스트 중에는 꺼둔다. 켜면 종료 후 결과 씬으로 넘어간다.")]
-        public bool autoLoadResultScene = true;
         public string resultSceneAbsorb = "GameResult_AbsorbMode";
         public string resultScenePush = "GameResult_PushMode";
 
@@ -68,7 +76,7 @@ namespace JellyNet
 
         public static bool IsMode(GameModeType m)
         {
-            return Instance == null || Instance.mode == m;
+            return Instance == null || Mode == m;
         }
 
         public static bool IsFrozen
@@ -77,8 +85,7 @@ namespace JellyNet
             {
                 if (Instance == null)
                     return false;
-                NetManager net = NetManager.Instance;
-                if (net == null || net.CurrentMode == NetManager.Mode.None)
+                if (NetManager.Offline)
                     return false;
                 return Instance.Phase != GamePhase.Playing;
             }
@@ -88,7 +95,7 @@ namespace JellyNet
         {
             if (Instance == null)
                 return true;
-            return Instance.mode == m && Instance.Phase == GamePhase.Playing;
+            return Mode == m && Instance.Phase == GamePhase.Playing;
         }
 
         private float survivorCheckTimer;
@@ -110,23 +117,9 @@ namespace JellyNet
 
             hud.HideResultPanel();
 
-            if (LanLobby.ChosenMode.HasValue && LanLobby.ChosenMode.Value != mode)
-            {
-                Debug.LogWarning("[LanGameFlow] 씬에 설정된 모드(" + mode
-                    + ")와 로비에서 넘어온 모드(" + LanLobby.ChosenMode.Value
-                    + ")가 다릅니다. 로비 값을 따릅니다. "
-                    + "LanLobby의 씬 이름 설정을 확인해주세요.");
-                mode = LanLobby.ChosenMode.Value;
-            }
-
-            GameState.CurrentGameMode = mode;
-
-            if (LanRoomConfig.HasValue)
-            {
-                minPlayersToStart = LanRoomConfig.HumanCount;
-                mode = LanRoomConfig.Mode;
-                GameState.CurrentGameMode = mode;
-            }
+            //모드와 인원은 로비에서만 온다
+            minPlayersToStart = LanRoomConfig.HumanCount;
+            ApplyMode(LanRoomConfig.Mode);
         }
 
         private void Start()
@@ -140,10 +133,10 @@ namespace JellyNet
 
             net.OnHostStarted += HandleHostStarted;
             net.OnPeerJoined += HandlePeerJoined;
-            net.OnClientMessage += HandleClientMessage;
-            net.OnHostMessage += HandleHostMessage;
             net.OnDisconnected += ResetAll;
             net.OnConnectionLost += HandleConnectionLost;
+
+            RegisterRoutes(net);
 
             if (net.IsHost)
                 HandleHostStarted();
@@ -156,11 +149,12 @@ namespace JellyNet
             if (!string.IsNullOrEmpty(reason))
                 EliminationReason = reason;
 
-            NetManager net = NetManager.Instance;
-            if (net == null || net.CurrentMode == NetManager.Mode.None)
+            if (NetManager.Offline)
                 return;
             if (Phase != GamePhase.Playing)
                 return;
+
+            NetManager net = NetManager.Instance;
 
             if (net.IsHost)
             {
@@ -186,21 +180,51 @@ namespace JellyNet
             if (id == null)
                 return;
 
-            LanPlayerState ps = id.GetComponent<LanPlayerState>();
+            LanPlayerState ps = id.PlayerState;
             if (ps == null || ps.IsOutOfPlay)
                 return;
 
             if (PushMode.Instance != null)
-                PushMode.Instance.HostReportEliminated(netId);
+                PushMode.Instance.HostAwardKillCredit(netId);
 
             ps.HostSetFlag(PlayerFlags.Eliminated, true);
         }
 
-        private void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        private void RegisterRoutes(NetManager net)
         {
-            if (type != MsgType.EliminateRequest)
-                return;
+            net.RouteHost(MsgType.EliminateRequest, HandleEliminateRequest);
 
+            net.RouteClient(MsgType.GamePhaseChange, r =>
+            {
+                GamePhase p = (GamePhase)r.ReadByte();
+                byte modeId = r.ReadByte();
+                Remaining = r.ReadFloat();
+
+                //모드는 호스트가 정한다. 클라는 받은 값을 그대로 따른다
+                ApplyMode((GameModeType)modeId);
+                SetPhaseLocal(p);
+            });
+
+            net.RouteClient(MsgType.FinalStandings, r => LanStandings.Read(r));
+
+            net.RouteClient(MsgType.GameOver, r =>
+            {
+                WinnerNetId = r.ReadInt();
+                WinnerScore = r.ReadInt();
+                OnGameOver();
+            });
+        }
+
+        private void UnregisterRoutes(NetManager net)
+        {
+            net.UnrouteHost(MsgType.EliminateRequest);
+            net.UnrouteClient(MsgType.GamePhaseChange);
+            net.UnrouteClient(MsgType.FinalStandings);
+            net.UnrouteClient(MsgType.GameOver);
+        }
+
+        private void HandleEliminateRequest(NetHost.Peer from, NetReader r)
+        {
             int netId = r.ReadInt();
 
             NetIdentity id = NetWorld.Instance != null ? NetWorld.Instance.Find(netId) : null;
@@ -217,10 +241,10 @@ namespace JellyNet
                 return;
             net.OnHostStarted -= HandleHostStarted;
             net.OnPeerJoined -= HandlePeerJoined;
-            net.OnClientMessage -= HandleClientMessage;
-            net.OnHostMessage -= HandleHostMessage;
             net.OnDisconnected -= ResetAll;
             net.OnConnectionLost -= HandleConnectionLost;
+
+            UnregisterRoutes(net);
         }
 
         private void ResetAll()
@@ -228,7 +252,13 @@ namespace JellyNet
             SetPhaseLocal(GamePhase.Loading);
             Remaining = gameDuration;
             WinnerNetId = 0;
-            countdownRunning = false;
+
+            if (countdownRoutine != null)
+            {
+                StopCoroutine(countdownRoutine);
+                countdownRoutine = null;
+            }
+
             endingStarted = false;
             Time.timeScale = 1f;
         }
@@ -236,7 +266,6 @@ namespace JellyNet
         private void HandleHostStarted()
         {
             Remaining = gameDuration;
-            GameState.CurrentGameMode = mode;
 
             if (LanSpawnPoints.Instance != null)
             {
@@ -255,21 +284,22 @@ namespace JellyNet
 
         private void Update()
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || net.CurrentMode == NetManager.Mode.None)
+            if (NetManager.Offline)
                 return;
+
+            NetManager net = NetManager.Instance;
 
             if (Phase == GamePhase.Playing)
             {
                 Remaining -= Time.deltaTime;
 
-                if (mode == GameModeType.Absorb && Remaining < 0f)
+                if (Mode == GameModeType.Absorb && Remaining < 0f)
                     Remaining = 0f;
             }
 
-            hud.UpdateTimer(mode, gameDuration, Remaining);
+            hud.UpdateTimer(Mode, gameDuration, Remaining);
 
-            if (Phase == GamePhase.Playing && mode == GameModeType.Absorb
+            if (Phase == GamePhase.Playing && Mode == GameModeType.Absorb
                 && Remaining <= endCountdownFrom && !endingStarted)
             {
                 BeginEndSequence(true);
@@ -311,19 +341,16 @@ namespace JellyNet
         {
             get
             {
-                if (Phase == GamePhase.Loading)
+                if (Phase == GamePhase.Loading || Phase == GamePhase.Countdown)
                     return -1f;
                 return Mathf.Max(0f, gameDuration - Remaining);
             }
         }
 
-        private bool countdownRunning;
+        private Coroutine countdownRoutine;
 
         private void TryStartCountdown()
         {
-            if (countdownRunning)
-                return;
-
             int players = CountPlayers();
             if (players < minPlayersToStart)
             {
@@ -337,12 +364,11 @@ namespace JellyNet
                 return;
             }
 
-            writer.Begin(MsgType.CountdownStart);
-            writer.End();
-            NetManager.Instance.Host.Broadcast(writer);
-
             NetManager.Instance.AddLog("인원 " + players + "명 — 카운트다운 시작");
-            BeginCountdown();
+
+            //단계를 바꾸면 방송까지 함께 나간다. 예전엔 MsgType.CountdownStart를 따로
+            //쏘고 단계는 Loading에 둔 채 countdownRunning 플래그로 표시했다
+            HostSetPhase(GamePhase.Countdown);
         }
 
         private float stallLogTimer;
@@ -359,15 +385,17 @@ namespace JellyNet
             Debug.Log("[게임흐름] 시작 대기 중 — " + reason);
         }
 
+        //호스트는 HostSetPhase로, 클라는 GamePhaseChange 수신으로 — 둘 다 SetPhaseLocal을 거쳐
+        //여기로 들어온다. SetPhaseLocal은 단계가 실제로 바뀔 때만 부르지만,
+        //ResyncClock이 같은 단계를 2초마다 다시 방송하므로 핸들로 한 번 더 막는다
         private void BeginCountdown()
         {
-            if (countdownRunning)
+            if (countdownRoutine != null)
                 return;
-            countdownRunning = true;
-            StartCoroutine(CountdownRoutine());
+            countdownRoutine = StartCoroutine(CountdownRoutine());
         }
 
-        private System.Collections.IEnumerator CountdownRoutine()
+        private IEnumerator CountdownRoutine()
         {
             PlayerMovement.InputLocked = true;
 
@@ -397,12 +425,12 @@ namespace JellyNet
             yield return new WaitForSecondsRealtime(0.7f);
             hud.ShowCenter(false);
 
-            countdownRunning = false;
+            countdownRoutine = null;
         }
 
         private void CheckEndCondition()
         {
-            if (mode == GameModeType.Absorb && Remaining <= 0f)
+            if (Mode == GameModeType.Absorb && Remaining <= 0f)
             {
                 HostEndGame(null);
                 return;
@@ -458,40 +486,6 @@ namespace JellyNet
             NetManager.Instance.Host.Broadcast(writer);
         }
 
-        private void HandleClientMessage(MsgType type, NetReader r)
-        {
-            switch (type)
-            {
-                case MsgType.GamePhaseChange:
-                    {
-                        GamePhase p = (GamePhase)r.ReadByte();
-                        byte modeId = r.ReadByte();
-                        Remaining = r.ReadFloat();
-
-                        mode = (GameModeType)modeId;
-                        GameState.CurrentGameMode = mode;
-                        SetPhaseLocal(p);
-                        break;
-                    }
-
-                case MsgType.CountdownStart:
-                    BeginCountdown();
-                    break;
-
-                case MsgType.FinalStandings:
-                    LanStandings.Read(r);
-                    break;
-
-                case MsgType.GameOver:
-                    {
-                        WinnerNetId = r.ReadInt();
-                        WinnerScore = r.ReadInt();
-                        OnGameOver();
-                        break;
-                    }
-            }
-        }
-
         private void SetPhaseLocal(GamePhase p)
         {
             if (Phase == p)
@@ -501,6 +495,10 @@ namespace JellyNet
             GameState.Phase = p;
 
             PlayerMovement.InputLocked = (p != GamePhase.Playing);
+
+            //호스트든 클라든 이 한 곳에서 카운트다운이 시작된다
+            if (p == GamePhase.Countdown)
+                BeginCountdown();
 
             if (NetManager.Instance != null)
                 NetManager.Instance.AddLog("게임 단계 → " + p
@@ -546,14 +544,17 @@ namespace JellyNet
             hud.ShowGameOver(DISCONNECT_MESSAGE, false, true);
         }
 
+        //"IsMoving"을 가진 건 사람·봇뿐이다. Objects를 돌면 씬 사탕 300개까지
+        //GetComponentsInChildren<Animator>로 훑게 된다
+        private static readonly List<NetIdentity> stopBuffer = new List<NetIdentity>();
+
         private static void StopWorldAnimations()
         {
-            if (NetWorld.Instance == null)
-                return;
+            NetEntity.CollectCharacters(stopBuffer);
 
-            foreach (var kv in NetWorld.Instance.Objects)
+            for (int i = 0; i < stopBuffer.Count; i++)
             {
-                NetIdentity id = kv.Value;
+                NetIdentity id = stopBuffer[i];
                 if (id == null)
                     continue;
 
@@ -570,9 +571,10 @@ namespace JellyNet
                 LanSpectator.Instance.Begin();
         }
 
+        //인스펙터 OnClick에 연결되는 이름이다. 씬에서 다시 연결해야 하므로 함부로 바꾸지 말 것
         public void OnClick_ReturnToMain()
         {
-            GoToMainMenu();
+            LanSceneFlow.ToMain();
         }
 
         private void OnGameOver()
@@ -599,9 +601,10 @@ namespace JellyNet
             StartCoroutine(EndSequenceRoutine(withCountdown));
         }
 
-        private System.Collections.IEnumerator EndSequenceRoutine(bool withCountdown)
+        private IEnumerator EndSequenceRoutine(bool withCountdown)
         {
-            PlaySFXAudio.Instance?.StopWalking();
+            if (PlaySFXAudio.Instance != null)
+                PlaySFXAudio.Instance.StopWalking();
 
             if (withCountdown)
             {
@@ -642,49 +645,31 @@ namespace JellyNet
             Time.timeScale = 0f;
             yield return new WaitForSecondsRealtime(freezeHold);
 
-            if (autoLoadResultScene)
-                GoToResultScene();
+            GoToResultScene();
         }
 
         private void GoToResultScene()
         {
-            string scene = (mode == GameModeType.Push) ? resultScenePush : resultSceneAbsorb;
+            string scene = (Mode == GameModeType.Push) ? resultScenePush : resultSceneAbsorb;
             if (string.IsNullOrEmpty(scene))
                 return;
 
             LanSceneFlow.ToResult(scene);
         }
 
-        public void GoToMainMenu()
-        {
-            if (!LanSceneFlow.CanLeaveMatch)
-            {
-                if (NetManager.Instance != null)
-                    NetManager.Instance.AddLog("경기 중에는 나갈 수 없습니다.");
-                return;
-            }
-
-            LanSceneFlow.ToMain();
-        }
-
         private void WritePhase(GamePhase p, float remaining)
         {
             writer.Begin(MsgType.GamePhaseChange);
             writer.WriteByte((byte)p);
-            writer.WriteByte((byte)mode);
+            writer.WriteByte((byte)Mode);
             writer.WriteFloat(remaining);
             writer.End();
         }
 
+        //사람 수. 봇은 세지 않는다(LanPlayerState는 사람 프리팹에만 붙어 있다)
         private int CountPlayers()
         {
-            if (NetWorld.Instance == null)
-                return 0;
-            int n = 0;
-            foreach (var kv in NetWorld.Instance.Objects)
-                if (kv.Value != null && kv.Value.PrefabId < NetConfig.JELLY_PREFAB_START)
-                    n++;
-            return n;
+            return EntityRegistry.Players.Count;
         }
     }
 }

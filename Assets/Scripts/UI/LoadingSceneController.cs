@@ -1,9 +1,10 @@
 ﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using Photon.Pun;
+using System;
+using JellyNet;
 
-public class LoadingSceneController : MonoBehaviourPunCallbacks
+public class LoadingSceneController : MonoBehaviour
 {
     [Header("애니메이션")]
     [SerializeField] private LoadingBGSlideAni bgSlide;
@@ -44,19 +45,11 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
 
     // ─────────────────────────────────────────────────────────
     // 다음 씬 지정 (Loading 씬 진입 전에 설정)
-    //   • NextSceneName  : 비우면 기본값(NetworkManager.gameSceneName) — 메인→인게임용
-    //   • AllClientsLoad : true면 모든 클라이언트가 직접 LoadLevel 호출(결과 씬 전환용,
-    //                      마스터 탈락 시에도 데드락 없이 넘어가도록). false면 마스터만 호출.
+    //   • NextSceneName : 로딩 씬 진입 전에 LanSceneFlow.Begin이 채운다
     // ─────────────────────────────────────────────────────────
     public static string NextSceneName;
-    public static bool AllClientsLoad;
-    // true면 Photon 룸 동기화(LoadLevel)가 아니라 로컬 SceneManager.LoadScene으로 전환한다.
-    // 룸을 떠난 뒤(메인 복귀 등) 로딩 씬을 거칠 때 사용. (네트워크 게임 진입/결과는 false)
-    public static bool LocalLoad;
 
     private string _targetScene;
-    private bool _allClientsLoad;
-    private bool _localLoad;
     private GameObject _activePanel;
     private bool _enteringGame; // 타겟이 게임 씬(입장)인지. 결과/메인(퇴장) 전환과 로드 타이밍을 구분.
 
@@ -84,7 +77,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     private bool _targetSceneLoaded;
     private float _elapsed;
     private bool _exiting;
-    private bool _nextSceneTriggered; // 추가: LoadLevel 중복 호출 방지
+    private bool _nextSceneTriggered; // 씬 로드 중복 호출 방지
     private LoadingBGSlideAni _slide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
     private float _targetLoadedElapsed = -1f; // 도착 씬이 로드된 시점의 _elapsed(정착 대기 계산용)
 
@@ -114,21 +107,10 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         BringLoadingCanvasToFront(); // 다음 씬 UI에 가려지지 않도록 최상단 정렬
         SceneManager.sceneLoaded += OnSceneLoaded;
 
-        // 정적 설정값을 인스턴스로 캡처한 뒤 비워둔다 (다음 로딩 진입 시 기본값으로 복귀).
-        // NextSceneName을 못 받은 클라이언트(비마스터)도 룸 권위값(GameState.CurrentGameMode)에서
-        // 올바른 게임 씬을 기본값으로 잡는다. 이렇게 해야 로딩 중 마스터가 끊겨
-        // OnMasterClientSwitched로 새 마스터가 된 비마스터가 잘못된 씬(예: Push인데 Absorb)을
-        // 로드하는 버그를 막을 수 있다.
-        _targetScene = string.IsNullOrEmpty(NextSceneName)
-            ? (GameState.CurrentGameMode == GameModeType.Push
-                ? PushSceneName
-                : AbsorbSceneName)
-            : NextSceneName;
-        _allClientsLoad = AllClientsLoad;
-        _localLoad = LocalLoad;
+        //목적지는 LanSceneFlow.Begin이 항상 채워둔다. 읽고 나서 즉시 비워
+        //다음 전환에 지난 목적지가 새어 들어가지 않게 한다
+        _targetScene = NextSceneName;
         NextSceneName = null;
-        AllClientsLoad = false;
-        LocalLoad = false;
 
         // [중요] 커튼 애니 설정은 패널을 '활성화하기 전에' 끝낸다. 패널을 SetActive하면 애니 OnEnable→Play가
         // 즉시 돌며 슬라이드인 유예(_slideInDelay)를 읽으므로, 그 전에 값이 주입돼 있어야 유예가 적용된다.
@@ -144,7 +126,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
                 onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
                 onExited: OnCurtainExited,           // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
                 // 완전판: 출발 씬 위에서 슬라이드인이 끝난 순간에 비로소 도착 씬을 로드한다(로드-애니 분리).
-                onSlideInDone: _departureIntro ? OnDepartureSlideInDone : (System.Action)null,
+                onSlideInDone: _departureIntro ? OnDepartureSlideInDone : (Action)null,
                 // 완전판에서만 슬라이드인 유예 적용(인스턴스화 히칭 회피). 기존 경로는 0(검은 프레임 없음).
                 slideInDelay: _departureIntro ? departureSlideInDelay : 0f
             );
@@ -158,7 +140,7 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     // 커튼이 센터->오른쪽으로 나가기 '시작'할 때(=화면이 드러나기 시작). 결과 씬 시퀀스는 이때부터 진행된다.
     private void OnCurtainExitStarted()
     {
-        _exiting = true;      // Update의 로드/종료 처리를 멈추고, 마스터 교체 재트리거도 막는다.
+        _exiting = true;      // Update의 로드/종료 처리를 멈춘다
         IsPresenting = false; // 결과 씬 등 다음 씬 연출 대기 해제 신호
     }
 
@@ -176,63 +158,15 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     {
         if (_loadingRequested) return;
         _loadingRequested = true;
-        string loadingScene = JellyNet.LanSceneFlow.LOADING_SCENE;
-        if (_localLoad)
-            SceneManager.LoadScene(loadingScene);                 // 로컬 복귀: 로컬 로드
-        else if (_allClientsLoad || PhotonNetwork.IsMasterClient)
-            PhotonNetwork.LoadLevel(loadingScene);                // 네트워크: 마스터(또는 전 클라)만
-    }
-
-    /// <summary>
-    /// 인게임(게임/결과 씬)에서 메인으로 돌아갈 때 로딩 씬을 거쳐 'toMainOrResultPanel'을 보여준다.
-    /// 메인 복귀는 룸을 떠난(또는 Disconnect한) 뒤이므로 로컬 로드(LocalLoad)로 처리한다.
-    /// 이미 메인/로딩 씬이면 불필요한 로딩을 피해 바로 메인으로 간다(매칭 취소·로비 등).
-    /// </summary>
-    public static void LoadMainViaLoading()
-    {
-        // 이미 커튼 전환이 진행 중이면(중복 트리거: GoToMainMenu가 먼저 시작 + OnDisconnected 재호출 등)
-        // 아무것도 더 하지 않는다 → 진행 중인 슬라이드인이 폴백 LoadScene에 끊기지 않게.
-        if (_instance != null) return;
-
-        string cur = SceneManager.GetActiveScene().name;
-        if (cur == "Main" || cur == "Loading")
-        {
-            SceneManager.LoadScene("Main");
-            return;
-        }
-
-        NextSceneName = "Main";
-        LocalLoad = true;
-
-        // [완전판] 출발 씬(게임/결과)에서 커튼을 미리 띄워 왼->센터 슬라이드인을 재생한 뒤 Main을 로드한다.
-        // 커튼이 센터에 정지한 채로 무거운 게임 씬 언로드가 지나가므로 슬라이드인이 끊기지 않는다.
-        if (TryBeginDepartureIntro())
-            return;
-
-        // 폴백: 커튼 프리팹(Resources/LoadingCurtain)이 없으면 기존 방식(Loading 씬에서 커튼 생성).
-        SceneManager.LoadScene("Loading");
-    }
-
-    /// <summary>
-    /// 메인 복귀 커튼(departure-intro)을 '현재 씬'에서 즉시 시작한다 — 입장처럼 출발 씬 위에서 슬라이드인.
-    /// GoToMainMenu가 Disconnect '전에' 불러, 끊김 콜백을 기다리지 않고 곧바로 출발 씬에서 슬라이드인하게 한다.
-    /// 커튼이 이후 Loading→Main 로컬 전환을 주도한다. 성공(프리팹 있음) 시 true, 아니면 false(호출측 폴백).
-    /// </summary>
-    public static bool TryBeginReturnIntro()
-    {
-        if (_instance != null) return false;
-        string cur = SceneManager.GetActiveScene().name;
-        if (cur == "Main" || cur == "Loading") return false; // 이미 메인/로딩이면 커튼 불필요
-        NextSceneName = "Main";
-        LocalLoad = true;
-        return TryBeginDepartureIntro();
+        string loadingScene = LanSceneFlow.LOADING_SCENE;
+        SceneManager.LoadScene(loadingScene);
     }
 
     /// <summary>
     /// Resources의 커튼 프리팹을 '출발 씬'에 띄워 슬라이드인부터 시작한다(완전판). 성공 시 true, 프리팹 없으면 false(폴백).
-    /// 호출 전에 NextSceneName/AllClientsLoad/LocalLoad를 원하는 전환에 맞게 세팅해 둔다(로컬 복귀·게임 입장 공용).
-    ///  • 로컬 복귀: NextSceneName="Main", LocalLoad=true 로 호출.
-    ///  • 게임 입장: NextSceneName=게임씬(또는 비움→룸모드 기본값)으로 호출(마스터가). 커튼이 Loading→게임을 주도.
+    /// 호출 전에 NextSceneName을 원하는 전환에 맞게 세팅해 둔다(로컬 복귀·게임 입장 공용).
+    ///  • 로컬 복귀: NextSceneName="Main" 으로 호출.
+    ///  • 게임 입장: NextSceneName=게임씬 으로 호출. 커튼이 Loading→게임 전환을 주도한다.
     /// </summary>
     public static bool TryBeginDepartureIntro()
     {
@@ -257,41 +191,16 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
     }
 
     // ═══════════════════════════════════════════════════════
-    //  [LAN 이식] 게임 씬 이름을 어디서 얻는가
-    // ═══════════════════════════════════════════════════════
-    //
-    // ★ 여기가 터진 이유
-    //   원래는 NetworkManager.Instance에서 씬 이름을 읽었다. 그런데 LAN 구성에서는
-    //   그 매니저를 비활성화했으므로 Instance가 null이고, Awake에서 바로
-    //   NullReferenceException이 나면서 <b>로딩 씬에 갇혔다.</b>
-    //
-    // ★ 이름 비교 자체를 없애지 않은 이유
-    //   Photon 브랜치도 이 파일을 그대로 쓴다. 그래서 매니저가 있으면 그 값을,
-    //   없으면 아래 기본값을 쓴다. 씬 이름을 바꿨다면 인스펙터에서 채우면 된다.
-    [Header("[LAN] 게임 씬 이름")]
+    //목적지가 게임 씬인지 판별하는 데만 쓴다(입장이냐 퇴장이냐로 커튼 패널이 갈린다).
+    //씬 이름을 바꿨다면 인스펙터에서 같이 고칠 것
+    [Header("게임 씬 이름")]
     [SerializeField] private string lanAbsorbSceneName = "Game_io_AbsorbMode";
     [SerializeField] private string lanPushSceneName = "Game_io_PushMode";
-
-    private string PushSceneName
-    {
-        get
-        {
-            return lanPushSceneName;
-        }
-    }
-
-    private string AbsorbSceneName
-    {
-        get
-        {
-            return lanAbsorbSceneName;
-        }
-    }
 
     private bool IsGameScene(string sceneName)
     {
         if (string.IsNullOrEmpty(sceneName)) return false;
-        return sceneName == PushSceneName || sceneName == AbsorbSceneName;
+        return sceneName == lanPushSceneName || sceneName == lanAbsorbSceneName;
     }
 
     // 결정된 패널을 실제로 켠다(SetActive) → 이때 애니 OnEnable→Play가 재생된다.
@@ -345,11 +254,8 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         if (_exiting) return;
         _elapsed += Time.unscaledDeltaTime;
 
-        // 다음 씬 로드 트리거.
-        // 게임 씬(메인→인게임): 마스터만 LoadLevel, 나머지는 AutomaticallySyncScene으로 자동 이동
-        // 결과 씬(인게임→결과): 모든 클라이언트가 각자 LoadLevel (마스터 탈락 데드락 방지)
+        // 다음 씬 로드 트리거. 각자 자기 씬을 로드한다.
         //
-        // [중요] 네트워크 결과 전환(_allClientsLoad)만 로드를 미루지 않고 '즉시' 시작한다(loadAfter=0).
         // 그래야 결과 씬이 로딩 커튼 뒤에서 미리 준비(Start/포디움 스폰)돼, 커튼이 사라질 때 곧바로
         // 보인다(결과 카메라 시퀀스는 IsPresenting 신호로 커튼이 걷힌 뒤에 시작 — AB2).
         //
@@ -365,15 +271,14 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         // 도착 씬 로드 트리거.
         // [완전판] departure-intro는 '센터 상태로 Loading 씬에 도착한 뒤'(_inLoadingScene)에만 도착 씬을
         //   로드한다(그 전 Main→Loading 전환은 OnDepartureSlideInDone이 담당). born-in-Loading은 즉시(기존).
-        float loadAfter = (_enteringGame || _localLoad) ? ActiveHoldSeconds() : 0f;
+        //씬 로드는 동기라 그 프레임에 화면이 교체된다. 커튼이 다 덮이기 전에 로드하면
+        //도착 씬 UI가 커튼 위로 그려져 번쩍인다. 그래서 표시 시간이 지난 뒤에 로드한다
+        float loadAfter = ActiveHoldSeconds();
         bool canLoadArrival = !_departureIntro || _inLoadingScene;
         if (canLoadArrival && !_nextSceneTriggered && _elapsed >= loadAfter)
         {
             _nextSceneTriggered = true;
-            if (_localLoad)
-                SceneManager.LoadScene(_targetScene);       // 룸과 무관한 로컬 전환(메인 복귀 등)
-            else if (_allClientsLoad || PhotonNetwork.IsMasterClient)
-                PhotonNetwork.LoadLevel(_targetScene);
+            SceneManager.LoadScene(_targetScene);
         }
 
         // 커튼 애니가 있으면 나가는 타이밍은 그 애니가 스스로 판단한다(holdSeconds && 씬 준비).
@@ -429,19 +334,6 @@ public class LoadingSceneController : MonoBehaviourPunCallbacks
         yield return new WaitForSecondsRealtime(wait);
 
         Destroy(gameObject);
-    }
-
-    public override void OnMasterClientSwitched(Photon.Realtime.Player newMasterClient)
-    {
-        // 로컬 로드(메인 복귀)거나 모든 클라이언트 직접 로드 모드면 마스터 교체와 무관하므로 무시
-        if (_localLoad || _allClientsLoad) return;
-        if (!_nextSceneTriggered || _targetSceneLoaded || _exiting) return;
-
-        if (PhotonNetwork.IsMasterClient)
-        {
-            Debug.Log("[Loading] 새 MasterClient가 다음 씬 로드 트리거");
-            PhotonNetwork.LoadLevel(_targetScene);
-        }
     }
 
     private void OnDestroy()

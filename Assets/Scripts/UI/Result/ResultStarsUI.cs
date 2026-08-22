@@ -20,16 +20,6 @@ public class ResultStarsUI : MonoBehaviour
         Apply(_starIndex);
     }
 
-    // 외부에서 결과 세팅
-    public void SetStarIndex(int starIndex)
-    {
-        _starIndex = Mathf.Clamp(starIndex, 0, 3);
-
-        // 이미 활성화 상태면 즉시 반영
-        if (isActiveAndEnabled)
-            Apply(_starIndex);
-    }
-
     private void Apply(int starIndex)
     {
         bool isClear = starIndex >= 1;

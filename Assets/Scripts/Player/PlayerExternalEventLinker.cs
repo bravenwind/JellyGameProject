@@ -1,11 +1,10 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class PlayerExternalEventLinker : MonoBehaviour
 {
     [Header("UI & Camera References")]
     public JellyCamera jellyCamera;
     public MainCamera_Action mainCamera_Action;
-    public UIPoolManager uIPoolManager;
     public GameObject checkImage;
 
     private void OnEnable()

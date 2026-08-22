@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace JellyNet
@@ -19,25 +21,19 @@ namespace JellyNet
         private readonly NetWriter w = new NetWriter();
         private int nextNetId = 1;
 
+        private const int MAX_NAME_LENGTH = 16;
+
         private readonly List<int> removedSceneIds = new List<int>();
 
         public IReadOnlyDictionary<int, NetIdentity> Objects { get { return objects; } }
 
-        public event System.Action<NetIdentity> OnSpawned;
-        public event System.Action<int> OnDespawned;
+        public event Action<NetIdentity> OnSpawned;
+        public event Action<int> OnDespawned;
 
         public NetIdentity Find(int netId)
         {
             NetIdentity id;
             return objects.TryGetValue(netId, out id) ? id : null;
-        }
-
-        //스폰 메시지에 싣는 값은 NetScale 배율이다
-        //판정에 쓰는 NetEntity.ScaleOf(게임 쪽 실제 크기)와 단위가 다르니 섞지 말 것
-        private static float NetScaleOf(NetIdentity id)
-        {
-            NetScale scale = id.GetComponent<NetScale>();
-            return scale != null ? scale.Current : 1f;
         }
 
         private NetSpawnPool pool;
@@ -70,12 +66,10 @@ namespace JellyNet
                 Debug.LogError("[NetWorld] NetManager가 없습니다.");
                 return;
             }
-            net.OnHostStarted += HandleHostStarted;
-            net.OnPeerJoined += HandlePeerJoined;
             net.OnPeerLeft += HandlePeerLeft;
-            net.OnHostMessage += HandleHostMessage;
-            net.OnClientMessage += HandleClientMessage;
             net.OnDisconnected += ClearAll;
+
+            RegisterRoutes(net);
 
             ValidatePrefabs();
             RegisterSceneObjects();
@@ -98,16 +92,14 @@ namespace JellyNet
                     id.PrefabId = NetConfig.JELLY_PREFAB_START;
 
                 objects[id.NetId] = id;
-                if (OnSpawned != null)
-                    OnSpawned(id);
+                OnSpawned?.Invoke(id);
                 n++;
             }
 
             if (n > 0)
                 Debug.Log("[NetWorld] 씬 배치 오브젝트 " + n + "개 등록");
             else
-                Debug.LogWarning("[NetWorld] 씬 배치 오브젝트가 하나도 등록되지 않았습니다. "
-                                  + "Tools ▸ LAN 이식 ▸ ⑦ 씬 오브젝트 ID 부여 를 실행하세요.");
+                Debug.LogWarning("[NetWorld] 씬 배치 오브젝트가 하나도 등록되지 않았습니다. ");
         }
 
         private void ValidatePrefabs()
@@ -128,11 +120,8 @@ namespace JellyNet
                 if (prefabs[i].GetComponent<NetIdentity>() == null)
                     Debug.LogError("[NetWorld] '" + prefabs[i].name + "' 에 NetIdentity가 없습니다.");
 
-                if (i < NetConfig.JELLY_PREFAB_START && prefabs[i].GetComponent<NetTransform>() == null)
+                if (prefabs[i].GetComponent<NetTransform>() == null)
                     Debug.LogError("[NetWorld] '" + prefabs[i].name + "' 에 NetTransform이 없습니다 — 위치 동기화가 전혀 안 됩니다!");
-
-                if (prefabs[i].GetComponent<NetScale>() == null)
-                    Debug.LogWarning("[NetWorld] '" + prefabs[i].name + "' 에 NetScale이 없습니다 — 흡수해도 크기가 안 변합니다.");
             }
         }
 
@@ -143,22 +132,22 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
             if (net == null)
                 return;
-            net.OnHostStarted -= HandleHostStarted;
-            net.OnPeerJoined -= HandlePeerJoined;
             net.OnPeerLeft -= HandlePeerLeft;
-            net.OnHostMessage -= HandleHostMessage;
-            net.OnClientMessage -= HandleClientMessage;
             net.OnDisconnected -= ClearAll;
+
+            UnregisterRoutes(net);
         }
 
         private void Start_CatchUpNetwork()
         {
             NetManager net = NetManager.Instance;
-            if (net == null || net.CurrentMode == NetManager.Mode.None)
+            if (NetManager.Offline)
                 return;
 
             if (net.IsHost)
             {
+                net.Host.AcceptingNewPeers = false;
+
                 SpawnForOwner(NetHost.HOST_ID);
                 return;
             }
@@ -166,7 +155,7 @@ namespace JellyNet
             StartCoroutine(SceneReadyLoop());
         }
 
-        private System.Collections.IEnumerator SceneReadyLoop()
+        private IEnumerator SceneReadyLoop()
         {
             const float INTERVAL = 0.4f;
             const float GIVE_UP_AFTER = 20f;
@@ -202,18 +191,11 @@ namespace JellyNet
             return false;
         }
 
-        private void HandleHostStarted()
-        {
-            SpawnForOwner(NetHost.HOST_ID);
-        }
-
+        //스폰 시점은 소켓 연결이 아니라 클라의 SceneReady 하나뿐이다.
+        //연결되자마자 스냅샷을 쏘면 클라는 아직 로비라 NetWorld가 없어 그대로 버려지고,
+        //나중에 SceneReady로 한 번 더 스폰돼 캐릭터가 둘 생긴다.
+        //LAN은 한 판의 인원이 로비에서 확정되므로 도중 난입 경로는 아예 두지 않는다.
         private void HandleSceneReady(NetHost.Peer peer)
-        {
-            SendWorldSnapshot(peer);
-            SpawnForOwner(peer.Id);
-        }
-
-        private void HandlePeerJoined(NetHost.Peer peer)
         {
             SendWorldSnapshot(peer);
             SpawnForOwner(peer.Id);
@@ -228,10 +210,10 @@ namespace JellyNet
                 if (id.NetId >= NetConfig.SCENE_ID_BASE)
                     continue;
 
-                WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position, NetScaleOf(id));
+                WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position);
                 NetManager.Instance.Host.SendTo(peer, w);
 
-                LanPlayerState ps = id.GetComponent<LanPlayerState>();
+                LanPlayerState ps = id.PlayerState;
                 if (ps != null)
                 {
                     WritePlayerState(id.NetId, ps.Score, (byte)ps.Flags, ps.DisplayColor);
@@ -301,9 +283,9 @@ namespace JellyNet
                 return null;
 
             int netId = nextNetId++;
-            NetIdentity id = SpawnLocal(netId, prefabId, ownerId, pos, 1f);
+            NetIdentity id = SpawnLocal(netId, prefabId, ownerId, pos);
 
-            WriteSpawn(netId, prefabId, ownerId, pos, 1f);
+            WriteSpawn(netId, prefabId, ownerId, pos);
             NetManager.Instance.Host.Broadcast(w);
             return id;
         }
@@ -323,7 +305,7 @@ namespace JellyNet
             NetIdentity id = Find(netId);
             if (id != null)
             {
-                LanPlayerVisual v = id.GetComponent<LanPlayerVisual>();
+                LanPlayerVisual v = id.Visual;
                 if (v != null)
                     v.ApplyGrow(kind, amount);
             }
@@ -344,22 +326,10 @@ namespace JellyNet
             NetIdentity id = Find(netId);
             if (id != null && !id.IsMine)
             {
-                LanPlayerVisual v = id.GetComponent<LanPlayerVisual>();
+                LanPlayerVisual v = id.Visual;
                 if (v != null)
                     v.ApplyAnim(kind, value);
             }
-        }
-
-        public void BroadcastScale(int netId, float scale)
-        {
-            if (!NetManager.Instance.IsHost)
-                return;
-
-            w.Begin(MsgType.StateUpdate);
-            w.WriteInt(netId);
-            w.WriteFloat(scale);
-            w.End();
-            NetManager.Instance.Host.Broadcast(w);
         }
 
         public void BroadcastTileCollapse(int x, int z)
@@ -436,229 +406,226 @@ namespace JellyNet
             NetManager.Instance.Host.Broadcast(w);
         }
 
-        private void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        //클라가 보낸 메시지는 전부 "주장"이다. 어느 경로든 소유권 확인을 통과해야 반영된다.
+        //from.Id는 소켓에서 나와 위조할 수 없고, 메시지 본문의 netId는 위조할 수 있다
+        private void RegisterRoutes(NetManager net)
         {
-            if (type == MsgType.SetMyName)
+            // ── 호스트가 받는 것 (클라의 '주장') ──
+            net.RouteHost(MsgType.SceneReady, (from, r) => HandleSceneReady(from));
+
+            net.RouteHost(MsgType.SetMyName, (from, r) => HostApplyName(from, r.ReadString()));
+
+            net.RouteHost(MsgType.AnimState, (from, r) =>
             {
-                string name = r.ReadString();
-                if (string.IsNullOrEmpty(name))
-                    return;
-                if (name.Length > 16)
-                    name = name.Substring(0, 16);
-
-                foreach (var kv in objects)
-                {
-                    NetIdentity owned = kv.Value;
-                    if (owned == null || owned.OwnerId != from.Id)
-                        continue;
-
-                    LanPlayerState ps = owned.GetComponent<LanPlayerState>();
-                    if (ps == null)
-                        continue;
-
-                    ps.HostSetName(name);
-                    break;
-                }
-                return;
-            }
-
-            if (type == MsgType.SceneReady)
-            {
-                HandleSceneReady(from);
-                return;
-            }
-
-            if (type == MsgType.AnimState)
-            {
-                int aNetId = r.ReadInt();
+                int netId = r.ReadInt();
                 byte kind = r.ReadByte();
                 byte value = r.ReadByte();
 
-                NetIdentity a = Find(aNetId);
-                if (a != null && a.OwnerId == from.Id)
-                    RelayAnimState(from, aNetId, kind, value);
-                return;
-            }
+                NetIdentity id = Find(netId);
+                if (id != null && id.OwnerId == from.Id)
+                    RelayAnimState(from, netId, kind, value);
+            });
 
-            if (type != MsgType.TransformUpdate)
-                return;
-
-            int netId = r.ReadInt();
-            float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
-
-            NetIdentity id;
-            if (!objects.TryGetValue(netId, out id))
-                return;
-
-            if (id.OwnerId != from.Id)
-                return;
-
-            ApplyTransform(id, new Vector3(x, y, z), yaw);
-
-            WriteTransform(netId, new Vector3(x, y, z), yaw);
-            NetManager.Instance.Host.BroadcastExcept(from, w);
-        }
-
-        private void HandleClientMessage(MsgType type, NetReader r)
-        {
-            switch (type)
+            net.RouteHost(MsgType.TransformUpdate, (from, r) =>
             {
-                case MsgType.SpawnEntity:
-                    {
-                        int netId = r.ReadInt();
-                        int prefabId = r.ReadInt();
-                        int ownerId = r.ReadInt();
-                        float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat();
-                        float scale = r.ReadFloat();
-                        SpawnLocal(netId, prefabId, ownerId, new Vector3(x, y, z), scale);
-                        break;
-                    }
+                int netId = r.ReadInt();
+                float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
+                float sendTime = r.ReadFloat();
 
-                case MsgType.StateUpdate:
-                    {
-                        int netId = r.ReadInt();
-                        float scale = r.ReadFloat();
-                        NetIdentity id = Find(netId);
-                        if (id != null)
-                        {
-                            NetScale ns = id.GetComponent<NetScale>();
-                            if (ns != null)
-                                ns.SetTarget(scale);
-                        }
-                        break;
-                    }
+                NetIdentity id;
+                if (!objects.TryGetValue(netId, out id))
+                    return;
 
-                case MsgType.PlayerStateUpdate:
-                    {
-                        int netId = r.ReadInt();
-                        int score = r.ReadInt();
-                        byte flags = r.ReadByte();
-                        float cr = r.ReadFloat(), cg = r.ReadFloat(), cb = r.ReadFloat();
+                //이게 없으면 남의 netId로 위치를 보내 순간이동시킬 수 있다
+                if (id.OwnerId != from.Id)
+                    return;
 
-                        NetIdentity id = Find(netId);
-                        if (id != null)
-                        {
-                            LanPlayerState ps = id.GetComponent<LanPlayerState>();
-                            if (ps != null)
-                                ps.ApplyState(score, flags, new Color(cr, cg, cb, 1f));
-                        }
-                        break;
-                    }
+                Vector3 pos = new Vector3(x, y, z);
+                ApplyTransform(id, pos, yaw, sendTime);
 
-                case MsgType.GrowEvent:
-                    {
-                        int netId = r.ReadInt();
-                        GrowKind kind = (GrowKind)r.ReadByte();
-                        float amount = r.ReadFloat();
+                //보낸 사람은 이미 자기 화면에서 움직였다. 되돌려주면 과거 좌표로 끌려간다
+                //sendTime은 원본 그대로 넘긴다. 여기서 다시 찍으면 호스트 처리 지연이
+                //그대로 타임라인에 섞여 버벅임이 남는다
+                WriteTransform(netId, pos, yaw, sendTime);
+                NetManager.Instance.Host.BroadcastExcept(from, w);
+            });
 
-                        NetIdentity id = Find(netId);
-                        if (id != null)
-                        {
-                            LanPlayerVisual v = id.GetComponent<LanPlayerVisual>();
-                            if (v != null)
-                                v.ApplyGrow(kind, amount);
-                        }
-                        break;
-                    }
+            // ── 클라가 받는 것 (호스트의 '확정') ──
+            net.RouteClient(MsgType.SpawnEntity, r =>
+            {
+                int netId = r.ReadInt();
+                int prefabId = r.ReadInt();
+                int ownerId = r.ReadInt();
+                float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat();
+                SpawnLocal(netId, prefabId, ownerId, new Vector3(x, y, z));
+            });
 
-                case MsgType.AnimState:
-                    {
-                        int netId = r.ReadInt();
-                        byte kind = r.ReadByte();
-                        byte value = r.ReadByte();
+            net.RouteClient(MsgType.PlayerStateUpdate, r =>
+            {
+                int netId = r.ReadInt();
+                int score = r.ReadInt();
+                byte flags = r.ReadByte();
+                float cr = r.ReadFloat(), cg = r.ReadFloat(), cb = r.ReadFloat();
 
-                        NetIdentity id = Find(netId);
-                        if (id != null && !id.IsMine)
-                        {
-                            LanPlayerVisual v = id.GetComponent<LanPlayerVisual>();
-                            if (v != null)
-                                v.ApplyAnim(kind, value);
-                        }
-                        break;
-                    }
+                NetIdentity id = Find(netId);
+                if (id == null)
+                    return;
 
-                case MsgType.TileCollapse:
-                    {
-                        int tx = r.ReadInt();
-                        int tz = r.ReadInt();
-                        if (TileCollapseManager.Instance != null)
-                            TileCollapseManager.Instance.CollapseStepTile(tx, tz, false);
-                        break;
-                    }
+                LanPlayerState ps = id.PlayerState;
+                if (ps != null)
+                    ps.ApplyState(score, flags, new Color(cr, cg, cb, 1f));
+            });
 
-                case MsgType.BotState:
-                    {
-                        int netId = r.ReadInt();
-                        float s = r.ReadFloat();
-                        float cr = r.ReadFloat();
-                        float cg = r.ReadFloat();
-                        float cb = r.ReadFloat();
-                        NetIdentity id = Find(netId);
-                        if (id != null)
-                        {
-                            LanBotSync bs = id.GetComponent<LanBotSync>();
-                            if (bs != null)
-                                bs.ApplyState(s, new Color(cr, cg, cb, 1f));
-                        }
-                        break;
-                    }
+            net.RouteClient(MsgType.GrowEvent, r =>
+            {
+                int netId = r.ReadInt();
+                GrowKind kind = (GrowKind)r.ReadByte();
+                float amount = r.ReadFloat();
 
-                case MsgType.BotEliminated:
-                    {
-                        int netId = r.ReadInt();
-                        NetIdentity id = Find(netId);
-                        if (id != null)
-                        {
-                            AIPlayerMovement bot = id.GetComponent<AIPlayerMovement>();
-                            if (bot != null)
-                                bot.ApplyEliminatedFromNet();
-                        }
-                        break;
-                    }
+                NetIdentity id = Find(netId);
+                if (id == null)
+                    return;
 
-                case MsgType.TileWear:
-                    {
-                        int tx = r.ReadInt();
-                        int tz = r.ReadInt();
-                        int count = r.ReadByte();
-                        int maxSteps = r.ReadByte();
-                        if (TileCollapseManager.Instance != null)
-                            TileCollapseManager.Instance.DarkenStepTile(tx, tz, count, maxSteps);
-                        break;
-                    }
+                LanPlayerVisual v = id.Visual;
+                if (v != null)
+                    v.ApplyGrow(kind, amount);
+            });
 
-                case MsgType.PlayerNameSet:
-                    {
-                        int netId = r.ReadInt();
-                        string name = r.ReadString();
+            net.RouteClient(MsgType.AnimState, r =>
+            {
+                int netId = r.ReadInt();
+                byte kind = r.ReadByte();
+                byte value = r.ReadByte();
 
-                        NetIdentity id = Find(netId);
-                        if (id != null)
-                        {
-                            LanPlayerState ps = id.GetComponent<LanPlayerState>();
-                            if (ps != null)
-                                ps.ApplyName(name);
-                        }
-                        break;
-                    }
+                NetIdentity id = Find(netId);
+                if (id == null || id.IsMine)
+                    return;
 
-                case MsgType.DespawnEntity:
-                    DespawnLocal(r.ReadInt());
-                    break;
+                LanPlayerVisual v = id.Visual;
+                if (v != null)
+                    v.ApplyAnim(kind, value);
+            });
 
-                case MsgType.TransformUpdate:
-                    {
-                        int netId = r.ReadInt();
-                        float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
-                        NetIdentity id;
-                        if (objects.TryGetValue(netId, out id))
-                            ApplyTransform(id, new Vector3(x, y, z), yaw);
-                        break;
-                    }
+            net.RouteClient(MsgType.TileCollapse, r =>
+            {
+                int tx = r.ReadInt();
+                int tz = r.ReadInt();
+                if (TileCollapseManager.Instance != null)
+                    TileCollapseManager.Instance.CollapseStepTile(tx, tz, false);
+            });
+
+            net.RouteClient(MsgType.TileWear, r =>
+            {
+                int tx = r.ReadInt();
+                int tz = r.ReadInt();
+                int count = r.ReadByte();
+                int maxSteps = r.ReadByte();
+                if (TileCollapseManager.Instance != null)
+                    TileCollapseManager.Instance.DarkenStepTile(tx, tz, count, maxSteps);
+            });
+
+            net.RouteClient(MsgType.BotState, r =>
+            {
+                int netId = r.ReadInt();
+                float s = r.ReadFloat();
+                float cr = r.ReadFloat();
+                float cg = r.ReadFloat();
+                float cb = r.ReadFloat();
+
+                NetIdentity id = Find(netId);
+                if (id == null)
+                    return;
+
+                LanBotState bs = id.BotState;
+                if (bs != null)
+                    bs.ApplyState(s, new Color(cr, cg, cb, 1f));
+            });
+
+            net.RouteClient(MsgType.BotEliminated, r =>
+            {
+                int netId = r.ReadInt();
+
+                NetIdentity id = Find(netId);
+                if (id == null)
+                    return;
+
+                AIPlayerMovement bot = id.Bot;
+                if (bot != null)
+                    bot.ApplyEliminatedFromNet();
+            });
+
+            net.RouteClient(MsgType.PlayerNameSet, r =>
+            {
+                int netId = r.ReadInt();
+                string name = r.ReadString();
+
+                NetIdentity id = Find(netId);
+                if (id == null)
+                    return;
+
+                LanPlayerState ps = id.PlayerState;
+                if (ps != null)
+                    ps.ApplyName(name);
+            });
+
+            net.RouteClient(MsgType.DespawnEntity, r => DespawnLocal(r.ReadInt()));
+
+            net.RouteClient(MsgType.TransformUpdate, r =>
+            {
+                int netId = r.ReadInt();
+                float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
+                float sendTime = r.ReadFloat();
+
+                NetIdentity id;
+                if (objects.TryGetValue(netId, out id))
+                    ApplyTransform(id, new Vector3(x, y, z), yaw, sendTime);
+            });
+        }
+
+        private void UnregisterRoutes(NetManager net)
+        {
+            net.UnrouteHost(MsgType.SceneReady);
+            net.UnrouteHost(MsgType.SetMyName);
+            net.UnrouteHost(MsgType.AnimState);
+            net.UnrouteHost(MsgType.TransformUpdate);
+
+            net.UnrouteClient(MsgType.SpawnEntity);
+            net.UnrouteClient(MsgType.PlayerStateUpdate);
+            net.UnrouteClient(MsgType.GrowEvent);
+            net.UnrouteClient(MsgType.AnimState);
+            net.UnrouteClient(MsgType.TileCollapse);
+            net.UnrouteClient(MsgType.TileWear);
+            net.UnrouteClient(MsgType.BotState);
+            net.UnrouteClient(MsgType.BotEliminated);
+            net.UnrouteClient(MsgType.PlayerNameSet);
+            net.UnrouteClient(MsgType.DespawnEntity);
+            net.UnrouteClient(MsgType.TransformUpdate);
+        }
+
+        //이름은 사람 캐릭터 하나에만 붙인다. break가 없으면 그 사람 소유의 봇까지 같은 이름이 된다
+        private void HostApplyName(NetHost.Peer from, string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return;
+
+            //클라가 보낸 문자열은 길이를 믿을 수 없다. UI가 무너지고 스냅샷마다 실려 나간다
+            if (name.Length > MAX_NAME_LENGTH)
+                name = name.Substring(0, MAX_NAME_LENGTH);
+
+            //objects는 씬 사탕까지 포함해 300개가 넘는다. 사람 캐릭터를 찾자고 전부 돌 이유가 없다
+            IReadOnlyList<LanPlayerState> players = EntityRegistry.Players;
+            for (int i = 0; i < players.Count; i++)
+            {
+                LanPlayerState ps = players[i];
+                if (ps == null || ps.OwnerId != from.Id)
+                    continue;
+
+                ps.HostSetName(name);
+                return;
             }
         }
 
-        private NetIdentity SpawnLocal(int netId, int prefabId, int ownerId, Vector3 pos, float scale)
+        private NetIdentity SpawnLocal(int netId, int prefabId, int ownerId, Vector3 pos)
         {
             if (objects.ContainsKey(netId))
                 return objects[netId];
@@ -682,9 +649,8 @@ namespace JellyNet
             id.OwnerId = ownerId;
             id.PrefabId = prefabId;
 
-            NetScale ns = id.GetComponent<NetScale>();
-            if (ns != null)
-                ns.SetImmediate(scale);
+            //EnsurePlayerComponents가 방금 붙였을 수 있다. Awake는 그 전에 돌았다
+            id.RefreshComponentCache();
 
             LanPlayerSetup setup = id.GetComponent<LanPlayerSetup>();
             if (setup != null)
@@ -693,8 +659,7 @@ namespace JellyNet
             objects[netId] = id;
             NetManager.Instance.AddLog("스폰: net" + netId + " (프리팹 " + prefabId + ", 소유 P" + ownerId + ")");
 
-            if (OnSpawned != null)
-                OnSpawned(id);
+            OnSpawned?.Invoke(id);
             return id;
         }
 
@@ -706,19 +671,15 @@ namespace JellyNet
             if (go.GetComponent<LanPlayerSetup>() == null)
             {
                 go.AddComponent<LanPlayerSetup>();
-                Debug.LogWarning("[NetWorld] " + go.name + " 에 LanPlayerSetup이 없어 런타임에 추가했습니다. "
-                                 + "프리팹에 직접 붙여두는 편이 좋습니다.");
+                Debug.LogWarning("[NetWorld] " + go.name + " 에 LanPlayerSetup이 없어 런타임에 추가했습니다.");
             }
             if (go.GetComponent<LanPlayerVisual>() == null)
             {
                 go.AddComponent<LanPlayerVisual>();
-                Debug.LogWarning("[NetWorld] " + go.name + " 에 LanPlayerVisual이 없어 런타임에 추가했습니다. "
-                                 + "프리팹에 직접 붙여두는 편이 좋습니다.");
+                Debug.LogWarning("[NetWorld] " + go.name + " 에 LanPlayerVisual이 없어 런타임에 추가했습니다.");
             }
             if (go.GetComponent<LanPlayerState>() == null)
                 go.AddComponent<LanPlayerState>();
-            if (go.GetComponent<NetKnockback>() == null)
-                go.AddComponent<NetKnockback>();
         }
 
         private void DespawnLocal(int netId)
@@ -741,15 +702,14 @@ namespace JellyNet
             if (netId >= NetConfig.SCENE_ID_BASE)
                 removedSceneIds.Add(netId);
 
-            if (OnDespawned != null)
-                OnDespawned(netId);
+            OnDespawned?.Invoke(netId);
         }
 
-        private void ApplyTransform(NetIdentity id, Vector3 pos, float yaw)
+        private void ApplyTransform(NetIdentity id, Vector3 pos, float yaw, float sendTime)
         {
             NetTransform nt = id.GetComponent<NetTransform>();
             if (nt != null)
-                nt.OnRemoteTransform(pos, yaw);
+                nt.OnRemoteTransform(pos, yaw, sendTime);
             else { id.transform.position = pos; id.transform.rotation = Quaternion.Euler(0, yaw, 0); }
         }
 
@@ -769,23 +729,26 @@ namespace JellyNet
             RegisterSceneObjects();
         }
 
-        private void WriteSpawn(int netId, int prefabId, int ownerId, Vector3 pos, float scale)
+        private void WriteSpawn(int netId, int prefabId, int ownerId, Vector3 pos)
         {
             w.Begin(MsgType.SpawnEntity);
             w.WriteInt(netId);
             w.WriteInt(prefabId);
             w.WriteInt(ownerId);
             w.WriteFloat(pos.x); w.WriteFloat(pos.y); w.WriteFloat(pos.z);
-            w.WriteFloat(scale);
             w.End();
         }
 
-        private void WriteTransform(int netId, Vector3 pos, float yaw)
+        //sendTime은 '보낸 사람의 시계'다. 중계할 때 호스트가 다시 찍으면 안 된다.
+        //받는 쪽은 이 값으로 보간 타임라인을 세운다 — 도착 시각을 쓰면 네트워크 지터가
+        //그대로 속도 변화로 보인다 (원격 캐릭터가 순간적으로 빨라졌다 느려짐)
+        private void WriteTransform(int netId, Vector3 pos, float yaw, float sendTime)
         {
             w.Begin(MsgType.TransformUpdate);
             w.WriteInt(netId);
             w.WriteFloat(pos.x); w.WriteFloat(pos.y); w.WriteFloat(pos.z);
             w.WriteFloat(yaw);
+            w.WriteFloat(sendTime);
             w.End();
         }
 
@@ -795,7 +758,8 @@ namespace JellyNet
             if (net == null)
                 return;
 
-            WriteTransform(netId, pos, yaw);
+            //timeScale에 흔들리지 않도록 unscaled를 쓴다. 받는 쪽도 unscaled로 읽는다
+            WriteTransform(netId, pos, yaw, Time.unscaledTime);
 
             if (net.IsHost)
                 net.Host.Broadcast(w);

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -18,7 +18,6 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
     [Header("No Hover State")]
     public bool hideImageWhenNoHover = true;
     public float noHoverAlpha = 0f; 
-    public float hoverAlpha = 1f;
 
     public Image BG;
     [Range(0, 255)] public int bgNoHoverAlpha = 40;

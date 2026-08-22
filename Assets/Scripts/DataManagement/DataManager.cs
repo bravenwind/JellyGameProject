@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public enum JellyColorType
 {
@@ -12,18 +13,16 @@ public class DataManager : MonoBehaviour
 {
     public static DataManager Instance;
 
-    [System.Serializable]
+    [Serializable]
     public struct ColorSet
     {
         public string colorName;
         public Material colorMaterial;
         public JellyColorType colorType;
-        public Color weak;
         public Color normal;
-        public Color strong;
     }
 
-    [System.Serializable]
+    [Serializable]
     public class JellyEffectData
     {
         public string colorName;
@@ -40,14 +39,10 @@ public class DataManager : MonoBehaviour
     public float absorbScalePercent = 0.3f;
     public float minScale = 1f;
     public float maxScale = 5f;
-    public float scaleDecreaseAmount = 0.3f;
     public float jumpScaleThreshold = 2f;
     public float scaleIncreaseTime = 1.0f;
     public float scaleDecreaseTime = 1.0f;
     public float IncreaseJumpForceValue = 5;
-
-    // [U1 정리] Dash/Push 설정(pushJellyThreshold·dashPushForce·PushScaleThreshold) 삭제 —
-    // 유일 소비처였던 고아 대쉬 히트 RPC(NetworkPlayerSync)와 함께 제거 (2026-07-22).
 
     [Header("Bat Attack Settings (Push Mode)")]
     [Tooltip("방망이 공격 쿨다운 (초)")]
@@ -81,7 +76,6 @@ public class DataManager : MonoBehaviour
     public float scaleChangedPlusSize = 3.0f;
     public float cameraZoomFirstThreshold = 6f;
     public float cameraZoomThresholdStep = 4f;
-    public float[] gameFailMinusSizePerLevel;
 
     [Header("Score Settings")]
     public int targetScore = 1000;
@@ -95,13 +89,10 @@ public class DataManager : MonoBehaviour
     }
 
     [Header("Detection Settings")]
-    public float originalDetectRadius = 4;
-    public float detectPlusRadiusPerLevel = 1.5f;
-    public LayerMask detectLayerMask;
 
     public LayerMask objectLayerMask;
 
-    [System.Serializable]
+    [Serializable]
     public struct MissionSet
     {
         public string missionName;
@@ -110,7 +101,6 @@ public class DataManager : MonoBehaviour
 
     [Header("Mission Settings")]
     public MissionSet[] missions;
-    public float targetTime = 60;
 
     [Header("Jelly Effects (RYB)")]
     public List<JellyEffectData> jellyEffects;
@@ -137,14 +127,12 @@ public class DataManager : MonoBehaviour
         ValidateSettings();
         BuildJellyEffectCache();
 
-        // [W1/V3] Reset()이 아니라 ResetValues()를 호출한다.
+        // Reset()이 아니라 ResetValues()를 호출한다.
         // Reset()은 (1) 정적 이벤트 4종을 null로 말소해 — 이미 OnEnable에서 구독을 마친
-        // 씬 HUD(CurrentStatusUI 등)의 구독이 끊겨 화면이 영구 동결될 수 있고(W1),
-        // (2) CurrentGameMode를 Absorb로 되돌려 룸 권위 복원(GameModeManager)과의
-        // Start 순서에 따라 Push 씬이 Absorb로 오독되는 레이스를 만든다(V3).
-        // Reset()은 도메인 리로드 대비용(SubsystemRegistration) 전용이다. (H1 원칙)
+        // 씬 HUD(CurrentStatusUI 등)의 구독이 끊겨 화면이 영구 동결될 수 있고,
+        // (2) CurrentGameMode를 Absorb로 되돌려 Push 씬이 Absorb로 오독되는 레이스를 만든다.
+        // Reset()은 도메인 리로드 대비용(SubsystemRegistration) 전용이다.
         GameState.ResetValues();
-        GameState.DetectRadius = originalDetectRadius;
 
         objectLayerMask = LayerMask.GetMask("BackGroundObject");
     }

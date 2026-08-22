@@ -14,8 +14,13 @@ namespace JellyNet
 
         private readonly Transform parent;
         private readonly GameObject[] prefabs;
+        //프리팹 번호별 풀. 인스펙터에 있는 게 아니라 처음 스폰될 때 코드가 만든다
         private readonly Dictionary<int, ObjectPool<GameObject>> pools = new();
-        private readonly Dictionary<GameObject, int> ownerPrefab = new();
+
+        //반납할 때는 오브젝트만 넘어와서 어느 풀 것인지 알 수 없다. 꺼낼 때 적어둔다.
+        //여기 없으면 풀에서 나온 게 아니라는 뜻(플레이어·봇) → 그냥 파괴한다.
+        //네트워크 소유권(NetIdentity.OwnerId)과는 아무 상관이 없다
+        private readonly Dictionary<GameObject, int> idOfPrefab = new();
         private readonly bool[] poolable;
 
         //NavMeshAgent는 켜지는 순간의 자리에서 NavMesh를 찾는다
@@ -33,7 +38,6 @@ namespace JellyNet
                 poolable[i] = IsPoolable(i);
         }
 
-        //플레이어·봇은 컴포넌트가 많고 재사용 시 되돌릴 상태가 복잡해 제외한다
         private bool IsPoolable(int prefabId)
         {
             if (prefabId < NetConfig.JELLY_PREFAB_START)
@@ -67,7 +71,7 @@ namespace JellyNet
 
             GameObject go = GetPool(prefabId).Get();
 
-            ownerPrefab[go] = prefabId;
+            idOfPrefab[go] = prefabId;
 
             foreach (INetPoolable hook in go.GetComponentsInChildren<INetPoolable>(true))
                 hook.OnTakenFromPool();
@@ -80,13 +84,13 @@ namespace JellyNet
             if (go == null)
                 return;
 
-            if (!ownerPrefab.TryGetValue(go, out int prefabId))
+            if (!idOfPrefab.TryGetValue(go, out int prefabId))
             {
                 Object.Destroy(go);
                 return;
             }
 
-            ownerPrefab.Remove(go);
+            idOfPrefab.Remove(go);
 
             foreach (INetPoolable hook in go.GetComponentsInChildren<INetPoolable>(true))
                 hook.OnReturnedToPool();
@@ -100,7 +104,7 @@ namespace JellyNet
                 pair.Value.Clear();
 
             pools.Clear();
-            ownerPrefab.Clear();
+            idOfPrefab.Clear();
         }
 
         private ObjectPool<GameObject> GetPool(int prefabId)
@@ -108,10 +112,8 @@ namespace JellyNet
             if (pools.TryGetValue(prefabId, out ObjectPool<GameObject> pool))
                 return pool;
 
-            int id = prefabId;
-
             pool = new ObjectPool<GameObject>(
-                createFunc: () => Object.Instantiate(prefabs[id], spawnPosition, Quaternion.identity, parent),
+                createFunc: () => Object.Instantiate(prefabs[prefabId], spawnPosition, Quaternion.identity, parent),
                 actionOnGet: go =>
                 {
                     go.transform.SetPositionAndRotation(spawnPosition, Quaternion.identity);

@@ -7,7 +7,6 @@ public class PlayerScaleController : MonoBehaviour
 {
     [Header("References")]
     public SoftBody3D softBody3D;
-    public Rigidbody[] rigidbodies;
 
     [Header("Scale Settings")]
     public Vector3 originalScale;
@@ -20,7 +19,6 @@ public class PlayerScaleController : MonoBehaviour
 
     private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
     private bool isScaling = false;
-    public bool IsScaling => isScaling;
 
     private Coroutine _jellyBatchCoroutine;
 
@@ -130,12 +128,6 @@ public class PlayerScaleController : MonoBehaviour
         if (softBody3D != null) softBody3D.RequestRebuildCloth();
 
         OnPostScalePhysics?.Invoke();
-    }
-
-    public void DecreaseScale(float decreaseTime)
-    {
-        _pendingScale = Mathf.Max(_pendingScale - DataManager.Instance.scaleDecreaseAmount, DataManager.Instance.minScale);
-        QueueScaleChange(ScaleTo(_pendingScale, decreaseTime, growing: false, playEffect: false));
     }
 
     public void QueueScaleChange(IEnumerator scaleRoutine)

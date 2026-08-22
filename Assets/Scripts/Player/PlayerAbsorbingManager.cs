@@ -17,23 +17,9 @@ public class PlayerAbsorbingManager : MonoBehaviour
         absorber.OnJellyEaten -= HandleJellyEaten;
     }
 
-    private void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.R))
-        {
-            HandleReset();
-        }
-    }
-
     private void HandleJellyEaten(JellyColorType type)
     {
         colorVisual.HandleJellyAbsorbed(type);
         scaleController.GrowByJelly();
-    }
-
-    private void HandleReset()
-    {
-        colorVisual.ResetColor();
-        scaleController.ResetScale();
     }
 }

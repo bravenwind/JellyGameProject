@@ -1,13 +1,11 @@
 ﻿using UnityEngine;
-using Photon.Pun;
+using JellyNet;
 
 public class PlayerAttackState : PlayerBaseState
 {
     private float _elapsed;
     private bool _hitDetected;
 
-    private Quaternion _swingStart;
-    private Quaternion _swingEnd;
     private float _swingDuration;
 
     public PlayerAttackState(PlayerMovement player) : base(player) { }
@@ -22,22 +20,18 @@ public class PlayerAttackState : PlayerBaseState
         player.attackCooldownTimer = dm.batCooldown;
 
         float halfArc = dm.batArcAngle * 0.5f;
-        _swingStart = Quaternion.Euler(0f, -halfArc, 0f);
-        _swingEnd = Quaternion.Euler(0f, halfArc, 0f);
 
-        if (player.batPivot != null)
+        if (player.animator != null)
+            player.animator.SetTrigger("Attack");
+
+        //배트 회전은 LanPlayerVisual이 돌린다 — 원격 화면·봇과 같은 코드다
+        if (player.Visual != null)
         {
-            player.batPivot.gameObject.SetActive(true);
-            player.batPivot.localRotation = _swingStart;
+            player.Visual.PlayBatSwing();
+            player.Visual.SendTrigger(LanPlayerVisual.ANIM_ATTACK);
         }
 
-        if (player.jellyAnimator != null)
-            player.jellyAnimator.SetTrigger("Attack");
-
-        // [LAN] 원격 화면에도 공격 애니메이션이 보이도록 알린다
-        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.ANIM_ATTACK);
-
-        BatDebugVisualizer.NotifySwing(player.transform, dm.batRange * player.transform.localScale.x, halfArc, _swingDuration);
+        BatDebugVisualizer.NotifySwing(player.transform, dm.batRange * player.AuthorityScale, halfArc, _swingDuration);
     }
 
     public override void Update()
@@ -47,10 +41,6 @@ public class PlayerAttackState : PlayerBaseState
         player.ApplyGravity();
         player.CalculateMoveDirection();
         player.MoveAndRotate();
-
-        float t = Mathf.Clamp01(_elapsed / _swingDuration);
-        if (player.batPivot != null)
-            player.batPivot.localRotation = Quaternion.Slerp(_swingStart, _swingEnd, t);
 
         if (!_hitDetected)
             DetectBatHit();
@@ -66,27 +56,20 @@ public class PlayerAttackState : PlayerBaseState
 
     public override void Exit()
     {
-        if (player.jellyAnimator != null)
-            player.jellyAnimator.ResetTrigger("Attack");
+        if (player.animator != null)
+            player.animator.ResetTrigger("Attack");
 
-        if (player.batPivot != null)
-        {
-            player.batPivot.localRotation = Quaternion.identity;
-            if (player.hideBatWhenIdle)
-                player.batPivot.gameObject.SetActive(false);
-        }
+        //배트를 원위치·숨김 처리하는 것도 BatSwingRoutine이 끝내면서 한다
     }
 
     private void DetectBatHit()
     {
         // ═════════════════════════════════════════════
-        //  [LAN 이식] 히트 판정은 내 캐릭터에서만
+        //  히트 판정은 내 캐릭터에서만
         // ═════════════════════════════════════════════
         //
-        // ★ 예전 조건이 통째로 죽어 있었다
-        //   NetworkPlayerSync를 걷어낸 뒤로 mySync가 항상 null → 여기서 바로 return.
-        //   즉 <b>배트를 휘둘러도 아무도 맞지 않았다.</b> 스윙 연출만 돌았다.
-        JellyNet.NetIdentity myId = player.GetComponentInParent<JellyNet.NetIdentity>();
+        // 이 조건이 깨지면 배트를 휘둘러도 아무도 안 맞고 스윙 연출만 돈다.
+        NetIdentity myId = player.GetComponentInParent<NetIdentity>();
 
         if (myId != null)
         {
@@ -101,20 +84,19 @@ public class PlayerAttackState : PlayerBaseState
     /// [LAN] 스윙 궤적 안에 들어온 상대를 찾아 호스트에 판정을 요청한다.
     ///
     /// ★ 사람과 봇을 구분하지 않는다
-    ///   Photon판은 NetworkPlayerSync / AIPlayerMovement를 따로 찾아 다른 RPC를 썼다.
-    ///   LAN에서는 둘 다 NetIdentity를 가진 네트워크 오브젝트라 한 갈래로 끝난다.
+    ///   둘 다 NetIdentity를 가진 네트워크 오브젝트라 한 갈래로 끝난다.
     ///   호스트의 ResolveBatHit이 거리·쿨다운·소유권을 다시 검사하므로
     ///   여기서는 '누구를 때렸다고 주장하는지'만 보내면 된다.
     /// </summary>
-    private void DetectBatHitLan(JellyNet.NetIdentity myId)
+    private void DetectBatHitLan(NetIdentity myId)
     {
-        var push = JellyNet.PushMode.Instance;
+        var push = PushMode.Instance;
         if (push == null) return;
 
         var dm = DataManager.Instance;
         if (dm == null) return;
 
-        float scale = player.transform.localScale.x;
+        float scale = player.AuthorityScale;
         float range = dm.batRange * scale;
         Vector3 origin = player.transform.position
                          + Vector3.up * (player.controller.height * 0.5f * scale);
@@ -133,18 +115,18 @@ public class PlayerAttackState : PlayerBaseState
 
             if (Vector3.Angle(player.transform.forward, toTarget) > halfArc) continue;
 
-            JellyNet.NetIdentity victim = hit.GetComponentInParent<JellyNet.NetIdentity>();
+            NetIdentity victim = hit.GetComponentInParent<NetIdentity>();
             if (victim == null || victim == myId) continue;
 
             // 젤리는 대상이 아니다(봇은 대상이다 — IsBot으로 구분된다)
-            if (!victim.IsBot && victim.PrefabId >= JellyNet.NetConfig.JELLY_PREFAB_START) continue;
+            if (!victim.IsBot && victim.PrefabId >= NetConfig.JELLY_PREFAB_START) continue;
 
             // 이미 판 밖인 봇은 건너뛴다
-            AIPlayerMovement bot = victim.GetComponent<AIPlayerMovement>();
+            AIPlayerMovement bot = victim.Bot;
             if (bot != null && bot.IsOutOfPlay) continue;
 
             _hitDetected = true;
-            push.RequestBatHitPublic(victim.NetId, myId.NetId);
+            push.RequestBatHit(victim.NetId, myId.NetId);
             return;
         }
     }

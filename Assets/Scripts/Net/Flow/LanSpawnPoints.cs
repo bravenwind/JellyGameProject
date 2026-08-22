@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace JellyNet
 {
@@ -66,7 +67,7 @@ namespace JellyNet
 
             if (slots.Count == 0)
             {
-                UnityEngine.AI.NavMeshTriangulation tri = UnityEngine.AI.NavMesh.CalculateTriangulation();
+                NavMeshTriangulation tri = NavMesh.CalculateTriangulation();
                 if (tri.vertices != null && tri.vertices.Length > 0)
                 {
                     slots.Add(tri.vertices[Random.Range(0, tri.vertices.Length)]);
@@ -94,8 +95,8 @@ namespace JellyNet
 
         private static Vector3 Project(Vector3 p)
         {
-            UnityEngine.AI.NavMeshHit hit;
-            if (UnityEngine.AI.NavMesh.SamplePosition(p, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas))
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(p, out hit, 10f, NavMesh.AllAreas))
                 return hit.position;
             return p;
         }

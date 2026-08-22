@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 
 namespace JellyNet
 {
@@ -14,27 +15,10 @@ namespace JellyNet
         public bool spawnJelly = true;
         public float spawnInterval = 1.5f;
         public int maxJellyCount = 30;
-        public float spawnRangeX = 18f;
-        public float spawnRangeZ = 18f;
-        public float spawnHeight = 0.5f;
 
-        [Header("먹기 판정")]
-        [Tooltip("내 캡슐 반지름(스케일 1 기준)")]
+        [Header("플레이어 흡수 판정")]
+        [Tooltip("캡슐 반지름(스케일 1 기준). 플레이어끼리 닿았는지 재는 데 쓴다.")]
         public float playerRadius = 0.5f;
-        [Tooltip("젤리 반지름")]
-        public float jellyRadius = 0.3f;
-
-        [Tooltip("젤리가 빨려 들어가는 동안 플레이어가 도망칠 수 있는 거리. "
-                 + "이동속도 × 흡수 연출 시간(약 0.6초)보다 넉넉해야 한다.")]
-        public float eatChaseTolerance = 5f;
-        [Tooltip("젤리 하나당 커지는 배율")]
-        public float growPerJelly = 0.12f;
-        [Tooltip("젤리 하나당 점수")]
-        public int scorePerJelly = 1;
-
-        [Tooltip("거리로 직접 먹기 검사(테스트 씬용). 실제 게임 씬에서는 꺼둔다 — " +
-                 "PlayerAbsorber·JellyColliderAbsorb 연출 경로가 요청을 보낸다.")]
-        public bool useDistanceEating = false;
 
         [Tooltip("흡수 요청이 어디서 거부되는지 콘솔에 찍는다. 문제 해결 후 끌 것.")]
         public bool verboseLog = true;
@@ -42,36 +26,24 @@ namespace JellyNet
         [Header("플레이어 흡수")]
         [Tooltip("상대를 흡수하려면 내가 이 배수보다 커야 한다. 1이면 조금만 커도 됨.")]
         public float absorbSizeRatio = 1.15f;
-        [Tooltip("흡수 시 상대 크기의 몇 %를 흡수하는가")]
-        public float absorbGrowthRatio = 0.4f;
-        [Tooltip("흡수 시 얻는 점수 = 상대 크기 × 이 값")]
-        public int absorbScorePerScale = 10;
-        [Tooltip("흡수당하면 부활시킬지. 원본 게임은 부활 없이 관전 전환이므로 기본 꺼짐.")]
-        public bool respawnAfterAbsorb = false;
-        [Tooltip("부활을 켰을 때의 대기 시간(초)")]
-        public float respawnDelay = 3f;
 
         private readonly NetWriter w = new NetWriter();
 
-        private readonly HashSet<int> jellies = new HashSet<int>();
-
+        // ★ 스포너가 뿌린 젤리만 센다
+        //   maxJellyCount는 "소환기가 맵에 몇 개까지 유지할까"라는 뜻이다.
+        //   씬에 손으로 배치한 사탕·젤리는 SCENE_ID_BASE(1,000,000) 이상의 netId를 받는데,
+        //   그것까지 세면 씬 소품 300개만으로 상한을 넘어 스포너가 영영 아무것도 안 뿌린다.
         private readonly HashSet<int> runtimeJellies = new HashSet<int>();
-
-        private readonly HashSet<int> requested = new HashSet<int>();
 
         private float spawnTimer;
         private NetIdentity myPlayer;
 
-        struct PendingRespawn { public float At; public int NetId; }
-        private readonly List<PendingRespawn> respawns = new List<PendingRespawn>();
-
-        public int JellyCount { get { return jellies.Count; } }
+        //매 프레임 순회에 재사용한다. 새로 만들면 초당 60개의 쓰레기가 생긴다
+        private readonly List<NetIdentity> characters = new List<NetIdentity>();
 
         protected override void ResetAll()
         {
-            jellies.Clear();
             runtimeJellies.Clear();
-            requested.Clear();
             myPlayer = null;
             spawnTimer = 0f;
         }
@@ -80,7 +52,6 @@ namespace JellyNet
         {
             if (NetEntity.IsJelly(id))
             {
-                jellies.Add(id.NetId);
                 if (id.NetId < NetConfig.SCENE_ID_BASE)
                     runtimeJellies.Add(id.NetId);
             }
@@ -90,9 +61,7 @@ namespace JellyNet
 
         protected override void HandleDespawned(int netId)
         {
-            jellies.Remove(netId);
             runtimeJellies.Remove(netId);
-            requested.Remove(netId);
             if (myPlayer != null && myPlayer.NetId == netId)
                 myPlayer = null;
         }
@@ -112,14 +81,10 @@ namespace JellyNet
             if (IsHost && IsCurrentMode)
             {
                 HostSpawnTick();
-                HostRespawnTick();
             }
 
             if (!IsPlaying)
                 return;
-
-            if (useDistanceEating)
-                CheckMyEating();
 
             CheckMyPlayerAbsorb();
         }
@@ -149,19 +114,28 @@ namespace JellyNet
             if (prefabId < 0)
                 return;
 
-            Vector3 pos = PickJellySpawnPos(prefabs[prefabId]);
+            //자리를 못 찾으면 이번 주기는 거른다. 예전엔 검증 안 된 좌표에 그냥 뿌리고
+            //로그만 남겨서, 떠 있거나 못 움직이는 젤리가 맵에 쌓였다.
+            //1.5초 뒤 다음 주기가 다시 시도하므로 빠뜨리는 비용이 거의 없다
+            Vector3 pos;
+            if (!TryPickJellySpawnPos(prefabs[prefabId], out pos))
+            {
+                Log("젤리 놓을 자리를 못 찾음 — 이번 주기 건너뜀");
+                return;
+            }
 
             NetIdentity spawned = NetWorld.Instance.HostSpawn(prefabId, NetHost.HOST_ID, pos);
 
             if (spawned == null)
                 return;
 
-            UnityEngine.AI.NavMeshAgent ag =
-                spawned.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>();
+            NavMeshAgent ag =
+                spawned.GetComponentInChildren<NavMeshAgent>();
 
             if (ag == null)
                 return;
 
+            //NavMeshAgent는 '켜지는 순간의 자리'에서 NavMesh를 찾는다. 켜둔 채 옮기면 늦다
             ag.enabled = false;
             ag.transform.position = pos;
             ag.enabled = true;
@@ -202,99 +176,84 @@ namespace JellyNet
         private Vector3[] navVerts;
 
         private const int SPAWN_POS_TRIES = 8;
-        private const float SPAWN_SAMPLE_RADIUS = 8f;
 
-        //NavMeshAgent는 baseOffset만큼 떠 있는 걸 전제로 자리를 잡는다
-        //표면 좌표를 그대로 주면 발밑이 NavMesh 아래로 내려가 "not close enough" 로 붙지 못한다
-        private Vector3 PickJellySpawnPos(GameObject prefab)
+        //지터가 정점에서 최대 √(3²+3²) ≈ 4.24m 밀어내므로 그만큼만 되돌리면 된다.
+        //예전엔 8m였는데, SamplePosition은 '길'이 아니라 '직선거리'로 찾기 때문에
+        //반경이 넓을수록 얇은 벽 너머로 스냅될 여지가 커진다
+        private const float SPAWN_SAMPLE_RADIUS = 5f;
+
+        /// <summary>
+        /// 젤리 하나를 놓을 자리를 고른다. 실패하면 false — 이번 주기는 거른다.
+        ///
+        /// ★ 왜 프리팹을 받는가 (에이전트 타입)
+        ///   이 프로젝트엔 NavMesh가 둘이다.
+        ///     PlayerJelly (타입 0)          radius 0.77  climb 1.0   ← 사람·봇
+        ///     BearJelly   (타입 -334000983) radius 1.0   climb 0.6   ← 젤리
+        ///   젤리가 더 뚱뚱하고 덜 오르므로 걸어다닐 수 있는 영역이 더 좁다.
+        ///   예전엔 int 마스크 오버로드(NavMesh.AllAreas)를 썼는데 그건 타입 0 기준이라,
+        ///   사람은 되고 젤리는 안 되는 자리가 그대로 통과해 "NavMesh에 못 올라감"이 났다.
+        ///   프리팹의 agentTypeID로 필터를 만들어 그 젤리 기준으로 판정한다.
+        /// </summary>
+        private bool TryPickJellySpawnPos(GameObject prefab, out Vector3 pos)
         {
-            Vector3 pos = SampleNavMeshPos();
-
-            UnityEngine.AI.NavMeshAgent agent = prefab != null
-                ? prefab.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>(true)
+            NavMeshAgent agent = prefab != null
+                ? prefab.GetComponentInChildren<NavMeshAgent>(true)
                 : null;
 
+            NavMeshQueryFilter filter = new NavMeshQueryFilter
+            {
+                agentTypeID = agent != null ? agent.agentTypeID : 0,
+                areaMask = NavMesh.AllAreas
+            };
+
+            if (!TrySampleNavMeshPos(filter, out pos))
+                return false;
+
+            //NavMeshAgent는 baseOffset만큼 떠 있는 걸 전제로 자리를 잡는다
+            //표면 좌표를 그대로 주면 발밑이 NavMesh 아래로 내려가 "not close enough" 로 붙지 못한다
             if (agent != null)
                 pos += Vector3.up * agent.baseOffset;
 
-            return pos;
+            return true;
         }
 
-        private Vector3 SampleNavMeshPos()
+        private bool TrySampleNavMeshPos(NavMeshQueryFilter filter, out Vector3 pos)
         {
+            pos = Vector3.zero;
+
             if (navVerts == null)
             {
-                UnityEngine.AI.NavMeshTriangulation tri = UnityEngine.AI.NavMesh.CalculateTriangulation();
+                //인자가 없어서 두 NavMesh의 정점이 섞여 나온다. 남의 타입 정점은
+                //아래 SamplePosition이 걸러내므로 씨앗으로만 쓴다
+                NavMeshTriangulation tri = NavMesh.CalculateTriangulation();
                 navVerts = tri.vertices;
 
                 if (navVerts == null || navVerts.Length == 0)
-                    Debug.LogWarning("[AbsorbMode] NavMesh가 없습니다 — 젤리를 원점 근처에 뿌립니다. "
-                                     + "맵에 NavMesh를 구워야 움직이는 젤리가 제대로 배치됩니다.");
+                    Debug.LogWarning("[AbsorbMode] NavMesh가 없습니다 — 젤리를 뿌릴 수 없습니다. "
+                                     + "맵에 NavMesh를 구워야 합니다.");
             }
 
             if (navVerts == null || navVerts.Length == 0)
-                return new Vector3(Random.Range(-spawnRangeX, spawnRangeX), spawnHeight,
-                                   Random.Range(-spawnRangeZ, spawnRangeZ));
+                return false;
 
-            //navVerts는 최초 1회 캐시라 무너진 발판 위 좌표가 섞여 있다
-            //한 번 실패했다고 그 자리에 두지 말고 다른 정점을 몇 번 더 뽑는다
-            Vector3 last = Vector3.zero;
-
+            //navVerts는 최초 1회 캐시라 무너진 발판 위 좌표가 섞여 있다.
+            //실패한 후보를 버리고 다시 뽑으므로 결과는 '살아남은 발판 위 균등'에 수렴한다
             for (int i = 0; i < SPAWN_POS_TRIES; i++)
             {
-                last = navVerts[Random.Range(0, navVerts.Length)]
+                Vector3 candidate = navVerts[Random.Range(0, navVerts.Length)]
                      + new Vector3(Random.Range(-3f, 3f), 0f, Random.Range(-3f, 3f));
 
-                UnityEngine.AI.NavMeshHit hit;
+                NavMeshHit hit;
 
-                if (UnityEngine.AI.NavMesh.SamplePosition(last, out hit, SPAWN_SAMPLE_RADIUS,
-                        UnityEngine.AI.NavMesh.AllAreas))
-                    return hit.position;
+                if (NavMesh.SamplePosition(candidate, out hit, SPAWN_SAMPLE_RADIUS, filter))
+                {
+                    pos = hit.position;
+                    return true;
+                }
             }
 
-            return last;
+            return false;
         }
-
-        private void CheckMyEating()
-        {
-            if (myPlayer == null)
-            {
-                myPlayer = NetEntity.FindMyPlayer();
-
-                if (myPlayer == null)
-                    return;
-            }
-            if (NetWorld.Instance == null)
-                return;
-
-            float myR = playerRadius * NetEntity.ScaleOf(myPlayer);
-            Vector3 myPos = myPlayer.transform.position;
-
-            int target = -1;
-            float reach = (myR + jellyRadius) * (myR + jellyRadius);
-
-            foreach (int jellyId in jellies)
-            {
-                if (requested.Contains(jellyId))
-                    continue;
-
-                NetIdentity jelly = NetWorld.Instance.Find(jellyId);
-                if (jelly == null)
-                    continue;
-
-                Vector3 d = jelly.transform.position - myPos;
-                d.y = 0f;
-                if (d.sqrMagnitude > reach)
-                    continue;
-
-                target = jellyId;
-                break;
-            }
-
-            if (target >= 0)
-                RequestEat(target, myPlayer.NetId);
-        }
-
 
         public void RequestEat(int jellyNetId, int eaterNetId)
         {
@@ -307,8 +266,6 @@ namespace JellyNet
 
             Log("요청: 젤리 net" + jellyNetId + " ← 먹는이 net" + eaterNetId
                 + " (내 모드 " + net.CurrentMode + ")");
-
-            requested.Add(jellyNetId);
 
             if (net.IsHost)
             {
@@ -323,20 +280,43 @@ namespace JellyNet
             net.Client.Send(w);
         }
 
-        protected override void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        protected override void RegisterRoutes()
         {
-            if (type == MsgType.EatJellyRequest)
+            Net.RouteHost(MsgType.EatJellyRequest, (from, r) =>
             {
                 int jellyNetId = r.ReadInt();
                 int eaterNetId = r.ReadInt();
                 ResolveEat(from.Id, jellyNetId, eaterNetId);
-            }
-            else if (type == MsgType.AbsorbPlayerRequest)
+            });
+
+            Net.RouteHost(MsgType.AbsorbPlayerRequest, (from, r) =>
             {
                 int victimNetId = r.ReadInt();
                 int absorberNetId = r.ReadInt();
                 ResolveAbsorbPlayer(from.Id, victimNetId, absorberNetId);
-            }
+            });
+
+            Net.RouteClient(MsgType.EatJellyConfirm, r =>
+            {
+                int eaterNetId = r.ReadInt();
+                int colorType = r.ReadInt();
+                OnEatConfirmed(eaterNetId, colorType);
+            });
+
+            Net.RouteClient(MsgType.PlayerAbsorbed, r =>
+            {
+                int victimNetId = r.ReadInt();
+                int absorberNetId = r.ReadInt();
+                OnPlayerAbsorbed(victimNetId, absorberNetId);
+            });
+        }
+
+        protected override void UnregisterRoutes()
+        {
+            Net.UnrouteHost(MsgType.EatJellyRequest);
+            Net.UnrouteHost(MsgType.AbsorbPlayerRequest);
+            Net.UnrouteClient(MsgType.EatJellyConfirm);
+            Net.UnrouteClient(MsgType.PlayerAbsorbed);
         }
 
         private void ResolveEat(int requesterId, int jellyNetId, int eaterNetId)
@@ -346,7 +326,10 @@ namespace JellyNet
                 return;
 
             if (!LanGameFlow.IsPlaying(GameModeType.Absorb))
-            { Log("거부: 진행 중이 아님 (단계 " + (LanGameFlow.Instance != null ? LanGameFlow.Instance.Phase.ToString() : "?") + ")"); return; }
+            {
+                Log("거부: 진행 중이 아님 (단계 " + (LanGameFlow.Instance != null ? LanGameFlow.Instance.Phase.ToString() : "?") + ")");
+                return;
+            }
 
             NetIdentity jelly = NetWorld.Instance.Find(jellyNetId);
             if (jelly == null)
@@ -370,21 +353,26 @@ namespace JellyNet
             if (eater.OwnerId != requesterId)
             { Log("거부: 소유권 불일치 (요청자 P" + requesterId + " ≠ 소유자 P" + eater.OwnerId + ")"); return; }
 
-            NetScale es = eater.GetComponent<NetScale>();
-            float eaterR = playerRadius * NetEntity.ScaleOf(eater);
-            Vector3 gap = jelly.transform.position - eater.transform.position;
-            gap.y = 0f;
-            float allow = (eaterR + jellyRadius) * 2.5f + eatChaseTolerance;
-            if (gap.sqrMagnitude > allow * allow)
-            { Log("거부: 너무 멂 (거리 " + gap.magnitude.ToString("F2") + " > 허용 " + allow.ToString("F2") + ")"); return; }
+            // ★ 거리 검사는 두지 않는다
+            //   젤리는 호스트 소유인데 흡수 연출은 먹는 클라에서만 돈다.
+            //   원격 아바타는 PlayerAbsorber가 꺼져 있어 호스트에선 OnTriggerEnter가
+            //   안 터지고, 그래서 호스트의 젤리는 제자리에 그대로 있다.
+            //   클라 화면에서 젤리가 몸속으로 빨려 들어가는 그 순간, 호스트가 재는 거리는
+            //   '젤리 원래 자리 ↔ 연출이 끝난 뒤의 플레이어'다 — 0이 아니다.
+            //
+            //   예전엔 그 격차를 (반지름×2.5 + 5m)로 근사했다. 지금 수치로는 여유가
+            //   넉넉해 정상 흡수가 걸리진 않았지만, 애초에 호스트가 볼 수 없는 사건을
+            //   근사치로 재는 구조다 — 이동속도·감지 크기·연출 시간·InterpDelay 중
+            //   무엇 하나만 조정해도 조용히 정상 흡수를 거부하기 시작한다.
+            //   조율해야 유지되는 검사보다 없는 편이 낫다고 판단했다.
+            //
+            //   남은 방어: 소유권(위 OwnerId 검사) · 젤리 여부(IsJelly) ·
+            //   선착순(이미 먹힌 젤리는 Find가 null) — 이중 흡수는 여전히 막힌다.
 
             JellyObject jo = jelly.GetComponent<JellyObject>();
             int colorType = jo != null ? (int)jo.jellyType : (int)JellyColorType.None;
 
             NetWorld.Instance.HostDespawn(jellyNetId);
-
-            if (es != null)
-                es.HostGrow(growPerJelly);
 
             w.Begin(MsgType.EatJellyConfirm);
             w.WriteInt(eaterNetId);
@@ -406,12 +394,13 @@ namespace JellyNet
             Vector3 myPos = myPlayer.transform.position;
 
             int target = -1;
-            foreach (var kv in NetWorld.Instance.Objects)
+
+            NetEntity.CollectCharacters(characters);
+
+            for (int i = 0; i < characters.Count; i++)
             {
-                NetIdentity other = kv.Value;
+                NetIdentity other = characters[i];
                 if (other == null || other == myPlayer)
-                    continue;
-                if (NetEntity.IsJelly(other))
                     continue;
 
                 if (!other.IsBot && other.OwnerId == myPlayer.OwnerId)
@@ -438,12 +427,17 @@ namespace JellyNet
                 RequestAbsorbPlayer(target, myPlayer.NetId);
         }
 
+        /// <summary>
+        /// 내 캐릭터가 남을 흡수했다고 호스트에 알린다. 호출자는 CheckMyPlayerAbsorb 하나뿐이라
+        /// absorberNetId는 언제나 내 캐릭터다 — 그래서 아래 requesterId가 항상 맞는다.
+        /// </summary>
         private void RequestAbsorbPlayer(int victimNetId, int absorberNetId)
         {
             NetManager net = NetManager.Instance;
 
             if (net.IsHost)
             {
+                //내가 호스트면 내 캐릭터의 OwnerId가 곧 HOST_ID다
                 ResolveAbsorbPlayer(NetHost.HOST_ID, victimNetId, absorberNetId);
                 return;
             }
@@ -455,23 +449,45 @@ namespace JellyNet
             net.Client.Send(w);
         }
 
-        public void HostAbsorb(int victimNetId, int absorberNetId)
+        /// <summary>
+        /// 봇이 남을 흡수했을 때. PushMode.HostBotBatHit과 같은 자리다.
+        ///
+        /// ★ 봇 전용이다 — 사람은 RequestAbsorbPlayer로 가야 한다
+        ///   여기서 requesterId로 HOST_ID를 넘기는데, HostJudgement가
+        ///   actor.OwnerId != requesterId 면 거절한다. 봇은 전부 호스트 소유라
+        ///   성립하지만, 클라의 사람을 태우면 조용히 거절돼 흡수가 안 먹는 것처럼 보인다.
+        /// </summary>
+        public void HostBotAbsorb(int victimNetId, int botNetId)
         {
             NetManager net = NetManager.Instance;
             if (net == null || !net.IsHost)
                 return;
-            ResolveAbsorbPlayer(NetHost.HOST_ID, victimNetId, absorberNetId);
+
+            //전제가 깨지면 HostJudgement가 조용히 거절해 흡수가 안 먹는 것처럼 보인다.
+            //그때 어디를 봐야 하는지 알려준다
+            NetIdentity bot = NetWorld.Instance != null
+                ? NetWorld.Instance.Find(botNetId) : null;
+
+            if (bot != null && bot.OwnerId != NetHost.HOST_ID)
+            {
+                Debug.LogWarning("[흡수] HostBotAbsorb는 호스트 소유(봇)만 쓸 수 있습니다. "
+                    + "net" + botNetId + " 의 소유자는 P" + bot.OwnerId
+                    + " 입니다 — RequestAbsorbPlayer를 쓰세요.");
+                return;
+            }
+
+            ResolveAbsorbPlayer(NetHost.HOST_ID, victimNetId, botNetId);
         }
 
         private void ResolveAbsorbPlayer(int requesterId, int victimNetId, int absorberNetId)
         {
-            HostVerdict verdict = HostVerdict.Judge(Mode, requesterId, absorberNetId, victimNetId);
+            HostJudgement judgement = HostJudgement.Judge(Mode, requesterId, absorberNetId, victimNetId);
 
-            if (!verdict.Valid)
+            if (!judgement.Valid)
                 return;
 
-            NetIdentity absorber = verdict.Actor;
-            NetIdentity victim = verdict.Target;
+            NetIdentity absorber = judgement.Actor;
+            NetIdentity victim = judgement.Target;
 
             if (NetEntity.IsJelly(victim) || NetEntity.IsJelly(absorber))
                 return;
@@ -483,35 +499,22 @@ namespace JellyNet
                 return;
 
             //몸이 닿는 거리인가. 지연을 감안해 여유를 둔다
-            if (!verdict.WithinReach((aScale + vScale) * playerRadius * 1.5f))
+            if (!judgement.WithinReach((aScale + vScale) * playerRadius * 1.5f))
                 return;
 
-            LanPlayerState vs = victim.GetComponent<LanPlayerState>();
-            LanPlayerState asx = absorber.GetComponent<LanPlayerState>();
-            NetScale vsc = victim.GetComponent<NetScale>();
-            NetScale asc = absorber.GetComponent<NetScale>();
+            LanPlayerState victimState = victim.PlayerState;
+            LanPlayerState absorberState = absorber.PlayerState;
 
-            if (vs != null)
+            if (victimState != null)
             {
-                vs.HostSetFlag(PlayerFlags.Absorbed, true);
-                vs.HostSetFlag(PlayerFlags.Eliminated, true);
+                victimState.HostSetFlag(PlayerFlags.Absorbed, true);
+                victimState.HostSetFlag(PlayerFlags.Eliminated, true);
             }
 
-            LanPlayerVisual avis = absorber.GetComponent<LanPlayerVisual>();
-            float victimScaleValue = avis != null
-                ? (victim.GetComponent<LanPlayerVisual>() != null
-                    ? victim.GetComponent<LanPlayerVisual>().ScaleValue : vScale)
-                : vScale;
-            NetWorld.Instance.BroadcastGrow(absorberNetId, GrowKind.Absorbing, victimScaleValue);
-
-            if (asc != null)
-                asc.HostGrow(vScale * absorbGrowthRatio);
-
-            if (vsc != null)
-            {
-                vsc.SetTarget(1f);
-                NetWorld.Instance.BroadcastScale(victimNetId, 1f);
-            }
+            //vScale이 이미 NetEntity.ScaleOf(victim) = LanPlayerVisual.ScaleValue 다.
+            //예전엔 여기서 victim의 LanPlayerVisual을 두 번 더 찾아 같은 값을 다시 만들었고,
+            //흡수자(avis)의 유무로 피해자의 크기를 고르는 관계없는 분기까지 끼어 있었다
+            NetWorld.Instance.BroadcastGrow(absorberNetId, GrowKind.Absorbing, vScale);
 
             w.Begin(MsgType.PlayerAbsorbed);
             w.WriteInt(victimNetId);
@@ -520,51 +523,6 @@ namespace JellyNet
             NetManager.Instance.Host.Broadcast(w);
 
             OnPlayerAbsorbed(victimNetId, absorberNetId);
-
-            if (respawnAfterAbsorb)
-            {
-                PendingRespawn pr;
-                pr.At = Time.time + respawnDelay;
-                pr.NetId = victimNetId;
-                respawns.Add(pr);
-            }
-        }
-
-        private void HostRespawnTick()
-        {
-            if (respawns.Count == 0)
-                return;
-
-            float now = Time.time;
-            for (int i = respawns.Count - 1; i >= 0; i--)
-            {
-                if (respawns[i].At > now)
-                    continue;
-
-                int netId = respawns[i].NetId;
-                respawns.RemoveAt(i);
-
-                NetIdentity id = NetWorld.Instance != null ? NetWorld.Instance.Find(netId) : null;
-                if (id == null)
-                    continue;
-
-                Vector3 pos = LanSpawnPoints.Instance != null
-                    ? LanSpawnPoints.Instance.Random_()
-                    : new Vector3(Random.Range(-spawnRangeX, spawnRangeX), spawnHeight,
-                                  Random.Range(-spawnRangeZ, spawnRangeZ));
-
-                LanPlayerState ps = id.GetComponent<LanPlayerState>();
-                if (ps != null)
-                    ps.HostSetFlag(PlayerFlags.Absorbed, false);
-
-                w.Begin(MsgType.PlayerRespawn);
-                w.WriteInt(netId);
-                w.WriteFloat(pos.x); w.WriteFloat(pos.y); w.WriteFloat(pos.z);
-                w.End();
-                NetManager.Instance.Host.Broadcast(w);
-
-                ApplyRespawn(netId, pos);
-            }
         }
 
         private void OnPlayerAbsorbed(int victimNetId, int absorberNetId)
@@ -583,19 +541,11 @@ namespace JellyNet
 
             Transform absorberTf = a != null ? a.transform : null;
 
-            if (v.IsBot)
-            {
-                AIPlayerMovement bot = v.GetComponent<AIPlayerMovement>();
-                if (bot != null)
-                    bot.ApplyAbsorbedFromNet(absorberTf);
-                else
-                    v.gameObject.SetActive(false);
-                return;
-            }
-
-            LanPlayerVisual vv = v.GetComponent<LanPlayerVisual>();
-            if (vv != null)
-                vv.PlayAbsorbed(absorberTf);
+            //사람이든 봇이든 같은 연출이다. 무엇을 멈추고 끝나고 무엇을 할지는
+            //LanPlayerVisual이 NetIdentity 캐시를 보고 갈라준다
+            LanPlayerVisual victimVisual = v.Visual;
+            if (victimVisual != null)
+                victimVisual.PlayAbsorbed(absorberTf);
             else
                 v.gameObject.SetActive(false);
 
@@ -606,50 +556,6 @@ namespace JellyNet
 
             if (LanGameFlow.Instance != null)
                 LanGameFlow.Instance.ShowLocalGameOver("흡수당했습니다!\n관전 중...");
-        }
-
-        private void ApplyRespawn(int netId, Vector3 pos)
-        {
-            NetIdentity id = NetWorld.Instance != null ? NetWorld.Instance.Find(netId) : null;
-            if (id == null)
-                return;
-
-            if (id.IsMine)
-                id.transform.position = pos;
-
-            NetScale ns = id.GetComponent<NetScale>();
-            if (ns != null)
-                ns.SetImmediate(1f);
-
-            NetManager.Instance.AddLog("net" + id.NetId + " 부활");
-        }
-
-
-
-        protected override void HandleClientMessage(MsgType type, NetReader r)
-        {
-            switch (type)
-            {
-                case MsgType.EatJellyConfirm:
-                    OnEatConfirmed(r.ReadInt(), r.ReadInt());
-                    break;
-
-                case MsgType.PlayerAbsorbed:
-                    {
-                        int victimNetId = r.ReadInt();
-                        int absorberNetId = r.ReadInt();
-                        OnPlayerAbsorbed(victimNetId, absorberNetId);
-                        break;
-                    }
-
-                case MsgType.PlayerRespawn:
-                    {
-                        int netId = r.ReadInt();
-                        float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat();
-                        ApplyRespawn(netId, new Vector3(x, y, z));
-                        break;
-                    }
-            }
         }
 
         private void OnEatConfirmed(int eaterNetId, int colorType)
@@ -663,7 +569,7 @@ namespace JellyNet
                 absorber.AbsorbColor((JellyColorType)colorType);
             else
             {
-                LanPlayerVisual vis = eater.GetComponent<LanPlayerVisual>();
+                LanPlayerVisual vis = eater.Visual;
                 if (vis != null)
                     vis.ApplyJellyColor((JellyColorType)colorType);
             }

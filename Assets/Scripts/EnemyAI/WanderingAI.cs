@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -92,7 +92,7 @@ public class WanderingAI : JellyAgentAI
 
         Vector3 origin = anchorToInitialPosition ? initialPosition : transform.position;
 
-        if (!TryGetRandomPointOnNavMesh(origin, wanderRadius, out Vector3 newPos))
+        if (!TryGetRandomPointOnNavMesh(origin, wanderRadius, agent.agentTypeID, out Vector3 newPos))
             return false;
 
         NavMeshPath path = new NavMeshPath();
@@ -120,7 +120,13 @@ public class WanderingAI : JellyAgentAI
 
         Vector3 center = (min + max) * 0.5f;
 
-        if (!NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, NavMesh.AllAreas))
+        NavMeshQueryFilter filter = new NavMeshQueryFilter
+        {
+            agentTypeID = agent.agentTypeID,
+            areaMask = NavMesh.AllAreas
+        };
+
+        if (!NavMesh.SamplePosition(center, out NavMeshHit hit, 15f, filter))
             return;
 
         NavMeshPath path = new NavMeshPath();
@@ -129,17 +135,25 @@ public class WanderingAI : JellyAgentAI
             agent.SetPath(path);
     }
 
-    public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, out Vector3 result)
+    //agentTypeID를 받는 이유: 이 프로젝트엔 NavMesh가 둘(PlayerJelly 0 / BearJelly)이고
+    //int 마스크 오버로드는 타입 0 기준이라, 젤리가 못 가는 자리를 목적지로 잡게 된다
+    public static bool TryGetRandomPointOnNavMesh(Vector3 center, float range, int agentTypeID, out Vector3 result)
     {
         TileCollapseManager collapse = TileCollapseManager.Instance;
         float sampleRadius = Mathf.Max(2f, range * 0.3f);
+
+        NavMeshQueryFilter filter = new NavMeshQueryFilter
+        {
+            agentTypeID = agentTypeID,
+            areaMask = NavMesh.AllAreas
+        };
 
         for (int i = 0; i < 30; i++)
         {
             Vector2 circle = Random.insideUnitCircle * range;
             Vector3 candidate = center + new Vector3(circle.x, 0f, circle.y);
 
-            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
+            if (!NavMesh.SamplePosition(candidate, out NavMeshHit hit, sampleRadius, filter))
                 continue;
 
             if (collapse != null && collapse.IsPositionDangerous(hit.position))
@@ -151,12 +165,6 @@ public class WanderingAI : JellyAgentAI
 
         result = center;
         return false;
-    }
-
-    public static Vector3 GetRandomPointOnNavMesh(Vector3 center, float range)
-    {
-        TryGetRandomPointOnNavMesh(center, range, out Vector3 result);
-        return result;
     }
 
     private void OnDrawGizmosSelected()

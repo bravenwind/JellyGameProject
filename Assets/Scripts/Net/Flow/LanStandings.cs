@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace JellyNet
@@ -40,7 +40,7 @@ namespace JellyNet
                 entries.Insert(0, w);
             }
 
-            LanPlayerState state = winner != null ? winner.GetComponent<LanPlayerState>() : null;
+            LanPlayerState state = winner != null ? winner.PlayerState : null;
 
             if (state != null)
                 result.WinnerScore = state.Score;
@@ -112,11 +112,11 @@ namespace JellyNet
             if (id == null)
                 return "";
 
-            LanPlayerState ps = id.GetComponent<LanPlayerState>();
+            LanPlayerState ps = id.PlayerState;
             if (ps != null && !string.IsNullOrEmpty(ps.PlayerName))
                 return ps.PlayerName;
 
-            LanBotSync bs = id.GetComponent<LanBotSync>();
+            LanBotState bs = id.BotState;
             if (bs != null && !string.IsNullOrEmpty(bs.BotName))
                 return bs.BotName;
 

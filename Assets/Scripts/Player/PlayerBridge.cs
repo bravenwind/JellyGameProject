@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using JellyNet;
 
 public class PlayerBridge : MonoBehaviour
 {
@@ -10,40 +11,37 @@ public class PlayerBridge : MonoBehaviour
 
     // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
     // PlayerScaleController.Start는 소유 무관하게 OnScaleInit을 발화한다. 아래 핸들러들이 전역 정적
-    // GameState(PlayerCurrentScale/DetectRadius/색 — 클라당 1개)를 쓰므로, 원격 플레이어 스폰마다
-    // 로컬 HUD/감지반경/동기화 색이 남의 값으로 오염됐다. 소유자일 때만 전역 상태를 쓰도록 가드한다.
-    // (netSync가 없으면 오프라인/레거시로 보고 허용)
-    // [LAN 이식] 소유자 판정을 NetIdentity 기준으로.
+    // GameState(PlayerCurrentScale/색 — 클라당 1개)를 쓰므로, 원격 플레이어 스폰마다
+    // 로컬 HUD/동기화 색이 남의 값으로 오염됐다. 소유자일 때만 전역 상태를 쓰도록 가드한다.
+    // 소유자 판정은 NetIdentity 기준이다.
     //
-    //   원래는 NetworkPlayerSync.photonView.IsMine을 봤는데, 그 컴포넌트를 걷어낸 뒤로
-    //   _netSync가 항상 null이 되어 <b>이 프로퍼티가 언제나 true</b>가 됐다.
-    //   그 결과 원격 아바타가 커져도 내 카메라가 줌되고, 전역 GameState/HUD가
-    //   남의 값으로 오염됐다. (W6 가드가 통째로 무력화돼 있었다)
-    private JellyNet.NetIdentity _netId;
-    private JellyNet.LanPlayerState _lanState;
+    //   이 가드가 무력화되면 원격 아바타가 커져도 내 카메라가 줌되고,
+    //   전역 GameState/HUD가 남의 값으로 오염된다.
+    private NetIdentity _netId;
 
-    // [LAN 이식] 점수 전송 창구를 한 곳으로.
-    //   NetworkPlayerSync.SyncScore를 부르던 자리가 두 군데 있었는데,
-    //   그 컴포넌트가 없어지면서 하나는 컴파일 에러, 하나는 조용히 죽어 있었다.
-    private void PushScore(int score)
-    {
-        if (_lanState != null)
-            _lanState.ReportOwnScore(score);
-    }
+    // ★ 점수는 호스트만 만든다
+    //   예전엔 여기서도 ScoreFromScale을 계산해 LanPlayerState.Score에 직접 써넣었다.
+    //   같은 계산이 LanPlayerState.HostRecomputeScore에도 있어서 두 갈래였는데,
+    //   그쪽에는 `if (IsMode(Push)) return;` 가드가 있고 이쪽에는 없었다.
+    //   그래서 밀치기 모드에서 크기가 변하면 HostAddScore로 쌓인 밀치기 점수를
+    //   크기 환산값이 통째로 덮어썼다.
+    //
+    //   아래 GameState.CurrentScore는 내 화면 HUD용 예측치라 그대로 둔다.
+    //   판정에 쓰이는 LanPlayerState.Score는 호스트의 방송으로만 채워진다.
 
     private bool IsLocalOwner
     {
         get
         {
-            if (_netId != null) return _netId.IsMine;
-            return true;   // 오프라인
+            //PlayerBridge는 플레이어 프리팹에만 붙고, 그 루트엔 항상 NetIdentity가 있다.
+            //없다면 배선 사고이므로 전역 상태를 건드리지 않는 쪽(false)이 안전하다
+            return _netId != null && _netId.IsMine;
         }
     }
 
     private void Awake()
     {
-        _netId = GetComponentInParent<JellyNet.NetIdentity>();
-        _lanState = GetComponentInParent<JellyNet.LanPlayerState>();
+        _netId = GetComponentInParent<NetIdentity>();
         _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
         _colorVisual = GetComponentInChildren<PlayerColorVisual>();
         _absorber = GetComponentInChildren<PlayerAbsorber>();
@@ -114,7 +112,6 @@ public class PlayerBridge : MonoBehaviour
     private void HandleScaleInit(float scaleValue)
     {
         if (!IsLocalOwner) return; // [W6] 원격 아바타는 전역 GameState/HUD를 건드리지 않는다
-        GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = scaleValue;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
@@ -135,7 +132,8 @@ public class PlayerBridge : MonoBehaviour
 
     private void HandleShrinkStarted()
     {
-        UIPoolManager.Instance?.SpawnUI(UIType.MilkScaleDecrease);
+        if (UIPoolManager.Instance != null)
+            UIPoolManager.Instance.SpawnUI(UIType.MilkScaleDecrease);
     }
 
     // [LAN 이식] IsLocalOwner 가드 추가.
@@ -163,12 +161,9 @@ public class PlayerBridge : MonoBehaviour
                 ? _playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue
                 : _playerController.originalJumpForce;
         }
-        GameState.DetectRadius = DataManager.Instance.originalDetectRadius
-            + (scaleValue - 1f) * DataManager.Instance.detectPlusRadiusPerLevel;
         GameState.PlayerCurrentScale = scaleValue;
 
         GameState.CurrentScore = DataManager.Instance.ScoreFromScale(scaleValue);
-        PushScore(GameState.CurrentScore);
 
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
@@ -177,7 +172,6 @@ public class PlayerBridge : MonoBehaviour
     {
         if (!IsLocalOwner) return; // [W6]
         PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
-        GameState.DetectRadius = DataManager.Instance.originalDetectRadius;
         GameState.PlayerCurrentScale = 1f;
         PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
@@ -189,7 +183,6 @@ public class PlayerBridge : MonoBehaviour
         // [W6] 원격 아바타의 색은 색 스트림(_networkColor)이 담당한다. 여기서 전역
         // GameState.CurrentDisplayColor(로컬 플레이어 색·SyncColor 소스)를 덮으면 내 색이 남의 색으로 샌다.
         if (!IsLocalOwner) return;
-        GameState.CurrentRYBColor = ryb;
         GameState.CurrentDisplayColor = displayColor;
         PlayerEvents.OnColorChanged?.Invoke(dominantType, ryb);
     }
@@ -203,8 +196,7 @@ public class PlayerBridge : MonoBehaviour
 
     private void HandleJellyScored()
     {
-        // [LAN 이식] NetworkPlayerSync를 걷어낸 뒤로 netSync가 항상 null이 되어
-        //   여기서 무조건 return → 점수가 아무에게도 반영되지 않았다.
+        //내 화면의 HUD만 갱신한다. 실제 점수는 호스트가 크기를 보고 따로 만든다
         if (!IsLocalOwner) return;
 
         var dm = DataManager.Instance;
@@ -212,8 +204,8 @@ public class PlayerBridge : MonoBehaviour
             ? _scaleCtrl.PendingScale
             : GameState.PlayerCurrentScale + dm.jellyScaleIncrease;
         GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
-        PushScore(GameState.CurrentScore);
-        UIPoolManager.Instance?.SpawnUI(UIType.JellyEat);
+        if (UIPoolManager.Instance != null)
+            UIPoolManager.Instance.SpawnUI(UIType.JellyEat);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
         if (_levelUpPool != null) _levelUpPool.Play();
         if (GameState.CurrentScore >= dm.targetScore)

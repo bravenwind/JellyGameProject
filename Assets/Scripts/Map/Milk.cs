@@ -1,7 +1,7 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using Photon.Pun;
+using JellyNet;
 
 public class Milk : MonoBehaviour
 {
@@ -23,12 +23,9 @@ public class Milk : MonoBehaviour
     {
         if (!other.CompareTag("PlayerMesh")) return;
 
-        // 소유자만 처리한다: 사람 플레이어는 본인 클라, 봇은 마스터 클라에서만 IsMine == true.
-        // (PhotonView 하나로 사람/봇을 통일해 가린다 — 원격 사본을 건드리지 않는다.) (J2)
-        // [LAN 이식] PhotonView → NetIdentity.
-        //   PhotonView를 걷어낸 뒤로 이 가드에서 항상 return되어 감속이 아예 안 걸렸다.
-        //   "소유자만 처리" 규칙은 그대로다 — 사람은 본인 클라, 봇은 호스트에서만 IsMine.
-        JellyNet.NetIdentity id = other.GetComponentInParent<JellyNet.NetIdentity>();
+        // 소유자만 처리한다 — 사람은 본인 클라에서, 봇은 호스트에서만 IsMine == true.
+        //   원격 사본에서도 감속을 걸면 같은 효과가 두 번 들어간다.
+        NetIdentity id = other.GetComponentInParent<NetIdentity>();
         if (id == null || !id.IsMine) return;
 
         // 같은 대상을 이 밀크가 이미 감속 중이면(겹친 트리거/재진입) 중복 적용하지 않는다. (J3)
@@ -55,7 +52,7 @@ public class Milk : MonoBehaviour
     {
         if (!other.CompareTag("PlayerMesh")) return;
 
-        JellyNet.NetIdentity id = other.GetComponentInParent<JellyNet.NetIdentity>();
+        NetIdentity id = other.GetComponentInParent<NetIdentity>();
         if (id == null) return;
 
         // 이 밀크가 실제로 감속시킨 대상만 복원한다(추적 여부로 판단 → enter/exit 항상 대칭). (J2/J3)
@@ -93,8 +90,7 @@ public class Milk : MonoBehaviour
         if (entity.ai != null) entity.ai.ApplySpeedMultiplier(restore);
     }
 
-    // [X10 정리] RespawnRoutine/SetAppearance/respawnTime 삭제 (2026-07-22) —
-    // "밟으면 사라졌다 재생성" 기능의 트리거 코드가 소실된 뒤 호출자 0인 사체만 남아 있었다.
-    // 되살릴 경우 로컬 SetAppearance만으로는 클라 간 desync가 나므로(X2와 동일 문제)
-    // 마스터 판정 + RPC 전파 구조로 새로 설계할 것.
+    // "밟으면 사라졌다 재생성" 기능은 트리거 코드가 소실돼 사체만 남아 있어 지웠다.
+    // 되살릴 경우 로컬 처리만으로는 클라 간 상태가 갈라지므로
+    // 호스트 판정 + 방송 구조로 새로 설계할 것.
 }

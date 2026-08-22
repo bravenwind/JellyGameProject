@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 // ==========================================
 // 2. Move ���� Ŭ����
@@ -9,7 +9,7 @@ public class PlayerMoveState : PlayerBaseState
 
     public override void Enter()
     {
-        if (player.jellyAnimator != null) player.jellyAnimator.SetBool("IsMoving", true);
+        if (player.animator != null) player.animator.SetBool("IsMoving", true);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.StartWalking();
     }
 
@@ -47,7 +47,7 @@ public class PlayerMoveState : PlayerBaseState
 
     public override void Exit()
     {
-        if (player.jellyAnimator != null) player.jellyAnimator.SetBool("IsMoving", false);
+        if (player.animator != null) player.animator.SetBool("IsMoving", false);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.StopWalking();
     }
 }

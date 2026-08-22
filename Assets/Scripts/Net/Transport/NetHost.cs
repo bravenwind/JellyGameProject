@@ -24,8 +24,6 @@ namespace JellyNet
 
         public bool Running { get; private set; }
         public int PeerCount { get { return peers.Count; } }
-        public IReadOnlyList<Peer> Peers { get { return peers; } }
-
         public Action<string> OnLog;
 
         public Action<Peer, MsgType, NetReader> OnMessage;
@@ -33,6 +31,10 @@ namespace JellyNet
         public Action<Peer> OnPeerJoined;
 
         public Action<Peer> OnPeerLeft;
+
+        //LAN은 한 판의 인원이 로비에서 확정된다. 호스트가 게임 씬에 들어가는 순간 문을 닫는다.
+        //열어두면 늦게 붙은 쪽은 캐릭터가 없어 화면만 멈춘 채로 남는다 — 거절이 더 친절하다.
+        public bool AcceptingNewPeers = true;
 
         public bool Start(int port)
         {
@@ -81,6 +83,14 @@ namespace JellyNet
             while (listener.Pending())
             {
                 TcpClient tcp = listener.AcceptTcpClient();
+
+                if (!AcceptingNewPeers)
+                {
+                    Log("게임이 이미 시작돼 접속을 거절했습니다 (" + tcp.Client.RemoteEndPoint + ")");
+                    tcp.Close();
+                    continue;
+                }
+
                 Peer p = new Peer();
                 p.Id = nextId++;
                 p.Conn = new FramedConnection(tcp);
@@ -99,8 +109,7 @@ namespace JellyNet
                 writer.End();
                 Broadcast(writer);
 
-                if (OnPeerJoined != null)
-                    OnPeerJoined(p);
+                OnPeerJoined?.Invoke(p);
             }
 
             for (int i = peers.Count - 1; i >= 0; i--)
@@ -113,8 +122,7 @@ namespace JellyNet
                     peers.RemoveAt(i);
                     Log("P" + p.Id + " 퇴장 (" + p.Conn.LastError + ") — 남은 " + peers.Count + "명");
 
-                    if (OnPeerLeft != null)
-                        OnPeerLeft(p);
+                    OnPeerLeft?.Invoke(p);
 
                     writer.Begin(MsgType.PlayerLeft);
                     writer.WriteInt(p.Id);
@@ -128,45 +136,7 @@ namespace JellyNet
         {
             MsgType type = r.ReadMsgType();
 
-            switch (type)
-            {
-                case MsgType.Ping:
-                    {
-                        int seq = r.ReadInt();
-                        writer.Begin(MsgType.Pong);
-                        writer.WriteInt(seq);
-                        writer.End();
-                        from.Conn.Send(writer);
-                        break;
-                    }
-
-                case MsgType.Chat:
-                    {
-                        string text = r.ReadString();
-                        Log("P" + from.Id + ": " + text);
-
-                        writer.Begin(MsgType.Chat);
-                        writer.WriteInt(from.Id);
-                        writer.WriteString(text);
-                        writer.End();
-                        Broadcast(writer);
-                        break;
-                    }
-
-                default:
-                    if (OnMessage != null)
-                        OnMessage(from, type, r);
-                    break;
-            }
-        }
-
-        public void SendChat(string text)
-        {
-            writer.Begin(MsgType.Chat);
-            writer.WriteInt(HOST_ID);
-            writer.WriteString(text);
-            writer.End();
-            Broadcast(writer);
+            OnMessage?.Invoke(from, type, r);
         }
 
         public void Broadcast(NetWriter w)
@@ -199,8 +169,7 @@ namespace JellyNet
 
         private void Log(string msg)
         {
-            if (OnLog != null)
-                OnLog("[호스트] " + msg);
+            OnLog?.Invoke("[호스트] " + msg);
         }
     }
 }

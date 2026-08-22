@@ -1,10 +1,10 @@
-// ============================================================
+﻿// ============================================================
 // MinimapArrowManager.cs
 // ============================================================
 // 역할: 미니맵에 플레이어/AI 화살표를 자동으로 생성·관리
 //
 // [동작 방식]
-//   - arrowPrefab을 씬에 있는 NetworkPlayerSync(플레이어) 및
+//   - arrowPrefab을 씬에 있는 LanPlayerState(플레이어) 및
 //     AIPlayerMovement(봇) 오브젝트마다 하나씩 인스턴스화
 //   - 로컬 플레이어 → 초록색 / 나머지 → 빨간색
 //   - 매 프레임 새로 추가된 엔티티나 파괴된 엔티티를 감지해 화살표 갱신
@@ -18,7 +18,6 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
 
 public class MinimapArrowManager : MonoBehaviour
 {
@@ -77,31 +76,28 @@ public class MinimapArrowManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     private void ScanAndRefresh()
     {
-        // ── NetworkPlayerSync (플레이어) ──
-        var players = FindObjectsByType<JellyNet.LanPlayerState>(FindObjectsSortMode.None);
-        foreach (var player in players)
+        // ── 사람 플레이어 ──
+        //EntityRegistry는 OnEnable에서 등록된 목록이라 씬 전체를 훑지 않는다.
+        //변경이 없으면 같은 스냅샷을 재사용하므로 GC 할당도 없다
+        foreach (var player in EntityRegistry.Players)
         {
             if (player == null) continue;
             Transform tf = player.transform;
 
             if (!_arrows.ContainsKey(tf))
             {
-                // [LAN 이식] 로컬 판별을 NetIdentity로. photonView가 null이 되면서
-                //   isLocal이 항상 false가 됐고, 그래서 내 화살표까지 원격 색으로 나오고
-                //   미니맵 카메라가 아무도 따라가지 않았다.
+                // 로컬 판별은 NetIdentity로 한다.
+                //   틀리면 내 화살표가 원격 색으로 나오고 미니맵 카메라가 아무도 안 따라간다.
                 bool isLocal = player.IsMine;
                 Color color  = isLocal ? localPlayerColor : remotePlayerColor;
                 if (isLocal)
-                {
-                    GameObject.FindGameObjectWithTag("MinimapCamera").GetComponent<TopDownCameraFollow>().target = player.transform;
-                }
+                    BindMinimapCamera(player.transform);
                 SpawnArrow(tf, color);
             }
         }
 
-        // ── AIPlayerMovement (봇) ──
-        var bots = FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None);
-        foreach (var bot in bots)
+        // ── 봇 ──
+        foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null) continue;
             Transform tf = bot.transform;
@@ -111,6 +107,19 @@ public class MinimapArrowManager : MonoBehaviour
                 SpawnArrow(tf, botColor);
             }
         }
+    }
+
+    //태그가 없거나 컴포넌트가 빠져 있으면 조용히 넘어간다.
+    //예전엔 한 줄로 이어 붙여서 태그가 없으면 여기서 NullReference가 났다
+    private void BindMinimapCamera(Transform target)
+    {
+        GameObject cam = GameObject.FindGameObjectWithTag("MinimapCamera");
+        if (cam == null)
+            return;
+
+        TopDownCameraFollow follow = cam.GetComponent<TopDownCameraFollow>();
+        if (follow != null)
+            follow.target = target;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -192,12 +201,4 @@ public class MinimapArrowManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     // 외부 API: 특정 대상의 화살표 색상 변경 (선택 사항)
     // ─────────────────────────────────────────────────────────
-    public void SetArrowColor(Transform target, Color color)
-    {
-        if (_arrows.TryGetValue(target, out GameObject arrow) && arrow != null)
-        {
-            MinimapArrow ma = arrow.GetComponent<MinimapArrow>();
-            ma?.SetColor(color);
-        }
-    }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
+using JellyNet;
 
 public class TileCollapseManager : MonoBehaviour
 {
@@ -112,19 +112,16 @@ public class TileCollapseManager : MonoBehaviour
     /// <summary>
     /// 링 붕괴의 기준 시각.
     ///
-    /// ★ [LAN 이식] 여기가 링 붕괴가 안 되던 진짜 원인이었다.
-    ///   GameModeManager는 LAN 씬에서 비활성이라 Instance가 null이고,
-    ///   그래서 이 함수가 항상 -1을 반환 → Update()가 즉시 return →
-    ///   <b>링이 단 한 번도 무너지지 않았다.</b> (에러도 안 났다)
-    ///   이제 LanGameFlow.Elapsed를 쓰고, 없으면 예전 경로로 떨어진다.
+    /// ★ -1을 반환하면 Update()가 즉시 return해서 링이 한 번도 안 무너진다.
+    ///   에러가 안 나므로 증상만 보고는 원인을 찾기 어렵다.
     /// </summary>
     private float GetSyncedElapsed()
     {
-        var flow = JellyNet.LanGameFlow.Instance;
+        var flow = LanGameFlow.Instance;
         return flow != null ? flow.Elapsed : -1f;
     }
 
-    /// <summary>게임이 실제로 진행 중인가. GameModeManager 대신 LanGameFlow를 먼저 본다.</summary>
+    /// <summary>게임이 실제로 진행 중인가. LanGameFlow의 단계를 본다.</summary>
     // ═════════════════════════════════════════════════════════
     //  붕괴 주기 역산
     // ═════════════════════════════════════════════════════════
@@ -151,7 +148,7 @@ public class TileCollapseManager : MonoBehaviour
         if (!autoRingInterval || _intervalComputed) return;
         if (_maxRing <= 1) return;
 
-        var flow = JellyNet.LanGameFlow.Instance;
+        var flow = LanGameFlow.Instance;
         float duration = flow != null ? flow.gameDuration : -1f;
         if (duration <= 0f) return;      // 아직 모른다 — 다음 프레임에 다시 시도
 
@@ -176,7 +173,7 @@ public class TileCollapseManager : MonoBehaviour
 
     private bool IsRunning()
     {
-        var flow = JellyNet.LanGameFlow.Instance;
+        var flow = LanGameFlow.Instance;
         return flow != null && flow.Phase == GamePhase.Playing;
     }
 
@@ -237,26 +234,16 @@ public class TileCollapseManager : MonoBehaviour
         return Mathf.Min(x, z, _width - 1 - x, _height - 1 - z);
     }
 
-    // [MAP-1] 마스터 승계 감지. 새로 마스터가 된 클라는 _entityCurrentTile/_entityDwellTime
-    // (체류 마모 상태)가 비어 있어, 그대로 두면 첫 UpdateStepCollapse에서 맵 위 전 개체의
-    // "이전 칸 없음(-1)→현재 칸" 전이로 오인해 모두의 현재 타일을 동시에 한 번씩 마모시킨다
-    // (임계 직전 타일들이 마스터 교체 순간 동시다발 붕괴). 승계 직후 첫 패스는 마모 없이
-    // 현재 위치만 시딩해, 그 다음부터 정상적인 '이동 감지' 마모가 이뤄지게 한다.
-    // (_tileStepCounts 자체는 X3로 RPC를 통해 전 클라에 복제되므로 마모 카운트는 승계됨.)
-    private bool _wasMaster = false;
-    private bool _needsStepGrace = false;
+    // 첫 패스는 마모 없이 현재 위치만 기록한다.
+    //
+    // 판이 시작될 때 _entityCurrentTile/_entityDwellTime(체류 마모 상태)이 비어 있어서,
+    // 그대로 두면 첫 UpdateStepCollapse가 맵 위 전 개체를 "이전 칸 없음(-1)→현재 칸" 전이로
+    // 오인해 모두의 현재 타일을 동시에 한 번씩 마모시킨다. 임계 직전 타일들이 한꺼번에
+    // 무너지는 셈이다. 첫 패스를 건너뛰면 그 다음부터 정상적인 '이동 감지' 마모가 이뤄진다.
+    private bool _needsStepGrace = true;
 
     private void Update()
     {
-        // [LAN 이식] PhotonNetwork.IsMasterClient → NetManager.IsHost.
-        //   Photon을 껐더니 항상 false가 되어 타일이 아예 안 꺼졌다.
-        //   소켓 연결이 없으면(싱글 테스트) 예전처럼 혼자 마스터로 동작한다.
-        bool isMaster = JellyNet.NetManager.Instance == null
-                        || JellyNet.NetManager.Instance.CurrentMode == JellyNet.NetManager.Mode.None
-                        || JellyNet.NetManager.Instance.IsHost;
-        if (isMaster && !_wasMaster) _needsStepGrace = true; // 방금 마스터가 됨(게임 시작 포함)
-        _wasMaster = isMaster;
-
         if (!IsRunning()) return;
 
         ComputeRingInterval();   // 게임 시간을 알게 된 뒤 한 번만 계산된다
@@ -296,13 +283,13 @@ public class TileCollapseManager : MonoBehaviour
     private void UpdateStepCollapse()
     {
         // [LAN 이식] 밟아서 마모시키는 판정은 호스트만 한다(권위 단일화).
-        if (JellyNet.NetManager.Instance != null
-            && JellyNet.NetManager.Instance.CurrentMode != JellyNet.NetManager.Mode.None
-            && !JellyNet.NetManager.Instance.IsHost) return;
+        if (NetManager.Instance != null
+            && !NetManager.Offline
+            && !NetManager.Instance.IsHost) return;
 
         if (_stepX == 0f || _stepZ == 0f) return;
 
-        // [MAP-1] 마스터 승계 직후 그레이스: 현재 위치만 시딩하고 이번 패스는 마모하지 않는다.
+        // 첫 패스: 현재 위치만 기록하고 마모는 건너뛴다.
         if (_needsStepGrace)
         {
             SeedEntityTilesNoWear();
@@ -325,7 +312,7 @@ public class TileCollapseManager : MonoBehaviour
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot.IsEliminated) continue;
-            TryStepAt(bot.transform.position, JellyNet.NetIdentity.IdOf(bot), dt);
+            TryStepAt(bot.transform.position, bot.EntityId, dt);
         }
     }
 
@@ -348,7 +335,7 @@ public class TileCollapseManager : MonoBehaviour
     // 개체별로 '서 있을 때의 높이 차이'를 관측해 기억한다.
     private readonly Dictionary<int, float> _standGap = new Dictionary<int, float>();
 
-    private bool IsOnTile(int x, int z, float entityY, int entityID, float dt)
+    private bool IsOnTile(int x, int z, float entityY, int entityId, float dt)
     {
         GameObject tile = _tiles[x, z];
         if (tile == null) return false;
@@ -366,7 +353,7 @@ public class TileCollapseManager : MonoBehaviour
         float gap = entityY - tile.transform.position.y;
 
         float known;
-        if (!_standGap.TryGetValue(entityID, out known)) known = gap;
+        if (!_standGap.TryGetValue(entityId, out known)) known = gap;
 
         // 더 낮은 값이 보이면 그게 진짜 '붙어 있는' 간격이다 → 즉시 내린다.
         if (gap < known) known = gap;
@@ -375,12 +362,12 @@ public class TileCollapseManager : MonoBehaviour
         // (안 그러면 커진 뒤로 영원히 '공중에 떠 있음'으로 읽힌다)
         known += dt * standGapDrift;
 
-        _standGap[entityID] = known;
+        _standGap[entityId] = known;
 
         return gap <= known + groundCheckDistance;
     }
 
-    // [MAP-1] 현재 각 개체가 서 있는 칸을 마모 없이 기록만 한다(마스터 승계 그레이스용).
+    // 현재 각 개체가 서 있는 칸을 마모 없이 기록만 한다(첫 패스용).
     private void SeedEntityTilesNoWear()
     {
         foreach (var player in EntityRegistry.Players)
@@ -391,20 +378,20 @@ public class TileCollapseManager : MonoBehaviour
         foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot.IsEliminated) continue;
-            SeedTile(bot.transform.position, JellyNet.NetIdentity.IdOf(bot));
+            SeedTile(bot.transform.position, bot.EntityId);
         }
     }
 
-    private void SeedTile(Vector3 worldPos, int entityID)
+    private void SeedTile(Vector3 worldPos, int entityId)
     {
         int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
         int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
         if (x < 0 || x >= _width || z < 0 || z >= _height) return;
-        _entityCurrentTile[entityID] = x * 10000 + z;
-        _entityDwellTime[entityID] = 0f;
+        _entityCurrentTile[entityId] = x * 10000 + z;
+        _entityDwellTime[entityId] = 0f;
     }
 
-    private void TryStepAt(Vector3 worldPos, int entityID, float dt)
+    private void TryStepAt(Vector3 worldPos, int entityId, float dt)
     {
         int x = Mathf.RoundToInt((worldPos.x - _gridOrigin.x) / _stepX);
         int z = Mathf.RoundToInt((worldPos.z - _gridOrigin.z) / _stepZ);
@@ -415,9 +402,9 @@ public class TileCollapseManager : MonoBehaviour
         // ★ 공중에 떠 있으면 밟은 게 아니다.
         //   점프해서 그 위를 지나가는 것만으로 발판이 닳으면 안 된다.
         //   체류 타이머도 함께 리셋해, 착지하는 순간부터 다시 세게 한다.
-        if (!IsOnTile(x, z, worldPos.y, entityID, dt))
+        if (!IsOnTile(x, z, worldPos.y, entityId, dt))
         {
-            _entityDwellTime[entityID] = 0f;
+            _entityDwellTime[entityId] = 0f;
             return;
         }
 
@@ -426,12 +413,12 @@ public class TileCollapseManager : MonoBehaviour
         // 새 타일로 이동: 마지막 타일에서 현재 타일까지의 경로상 칸들을 마모시키고 체류 타이머 초기화.
         // (현재 위치만 0.15초마다 샘플링하므로, 대쉬 등으로 빠르게 지나가면 중간 칸이 통째로 건너뛰어져
         //  '밟아도 안 떨어지는' 현상이 생긴다. 마지막→현재 칸을 라인으로 훑어 건너뛴 칸도 마모한다.)
-        if (!_entityCurrentTile.TryGetValue(entityID, out int lastTile) || lastTile != tileKey)
+        if (!_entityCurrentTile.TryGetValue(entityId, out int lastTile) || lastTile != tileKey)
         {
-            if (!_entityCurrentTile.ContainsKey(entityID)) lastTile = -1;
+            if (!_entityCurrentTile.ContainsKey(entityId)) lastTile = -1;
             WearTilePath(lastTile, x, z, tileKey);
-            _entityCurrentTile[entityID] = tileKey;
-            _entityDwellTime[entityID] = 0f;
+            _entityCurrentTile[entityId] = tileKey;
+            _entityDwellTime[entityId] = 0f;
             return;
         }
 
@@ -440,14 +427,14 @@ public class TileCollapseManager : MonoBehaviour
         float idleWear = dm != null ? dm.stepTileIdleWearSeconds : 0f;
         if (idleWear <= 0f) return;
 
-        _entityDwellTime.TryGetValue(entityID, out float dwell);
+        _entityDwellTime.TryGetValue(entityId, out float dwell);
         dwell += dt;
         if (dwell >= idleWear)
         {
             dwell -= idleWear; // 초과분 보존 → 이후에도 idleWear마다 계속 마모
             WearTile(x, z, tileKey);
         }
-        _entityDwellTime[entityID] = dwell;
+        _entityDwellTime[entityId] = dwell;
     }
 
     /// <summary>마지막으로 밟힌 칸(lastTile)에서 현재 칸(x1,z1)까지 그리드 라인을 따라 각 칸을 마모시킨다.
@@ -487,7 +474,7 @@ public class TileCollapseManager : MonoBehaviour
         }
     }
 
-    /// <summary>타일 견디는 횟수를 1 소모시키고, 한계 도달 시 붕괴/아니면 색 어둡게 RPC 전파.</summary>
+    /// <summary>타일 견디는 횟수를 1 소모시키고, 한계 도달 시 붕괴·아니면 색을 어둡게 방송한다.</summary>
     private void WearTile(int x, int z, int tileKey)
     {
         if (_tiles[x, z] == null) return;
@@ -499,7 +486,7 @@ public class TileCollapseManager : MonoBehaviour
         var dm = DataManager.Instance;
         int maxSteps = dm != null ? dm.stepTileStepsToCollapse : 3;
 
-        if (JellyNet.NetWorld.Instance == null)
+        if (NetWorld.Instance == null)
             return;
 
         if (count >= maxSteps) CollapseStepTile(x, z);          // 안에서 전파까지 한다
@@ -517,7 +504,7 @@ public class TileCollapseManager : MonoBehaviour
     private void BroadcastDarken(int x, int z, int count, int maxSteps)
     {
         DarkenStepTile(x, z, count, maxSteps);                       // 호스트 자기 화면
-        JellyNet.NetWorld.Instance.BroadcastTileWear(x, z, count, maxSteps);
+        NetWorld.Instance.BroadcastTileWear(x, z, count, maxSteps);
     }
 
     public void DarkenStepTile(int x, int z, int stepCount, int maxSteps)
@@ -527,10 +514,9 @@ public class TileCollapseManager : MonoBehaviour
 
         int tileKey = x * 10000 + z;
 
-        // [X3] RPC에 실려 온 마모 카운트를 전 클라이언트가 자기 dict에도 기록한다.
-        // 권위(마모 판정)는 마스터 단독이지만 근거 상태를 전 클라에 복제해 두면
-        // (1) 비마스터도 IsPositionDangerous가 실제 마모를 반영하고
-        // (2) 마스터 교체 시 새 마스터가 마지막 RPC까지의 마모를 그대로 이어받는다.
+        // 방송에 실려 온 마모 카운트를 클라도 자기 dict에 기록한다.
+        // 판정은 호스트 단독이지만 근거 상태를 복제해 두면
+        // 클라의 IsPositionDangerous(봇 AI가 위험 타일을 피하는 판단)도 실제 마모를 반영한다.
         _tileStepCounts[tileKey] = stepCount;
 
         Renderer rend = _tiles[x, z].GetComponentInChildren<Renderer>();
@@ -573,8 +559,8 @@ public class TileCollapseManager : MonoBehaviour
         if (x < 0 || x >= _width || z < 0 || z >= _height) return;
         if (_tiles[x, z] == null) return;
 
-        if (broadcast && JellyNet.NetWorld.Instance != null)
-            JellyNet.NetWorld.Instance.BroadcastTileCollapse(x, z);
+        if (broadcast && NetWorld.Instance != null)
+            NetWorld.Instance.BroadcastTileCollapse(x, z);
 
         var dm = DataManager.Instance;
         float warn = dm != null ? dm.stepTileWarningDuration : 1.5f;
@@ -622,12 +608,6 @@ public class TileCollapseManager : MonoBehaviour
                 }
             }
         }
-    }
-
-    public bool IsTileActive(int x, int z)
-    {
-        if (x < 0 || x >= _width || z < 0 || z >= _height) return false;
-        return _tiles[x, z] != null && _tiles[x, z].activeSelf;
     }
 
     /// <summary>
@@ -787,15 +767,6 @@ public class TileCollapseManager : MonoBehaviour
             if (found) return true;
         }
         return false;
-    }
-
-    public int CountSafeTiles()
-    {
-        int count = 0;
-        for (int x = 0; x < _width; x++)
-            for (int z = 0; z < _height; z++)
-                if (_tiles[x, z] != null) count++;
-        return count;
     }
 
     /// <summary>

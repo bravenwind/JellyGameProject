@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using UnityEngine;
 
@@ -125,20 +125,31 @@ public class PlayerColorVisual : MonoBehaviour
         OnColorUIUpdate?.Invoke();
     }
 
+    /// <summary>
+    /// 네트워크로 받은 최종 색을 그대로 입힌다. 로컬 누적치(CurrentRYB)는 건드리지 않는다.
+    ///
+    /// ★ 왜 필요한가
+    ///   젤리 셰이더의 색은 _BaseColor_01 · _BaseColor_02 · _FresnelColor 세 개다.
+    ///   LanBotState는 그중 _FresnelColor 하나만 보내고 받는 쪽에서 머티리얼에 직접
+    ///   꽂고 있었다. 그래서 호스트에서는 세 개가 다 바뀌는데 클라에서는 프레넬만
+    ///   바뀌고 본체 색은 처음 그대로였다 — "색 요소 중 일부만 적용"의 정체다.
+    ///   파생 공식(ApplyJellyColor)과 똑같은 계산을 여기서 재사용해 양쪽을 맞춘다.
+    /// </summary>
+    public void ApplyNetworkColor(Color visualTarget)
+    {
+        if (currentCoroutine != null) StopCoroutine(currentCoroutine);
+
+        Color targetBase = DarkenColor(visualTarget, 0.85f);
+        Color targetBase02 = GetLighterColor(targetBase, baseColor02Lightness);
+
+        currentCoroutine = StartCoroutine(
+            BlendColor(targetBase, targetBase02, visualTarget, blendTime));
+    }
+
     private Color GetLighterColor(Color baseColor, float lightAmount)
         => Color.Lerp(baseColor, Color.white, lightAmount);
 
     private Color DarkenColor(Color color, float factor)
         => new Color(color.r * factor, color.g * factor, color.b * factor, 1f);
 
-    public void ResetColor()
-    {
-        if (currentCoroutine != null) StopCoroutine(currentCoroutine);
-
-        CurrentRYB = RYBColor.white;
-        OnColorApplied?.Invoke(JellyColorType.White, RYBColor.white, Color.white);
-
-        currentCoroutine = StartCoroutine(BlendColor(originalBaseColor, originalBaseColor_02, originalFresnelColor, 0.25f));
-        OnColorUIUpdate?.Invoke();
-    }
 }

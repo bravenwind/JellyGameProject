@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.SceneManagement;
 
 public class SceneLoader : MonoBehaviour
@@ -7,12 +7,6 @@ public class SceneLoader : MonoBehaviour
     {
         PlaySFXAudio.Instance.PlayButton1Sound();
         SceneManager.LoadScene("Game");
-    }
-
-    public void LoadMain()
-    {
-        PlaySFXAudio.Instance.PlayButton1Sound();
-        SceneManager.LoadScene("Main");
     }
 
     public void QuitGame()

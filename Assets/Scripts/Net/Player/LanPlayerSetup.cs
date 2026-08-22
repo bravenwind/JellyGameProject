@@ -51,9 +51,6 @@ namespace JellyNet
             if (playerController != null)
                 playerController.MarkAsLocal();
 
-            foreach (UIFollowTarget f in FindObjectsByType<UIFollowTarget>(FindObjectsSortMode.None))
-                f.SetTarget(transform);
-
             if (nameTagBillboard != null)
             {
                 nameTagBillboard.SetName("나");
@@ -86,9 +83,12 @@ namespace JellyNet
 
             if (nameTagBillboard != null)
             {
-                LanPlayerState ps = GetComponent<LanPlayerState>();
-                string nm = (ps != null && !string.IsNullOrEmpty(ps.PlayerName)) ? ps.PlayerName : ("P" + id.OwnerId);
-                nameTagBillboard.SetName(nm);
+                //Apply()는 스폰 메시지를 처리하는 '도중에' 동기적으로 불린다. 이름은
+                //PlayerNameSet이라는 별도 메시지로 그 뒤에 오므로 여기서 PlayerName을
+                //읽어봐야 항상 Awake가 넣은 ""다. 그래서 임시 이름을 짓지 않고 비운다.
+                //  비우지 않으면 프리팹에 박힌 플레이스홀더 텍스트가 그대로 노출된다.
+                //진짜 닉네임은 LanPlayerState.SetName이 도착하는 대로 채운다
+                nameTagBillboard.SetName("");
                 nameTagBillboard.ApplyRoleColor(NameTagRole.RemotePlayer);
             }
 

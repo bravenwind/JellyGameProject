@@ -1,17 +1,8 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 public static class ColorExtensions
 {
-    public static Color32 AddRGB(this Color32 current, int r, int g, int b)
-    {
-        return new Color32(
-            (byte)Mathf.Clamp(current.r + r, 0, 255),
-            (byte)Mathf.Clamp(current.g + g, 0, 255),
-            (byte)Mathf.Clamp(current.b + b, 0, 255),
-            current.a
-        );
-    }
 }
 
 public static class PlayerEvents

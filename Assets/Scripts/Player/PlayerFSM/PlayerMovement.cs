@@ -22,7 +22,7 @@ public class PlayerMovement : MonoBehaviour
     [HideInInspector] public float attackCooldownTimer = 0f;
 
     // ── 로컬 플레이어(내 캐릭터) 전역 접근점 — HUD(대쉬 쿨타임 UI 등)에서 사용 ──
-    // NetworkPlayerSync.SetupLocalPlayer(photonView.IsMine)에서 MarkAsLocal()로 지정한다.
+    // LanPlayerSetup이 IsMine일 때 MarkAsLocal()로 지정한다.
     public static PlayerMovement Local { get; private set; }
     public void MarkAsLocal() => Local = this;
 
@@ -51,7 +51,7 @@ public class PlayerMovement : MonoBehaviour
     public bool AttackReady => attackCooldownTimer <= 0f;
 
     [Header("Model Settings")]
-    public Animator jellyAnimator;
+    public Animator animator;
     public UIManager uiManager;
 
     [Header("Bat (Push Mode)")]
@@ -86,6 +86,24 @@ public class PlayerMovement : MonoBehaviour
     public PlayerDashState dashState;
     public PlayerKnockbackState knockbackState;
     public PlayerAttackState attackState;
+
+    /// <summary>애니메이션 트리거를 네트워크로 알리는 창구. 루트에 붙어 있다.</summary>
+    public JellyNet.LanPlayerVisual Visual { get; private set; }
+
+    /// <summary>
+    /// 판정에 쓰는 내 크기. 사거리·흡수 판정은 전부 이 값을 봐야 한다.
+    /// transform.localScale.x는 '지금 보이는 크기'라 커지는 연출 도중 호스트 재검증과 어긋난다.
+    /// </summary>
+    public float AuthorityScale
+    {
+        get { return Visual != null ? Visual.ScaleValue : transform.localScale.x; }
+    }
+
+    //Awake에서 잡는다. 원격 아바타는 스폰 도중 이 컴포넌트가 꺼지므로 Start가 아예 안 불린다
+    void Awake()
+    {
+        Visual = GetComponentInParent<JellyNet.LanPlayerVisual>();
+    }
 
     void Start()
     {

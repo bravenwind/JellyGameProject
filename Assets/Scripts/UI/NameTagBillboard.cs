@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // NameTagBillboard.cs
 // ============================================================
 // 역할: 플레이어/AI봇 머리 위 이름표를 항상 카메라 정면으로 유지
@@ -8,7 +8,7 @@
 //   2. 해당 GameObject에 TextMeshPro - Text (3D) 컴포넌트 추가
 //   3. 이 스크립트(NameTagBillboard) 추가
 //   4. nameText 슬롯에 TextMeshPro 연결
-//   5. NetworkPlayerSync / AIPlayerMovement의 nameTagBillboard 슬롯에 연결
+//   5. LanPlayerSetup / AIPlayerMovement의 nameTagBillboard 슬롯에 연결
 //
 // [주의]
 //   - NameTag GameObject는 플레이어의 자식이므로 플레이어 Scale에 영향을 받음

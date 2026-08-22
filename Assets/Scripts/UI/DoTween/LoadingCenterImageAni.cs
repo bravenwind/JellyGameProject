@@ -1,10 +1,11 @@
 ﻿using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
+using System;
 
 public class LoadingCenterMultiAni : MonoBehaviour
 {
-    [System.Serializable]
+    [Serializable]
     public class TargetUI
     {
         public RectTransform rect;

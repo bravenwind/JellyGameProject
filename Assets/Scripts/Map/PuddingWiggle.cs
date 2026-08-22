@@ -1,31 +1,18 @@
 ﻿using UnityEngine;
-using Photon.Pun;
 
-public class PuddingWiggle : MonoBehaviourPun
+//푸딩이 흔들리는 건 연출뿐이라 각자 로컬에서 재생한다.
+//예전엔 RPC로 전파했는데, 그러면 소유자만 트리거를 쏠 수 있어
+//원격 플레이어가 밟았을 때는 아무 화면에서도 안 흔들렸다
+public class PuddingWiggle : MonoBehaviour
 {
     public Animator puddingAnimator;
 
     private void OnTriggerEnter(Collider other)
     {
-        // 1. 충돌한 오브젝트가 로컬 플레이어인지 확인 (중복 실행 방지)
-        // .io 게임 특성상 본인 화면에서 부딪힌 것만 체크하는 게 안전합니다.
-        if (other.CompareTag("PlayerMesh"))
-        {
-            PhotonView playerPv = other.GetComponentInParent<PhotonView>();
-            if (playerPv != null && playerPv.IsMine)
-            {
-                // 2. 모든 클라이언트에게 이 오브젝트의 RPC 함수를 실행하라고 요청
-                photonView.RPC(nameof(RPC_PlayWiggle), RpcTarget.AllViaServer);
-            }
-        }
-    }
+        if (!other.CompareTag("PlayerMesh"))
+            return;
 
-    [PunRPC]
-    private void RPC_PlayWiggle()
-    {
         if (puddingAnimator != null)
-        {
             puddingAnimator.SetTrigger("Wiggle");
-        }
     }
 }

@@ -1,15 +1,10 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 public class PlayerAbsorber : MonoBehaviour
 {
     public Action<JellyColorType> OnJellyEaten;
     public Action OnJellyScored;
-    public Action OnResetRequested;
-
-    [Header("Detection Settings")]
-    public Transform detectTransform;
-    public float playerBaseHeight = 1.5f;
 
     private void OnTriggerEnter(Collider other)
     {

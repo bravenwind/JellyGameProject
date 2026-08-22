@@ -29,7 +29,8 @@ public class BotBridge : MonoBehaviour
 
     private void HandlePostScalePhysics()
     {
-        GetComponent<AIPlayerMovement>()?.RecenterCC();
+        AIPlayerMovement bot = GetComponent<AIPlayerMovement>();
+        if (bot != null) bot.RecenterCC();
     }
 
     private void HandleScaleCompleted(float scaleValue)

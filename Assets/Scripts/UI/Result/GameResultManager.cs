@@ -1,22 +1,19 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Photon.Pun;
-using Photon.Realtime;
 using TMPro;
 using Unity.Cinemachine;
 using UnityEngine;
+using JellyNet;
+using UnityEngine.AI;
+using UnityEngine.UI;
 
 /// <summary>
 /// GameResult_io 씬에서 Top 3를 좌(1위)→우(3위) 순서로 배치하고,
 /// Cinemachine 가상 카메라가 3위→2위→1위→전체 순으로 부드럽게 전환됨.
 ///
-/// 데이터 출처(룸 프로퍼티 / Player 프로퍼티):
-///   • Scale / Color_R/G/B  : NetworkPlayerSync.SyncScale + SyncColor
-///   • Bot{viewID}_Scale / Color_R/G/B / Name : AIPlayerSync.SyncScale + SyncColor + UpdateBotData
-///
-/// GameModeManager.SyncAllColorsForResult()가 LoadLevel 직전 호출되어
-/// 위 프로퍼티들이 결과 씬으로 넘어옴.
+/// 데이터 출처는 LanScoreboard다. 판이 끝날 때 호스트가 최종 순위를 방송하고,
+/// 그 값이 씬을 넘어 여기로 전달된다.
 /// </summary>
 public class GameResultManager : MonoBehaviour
 {
@@ -155,17 +152,17 @@ public class GameResultManager : MonoBehaviour
 
     // 최종 순위는 게임 씬에서 호스트가 방송해 준 것을 그대로 쓴다.
     // 결과 씬에는 플레이어·봇 오브젝트가 없어서(씬을 넘기며 파괴됨) 여기서 다시 셀 수 없다.
-    private List<JellyNet.LanScoreboard.Entry> GatherTopEntries()
+    private List<LanScoreboard.Entry> GatherTopEntries()
     {
-        var final = JellyNet.LanScoreboard.FinalStandings;
+        var final = LanScoreboard.FinalStandings;
 
         if (final == null || final.Count == 0)
         {
             Debug.LogWarning("[GameResult] 최종 순위가 비어 있습니다 — 게임 씬에서 방송이 오지 않았습니다.");
-            return new List<JellyNet.LanScoreboard.Entry>();
+            return new List<LanScoreboard.Entry>();
         }
 
-        var top = new List<JellyNet.LanScoreboard.Entry>();
+        var top = new List<LanScoreboard.Entry>();
 
         for (int i = 0; i < final.Count && i < 3; i++)
         {
@@ -182,7 +179,7 @@ public class GameResultManager : MonoBehaviour
     // 배치
     // ──────────────────────────────────────────────
 
-    private void SpawnPodium(List<JellyNet.LanScoreboard.Entry> top)
+    private void SpawnPodium(List<LanScoreboard.Entry> top)
     {
         int count = top.Count;
         float[] radii = new float[count];
@@ -274,7 +271,7 @@ public class GameResultManager : MonoBehaviour
         DestroyAll<PlayerAbsorbingManager>(root);
         DestroyAll<PlayerBridge>(root);
         DestroyAll<BotBridge>(root);
-        DestroyAll<UnityEngine.AI.NavMeshAgent>(root);
+        DestroyAll<NavMeshAgent>(root);
 
         // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
         DestroyAll<PlayerColorVisual>(root);
@@ -284,12 +281,6 @@ public class GameResultManager : MonoBehaviour
             sb.enabled = false;
         foreach (var cloth in root.GetComponentsInChildren<Cloth>(true))
             cloth.enabled = false;
-
-        // photonView를 참조하는 모든 Photon View 컴포넌트를 PhotonView보다 먼저 제거
-        DestroyAll<PhotonTransformView>(root);
-        DestroyAll<PhotonAnimatorView>(root);
-        DestroyAll<PhotonRigidbodyView>(root);
-        DestroyAll<PhotonView>(root);
 
         foreach (var col in root.GetComponentsInChildren<Collider>(true))
             col.enabled = false;
@@ -497,8 +488,8 @@ public class GameResultManager : MonoBehaviour
         var canvasGO = new GameObject("ResultRankCanvas");
         var canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvasGO.AddComponent<UnityEngine.UI.CanvasScaler>();
-        canvasGO.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+        canvasGO.AddComponent<CanvasScaler>();
+        canvasGO.AddComponent<GraphicRaycaster>();
 
         var textGO = new GameObject("RankText");
         textGO.transform.SetParent(canvasGO.transform, false);

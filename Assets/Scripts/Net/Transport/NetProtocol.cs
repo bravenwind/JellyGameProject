@@ -7,14 +7,9 @@ namespace JellyNet
         Welcome = 1,
         PlayerJoined = 2,
         PlayerLeft = 3,
-        Ping = 4,
-        Pong = 5,
-        Chat = 6,
-
         SpawnEntity = 20,
         DespawnEntity = 21,
         TransformUpdate = 22,
-        StateUpdate = 23,
 
         PlayerStateUpdate = 24,
         PlayerNameSet = 25,
@@ -26,7 +21,6 @@ namespace JellyNet
         EatJellyConfirm = 31,
         AbsorbPlayerRequest = 32,
         PlayerAbsorbed = 33,
-        PlayerRespawn = 34,
         EliminateRequest = 35,
         SetMyName = 36,
         KilledBy = 37,
@@ -39,7 +33,6 @@ namespace JellyNet
         FinalStandings = 52,
         LoadGameScene = 53,
         SceneReady = 54,
-        CountdownStart = 55,
 
         TileCollapse = 60,
         TileWear = 61,
@@ -73,7 +66,7 @@ namespace JellyNet
     public enum PlayerFlags : byte
     {
         None = 0,
-        Eliminated = 1 << 0,
-        Absorbed = 1 << 1,
+        Eliminated = 1 << 1,
+        Absorbed = 1 << 2,
     }
 }

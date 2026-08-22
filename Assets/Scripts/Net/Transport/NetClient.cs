@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Diagnostics;
 using System.Net.Sockets;
 
 namespace JellyNet
@@ -9,14 +8,8 @@ namespace JellyNet
         private FramedConnection conn;
         private readonly NetWriter writer = new NetWriter();
 
-        private readonly Stopwatch clock = Stopwatch.StartNew();
-        private long pingSentAt;
-        private int pingSeq;
-
         public int MyId { get; private set; }
         public bool Connected { get { return conn != null && conn.Alive; } }
-        public double LastRttMs { get; private set; }
-
         public Action<string> OnLog;
 
         public Action<MsgType, NetReader> OnMessage;
@@ -80,8 +73,7 @@ namespace JellyNet
                 case MsgType.Welcome:
                     MyId = r.ReadInt();
                     Log("환영합니다 — 당신은 P" + MyId + " 입니다.");
-                    if (OnWelcome != null)
-                        OnWelcome();
+                    OnWelcome?.Invoke();
                     break;
 
                 case MsgType.PlayerJoined:
@@ -92,55 +84,10 @@ namespace JellyNet
                     Log("P" + r.ReadInt() + " 님이 나갔습니다.");
                     break;
 
-                case MsgType.Pong:
-                    {
-                        int seq = r.ReadInt();
-                        if (seq == pingSeq)
-                        {
-                            long now = clock.ElapsedTicks;
-                            LastRttMs = (now - pingSentAt) * 1000.0 / Stopwatch.Frequency;
-                            Log("RTT " + LastRttMs.ToString("F2") + " ms");
-                        }
-                        break;
-                    }
-
-                case MsgType.Chat:
-                    {
-                        int from = r.ReadInt();
-                        string text = r.ReadString();
-                        Log("P" + from + ": " + text);
-                        break;
-                    }
-
                 default:
-                    if (OnMessage != null)
-                        OnMessage(type, r);
+                    OnMessage?.Invoke(type, r);
                     break;
             }
-        }
-
-        public void SendPing()
-        {
-            if (!Connected)
-                return;
-            pingSeq++;
-            pingSentAt = clock.ElapsedTicks;
-
-            writer.Begin(MsgType.Ping);
-            writer.WriteInt(pingSeq);
-            writer.End();
-            Send(writer);
-        }
-
-        public void SendChat(string text)
-        {
-            if (!Connected || string.IsNullOrEmpty(text))
-                return;
-
-            writer.Begin(MsgType.Chat);
-            writer.WriteString(text);
-            writer.End();
-            Send(writer);
         }
 
         public void Send(NetWriter w)
@@ -151,8 +98,7 @@ namespace JellyNet
 
         private void Log(string msg)
         {
-            if (OnLog != null)
-                OnLog("[클라] " + msg);
+            OnLog?.Invoke("[클라] " + msg);
         }
     }
 }

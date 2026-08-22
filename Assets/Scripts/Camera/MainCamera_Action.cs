@@ -157,11 +157,4 @@ public class MainCamera_Action : MonoBehaviour
         Camera.main.orthographicSize = targetSize; // 정확한 값으로 안착
     }
 
-    public void GameFailSizeChange()
-    {
-        currentSize = Camera.main.orthographicSize;
-        float targetSize = currentSize * 0.5f;
-        Debug.Log(currentSize + " " + currentSize * 0.5f);
-        StartCoroutine(OnScaleChanged_Co(targetSize, 0.5f));
-    }
 }

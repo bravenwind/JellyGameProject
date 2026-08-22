@@ -52,7 +52,10 @@ namespace JellyNet
                 return;
             }
 
-            if (flow.Phase == GamePhase.Playing && !spawned)
+            //Playing까지 기다리면 카운트다운 동안 봇이 없어서 순위표에 사람만 뜬다.
+            //카운트다운이 시작되는 순간 뿌려두면 시작 전에 상대를 눈으로 확인할 수 있고,
+            //봇은 Phase != Playing 동안 스스로 멈춰 있으므로 미리 나와도 움직이지 않는다
+            if ((flow.Phase == GamePhase.Countdown || flow.Phase == GamePhase.Playing) && !spawned)
             {
                 spawned = true;
                 SpawnAll();

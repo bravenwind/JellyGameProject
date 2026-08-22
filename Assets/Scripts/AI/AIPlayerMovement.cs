@@ -6,20 +6,17 @@
 // 구조:
 //   - FSM: AIBaseState 추상 클래스 상속, 상태별 스크립트 분리 (AI/FSM/)
 //   - 탐지: AIDetector 컴포넌트에 위임 (SRP 분리)
-//   - 흡수: OnTriggerEnter / RPC_BotAbsorbed
+//   - 흡수: OnTriggerEnter → LanAbsorbTouch
 // ============================================================
 
 using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using Photon.Pun;
-using Photon.Realtime;
+using JellyNet;
 
 [RequireComponent(typeof(NavMeshAgent))]
-// [LAN 이식] RequireComponent(PhotonView) 제거 — 이게 있으면 프리팹에서 PhotonView를
-// 지울 수 없어 NetIdentity로 교체가 막힌다. 이 스크립트 자체는 photon 브랜치용으로 남겨둔다.
 [RequireComponent(typeof(AIDetector))]
-public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
+public class AIPlayerMovement : MonoBehaviour
 {
     // ─────────────────────────────────────────────────────────
     // Inspector 설정
@@ -88,9 +85,8 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     public AIDetector Detector { get; private set; }
 
     private Animator _anim;
+    private LanPlayerVisual _visual;
     private bool _wasMoving = false;
-    private float _networkScale = 1f;
-    private const float ScaleLerpSpeed = 10f;
 
     // ─────────────────────────────────────────────────────────
     // FSM
@@ -100,7 +96,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
     private AIBaseState _currentState;
     private bool _isTransitioning = false;
-    public  AIBaseState CurrentState => _currentState;
 
     // 상태 인스턴스 (Start에서 1회 생성, 재사용)
     public AIWanderState WanderState { get; private set; }
@@ -129,23 +124,20 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     //  [LAN 이식] 봇 권위 판정
     // ═════════════════════════════════════════════════════════
     //
-    // ★ 원본 구조를 그대로 옮긴다
-    //   Photon판은 "MasterClient만 AI를 굴리고 나머지는 결과만 본다"였다.
-    //   LAN에서 MasterClient에 대응하는 건 호스트다. 그리고 봇은 호스트 소유
-    //   NetIdentity이므로, 그 판정을 IsMine 하나로 표현할 수 있다.
+    // ★ 봇은 호스트에서만 생각하고, 나머지는 결과만 본다
+    //   봇은 전부 호스트 소유 NetIdentity라 그 판정을 IsMine 하나로 표현할 수 있다.
     //
     //   접속이 없으면(오프라인 테스트) 혼자 다 굴린다 — 안 그러면 봇이 얼어붙는다.
-    private JellyNet.NetIdentity _netId;
-    private JellyNet.LanBotSync _botSync;
+    private NetIdentity _netId;
+    private LanBotState _botSync;
 
     /// <summary>이 기계가 이 봇의 두뇌를 돌리는가.</summary>
     private bool IsDriver
     {
         get
         {
-            if (_netId != null) return _netId.IsMineOrOffline;
-            // 레거시(Photon) 경로
-            return photonView == null || PhotonNetwork.IsMasterClient;
+            //봇은 전부 NetWorld가 스폰하므로 _netId가 없는 봇은 없다
+            return _netId != null && _netId.IsMineOrOffline;
         }
     }
 
@@ -153,27 +145,39 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     // 외부 프로퍼티
     // ─────────────────────────────────────────────────────────
 
-    public float CurrentScale => transform.localScale.x;
+    /// <summary>이 봇의 netId. LanPlayerState.EntityId와 같은 역할이다.
+    /// NetIdentity를 Awake에서 캐시해두므로 매번 계층을 훑지 않는다.</summary>
+    public int EntityId => _netId != null ? _netId.NetId : 0;
 
+    /// <summary>Awake에서 캐시해둔 NetIdentity. LanPlayerState.Identity와 같은 역할이다.</summary>
+    public NetIdentity Identity => _netId;
+
+    /// <summary>이 봇의 네트워크 상태. Awake에서 캐시해둔 것을 그대로 준다.</summary>
+    public LanBotState BotState => _botSync;
+
+    /// <summary>
+    /// 이 봇의 크기. 판정에 쓰는 값의 출처는 PlayerScaleController 하나다.
+    ///
+    /// ★ 예전엔 transform.localScale.x를 그대로 돌려줬다
+    ///   그건 '지금 화면에 보이는 크기'라, 커지는 연출이 도는 동안(약 0.3초)
+    ///   사람 쪽 판정값(currentScaleValue = 연출이 끝난 목표 크기)과 어긋났다.
+    ///   그 사이 봇은 실제보다 작게 취급돼 흡수당하기 쉬웠다.
+    /// </summary>
     public float GetMyAuthorityScale()
     {
-        return transform.localScale.x;
+        return ScaleCtrl != null ? ScaleCtrl.currentScaleValue : transform.localScale.x;
     }
 
     // ─────────────────────────────────────────────────────────
     // 레지스트리 등록
     // ─────────────────────────────────────────────────────────
-    // MonoBehaviourPunCallbacks가 virtual로 선언해 둔 것이라 override여야 한다.
-    // (private으로 두면 base 호출은 되지만 PUN 콜백 등록이 끊긴다 — CS0114 경고의 실체)
-    public override void OnEnable()
+    private void OnEnable()
     {
-        base.OnEnable();
         EntityRegistry.Register(this);
     }
 
-    public override void OnDisable()
+    private void OnDisable()
     {
-        base.OnDisable();
         EntityRegistry.Unregister(this);
     }
 
@@ -185,10 +189,11 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         Agent = GetComponent<NavMeshAgent>();
         ScaleCtrl = GetComponent<PlayerScaleController>();
         Detector = GetComponent<AIDetector>();
-        _netId = GetComponent<JellyNet.NetIdentity>();
-        _botSync = GetComponent<JellyNet.LanBotSync>();
+        _netId = GetComponent<NetIdentity>();
+        _botSync = GetComponent<LanBotState>();
         CachedPath = new NavMeshPath();
         _anim = GetComponentInChildren<Animator>();
+        _visual = GetComponentInParent<LanPlayerVisual>();
 
         Detector.detectRadius = detectRadius;
         Detector.baseAgentRadius = baseAgentRadius;
@@ -207,16 +212,6 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         // 중요: 에이전트가 시뮬레이션은 하되 직접 transform을 바꾸지 않게 설정할 수도 있지만,
         // 가장 깔끔한 방법은 에이전트의 원하는 속도(desiredVelocity)를 복사해서 수동 이동시키는 것입니다.
         // 여기서는 가속도(acceleration)를 무한대에 가깝게 높이는 것만으로도 플레이어와 속도가 거의 같아집니다.
-
-        // [LAN 이식] ObservedComponents 자가 등록 제거.
-        //   PhotonView가 없으면 photonView가 null이라 여기서 NullReference로 터진다.
-        //   LAN에서는 크기를 LanBotSync가, 위치를 NetTransform이 보낸다.
-        if (_netId == null && photonView != null
-            && photonView.ObservedComponents != null
-            && !photonView.ObservedComponents.Contains(this))
-        {
-            photonView.ObservedComponents.Add(this);
-        }
     }
 
     private void Start()
@@ -227,12 +222,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         FleeState   = new AIFleeState(this);
         PushSurviveState = new AIPushSurviveState(this);
 
-        // 배트는 Push 모드에서만 활성화 (마스터/비마스터 공통)
+        // 배트는 Push 모드에서만 활성화 (호스트·클라 공통)
         ApplyBatModeVisibility();
 
         if (!IsDriver)
         {
-            // 비마스터에서 봇의 로컬 흡수 처리 비활성화
+            // 봇을 굴리지 않는 쪽에서는 로컬 흡수 처리를 끈다
             // (PlayerAbsorber가 켜져 있으면 GrowByJelly()가 로컬에서 발동해 스케일 충돌 발생)
             PlayerAbsorber absorber = GetComponent<PlayerAbsorber>();
             if (absorber != null) absorber.enabled = false;
@@ -259,7 +254,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     /// <summary>NavMesh 위에 스폰 확정 후 FSM 시작</summary>
     private IEnumerator InitAndRun()
     {
-        // [BOT-1] 이미 판 밖이면 시작조차 하지 않는다(마스터 교체 시점에 이미 탈락/흡수된 봇 방어).
+        // 이미 판 밖이면 시작조차 하지 않는다(탈락·흡수된 봇이 되살아나는 걸 막는다).
         if (IsEliminated || IsBeingAbsorbed) { _initCoroutine = null; yield break; }
 
         Agent.enabled = false;
@@ -477,12 +472,12 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         {
             speed = PlayerMovement.Local.moveSpeed;
         }
-        else if (JellyNet.NetWorld.Instance != null
-                 && JellyNet.NetWorld.Instance.prefabs != null
-                 && JellyNet.NetWorld.Instance.prefabs.Length > 0
-                 && JellyNet.NetWorld.Instance.prefabs[0] != null)
+        else if (NetWorld.Instance != null
+                 && NetWorld.Instance.prefabs != null
+                 && NetWorld.Instance.prefabs.Length > 0
+                 && NetWorld.Instance.prefabs[0] != null)
         {
-            PlayerMovement pm = JellyNet.NetWorld.Instance.prefabs[0]
+            PlayerMovement pm = NetWorld.Instance.prefabs[0]
                                     .GetComponentInChildren<PlayerMovement>(true);
             if (pm != null) speed = pm.moveSpeed;
         }
@@ -508,19 +503,14 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     // ─────────────────────────────────────────────────────────
     private void Update()
     {
+        //원격 봇의 크기와 위치는 LanBotState·NetTransform이 맞춘다
         if (!IsDriver)
-        {
-            // [LAN 이식] LanBotSync가 크기를 맞추므로 여기서는 손대지 않는다.
-            //   둘 다 건드리면 서로 다른 목표값으로 당겨 크기가 떨린다.
-            if (_netId == null)
-                transform.localScale = Vector3.Lerp(transform.localScale, Vector3.one * _networkScale, Time.deltaTime * ScaleLerpSpeed);
             return;
-        }
 
         // 시작 카운트다운(3-2-1) 동안엔 봇도 멈춘다. 이동/상태 갱신을 건너뛰고 정지 + Idle 유지
         // → 플레이어와 함께 '다 같이 대기 후 시작'.
         // 주의: GameState.Phase가 아니라 카운트다운 전용 플래그를 본다. Phase는 '로컬 플레이어 상태'라,
-        //       Absorb에서 마스터 플레이어가 죽으면(Phase=GameOver) 봇이 전부 멈춰 생존자 게임이 깨진다.
+        //       Absorb에서 호스트 플레이어가 죽으면(Phase=GameOver) 봇이 전부 멈춰 생존자 게임이 깨진다.
         if (IsCountdownActive())
         {
             if (Agent.enabled && Agent.isOnNavMesh)
@@ -589,39 +579,26 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (isMoving != _wasMoving)
         {
             _wasMoving = isMoving;
-
-            // [LAN 이식] 봇도 플레이어와 같은 AnimState 통로를 쓴다.
-            //   봇에 LanPlayerVisual이 붙어 있으면 그쪽이 IsMoving을 알아서 폴링해
-            //   보내주므로 여기선 아무것도 안 해도 된다. 없을 때만 예전 RPC로 떨어진다.
-            if (_netId == null && PhotonNetwork.InRoom)
-                photonView.RPC(nameof(RPC_SetIsMoving), RpcTarget.Others, isMoving);
         }
     }
 
     /// <summary>
     /// 시작 카운트다운 중인가. 이 동안엔 봇도 제자리에 선다.
     ///
-    /// ★ [LAN 이식] GameModeManager.CountdownActive는 LAN 씬에서 항상 false다
-    ///   (그 매니저가 비활성이라). 그대로 두면 봇이 카운트다운 중에 먼저 달려나가
-    ///   "다 같이 3-2-1 후 시작"이 깨진다.
-    ///
-    ///   주의: 원본 주석이 경고하듯 GameState.Phase를 보면 안 된다. 그건 '로컬
+    /// ★ 주의: GameState.Phase를 보면 안 된다. 그건 '로컬
     ///   플레이어의 상태'라, 흡수 모드에서 호스트 플레이어가 죽으면(GameOver)
     ///   봇이 전부 멈춰 남은 사람들의 게임이 깨진다. 그래서 LanGameFlow의
     ///   진행 단계를 직접 본다.
     /// </summary>
     private bool IsCountdownActive()
     {
-        var flow = JellyNet.LanGameFlow.Instance;
+        var flow = LanGameFlow.Instance;
         return flow != null && flow.Phase != GamePhase.Playing;
     }
 
     // ─────────────────────────────────────────────────────────
     // 탐지 함수 (AIDetector에 위임, 상태 클래스 호환용 래퍼)
     // ─────────────────────────────────────────────────────────
-
-    public float GetMyScale()
-        => transform.localScale.x;
 
     public Transform FindThreat() => Detector.FindThreat();
     public Transform FindPrey() => Detector.FindPrey();
@@ -635,7 +612,8 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     private bool TryFindFallbackSpawnPos(out Vector3 pos)
     {
         // 1. 살아있는 다른 봇 (NavMesh 위에 있다고 검증된 경우)
-        foreach (var bot in FindObjectsByType<AIPlayerMovement>(FindObjectsSortMode.None))
+        //    EntityRegistry는 OnEnable에서 등록된 목록이라 씬 전체를 훑지 않는다
+        foreach (var bot in EntityRegistry.Bots)
         {
             if (bot == null || bot == this || bot.IsEliminated) continue;
             if (bot.Agent != null && bot.Agent.enabled && bot.Agent.isOnNavMesh)
@@ -645,7 +623,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             }
         }
         // 2. 살아있는 플레이어
-        foreach (var p in FindObjectsByType<JellyNet.LanPlayerState>(FindObjectsSortMode.None))
+        foreach (var p in EntityRegistry.Players)
         {
             if (p == null) continue;
             pos = p.transform.position;
@@ -764,27 +742,13 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         //  [LAN 이식] 봇이 플레이어/봇을 먹는 경로
         // ═════════════════════════════════════════════
         //
-        // ★ 원본과 판정 규칙은 같고, 전달 수단만 바뀐다.
-        //   Photon: 봇이 피해자의 photonView에 대고 RPC를 쏜다
-        //   LAN   : 호스트가 이미 판정 주체이므로, AbsorbMode에 결과를 넘겨
-        //           기존 PlayerAbsorbed 방송 경로를 그대로 태운다.
+        // ★ 봇이 따로 알릴 필요가 없다
+        //   호스트가 이미 판정 주체이므로 AbsorbMode에 결과를 넘겨
+        //   기존 PlayerAbsorbed 방송 경로를 그대로 태운다.
         //   덕분에 "플레이어가 플레이어를 먹었을 때"와 완전히 같은 코드가 돈다.
         if (_netId != null)
         {
             LanAbsorbTouch(other);
-            return;
-        }
-
-        // ── 더 작은 AI 봇 흡수 ──
-        AIPlayerMovement otherBot = other.GetComponentInParent<AIPlayerMovement>();
-        if (otherBot != null && otherBot != this && !otherBot.IsBeingAbsorbed)
-        {
-            float myScale = GetMyAuthorityScale();
-            float otherScale = otherBot.GetMyAuthorityScale();
-            if (otherScale >= myScale) return;
-
-            otherBot.photonView.RPC(nameof(RPC_BotAbsorbed), RpcTarget.All, photonView.ViewID);
-            ScaleCtrl?.GrowByAbsorbing(otherScale);
             return;
         }
     }
@@ -797,26 +761,26 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     /// </summary>
     private void LanAbsorbTouch(Collider other)
     {
-        var mode = JellyNet.AbsorbMode.Instance;
+        var mode = AbsorbMode.Instance;
         if (mode == null || _netId == null) return;
         if (IsOutOfPlay) return;
 
-        JellyNet.NetIdentity victim = other.GetComponentInParent<JellyNet.NetIdentity>();
+        NetIdentity victim = other.GetComponentInParent<NetIdentity>();
         if (victim == null || victim == _netId) return;
-        if (victim.PrefabId >= JellyNet.NetConfig.JELLY_PREFAB_START && !victim.IsBot) return; // 젤리는 다른 경로
+        if (victim.PrefabId >= NetConfig.JELLY_PREFAB_START && !victim.IsBot) return; // 젤리는 다른 경로
 
         float myScale = GetMyAuthorityScale();
-        float otherScale = JellyNet.NetEntity.ScaleOf(victim);
+        float otherScale = NetEntity.ScaleOf(victim);
         if (otherScale >= myScale) return;
 
         // 호스트 판정 → 전원에게 방송. 성장도 그 안에서 확정된다.
-        mode.HostAbsorb(victim.NetId, _netId.NetId);
+        mode.HostBotAbsorb(victim.NetId, _netId.NetId);
     }
 
     /// <summary>
     /// 초콜릿 등으로 탈락 처리. 리더보드/이름표 제거, AI/Agent 정지.
     /// 오브젝트는 파괴하지 않고 둥둥 떠다니게 유지.
-    /// 마스터에서 호출되면 RPC로 모든 클라이언트에 전파한다.
+    /// 호스트에서 호출되면 BotEliminated 방송으로 전 클라에 전파된다.
     /// </summary>
     public void OnEliminated()
     {
@@ -824,35 +788,16 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         // [LAN 이식] 탈락은 호스트가 판정하고 전원에게 알린다.
         //   호스트 자신도 즉시 반영해야 하므로 방송 후 로컬 적용까지 한다.
-        if (_netId != null)
-        {
-            if (!IsDriver) return;                       // 클라는 스스로 죽이지 않는다
+        //   봇은 전부 NetWorld가 스폰하므로 _netId가 없는 봇은 존재하지 않는다 —
+        //   예전엔 그 경우의 폴백이 있었는데, 그쪽은 IsDriver 검사를 건너뛰어서
+        //   만약 도달했다면 클라가 봇을 제멋대로 죽일 수 있었다
+        if (!IsDriver) return;                       // 클라는 스스로 죽이지 않는다
 
-            // [밀치기] 나를 민 사람이 있으면 내 점수를 넘긴다. 탈락 처리 전에 해야 한다.
-            if (JellyNet.PushMode.Instance != null)
-                JellyNet.PushMode.Instance.HostReportEliminated(_netId.NetId);
+        // [밀치기] 나를 민 사람이 있으면 내 점수를 넘긴다. 탈락 처리 전에 해야 한다.
+        if (PushMode.Instance != null)
+            PushMode.Instance.HostAwardKillCredit(_netId.NetId);
 
-            if (_botSync != null) _botSync.HostBroadcastEliminated();
-            ApplyEliminatedLocally();
-            return;
-        }
-
-        if (PhotonNetwork.IsMasterClient && photonView != null)
-        {
-            photonView.RPC(nameof(RPC_OnEliminated), RpcTarget.All);
-        }
-        else if (!PhotonNetwork.InRoom)
-        {
-            // 오프라인(레거시 씬) 폴백. 네트워크 게임에서 비마스터의 로컬 호출은 무시한다 —
-            // 여기서 로컬만 탈락 처리하면 그 클라에서만 봇이 죽어 클라 간 생사가 갈린다(X1).
-            // 탈락 전파는 소유자(마스터)의 RPC_OnEliminated(All)가 유일한 경로다.
-            ApplyEliminatedLocally();
-        }
-    }
-
-    [PunRPC]
-    private void RPC_OnEliminated()
-    {
+        if (_botSync != null) _botSync.HostBroadcastEliminated();
         ApplyEliminatedLocally();
     }
 
@@ -861,7 +806,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         if (IsEliminated) return;
         IsEliminated = true;
 
-        // [BOT-1] 마스터 승계 초기화 코루틴이 진행 중이면 멈춘다 — 안 그러면 그 코루틴이
+        // 초기화 코루틴이 진행 중이면 멈춘다 — 안 그러면 그 코루틴이
         // Agent를 다시 켜고 FSM을 재기동해 방금 탈락시킨 봇이 되살아난다(enabled=false로는 안 멈춤).
         if (_initCoroutine != null) { StopCoroutine(_initCoroutine); _initCoroutine = null; }
 
@@ -884,152 +829,33 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
     }
 
     /// <summary>[LAN] 호스트가 확정한 흡수. 전원이 각자 같은 연출을 재생한다.</summary>
-    public void ApplyAbsorbedFromNet(Transform absorber)
+    /// <summary>
+    /// 흡수 연출 직전에 봇의 두뇌를 멈춘다. 연출 자체는 LanPlayerVisual이 사람과 공용으로 돌린다.
+    ///
+    /// ★ 예전엔 여기 LanAbsorbedSequence라는 코루틴이 따로 있었다
+    ///   사람 쪽 AbsorbedRoutine과 상수까지 같은 20줄이 복사돼 있어서,
+    ///   연출을 손보면 사람과 봇이 다르게 빨려 들어갈 수 있었다.
+    /// </summary>
+    public void StopForAbsorb()
     {
-        if (IsBeingAbsorbed) return;
         IsBeingAbsorbed = true;
 
+        //초기화 코루틴이 살아 있으면 Agent를 다시 켜고 FSM을 재기동한다
         if (_initCoroutine != null) { StopCoroutine(_initCoroutine); _initCoroutine = null; }
 
-        StartCoroutine(LanAbsorbedSequence(absorber));
+        if (Agent != null) Agent.enabled = false;
+
+        _currentState?.Exit();
+        _currentState = null;
     }
 
     /// <summary>
-    /// 흡수 연출. 원본 BotAbsorbedSequence에서 PhotonView.Find만 걷어낸 것.
+    /// 흡수 연출.
     ///
     /// ★ 오브젝트를 없애는 주체
-    ///   원본은 마스터가 PhotonNetwork.Destroy를 불렀다. LAN도 같다 —
     ///   호스트만 HostDespawn을 부르고, 그 결과가 DespawnEntity로 전파된다.
     ///   각자 지우면 늦게 들어온 사람이 이미 없는 봇을 다시 만들 수 있다.
     /// </summary>
-    private IEnumerator LanAbsorbedSequence(Transform absorberTf)
-    {
-        if (Agent != null) Agent.enabled = false;
-        _currentState?.Exit();
-        _currentState = null;
-
-        Vector3 startScale = transform.localScale;
-        float elapsed = 0f;
-        const float duration = 0.8f;
-        const float pullSpeed = 12f;
-        const float snapDist = 0.4f;
-
-        while (elapsed < duration)
-        {
-            if (absorberTf != null)
-            {
-                if (Vector3.Distance(transform.position, absorberTf.position) <= snapDist) break;
-                transform.position = Vector3.MoveTowards(
-                    transform.position, absorberTf.position, pullSpeed * Time.deltaTime);
-            }
-            transform.localScale = Vector3.Lerp(startScale, Vector3.one * 0.05f, elapsed / duration);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        foreach (var r in GetComponentsInChildren<Renderer>()) r.enabled = false;
-
-        if (_botSync != null) _botSync.HostDespawnSelf();   // 호스트가 아니면 아무 일도 안 한다
-    }
-
-    /// <summary>[RPC] 이 봇이 흡수당했을 때 (모든 클라이언트에서 실행)</summary>
-    [PunRPC]
-    private void RPC_BotAbsorbed(int absorberViewID)
-    {
-        if (IsBeingAbsorbed) return;
-        IsBeingAbsorbed = true;
-
-        // [BOT-1] 승계 초기화 코루틴 중단 — InitAndRun과 흡수 연출이 같은 Agent/transform을 다투지 않게.
-        if (_initCoroutine != null) { StopCoroutine(_initCoroutine); _initCoroutine = null; }
-
-#if UNITY_EDITOR
-        Debug.Log(this.name + "/RPC_BotAbsorbed : AI 플레이어 흡수됨."); // [S10] 빌드 로그 스파이크 방지
-#endif
-        StartCoroutine(BotAbsorbedSequence(absorberViewID));
-    }
-
-    private IEnumerator BotAbsorbedSequence(int absorberViewID)
-    {
-        if (Agent != null) Agent.enabled = false;
-        _currentState?.Exit();
-        _currentState = null;
-
-        PhotonView absorberView = PhotonView.Find(absorberViewID);
-        Transform absorberTf = absorberView?.transform;
-
-        Vector3 startScale = transform.localScale;
-        float elapsed = 0f;
-        const float duration = 0.8f;
-        const float moveSpeed = 12f;
-        const float snapDist = 0.4f;
-
-        while (elapsed < duration)
-        {
-            if (absorberTf != null)
-            {
-                if (Vector3.Distance(transform.position, absorberTf.position) <= snapDist) break;
-                transform.position = Vector3.MoveTowards(transform.position, absorberTf.position, moveSpeed * Time.deltaTime);
-            }
-            transform.localScale = Vector3.Lerp(startScale, Vector3.one * 0.05f, elapsed / duration);
-            elapsed += Time.deltaTime;
-            yield return null;
-        }
-
-        foreach (var r in GetComponentsInChildren<Renderer>())
-            r.enabled = false;
-
-        // 게임이 이미 끝난 상태(Result)면 Destroy를 보내지 않는다.
-        // LoadLevel과 Destroy 이벤트가 서로 다른 채널로 전파되어,
-        // 비마스터에서 씬 전환 후 stale Destroy가 도착하면
-        // "Could not find PhotonView" 에러가 발생하기 때문이다.
-        // 씬 전환 시 PUN이 네트워크 오브젝트를 자동 정리하므로 안전하다.
-        if (PhotonNetwork.IsMasterClient && GameState.Phase == GamePhase.Playing)
-            PhotonNetwork.Destroy(gameObject);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 마스터 클라이언트 교체 시 AI 이어받기
-    // ─────────────────────────────────────────────────────────
-
-    public override void OnMasterClientSwitched(Player newMasterClient)
-    {
-        if (!PhotonNetwork.IsMasterClient) return;
-        // [BOT-1/MAP-2] 이미 판 밖(흡수 중 또는 탈락)인 봇은 제어를 이어받지 않는다 —
-        // InitAndRun이 그 봇을 NavMesh로 되돌려 탈락/흡수를 취소하고 되살리는 것을 막는다.
-        // (예전엔 IsBeingAbsorbed만 봐서, 탈락한 봇이 마스터 교체 시 부활했다.)
-        if (IsOutOfPlay) return;
-
-        Debug.Log($"[AIBot] {name} — 새 MasterClient가 AI 제어 이어받기");
-
-        PlayerAbsorber absorber = GetComponent<PlayerAbsorber>();
-        if (absorber != null) absorber.enabled = true;
-        PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
-        if (absorbMgr != null) absorbMgr.enabled = true;
-
-        // [BOT-2] 비마스터 시절 RemoveCloth로 제거된 Cloth를 대칭 복구 — 안 그러면 새 마스터
-        // 화면에서만 이 봇이 젤리 출렁임 없이 뻣뻣하게 보인다(다음 성장 전까지).
-        GetComponentInChildren<SoftBody3D>()?.RequestRebuildCloth();
-
-        if (_initCoroutine != null) StopCoroutine(_initCoroutine);
-        _initCoroutine = StartCoroutine(InitAndRun());
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 스케일 동기화 (IPunObservable)
-    // ─────────────────────────────────────────────────────────
-
-    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-    {
-        if (stream.IsWriting)
-        {
-            stream.SendNext(transform.localScale.x);
-        }
-        else
-        {
-            _networkScale = (float)stream.ReceiveNext();
-        }
-    }
-
     // ─────────────────────────────────────────────────────────
     // 대쉬 (Push 모드)
     // ─────────────────────────────────────────────────────────
@@ -1049,17 +875,9 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         // [LAN 이식] 트리거는 값이 남지 않아 폴링할 수 없다. 쏘는 쪽이 직접 알린다.
         //   플레이어 FSM(PlayerDashState)과 완전히 같은 통로.
-        if (_netId != null)
-            JellyNet.LanPlayerVisual.ReportTrigger(this, JellyNet.LanPlayerVisual.ANIM_DASH);
-        else if (PhotonNetwork.InRoom)
-            photonView.RPC(nameof(RPC_PlayBotDash), RpcTarget.Others);
+        if (_visual != null)
+            _visual.SendTrigger(LanPlayerVisual.ANIM_DASH);
         return true;
-    }
-
-    [PunRPC]
-    private void RPC_PlayBotDash()
-    {
-        if (_anim != null) _anim.SetTrigger("Dash");
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1090,26 +908,19 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         if (_anim != null) _anim.SetTrigger("Attack");
 
-        if (_netId != null)
-            JellyNet.LanPlayerVisual.ReportTrigger(this, JellyNet.LanPlayerVisual.ANIM_ATTACK);
-        else if (PhotonNetwork.InRoom)
-            photonView.RPC(nameof(RPC_PlayBotAttack), RpcTarget.Others);
+        if (_visual != null)
+        {
+            _visual.PlayBatSwing();
+            _visual.SendTrigger(LanPlayerVisual.ANIM_ATTACK);
+        }
     }
 
+    //회전 연출은 LanPlayerVisual.PlayBatSwing이 돌린다(사람·원격과 같은 코드).
+    //여기 남는 건 봇에만 있는 일 — 스윙이 도는 동안 명중을 찾는 것뿐이다
     private IEnumerator AttackSwingRoutine()
     {
         var dm = DataManager.Instance;
         if (dm == null) { _attackCoroutine = null; yield break; }
-
-        float halfArc = dm.batArcAngle * 0.5f;
-        Quaternion swingStart = Quaternion.Euler(0f, -halfArc, 0f);
-        Quaternion swingEnd = Quaternion.Euler(0f, halfArc, 0f);
-
-        if (batPivot != null)
-        {
-            batPivot.gameObject.SetActive(true);
-            batPivot.localRotation = swingStart;
-        }
 
         bool hitDetected = false;
         float elapsed = 0f;
@@ -1117,22 +928,11 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         while (elapsed < dm.batSwingDuration)
         {
             elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / dm.batSwingDuration);
-
-            if (batPivot != null)
-                batPivot.localRotation = Quaternion.Slerp(swingStart, swingEnd, t);
 
             if (!hitDetected)
                 hitDetected = DetectBatHit();
 
             yield return null;
-        }
-
-        if (batPivot != null)
-        {
-            batPivot.localRotation = Quaternion.identity;
-            if (hideBatWhenIdle)
-                batPivot.gameObject.SetActive(false);
         }
 
         _attackCoroutine = null;
@@ -1145,7 +945,7 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
         var dm = DataManager.Instance;
         if (dm == null) return false;
 
-        float scale = transform.localScale.x;
+        float scale = GetMyAuthorityScale();
         float range = dm.batRange * scale;
         Vector3 origin = transform.position + Vector3.up * (baseAgentHeight * 0.5f * scale);
         float halfArc = dm.batArcAngle * 0.5f;
@@ -1171,86 +971,28 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
             //  [LAN 이식] 넉백 전달을 PushMode에 넘긴다
             // ═════════════════════════════════════════════
             //
-            // ★ 왜 직접 안 쏘는가
-            //   원본은 봇이 피해자 소유자에게만 RPC를 쐈다(전체에 쏘면 비마스터가
-            //   로컬에서도 밀어 수신 위치와 충돌해 지터가 난다).
-            //   그 "피격자 소유자에게만" 규칙이 이미 PushMode.SendKnockback에
-            //   구현돼 있으므로, 여기서 다시 만들 이유가 없다.
+            // ★ 왜 직접 안 보내는가
+            //   넉백은 맞는 쪽 소유자에게만 가야 한다. 전체에 뿌리면 남의 화면에서도
+            //   로컬로 밀려 수신 위치와 충돌해 지터가 난다.
+            //   그 규칙이 이미 PushMode.SendKnockback에 있으므로 여기서 다시 만들 이유가 없다.
             //   플레이어가 때렸을 때와 완전히 같은 코드가 돌게 된다.
             if (_netId != null)
             {
-                JellyNet.NetIdentity victimId = hit.GetComponentInParent<JellyNet.NetIdentity>();
+                NetIdentity victimId = hit.GetComponentInParent<NetIdentity>();
                 if (victimId == null || victimId == _netId) continue;
 
-                var push = JellyNet.PushMode.Instance;
+                var push = PushMode.Instance;
                 if (push == null) continue;
 
-                push.HostBatHit(victimId.NetId, _netId.NetId);
+                push.HostBotBatHit(victimId.NetId, _netId.NetId);
 
                 float g = dm.batHitGrowth / Mathf.Max(scale, 1f);
-                ScaleCtrl?.GrowByBatHit(g);
-                return true;
-            }
-
-            AIPlayerMovement aiBot = hit.GetComponentInParent<AIPlayerMovement>();
-            if (aiBot != null && aiBot != this && !aiBot.IsEliminated && !aiBot.IsBeingAbsorbed)
-            {
-                // 봇 위치는 소유자(마스터)가 PhotonTransformView로 권위 동기화한다.
-                // RpcTarget.All로 보내면 비마스터도 로컬에서 transform을 밀어 수신 동기화 값과
-                // 충돌(지터/되감김)하므로, 플레이어 넉백과 동일하게 소유자에게만 보낸다.
-                aiBot.photonView.RPC(nameof(RPC_ApplyKnockback), aiBot.photonView.Owner,
-                    pushDir.x, pushDir.z, pushForce);
-
-                float growth = dm.batHitGrowth / Mathf.Max(scale, 1f);
-                ScaleCtrl?.GrowByBatHit(growth);
+                if (ScaleCtrl != null) ScaleCtrl.GrowByBatHit(g);
                 return true;
             }
         }
 
         return false;
-    }
-
-    [PunRPC]
-    private void RPC_PlayBotAttack()
-    {
-        if (_anim != null) _anim.SetTrigger("Attack");
-        if (batPivot != null)
-            StartCoroutine(RemoteBatSwing());
-    }
-
-    private IEnumerator RemoteBatSwing()
-    {
-        var dm = DataManager.Instance;
-        if (dm == null) yield break;
-
-        float half = dm.batArcAngle * 0.5f;
-        Quaternion start = Quaternion.Euler(0f, -half, 0f);
-        Quaternion end = Quaternion.Euler(0f, half, 0f);
-
-        batPivot.gameObject.SetActive(true);
-
-        float t = 0f;
-        while (t < dm.batSwingDuration)
-        {
-            t += Time.deltaTime;
-            batPivot.localRotation = Quaternion.Slerp(start, end, t / dm.batSwingDuration);
-            yield return null;
-        }
-
-        batPivot.localRotation = Quaternion.identity;
-        if (hideBatWhenIdle)
-            batPivot.gameObject.SetActive(false);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 애니메이션 동기화 RPC (비마스터 클라이언트용)
-    // ─────────────────────────────────────────────────────────
-
-    [PunRPC]
-    private void RPC_SetIsMoving(bool isMoving)
-    {
-        if (_anim != null)
-            _anim.SetBool("IsMoving", isMoving);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -1259,8 +1001,8 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
     private Coroutine _knockbackCoroutine;
 
-    [PunRPC]
-    public void RPC_ApplyKnockback(float dirX, float dirZ, float force)
+    /// <summary>[LAN] PushMode가 넉백을 전달한다.</summary>
+    public void ApplyKnockbackFromNet(float dirX, float dirZ, float force)
     {
         if (IsEliminated || IsBeingAbsorbed) return;
 
@@ -1269,22 +1011,22 @@ public class AIPlayerMovement : MonoBehaviourPunCallbacks, IPunObservable
 
         if (_knockbackCoroutine != null)
             StopCoroutine(_knockbackCoroutine);
-        _knockbackCoroutine = StartCoroutine(KnockbackRoutine(new Vector3(dirX, 0f, dirZ).normalized, force));
+        _knockbackCoroutine = StartCoroutine(
+            KnockbackRoutine(Knockback.StartVelocity(new Vector3(dirX, 0f, dirZ), force)));
     }
 
-    private System.Collections.IEnumerator KnockbackRoutine(Vector3 dir, float force)
+    private IEnumerator KnockbackRoutine(Vector3 startVelocity)
     {
         if (Agent != null) Agent.enabled = false;
 
         float elapsed = 0f;
-        const float duration = 0.4f;
 
-        while (elapsed < duration)
+        //속도 곡선은 사람과 공유하고, 그 속도로 어떻게 움직일지는 각자 한다.
+        //봇은 NavMeshAgent를 끄고 transform을 직접 몬다
+        while (Knockback.IsActive(elapsed))
         {
             if (IsEliminated || IsBeingAbsorbed) break;
-            float t = elapsed / duration;
-            Vector3 move = Vector3.Lerp(dir * force, Vector3.zero, t);
-            transform.position += move * Time.deltaTime;
+            transform.position += Knockback.VelocityAt(startVelocity, elapsed) * Time.deltaTime;
             elapsed += Time.deltaTime;
             yield return null;
         }

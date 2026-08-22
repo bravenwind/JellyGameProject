@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -10,7 +10,7 @@ using JellyNet;
 ///
 ///   ① Photon 매니저 오브젝트를 비활성화한다(삭제하지 않음 — 되돌리기 쉽게)
 ///   ② LanNet 오브젝트를 만들고 NetManager · NetWorld · AbsorbMode · PushMode ·
-///      LanGameFlow · NetTestUI 를 붙인다
+///      LanGameFlow · LanDiagnostics 를 붙인다
 ///   ③ NetWorld.prefabs 를 자동으로 채운다 (0번 플레이어, 1번부터 젤리)
 ///
 /// 메뉴: Tools ▸ LAN 이식 ▸ ④ 현재 씬을 LAN 구성으로
@@ -178,17 +178,15 @@ public static class LanSceneSetup
             log.AppendLine("  새로 생성");
         }
 
-        Add<NetManager>(go, log);
+        //NetManager와 LanDiscovery는 Main 씬의 NetManager_Main에만 둔다.
+        //DontDestroyOnLoad로 게임 씬까지 넘어오므로 여기 또 두면 중복 경고가 뜬다
         Add<NetWorld>(go, log);
         Add<LanSpawnPoints>(go, log);
         Add<AbsorbMode>(go, log);
         Add<PushMode>(go, log);
         Add<LanGameFlow>(go, log);
         Add<LanBotSpawner>(go, log);
-        Add<LanFallOff>(go, log);
-        Add<LanDiscovery>(go, log);
         Add<LanLeaderboardUI>(go, log);   // Container/Entry Prefab은 인스펙터에서 연결해야 한다
-        Add<NetTestUI>(go, log);
         Add<LanDiagnostics>(go, log);
 
         return go;

@@ -6725,15 +6725,12 @@ GameObject:
   - component: {fileID: 3622501665991240812}
   - component: {fileID: 2453079861099940875}
   - component: {fileID: 7056015745900775666}
-  - component: {fileID: 3717708261158597084}
   - component: {fileID: 1065950695206174422}
   - component: {fileID: 6662630265493023483}
   - component: {fileID: 8269618141971823586}
   - component: {fileID: 3104388095224548013}
   - component: {fileID: 3875036328757120033}
-  - component: {fileID: 5741861544558977663}
   - component: {fileID: 3604568095480910256}
-  - component: {fileID: 8486096046177473977}
   - component: {fileID: 7849707261919531368}
   - component: {fileID: 1704482663070147996}
   - component: {fileID: 1801388616109071552}
@@ -6857,39 +6854,6 @@ MonoBehaviour:
   softBody3D: {fileID: 8761763701411013942}
   rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
---- !u!114 &3717708261158597084
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9b8c4a61274f60b4ea5fb4299cfdbf14, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  ShowLayerWeightsInspector: 1
-  ShowParameterInspector: 1
-  m_SynchronizeParameters:
-  - Type: 4
-    SynchronizeType: 2
-    Name: IsMoving
-  - Type: 9
-    SynchronizeType: 0
-    Name: Jump
-  - Type: 9
-    SynchronizeType: 0
-    Name: GameFail
-  - Type: 9
-    SynchronizeType: 0
-    Name: Attack
-  - Type: 9
-    SynchronizeType: 0
-    Name: Dash
-  m_SynchronizeLayers:
-  - SynchronizeType: 0
-    LayerIndex: 0
 --- !u!95 &1065950695206174422
 Animator:
   serializedVersion: 7
@@ -6996,20 +6960,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &5741861544558977663
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a797b6576c49987428caf3c827e4f7d7, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  damping: 4
-  stopSpeed: 0.05
 --- !u!114 &3604568095480910256
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7026,21 +6976,6 @@ MonoBehaviour:
   SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
---- !u!114 &8486096046177473977
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lerpSpeed: 8
-  minScale: 0.5
-  maxScale: 6
 --- !u!114 &7849707261919531368
 MonoBehaviour:
   m_ObjectHideFlags: 0

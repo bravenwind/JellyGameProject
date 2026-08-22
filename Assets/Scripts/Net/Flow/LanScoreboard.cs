@@ -51,14 +51,16 @@ namespace JellyNet
                 if (!includeDead && b.IsOutOfPlay)
                     continue;
 
-                LanBotSync bs = b.GetComponent<LanBotSync>();
+                LanBotState bs = b.BotState;
+
+                int netId = b.EntityId;
 
                 Entry e;
                 e.name = bs != null && !string.IsNullOrEmpty(bs.BotName)
                     ? bs.BotName
-                    : ("AI 봇 " + NetIdentity.IdOf(b));
+                    : ("AI 봇 " + netId);
                 e.isBot = true;
-                e.netId = NetIdentity.IdOf(b);
+                e.netId = netId;
                 e.ownerId = 0;
                 e.scale = b.GetMyAuthorityScale();
                 e.score = bs != null ? bs.CurrentScore : 0;

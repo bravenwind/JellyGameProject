@@ -18,7 +18,7 @@ namespace JellyNet
         [Tooltip("방장이 몇 초마다 알릴지.")]
         public float beaconInterval = 1f;
 
-        [Tooltip("이 시간 동안 소식이 없으면 목록에서 지운다.")]
+        [Tooltip("이 시간 동안 소식이 없으면 목록에서 지움. ")]
         public float roomTimeout = 3.5f;
 
         public class RoomInfo
@@ -38,16 +38,47 @@ namespace JellyNet
 
         private readonly Dictionary<string, RoomInfo> rooms = new Dictionary<string, RoomInfo>();
 
+        //비콘을 보낼 곳들. 랜카드마다 대역이 달라서 한 곳만으로는 부족하다 (NetUtil 참고)
+        private readonly List<IPEndPoint> targets = new List<IPEndPoint>();
+
+        //와이파이가 나중에 붙거나 VPN이 켜질 수 있어 주기적으로 다시 훑는다
+        private const float TARGETS_TTL = 10f;
+        private float targetsAge;
+
         private UdpClient send;
         private UdpClient listen;
         private float beaconTimer;
 
         public IEnumerable<RoomInfo> Rooms { get { return rooms.Values; } }
-        public int RoomCount { get { return rooms.Count; } }
-
         private void Awake()
         {
+            if (Instance != null && Instance != this) 
+            { 
+                Destroy(this); 
+                return; 
+            }
+
             Instance = this;
+        }
+
+        private void Update()
+        {
+            if (send != null)
+            {
+                targetsAge += Time.unscaledDeltaTime;
+                if (targetsAge >= TARGETS_TTL)
+                    RefreshTargets();
+
+                beaconTimer += Time.unscaledDeltaTime;
+                if (beaconTimer >= beaconInterval)
+                {
+                    beaconTimer = 0f;
+                    SendBeacon();
+                }
+            }
+
+            Poll();
+            Expire();
         }
 
         private void OnDestroy()
@@ -57,7 +88,10 @@ namespace JellyNet
                 Instance = null;
         }
 
-        private void OnApplicationQuit() { StopAll(); }
+        private void OnApplicationQuit()
+        { 
+            StopAll();
+        }
 
         public void StopAll()
         {
@@ -73,6 +107,7 @@ namespace JellyNet
                 send = new UdpClient();
                 send.EnableBroadcast = true;
                 beaconTimer = 0f;
+                RefreshTargets();
             }
             catch (Exception e)
             {
@@ -85,8 +120,29 @@ namespace JellyNet
         {
             if (send == null)
                 return;
-            try { send.Close(); } catch { }
+
+            try
+            { 
+                send.Close();
+            }
+            catch 
+            {
+
+            }
+
             send = null;
+            targets.Clear();
+        }
+
+        private void RefreshTargets()
+        {
+            targets.Clear();
+            targets.AddRange(NetUtil.GetBroadcastTargets(DISCOVERY_PORT));
+            targetsAge = 0f;
+
+            if (targets.Count == 0)
+                Debug.LogWarning("[탐색] 알림을 보낼 네트워크 어댑터를 찾지 못했습니다. "
+                                 + "랜선이나 와이파이가 연결되어 있는지 확인해주세요.");
         }
 
         private void SendBeacon()
@@ -114,14 +170,25 @@ namespace JellyNet
 
             byte[] data = Encoding.UTF8.GetBytes(msg);
 
-            try
+            int sent = 0;
+            string lastError = null;
+
+            for (int i = 0; i < targets.Count; i++)
             {
-                send.Send(data, data.Length,
-                    new IPEndPoint(IPAddress.Broadcast, DISCOVERY_PORT));
+                try
+                {
+                    send.Send(data, data.Length, targets[i]);
+                    sent++;
+                }
+                catch (Exception e)
+                {
+                    lastError = e.Message;
+                }
             }
-            catch (Exception e)
+
+            if (sent == 0)
             {
-                Debug.LogWarning("[탐색] 알림 실패: " + e.Message);
+                Debug.LogWarning("[탐색] 모든 어댑터로 알림을 보내지 못했습니다: " + lastError);
                 StopBeacon();
             }
         }
@@ -152,7 +219,16 @@ namespace JellyNet
         {
             if (listen == null)
                 return;
-            try { listen.Close(); } catch { }
+
+            try
+            { 
+                listen.Close();
+            } 
+            catch 
+            {
+            
+            }
+
             listen = null;
             rooms.Clear();
         }
@@ -167,8 +243,14 @@ namespace JellyNet
                 IPEndPoint from = new IPEndPoint(IPAddress.Any, 0);
                 byte[] data;
 
-                try { data = listen.Receive(ref from); }
-                catch { break; }
+                try
+                { 
+                    data = listen.Receive(ref from);
+                }
+                catch 
+                {
+                    break;
+                }
 
                 Parse(Encoding.UTF8.GetString(data), from.Address.ToString());
             }
@@ -210,23 +292,8 @@ namespace JellyNet
                 if (Time.unscaledTime - kv.Value.LastSeen > roomTimeout)
                     stale.Add(kv.Key);
 
-            for (int i = 0; i < stale.Count; i++) rooms.Remove(stale[i]);
-        }
-
-        private void Update()
-        {
-            if (send != null)
-            {
-                beaconTimer += Time.unscaledDeltaTime;
-                if (beaconTimer >= beaconInterval)
-                {
-                    beaconTimer = 0f;
-                    SendBeacon();
-                }
-            }
-
-            Poll();
-            Expire();
+            for (int i = 0; i < stale.Count; i++)
+                rooms.Remove(stale[i]);
         }
     }
 }

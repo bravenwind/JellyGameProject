@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // RYBColorSystem.cs
 // ============================================================
 // 역할: RYB 감산혼합 색상 엔진
@@ -18,7 +18,7 @@ using System;
 
 // JellyColorType enum은 DataManager.cs에 정의됨
 
-[System.Serializable]
+[Serializable]
 public struct RYBColor
 {
     [Range(0f, 1f)] public float r;
@@ -198,9 +198,4 @@ public struct RYBColor
         }
     }
 
-    /// <summary>목표 색상의 대표 RGB Color 반환 (UI 아이콘 등)</summary>
-    public static Color GetTargetRGB(JellyColorType type)
-        => GetIdealColor(type).ToRGB();
-
-    public override string ToString() => $"RYB({r:F2}, {y:F2}, {b:F2})";
 }

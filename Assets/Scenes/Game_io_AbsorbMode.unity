@@ -23276,7 +23276,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 336275305}
-  - component: {fileID: 336275304}
   - component: {fileID: 336275303}
   - component: {fileID: 336275302}
   - component: {fileID: 336275300}
@@ -23284,7 +23283,6 @@ GameObject:
   - component: {fileID: 336275298}
   - component: {fileID: 336275306}
   - component: {fileID: 336275297}
-  - component: {fileID: 336275307}
   m_Layer: 0
   m_Name: LanNet
   m_TagString: Untagged
@@ -23348,7 +23346,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2e59a4c33c305364eb97061372be6da0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mode: 0
   gameDuration: 120
   countdownSeconds: 3
   minPlayersToStart: 2
@@ -23364,7 +23361,6 @@ MonoBehaviour:
   resultTitleText: {fileID: 722883341}
   spectateButton: {fileID: 844177891}
   returnToMainButton: {fileID: 319903187}
-  autoLoadResultScene: 1
   resultSceneAbsorb: GameResult_AbsorbMode
   resultScenePush: GameResult_PushMode
 --- !u!114 &336275302
@@ -23388,13 +23384,8 @@ MonoBehaviour:
   playerRadius: 0.5
   jellyRadius: 0.3
   eatChaseTolerance: 5
-  growPerJelly: 0.12
-  scorePerJelly: 1
-  useDistanceEating: 0
   verboseLog: 1
   absorbSizeRatio: 1.15
-  absorbGrowthRatio: 0.4
-  absorbScorePerScale: 10
   respawnAfterAbsorb: 0
   respawnDelay: 3
 --- !u!114 &336275303
@@ -23417,24 +23408,9 @@ MonoBehaviour:
   - {fileID: 3121453740919938520, guid: f4c0235898b9c184b8d6ab2eb5c751f7, type: 3}
   - {fileID: 8368899581075514795, guid: 6f4eec1ba57998647a2cb5995627e5f7, type: 3}
   - {fileID: 8836493012765761566, guid: d0ae8c95bfb62bb459c79e0a70d75fe9, type: 3}
+  - {fileID: 1460502662218733694, guid: dae3d72f021f9f440b7b8989d08c4c00, type: 3}
   - {fileID: 1177273754728550086, guid: b1819b7e9bcac3e41927d859b19f03a0, type: 3}
   spawnRadius: 4
---- !u!114 &336275304
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 336275296}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9146228891f48fb40846da14506a4c4d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  port: 7777
-  joinIp: 127.0.0.1
-  maxLogLines: 200
-  persistAcrossScenes: 0
 --- !u!4 &336275305
 Transform:
   m_ObjectHideFlags: 0
@@ -23466,20 +23442,6 @@ MonoBehaviour:
   entryPrefab: {fileID: 585618893292266002, guid: 81c991277264e1742ab43d3bb56cb6c8, type: 3}
   displayCount: 5
   refreshRate: 4
---- !u!114 &336275307
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 336275296}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 0ab6d29ddb8f4364298280c3ef286dca, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  beaconInterval: 1
-  roomTimeout: 3.5
 --- !u!1001 &337504593
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -97893,7 +97855,6 @@ MonoBehaviour:
   absorbScalePercent: 0.5
   minScale: 1
   maxScale: 100
-  scaleDecreaseAmount: 2
   jumpScaleThreshold: 2
   scaleIncreaseTime: 1.5
   scaleDecreaseTime: 2
@@ -97914,15 +97875,11 @@ MonoBehaviour:
   scaleChangedPlusSize: 7
   cameraZoomFirstThreshold: 6
   cameraZoomThresholdStep: 4
-  gameFailMinusSizePerLevel: []
   targetScore: 1000
   scorePerJelly: 100
   startingScale: 2
   originalDetectRadius: 4
   detectPlusRadiusPerLevel: 2
-  detectLayerMask:
-    serializedVersion: 2
-    m_Bits: 128
   objectLayerMask:
     serializedVersion: 2
     m_Bits: 4096
@@ -97933,7 +97890,6 @@ MonoBehaviour:
     missionCleared: 0
   - missionName: "\uC2A4\uD14C\uC774\uC9C0 \uD074\uB9AC\uC5B4\uD558\uAE30"
     missionCleared: 0
-  targetTime: 120
   jellyEffects:
   - colorName: Red
     type: 0
@@ -128710,23 +128666,16 @@ MonoBehaviour:
   fxAudioSource: {fileID: 1634229697}
   walkAudioSource: {fileID: 1634229696}
   button1Audio: {fileID: 8300000, guid: 67780014cafe09f40b209ee38fdbbd9f, type: 3}
-  button3Audio: {fileID: 8300000, guid: efc7d453beaea2c4e860bee4e6c5c1bc, type: 3}
   buttonClickAudio: {fileID: 8300000, guid: fb34787b8d2f37b40be750dc6d4e3a78, type: 3}
   machineAudio: {fileID: 8300000, guid: 41c523eff55ac214fa6e13e1ccf0b9c9, type: 3}
   machineSpeed: 2.5
-  colorMixAudio: {fileID: 8300000, guid: c0a1c9bd1975980419901dbfd6bd235c, type: 3}
   colorMix2Audio: {fileID: 8300000, guid: 042242c7f93d70447a8366eb76405086, type: 3}
   scaleUpAudio: {fileID: 8300000, guid: 4a46db144cb4e7d44837fe679cd0a5be, type: 3}
-  crashAudio: {fileID: 8300000, guid: 4069115208f3e7240b113fd15c8204e5, type: 3}
   walkAudio: {fileID: 8300000, guid: 5b98ad6245175a844987201d9e279296, type: 3}
-  walk2Audio: {fileID: 8300000, guid: f28a61a298e10c042b511e1dc8606fec, type: 3}
   milkWalkAudio: {fileID: 8300000, guid: b9a5f4a46006d6f429a02ea0fadc4809, type: 3}
   jumpAudio: {fileID: 8300000, guid: 55891c8a42c2af845b604ad3b756bdf7, type: 3}
-  missionCompleteAudio: {fileID: 8300000, guid: f59e1772dae4294418e6c3117377d95c, type: 3}
   failAudio: {fileID: 8300000, guid: fa96115cfa41f10499729de9b54301b2, type: 3}
   isSteppingMilk: 0
-  zoomInAudio: {fileID: 8300000, guid: c44f13b2c1d5c914490d9a838069fa61, type: 3}
-  zoomOutAudio: {fileID: 8300000, guid: 38eaa9674013a5a4d9e1706874c1f3c5, type: 3}
 --- !u!82 &1634229696
 AudioSource:
   m_ObjectHideFlags: 0
@@ -160021,8 +159970,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 10.199828, y: 6.8207207, z: 6.445471}
-  m_Center: {x: -0.19663116, y: -3.4103603, z: -0.13491043}
+  m_Size: {x: 10.199828, y: 0.11, z: 6.445471}
+  m_Center: {x: -0.19663116, y: -0.06, z: -0.13491043}
 --- !u!33 &1948921029
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -160045,7 +159994,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buoyancyForce: 3.5
   chocolateViscosity: 6
-  flowChangeSpeed: 0.5
   flowForce: 10
   waveSpeed: 2
   waveForce: 6

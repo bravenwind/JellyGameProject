@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
-using Photon.Pun;
+using JellyNet;
 
 public class ChocolateFluid : MonoBehaviour
 {
@@ -14,8 +14,6 @@ public class ChocolateFluid : MonoBehaviour
     public float chocolateViscosity = 5f;
 
     [Header("독립적인 물결 움직임 설정")]
-    [Tooltip("흐름 방향이 서서히 바뀌는 속도")]
-    public float flowChangeSpeed = 0.5f;
     [Tooltip("수평(X, Z)으로 흐르는 힘")]
     public float flowForce = 5f;
     [Tooltip("Y축 출렁임 속도 (파도의 빠르기)")]
@@ -66,12 +64,13 @@ public class ChocolateFluid : MonoBehaviour
     private int GetCurrentInterval()
     {
         float intervalSec = Mathf.Max(changeDirectionInterval, 0.01f);
-        if (PhotonNetwork.InRoom)
-        {
-            int intervalMs = (int)(intervalSec * 1000f);
-            return PhotonNetwork.ServerTimestamp / intervalMs;
-        }
-        return (int)(Time.time / intervalSec);
+
+        //방향이 양쪽에서 같아야 하므로 각자의 Time.time이 아니라
+        //호스트가 맞춰주는 경과 시간을 쓴다
+        var flow = LanGameFlow.Instance;
+        float t = flow != null && flow.Elapsed >= 0f ? flow.Elapsed : Time.time;
+
+        return (int)(t / intervalSec);
     }
 
     private void OnTriggerStay(Collider other)
@@ -127,21 +126,19 @@ public class ChocolateFluid : MonoBehaviour
     private void OnTriggerEnter(Collider other)
     {
         // ═════════════════════════════════════════════
-        //  [LAN 이식] 사람 플레이어 탈락
+        //  사람 플레이어 탈락
         // ═════════════════════════════════════════════
         //
-        // ★ 왜 이 갈래가 필요했나
-        //   예전 코드는 NetworkPlayerSync를 찾아 SyncChocolateElimination을 불렀다.
-        //   그 컴포넌트를 걷어낸 뒤로 여기서 null이 나와 아래 Rigidbody 분기로 흘렀고,
-        //   플레이어는 그냥 '떠다니는 물체' 취급만 받았다 — <b>죽지 않았다.</b>
-        JellyNet.LanPlayerState lanPlayer = other.GetComponentInParent<JellyNet.LanPlayerState>();
+        // ★ 이 갈래가 없으면 사람이 아래 Rigidbody 분기로 흘러
+        //   '떠다니는 물체' 취급만 받고 죽지 않는다.
+        LanPlayerState lanPlayer = other.GetComponentInParent<LanPlayerState>();
         if (lanPlayer != null)
         {
             // 신고는 본인만. 남의 캐릭터가 내 화면에서 스쳤다고 죽이면 안 된다.
             if (lanPlayer.IsMine && !lanPlayer.IsOutOfPlay
-                && JellyNet.LanGameFlow.Instance != null)
+                && LanGameFlow.Instance != null)
             {
-                JellyNet.LanGameFlow.Instance.ReportSelfEliminated(
+                LanGameFlow.Instance.ReportSelfEliminated(
                     lanPlayer.EntityId, "초콜릿에 빠졌습니다!");
             }
             return;
@@ -189,24 +186,11 @@ public class ChocolateFluid : MonoBehaviour
         if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
         if (navMeshAgent != null) navMeshAgent.enabled = false;
 
-        // [X1] 트리거 콜백은 모든 클라이언트에서 각자 로컬로 발화한다. 부력/물결 같은
-        // '연출'은 전 클라 실행이 정상이지만, 탈락 같은 '권위 상태 변경'은 봇의
-        // 소유자(마스터, IsMine)만 결정해야 한다 — 안 그러면 위치 보간 오차로 경계를
-        // 아슬하게 스친 봇이 클라마다 생사가 갈린다. 탈락 전파는 소유자의
-        // OnEliminated → RPC_OnEliminated(All) 단일 경로다.
-        // (사람 경로는 SyncChocolateElimination 내부 IsMine 가드로 이미 안전)
-        // ★ 봇 탈락 — 봇을 굴리는 쪽(호스트)만 결정한다.
-        //   예전엔 photonView.IsMine을 봤는데 photonView가 null이라 이 줄이
-        //   <b>한 번도 실행되지 않았다.</b> 봇은 초콜릿에서 영원히 헤엄쳤다.
-        //   OnEliminated 안에서 방송까지 처리하므로 여기서는 부르기만 하면 된다.
         if (aiPlayer != null)
         {
-            JellyNet.NetIdentity botId = aiPlayer.GetComponent<JellyNet.NetIdentity>();
-            bool drive = botId != null
-                ? botId.IsMineOrOffline
-                : (aiPlayer.photonView != null && aiPlayer.photonView.IsMine);
-
-            if (drive) aiPlayer.OnEliminated();
+            //탈락 판정 권한은 OnEliminated 안에서 IsDriver로 이미 본다.
+            //여기서 또 보면 규칙이 두 곳에 생기고, botId가 없을 때의 폴백까지 달라진다
+            aiPlayer.OnEliminated();
         }
     }
 
@@ -305,9 +289,9 @@ public class ChocolateFluid : MonoBehaviour
 
         if (navMeshAgent != null && drives)
         {
-            UnityEngine.AI.NavMeshHit hit;
-            bool onMesh = UnityEngine.AI.NavMesh.SamplePosition(
-                rb.transform.position, out hit, 10f, UnityEngine.AI.NavMesh.AllAreas);
+            NavMeshHit hit;
+            bool onMesh = NavMesh.SamplePosition(
+                rb.transform.position, out hit, 10f, NavMesh.AllAreas);
 
             if (onMesh)
             {
@@ -325,10 +309,10 @@ public class ChocolateFluid : MonoBehaviour
     /// <summary>이 기계가 그 오브젝트의 NavMeshAgent를 굴리는가(= 호스트이거나 오프라인).</summary>
     private static bool NavDriverOf(Rigidbody rb)
     {
-        JellyNet.NetIdentity id = rb.GetComponentInParent<JellyNet.NetIdentity>();
+        NetIdentity id = rb.GetComponentInParent<NetIdentity>();
         if (id != null) return id.IsSimulatedHere;
 
-        var net = JellyNet.NetManager.Instance;
-        return net == null || net.CurrentMode == JellyNet.NetManager.Mode.None || net.IsHost;
+        var net = NetManager.Instance;
+        return NetManager.Offline || net.IsHost;
     }
 }

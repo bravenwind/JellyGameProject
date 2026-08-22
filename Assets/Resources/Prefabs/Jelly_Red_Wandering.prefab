@@ -948,7 +948,6 @@ GameObject:
   - component: {fileID: 11058891727662480}
   - component: {fileID: 6656001391602050364}
   - component: {fileID: 3958414300219882319}
-  - component: {fileID: 8046194395083062548}
   - component: {fileID: 1243876336461933424}
   m_Layer: 7
   m_Name: Jelly_Red_Wandering
@@ -1140,21 +1139,6 @@ MonoBehaviour:
   SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
---- !u!114 &8046194395083062548
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8144378974185360781}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lerpSpeed: 8
-  minScale: 0.5
-  maxScale: 6
 --- !u!114 &1243876336461933424
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1,10 +1,9 @@
-using Photon.Pun;
-using Photon.Realtime;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
+using JellyNet;
 
 [RequireComponent(typeof(NavMeshAgent))]
-public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
+public abstract class JellyAgentAI : MonoBehaviour
 {
     protected const float MOVING_SPEED = 0.1f;
     private const float SPAWN_SNAP_RADIUS = 8f;
@@ -16,12 +15,7 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
     protected bool isMine;
     protected bool isWaiting;
 
-    private Vector3 networkPosition;
-    private Quaternion networkRotation;
-    private bool networkIsMoving;
-
-    //LAN에서는 NetTransform이 위치를 몬다. 여기서 또 Lerp하면 두 시스템이 서로를 끌어당겨 젤리가 떤다
-    private bool manualInterp;
+    //원격 젤리의 위치는 NetTransform이 몬다. 여기서는 애니메이션만 맞춘다
     private Vector3 lastPos;
 
     protected virtual void Awake()
@@ -49,7 +43,6 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
             return;
         }
 
-        manualInterp = NetworkNavMeshHelper.NeedsManualInterp(this);
         lastPos = transform.position;
 
         ClaimOwnership();
@@ -57,8 +50,7 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
 
     private void ClaimOwnership()
     {
-        isMine = NetworkNavMeshHelper.SetupOwnership(this, agent,
-            ref networkPosition, ref networkRotation);
+        isMine = NetworkNavMeshHelper.SetupOwnership(this, agent);
 
         if (!isMine)
             return;
@@ -73,19 +65,6 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
         OnBecameDriver();
     }
 
-    //소유권이 '바뀐' 경우에만 재평가한다
-    //얻는 쪽만 통과시키면 잃는 쪽은 isMine이 true로 굳어 스플릿브레인이 남는다
-    public override void OnMasterClientSwitched(Player newMasterClient)
-    {
-        if (agent == null || !IsReady())
-            return;
-
-        if (photonView.IsMine == isMine)
-            return;
-
-        ClaimOwnership();
-    }
-
     private void Update()
     {
         if (!isMine)
@@ -95,7 +74,7 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
         }
 
         //카운트다운·종료 중에는 젤리도 멈춘다. 다 같이 3·2·1 하는데 젤리만 먼저 뛰면 어색하다
-        if (JellyNet.LanGameFlow.IsFrozen)
+        if (LanGameFlow.IsFrozen)
         {
             HoldStill();
             return;
@@ -114,16 +93,9 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
         DriveUpdate();
     }
 
+    //위치는 NetTransform이 몬다. 여기서는 실제 변위를 재서 걷는 애니메이션만 맞춘다
     private void UpdateRemote()
     {
-        if (manualInterp)
-        {
-            NetworkNavMeshHelper.InterpolateRemote(transform, networkPosition, networkRotation);
-            SetMoving(networkIsMoving);
-            return;
-        }
-
-        //위치는 NetTransform이 몬다. 애니메이션만 실제 변위로 맞춘다
         SetMoving(NetworkNavMeshHelper.MeasureMoving(transform, ref lastPos));
     }
 
@@ -145,7 +117,16 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
         if (agent.isOnNavMesh)
             return;
 
-        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, radius, NavMesh.AllAreas))
+        //int 마스크 오버로드는 에이전트 타입 0(PlayerJelly) 기준이다.
+        //젤리는 BearJelly 타입이라 걸어다닐 수 있는 영역이 더 좁으므로,
+        //타입 0으로 찾은 자리에 Warp하면 다시 isOnNavMesh가 false가 될 수 있다
+        NavMeshQueryFilter filter = new NavMeshQueryFilter
+        {
+            agentTypeID = agent.agentTypeID,
+            areaMask = NavMesh.AllAreas
+        };
+
+        if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, radius, filter))
             agent.Warp(hit.position);
     }
 
@@ -160,10 +141,4 @@ public abstract class JellyAgentAI : MonoBehaviourPunCallbacks, IPunObservable
 
     //내가 모는 동안 매 프레임. NavMesh 위에 있는 것이 보장된 상태로 들어온다
     protected abstract void DriveUpdate();
-
-    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-    {
-        NetworkNavMeshHelper.SerializeTransform(stream, transform, agent,
-            ref networkPosition, ref networkRotation, ref networkIsMoving);
-    }
 }

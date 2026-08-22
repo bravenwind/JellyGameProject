@@ -10,157 +10,48 @@ namespace JellyNet
             get { return GameModeType.Push; }
         }
 
-        [Header("배트")]
-        public KeyCode attackKey = KeyCode.Space;
-        [Tooltip("사거리 (내 크기에 비례해 늘어난다)")]
-        public float batRange = 1.6f;
-        [Tooltip("미는 힘 (내 크기에 비례해 세진다)")]
-        public float batPushForce = 8f;
-        [Tooltip("휘두르기 쿨다운(초). 호스트가 강제한다.")]
-        public float batCooldown = 0.5f;
-        [Tooltip("때리면 커지는 배율")]
-        public float batHitGrowth = 0.06f;
-
         [Header("검증 여유")]
         [Tooltip("호스트 재검증 시 사거리에 곱하는 여유. 지연을 감안해 넉넉히.")]
         public float rangeTolerance = 1.6f;
 
-        [Header("수치 출처")]
-        [Tooltip("켜면 DataManager의 배트 수치를 쓴다. 끄면 위 인스펙터 값을 쓴다(테스트용).")]
-        public bool useDataManagerValues = true;
-
-        float BatRange
-        {
-            get
-            {
-                var dm = DataManager.Instance;
-                return (useDataManagerValues && dm != null) ? dm.batRange : batRange;
-            }
-        }
-
-        float BatPushForce
-        {
-            get
-            {
-                var dm = DataManager.Instance;
-                return (useDataManagerValues && dm != null) ? dm.batPushForce : batPushForce;
-            }
-        }
-
-        float BatCooldown
-        {
-            get
-            {
-                var dm = DataManager.Instance;
-                return (useDataManagerValues && dm != null) ? dm.batCooldown : batCooldown;
-            }
-        }
-
-        float BatHitGrowth
-        {
-            get
-            {
-                var dm = DataManager.Instance;
-                return (useDataManagerValues && dm != null) ? dm.batHitGrowth : batHitGrowth;
-            }
-        }
+        //배트 수치는 DataManager 하나에서만 온다. 예전엔 인스펙터 사본이 따로 있어
+        //둘이 벌어지면서 밀치기 힘이 의도의 절반만 나오는 일이 있었다
+        private static float BatRange   => DataManager.Instance != null ? DataManager.Instance.batRange : 1.6f;
+        private static float BatPushForce => DataManager.Instance != null ? DataManager.Instance.batPushForce : 8f;
+        private static float BatHitGrowth => DataManager.Instance != null ? DataManager.Instance.batHitGrowth : 0.06f;
 
         [Header("점수")]
         [Tooltip("밀치기에 성공할 때마다 얻는 점수.")]
         public int pushHitScore = 100;
 
         [Tooltip("내가 민 상대가 이 시간 안에 떨어지면 '내가 떨어뜨린 것'으로 본다(초).")]
-        public float killCreditWindow = 5f;
+        public float killAssistSeconds = 5f;
 
         private readonly NetWriter w = new NetWriter();
 
-        private readonly Dictionary<int, float> lastHitTime = new Dictionary<int, float>();
-
-        private float localCooldown;
-
         protected override void ResetAll()
         {
-            lastHitTime.Clear();
-            localCooldown = 0f;
+            lastPusher.Clear();
         }
 
-        private void Update()
-        {
-            if (IsOffline)
-                return;
-
-            if (localCooldown > 0f)
-                localCooldown -= Time.deltaTime;
-
-            if (!IsPlaying)
-                return;
-
-            if (PlayerMovement.Local != null)
-                return;
-
-            if (!Input.GetKeyDown(attackKey))
-                return;
-            if (localCooldown > 0f)
-                return;
-
-            NetIdentity me = NetEntity.FindMyPlayer();
-            if (me == null)
-                return;
-
-            NetIdentity victim = FindNearestVictim(me);
-            if (victim == null)
-                return;
-
-            localCooldown = BatCooldown;
-            RequestBatHit(victim.NetId, me.NetId);
-        }
-
-        private NetIdentity FindNearestVictim(NetIdentity me)
-        {
-            if (NetWorld.Instance == null)
-                return null;
-
-            float myScale = NetEntity.ScaleOf(me);
-            float reach = BatRange * myScale + 0.5f;
-            float best = reach * reach;
-            NetIdentity found = null;
-
-            foreach (var kv in NetWorld.Instance.Objects)
-            {
-                NetIdentity other = kv.Value;
-
-                if (other == null || NetEntity.IsSameSide(me, other))
-                    continue;
-
-                if (NetEntity.IsJelly(other) || NetEntity.IsOutOfPlay(other))
-                    continue;
-
-                Vector3 d = other.transform.position - me.transform.position;
-                d.y = 0f;
-                float sq = d.sqrMagnitude;
-                if (sq < best)
-                {
-                    best = sq;
-                    found = other;
-                }
-            }
-            return found;
-        }
-
-        public void HostBatHit(int victimNetId, int attackerNetId)
+        /// <summary>
+        /// 봇이 휘둘렀을 때. 봇은 호스트에서만 생각하므로 소켓을 거치지 않는다.
+        ///
+        /// ★ 봇 전용이다 — 사람은 RequestBatHit으로 가야 한다
+        ///   여기서 requesterId로 HOST_ID를 넘기는데, HostJudgement가
+        ///   actor.OwnerId != requesterId 면 거절한다. 봇은 전부 호스트 소유라
+        ///   성립하지만, 클라의 사람을 태우면 조용히 거절돼 배트가 안 먹는 것처럼 보인다.
+        /// </summary>
+        public void HostBotBatHit(int victimNetId, int botNetId)
         {
             if (!IsHost)
                 return;
 
-            ResolveBatHit(NetHost.HOST_ID, victimNetId, attackerNetId);
+            ResolveBatHit(NetHost.HOST_ID, victimNetId, botNetId);
         }
 
-        public void RequestBatHitPublic(int victimNetId, int attackerNetId)
-        {
-            RequestBatHit(victimNetId, attackerNetId);
-        }
-
-        private void RequestBatHit(int victimNetId, int attackerNetId)
+        /// <summary>사람이 휘둘렀을 때. 호스트면 바로 판정하고, 클라면 판정을 요청한다.</summary>
+        public void RequestBatHit(int victimNetId, int attackerNetId)
         {
             NetManager net = NetManager.Instance;
 
@@ -177,69 +68,81 @@ namespace JellyNet
             net.Client.Send(w);
         }
 
-        protected override void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        protected override void RegisterRoutes()
         {
-            if (type != MsgType.BatHitRequest)
-                return;
+            Net.RouteHost(MsgType.BatHitRequest, (from, r) =>
+            {
+                int victimNetId = r.ReadInt();
+                int attackerNetId = r.ReadInt();
+                ResolveBatHit(from.Id, victimNetId, attackerNetId);
+            });
 
-            int victimNetId = r.ReadInt();
-            int attackerNetId = r.ReadInt();
-            ResolveBatHit(from.Id, victimNetId, attackerNetId);
+            Net.RouteClient(MsgType.KilledBy, r => LanSpectator.ReportKiller(r.ReadInt()));
+
+            Net.RouteClient(MsgType.Knockback, r =>
+            {
+                int victimNetId = r.ReadInt();
+                float dx = r.ReadFloat();
+                float dz = r.ReadFloat();
+                float force = r.ReadFloat();
+
+                ApplyKnockbackLocal(victimNetId, new Vector3(dx, 0f, dz), force);
+            });
+        }
+
+        protected override void UnregisterRoutes()
+        {
+            Net.UnrouteHost(MsgType.BatHitRequest);
+            Net.UnrouteClient(MsgType.KilledBy);
+            Net.UnrouteClient(MsgType.Knockback);
         }
 
         private void ResolveBatHit(int requesterId, int victimNetId, int attackerNetId)
         {
-            HostVerdict verdict = HostVerdict.Judge(Mode, requesterId, attackerNetId, victimNetId);
+            HostJudgement judgement = HostJudgement.Judge(Mode, requesterId, attackerNetId, victimNetId);
 
-            if (!verdict.Valid)
+            if (!judgement.Valid)
                 return;
 
-            NetIdentity attacker = verdict.Actor;
-            NetIdentity victim = verdict.Target;
+            NetIdentity attacker = judgement.Actor;
+            NetIdentity victim = judgement.Target;
 
             if (NetEntity.IsJelly(victim))
-                return;
-
-            //쿨다운 키는 요청자가 아니라 공격자다. 봇은 전부 호스트 소유라 한 칸을 공유하게 된다
-            float now = Time.time;
-
-            if (lastHitTime.TryGetValue(attackerNetId, out float last) && now - last < BatCooldown)
                 return;
 
             float aScale = NetEntity.ScaleOf(attacker);
             float vScale = NetEntity.ScaleOf(victim);
 
-            if (!verdict.WithinReach((BatRange * aScale + vScale) * rangeTolerance))
+            if (!judgement.WithinReach((BatRange * aScale + vScale) * rangeTolerance))
                 return;
-
-            lastHitTime[attackerNetId] = now;
 
             float startScale = DataManager.Instance != null ? DataManager.Instance.startingScale : 1f;
             float force = BatPushForce * (aScale / Mathf.Max(0.01f, startScale));
 
-            SendKnockback(victim, verdict.DirectionToTarget(), force);
+            SendKnockback(victim, judgement.DirectionToTarget(), force);
 
             float growth = BatHitGrowth / Mathf.Max(aScale, 1f);
 
             NetWorld.Instance.BroadcastGrow(attackerNetId, GrowKind.BatHit, growth);
 
-            NetScale attackerScale = attacker.GetComponent<NetScale>();
-            if (attackerScale != null)
-                attackerScale.HostGrow(growth);
-
             NetEntity.AddScore(attacker, pushHitScore);
 
-            lastPusher[victimNetId] = new Credit { AttackerNetId = attackerNetId, At = now };
+            lastPusher[victimNetId] = new Credit { AttackerNetId = attackerNetId, At = Time.time };
 
             NetManager.Instance.AddLog($"P{attacker.OwnerId} → P{victim.OwnerId} 배트 히트! (+{pushHitScore})");
         }
 
-        struct Credit { public int AttackerNetId; public float At; }
+        struct Credit
+        { 
+            public int AttackerNetId; 
+            public float At;
+        }
+
         private readonly Dictionary<int, Credit> lastPusher = new Dictionary<int, Credit>();
 
-
-
-        public void HostReportEliminated(int victimNetId)
+        //탈락 자체를 처리하는 게 아니라, 최근에 민 사람에게 킬 점수를 넘겨주는 정산이다.
+        //LanGameFlow.HostConfirmEliminated(탈락 확정)와 헷갈리지 않게 이름을 나눴다
+        public void HostAwardKillCredit(int victimNetId)
         {
             NetManager net = NetManager.Instance;
             if (net == null || !net.IsHost || NetWorld.Instance == null)
@@ -252,7 +155,7 @@ namespace JellyNet
                 return;
             lastPusher.Remove(victimNetId);
 
-            if (Time.time - c.At > killCreditWindow)
+            if (Time.time - c.At > killAssistSeconds)
                 return;
 
             NetIdentity victim = NetWorld.Instance.Find(victimNetId);
@@ -316,25 +219,6 @@ namespace JellyNet
             net.Host.SendTo(target, w);
         }
 
-        protected override void HandleClientMessage(MsgType type, NetReader r)
-        {
-            if (type == MsgType.KilledBy)
-            {
-                LanSpectator.ReportKiller(r.ReadInt());
-                return;
-            }
-
-            if (type != MsgType.Knockback)
-                return;
-
-            int victimNetId = r.ReadInt();
-            float dx = r.ReadFloat();
-            float dz = r.ReadFloat();
-            float force = r.ReadFloat();
-
-            ApplyKnockbackLocal(victimNetId, new Vector3(dx, 0f, dz), force);
-        }
-
         private void ApplyKnockbackLocal(int victimNetId, Vector3 dir, float force)
         {
             NetIdentity victim = NetWorld.Instance != null ? NetWorld.Instance.Find(victimNetId) : null;
@@ -351,13 +235,15 @@ namespace JellyNet
             }
             else
             {
-                AIPlayerMovement bot = victim.GetComponent<AIPlayerMovement>();
+                AIPlayerMovement bot = victim.Bot;
                 if (bot != null)
                 {
-                    bot.RPC_ApplyKnockback(dir.x, dir.z, force);
+                    bot.ApplyKnockbackFromNet(dir.x, dir.z, force);
                 }
                 else
                 {
+                    //사람도 봇도 아닌 네트워크 오브젝트(씬에 놓인 캔디 등)용.
+                    //물리를 안 거치고 transform을 직접 옮기므로 벽을 뚫는다 — 배경 소품에만 쓸 것
                     NetKnockback kb = victim.GetComponent<NetKnockback>();
                     if (kb != null)
                         kb.Apply(dir, force);

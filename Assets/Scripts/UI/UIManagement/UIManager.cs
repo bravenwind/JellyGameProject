@@ -2,7 +2,8 @@
 using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Collections;
-using Photon.Pun;
+using System;
+using JellyNet;
 
 // 1. ���¸� �����ϴ� Enum (�ʿ信 ���� �߰�/�����ϼ���)
 public enum UIState
@@ -21,7 +22,7 @@ public class UIManager : MonoBehaviour
     public static UIManager Instance { get; private set; }
 
     // 2. �ν����Ϳ��� Enum�� ������Ʈ�� ¦���� �� �ְ� ���� Ŭ����
-    [System.Serializable]
+    [Serializable]
     public class UIStateMapping
     {
         public UIState state;       // � ������ ��?
@@ -167,13 +168,10 @@ public class UIManager : MonoBehaviour
         if (fadeOut)
         {
             Time.timeScale = 1f;
-            // 네트워크 게임 중이라면 방에서 먼저 나가야 함
-            // LeaveRoom → NetworkManager.OnLeftRoom → SceneManager.LoadScene("Main")
-            // [LAN 이식] Photon 룸이 아니면 LAN 경로로 돌아간다.
-            //   LoadMainViaLoading만 부르면 소켓이 살아남아 다음 판에서 포트가 물리고,
+            // 씬만 바꾸면 소켓이 살아남아 다음 판에서 포트가 물리고,
             //   지난 판의 순위·모드가 그대로 남아 새 판에 새어 들어온다.
-            //   LanSceneFlow.ToMain은 연결이 없어도 안전하다(끊을 게 없으면 그냥 지나간다).
-            JellyNet.LanSceneFlow.ToMain();
+            //   LanSceneFlow.ToMain이 소켓 종료와 상태 정리를 함께 한다(연결이 없어도 안전).
+            LanSceneFlow.ToMain();
         }
     }
 
@@ -204,12 +202,6 @@ public class UIManager : MonoBehaviour
     /// </summary>
     public void OnClick_MainMenuButton()
     {
-        // [LAN] 경기 중에는 호스트도 클라이언트도 나갈 수 없다. 호스트가 나가면 서버가
-        //   같이 죽어서 남은 사람들의 판이 통째로 깨지기 때문이다.
-        if (!JellyNet.LanSceneFlow.CanLeaveMatch)
-            return;
-
-        Time.timeScale = 1f;
-        JellyNet.LanSceneFlow.ToMain();
+        LanSceneFlow.ToMain();
     }
 }

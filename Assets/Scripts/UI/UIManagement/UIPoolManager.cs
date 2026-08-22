@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
+using System;
 
 public enum UIType { JellyEat, ScaleIncrease, MilkScaleDecrease }
 
@@ -15,7 +16,7 @@ public class UIPoolManager : MonoBehaviour
     [Header("Settings")]
     public Transform canvasTransform;
 
-    [System.Serializable]
+    [Serializable]
     public struct PoolDefinition
     {
         public UIType uiType;
@@ -66,27 +67,4 @@ public class UIPoolManager : MonoBehaviour
         return t.gameObject;
     }
 
-    public void ReturnUI(GameObject ui)
-    {
-        if (ui == null) return;
-
-        if (ui.TryGetComponent(out PooledUI tag) && _pools.TryGetValue(tag.originType, out var pool))
-        {
-            pool.Return(ui.transform);
-        }
-        else
-        {
-            Debug.LogWarning("UIPoolManager에 등록되지 않은 객체 반환 시도: " + ui.name);
-            Destroy(ui);
-        }
-    }
-
-    public void DisableParent()
-    {
-        foreach (var parent in _parents.Values)
-        {
-            if (parent != null)
-                parent.gameObject.SetActive(false);
-        }
-    }
 }

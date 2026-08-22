@@ -38,7 +38,7 @@ namespace JellyNet
                 s.AppendLine("  ★ LanGameFlow 없음");
             else
             {
-                s.AppendLine("  단계: " + flow.Phase + "   모드: " + flow.mode
+                s.AppendLine("  단계: " + flow.Phase + "   모드: " + LanGameFlow.Mode
                              + "   남은시간: " + flow.Remaining.ToString("F1"));
                 s.AppendLine("  최소인원: " + flow.minPlayersToStart);
             }
@@ -95,7 +95,6 @@ namespace JellyNet
                         visible++;
                 }
 
-                NetScale sc = id.GetComponent<NetScale>();
                 PlayerMovement pm = id.GetComponentInChildren<PlayerMovement>(true);
                 CharacterController cc = id.GetComponent<CharacterController>();
                 LanPlayerSetup setup = id.GetComponent<LanPlayerSetup>();
@@ -104,7 +103,7 @@ namespace JellyNet
                              + (id.IsMine ? "  ★내것" : "  남의것"));
                 s.AppendLine("      활성: " + id.gameObject.activeInHierarchy
                              + "   위치: " + Fmt(id.transform.position)
-                             + "   크기: " + (sc != null ? sc.Current.ToString("F2") : "?"));
+                             );
                 s.AppendLine("      렌더러: " + visible + "/" + rends.Length + " 보임"
                              + (visible == 0 ? "   ★ 화면에 안 그려짐" : ""));
                 s.AppendLine("      PlayerMovement: " + (pm == null ? "★없음"
@@ -112,7 +111,7 @@ namespace JellyNet
                              + "   CharacterController: " + (cc == null ? "없음" : (cc.enabled ? "켜짐" : "꺼짐"))
                              + "   LanPlayerSetup: " + (setup == null ? "★없음" : "있음"));
 
-                LanPlayerVisual vis = id.GetComponent<LanPlayerVisual>();
+                LanPlayerVisual vis = id.Visual;
                 if (vis == null)
                     s.AppendLine("      ★ LanPlayerVisual 없음 — 크기·색·애니메이션이 동기화되지 않음");
                 else

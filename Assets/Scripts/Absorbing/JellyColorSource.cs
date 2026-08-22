@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 public class JellyColorSource : MonoBehaviour
 {
@@ -13,13 +13,4 @@ public class JellyColorSource : MonoBehaviour
         rend = GetComponentInChildren<Renderer>();
     }
 
-    public JellyColorType GetJellyColorType()
-    {
-        return colorType;
-    }
-
-    public Color GetColor()
-    {
-        return jellyColor;
-    }
 }

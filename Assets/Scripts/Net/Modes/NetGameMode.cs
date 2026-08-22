@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace JellyNet
 {
@@ -22,11 +22,7 @@ namespace JellyNet
 
         protected static bool IsOffline
         {
-            get
-            {
-                NetManager net = NetManager.Instance;
-                return net == null || net.CurrentMode == NetManager.Mode.None;
-            }
+            get { return NetManager.Offline; }
         }
 
         //이 모드의 판이 지금 굴러가는 중인가
@@ -61,9 +57,9 @@ namespace JellyNet
                 return;
             }
 
-            net.OnHostMessage += HandleHostMessage;
-            net.OnClientMessage += HandleClientMessage;
             net.OnDisconnected += ResetAll;
+
+            RegisterRoutes();
 
             if (NetWorld.Instance != null)
             {
@@ -80,9 +76,9 @@ namespace JellyNet
 
             if (net != null)
             {
-                net.OnHostMessage -= HandleHostMessage;
-                net.OnClientMessage -= HandleClientMessage;
                 net.OnDisconnected -= ResetAll;
+
+                UnregisterRoutes();
             }
 
             if (NetWorld.Instance != null)
@@ -91,7 +87,6 @@ namespace JellyNet
                 NetWorld.Instance.OnDespawned -= HandleDespawned;
             }
 
-            //씬이 바뀌어도 남아 있으면 다음 판이 죽은 인스턴스를 붙잡는다
             if (Instance == this)
                 Instance = null;
         }
@@ -100,11 +95,13 @@ namespace JellyNet
         {
         }
 
-        protected virtual void HandleHostMessage(NetHost.Peer from, MsgType type, NetReader r)
+        /// <summary>이 모드가 담당할 MsgType을 NetManager 라우팅 테이블에 등록한다.</summary>
+        protected virtual void RegisterRoutes()
         {
         }
 
-        protected virtual void HandleClientMessage(MsgType type, NetReader r)
+        /// <summary>등록한 만큼 정확히 풀어야 한다. 안 풀면 다음 판에서 중복 등록 에러가 난다.</summary>
+        protected virtual void UnregisterRoutes()
         {
         }
 

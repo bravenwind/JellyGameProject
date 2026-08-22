@@ -41,13 +41,6 @@ namespace JellyNet
             buffer[position++] = value;
         }
 
-        public void WriteShort(short value)
-        {
-            Ensure(2);
-            buffer[position++] = (byte)value;
-            buffer[position++] = (byte)(value >> 8);
-        }
-
         public void WriteInt(int value)
         {
             Ensure(4);

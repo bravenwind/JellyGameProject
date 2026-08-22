@@ -46,7 +46,6 @@ GameObject:
   - component: {fileID: 4370176403558144765}
   - component: {fileID: 2502609693622118214}
   - component: {fileID: 6097667510390692695}
-  - component: {fileID: 4716627223642090887}
   m_Layer: 12
   m_Name: sphere candy_1
   m_TagString: Sphere
@@ -180,21 +179,6 @@ MonoBehaviour:
   NetId: 0
   OwnerId: 0
   PrefabId: 0
---- !u!114 &4716627223642090887
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2330984178987342808}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lerpSpeed: 8
-  minScale: 0.5
-  maxScale: 6
 --- !u!1 &4394808109772520534
 GameObject:
   m_ObjectHideFlags: 0

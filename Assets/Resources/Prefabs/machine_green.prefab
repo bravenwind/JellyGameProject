@@ -1846,7 +1846,6 @@ GameObject:
   - component: {fileID: 6562792228208288299}
   - component: {fileID: 6091816550744693714}
   - component: {fileID: 4749316594234628523}
-  - component: {fileID: 748494287873576963}
   m_Layer: 12
   m_Name: "\uC2E4\uB9B0\uB354.004"
   m_TagString: Untagged
@@ -1922,42 +1921,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &748494287873576963
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4019839098686347754}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8819bced2044b97488c7c0b1ef6ce988, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rotationCurve:
-    serializedVersion: 2
-    m_Curve:
-    - serializedVersion: 3
-      time: 0
-      value: 0
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    - serializedVersion: 3
-      time: 1
-      value: 1
-      inSlope: 0
-      outSlope: 0
-      tangentMode: 0
-      weightedMode: 0
-      inWeight: 0
-      outWeight: 0
-    m_PreInfinity: 2
-    m_PostInfinity: 2
-    m_RotationOrder: 4
 --- !u!1 &4352759027825245465
 GameObject:
   m_ObjectHideFlags: 0
@@ -2398,7 +2361,6 @@ GameObject:
   m_Component:
   - component: {fileID: 8659824712226606005}
   - component: {fileID: 991441653441897624}
-  - component: {fileID: 5139009992273125920}
   m_Layer: 12
   m_Name: machine
   m_TagString: Untagged
@@ -2452,39 +2414,6 @@ CapsuleCollider:
   m_Height: 2.42
   m_Direction: 1
   m_Center: {x: 0, y: 0.94, z: 0}
---- !u!114 &5139009992273125920
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5317951466015795780}
-  m_Enabled: 0
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3078e7970ff0c8f4ca7fb35a1a93963f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  checkRadius: 15
-  targetLayer:
-    serializedVersion: 2
-    m_Bits: 64
-  spawnJellies:
-  - jellyPrefab: {fileID: 8144378974185360781, guid: 2e05178e60a918041af0f8ac15e8c849, type: 3}
-    spawnWeight: 10
-  - jellyPrefab: {fileID: 1333569896481833141, guid: c4e2034a9040f604bb3bd689696ed2db, type: 3}
-    spawnWeight: 10
-  - jellyPrefab: {fileID: 9061212866173874377, guid: da55d3bb7d886cf42a93a189a57193bb, type: 3}
-    spawnWeight: 10
-  - jellyPrefab: {fileID: 8368899581075514795, guid: 6f4eec1ba57998647a2cb5995627e5f7, type: 3}
-    spawnWeight: 10
-  - jellyPrefab: {fileID: 8836493012765761566, guid: d0ae8c95bfb62bb459c79e0a70d75fe9, type: 3}
-    spawnWeight: 10
-  - jellyPrefab: {fileID: 3121453740919938520, guid: f4c0235898b9c184b8d6ab2eb5c751f7, type: 3}
-    spawnWeight: 10
-  - jellyPrefab: {fileID: 1460502662218733694, guid: dae3d72f021f9f440b7b8989d08c4c00, type: 3}
-    spawnWeight: 15
-  jellySpawnTransform: {fileID: 7571976227561839582}
-  rotator: {fileID: 748494287873576963}
 --- !u!1 &5548221093867869081
 GameObject:
   m_ObjectHideFlags: 0

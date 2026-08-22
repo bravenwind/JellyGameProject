@@ -1,5 +1,4 @@
-using UnityEngine;
-using Photon.Pun;
+﻿using UnityEngine;
 
 public class AIDetector : MonoBehaviour
 {

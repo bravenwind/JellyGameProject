@@ -1,4 +1,4 @@
-using DG.Tweening;
+﻿using DG.Tweening;
 using UnityEngine;
 
 /// <summary>
@@ -181,15 +181,4 @@ public class FloatingUIAni : MonoBehaviour
         return a;
     }
 
-    /// <summary>
-    /// 다른 스크립트가 이 UI를 옮긴 뒤 "여기를 새 기준으로 삼아라"고 알릴 때 쓴다.
-    /// (로비 패널처럼 슬라이드로 자리를 옮기는 경우)
-    /// </summary>
-    public void ReanchorHere()
-    {
-        Stop();
-        baseCached = false;
-        CacheBase();
-        if (isActiveAndEnabled && playOnEnable) Play();
-    }
 }

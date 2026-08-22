@@ -1,26 +1,26 @@
-using UnityEngine;
+﻿using UnityEngine;
+using JellyNet;
 
 public class PlayerKnockbackState : PlayerBaseState
 {
     private Vector3 _knockVelocity;
     private float _elapsed;
-    private const float KNOCKBACK_DURATION = 0.4f;
 
     public PlayerKnockbackState(PlayerMovement player) : base(player) { }
 
     public void SetKnockback(Vector3 direction, float force)
     {
-        _knockVelocity = direction.normalized * force;
+        _knockVelocity = Knockback.StartVelocity(direction, force);
     }
 
     public override void Enter()
     {
         _elapsed = 0f;
-        if (player.jellyAnimator != null)
-            player.jellyAnimator.SetTrigger("Hit");
+        if (player.animator != null)
+            player.animator.SetTrigger("Hit");
 
         // [LAN] 원격 화면에도 피격 애니메이션이 보이도록 알린다
-        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.ANIM_HIT);
+        if (player.Visual != null) player.Visual.SendTrigger(LanPlayerVisual.ANIM_HIT);
     }
 
     public override void Update()
@@ -28,13 +28,13 @@ public class PlayerKnockbackState : PlayerBaseState
         _elapsed += Time.deltaTime;
         player.ApplyGravity();
 
-        float t = _elapsed / KNOCKBACK_DURATION;
-        Vector3 decayed = Vector3.Lerp(_knockVelocity, Vector3.zero, t);
-        Vector3 move = decayed;
+        //속도 곡선은 봇과 공유하고, 그 속도로 어떻게 움직일지는 각자 한다.
+        //사람은 CharacterController라 벽에 막힌다
+        Vector3 move = Knockback.VelocityAt(_knockVelocity, _elapsed);
         move.y = player.verticalVelocity;
         player.controller.Move(move * Time.deltaTime);
 
-        if (_elapsed >= KNOCKBACK_DURATION)
+        if (!Knockback.IsActive(_elapsed))
         {
             if (player.IsMoveInputActive())
                 player.ChangeState(player.moveState);
@@ -46,7 +46,7 @@ public class PlayerKnockbackState : PlayerBaseState
     public override void Exit()
     {
         _knockVelocity = Vector3.zero;
-        if (player.jellyAnimator != null)
-            player.jellyAnimator.ResetTrigger("Hit");
+        if (player.animator != null)
+            player.animator.ResetTrigger("Hit");
     }
 }

@@ -623,7 +623,6 @@ GameObject:
   - component: {fileID: 1996270828528642296}
   - component: {fileID: 8580453417768552757}
   - component: {fileID: 8849228478306276563}
-  - component: {fileID: 3936840923226555571}
   - component: {fileID: 553835511212309490}
   m_Layer: 7
   m_Name: Jelly_Orange_Patrol
@@ -798,21 +797,6 @@ MonoBehaviour:
   SceneNetId: 0
   OwnerId: 0
   PrefabId: 0
---- !u!114 &3936840923226555571
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5148768285995863348}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d9487eb6a2b880c45a7bfdbac366c8e5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  lerpSpeed: 8
-  minScale: 0.5
-  maxScale: 6
 --- !u!114 &553835511212309490
 MonoBehaviour:
   m_ObjectHideFlags: 0

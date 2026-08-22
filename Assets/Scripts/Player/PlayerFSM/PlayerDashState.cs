@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using Photon.Pun;
+using JellyNet;
 
 public class PlayerDashState : PlayerBaseState
 {
@@ -18,11 +18,11 @@ public class PlayerDashState : PlayerBaseState
 
         player.dashCooldownTimer = player.dashCooldown;
 
-        if (player.jellyAnimator != null)
-            player.jellyAnimator.SetTrigger("Dash");
+        if (player.animator != null)
+            player.animator.SetTrigger("Dash");
 
         // [LAN] 원격 화면에도 대쉬 애니메이션이 보이도록 알린다
-        JellyNet.LanPlayerVisual.ReportTrigger(player, JellyNet.LanPlayerVisual.ANIM_DASH);
+        if (player.Visual != null) player.Visual.SendTrigger(LanPlayerVisual.ANIM_DASH);
     }
 
     public override void Update()
@@ -47,7 +47,7 @@ public class PlayerDashState : PlayerBaseState
 
     public override void Exit()
     {
-        if (player.jellyAnimator != null)
-            player.jellyAnimator.ResetTrigger("Dash");
+        if (player.animator != null)
+            player.animator.ResetTrigger("Dash");
     }
 }

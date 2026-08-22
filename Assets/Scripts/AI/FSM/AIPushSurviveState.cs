@@ -121,7 +121,7 @@ public class AIPushSurviveState : AIBaseState
         float dist = dirToTarget.magnitude;
 
         var dm = DataManager.Instance;
-        float range = dm != null ? dm.batRange * ai.transform.localScale.x : 2f;
+        float range = dm != null ? dm.batRange * ai.GetMyAuthorityScale() : 2f;
 
         // ── 사거리 안: 돌아서서 친다 ──
         //
@@ -231,7 +231,7 @@ public class AIPushSurviveState : AIBaseState
         var dm = DataManager.Instance;
         if (dm == null) return;
 
-        float range = dm.batRange * ai.transform.localScale.x;
+        float range = dm.batRange * ai.GetMyAuthorityScale();
 
         Transform target = FindNearestTarget();
         if (target == null) return;

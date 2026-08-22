@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.AI;
-using Photon.Pun;
+using JellyNet;
 
 public class FallingTile : MonoBehaviour
 {
@@ -154,8 +154,8 @@ public class FallingTile : MonoBehaviour
 
             // 2-1. 발판이 실제로 사라지는 시점이므로 이 칸을 '허공'으로 표시한다.
             //      AI가 잔존 NavMesh 위에 떠 있게 되는 경우를 감지/복구하는 데 쓰인다.
-            if (GridX >= 0 && GridZ >= 0)
-                TileCollapseManager.Instance?.MarkCellCollapsed(GridX, GridZ);
+            if (GridX >= 0 && GridZ >= 0 && TileCollapseManager.Instance != null)
+                TileCollapseManager.Instance.MarkCellCollapsed(GridX, GridZ);
 
             // 3. 낙하하는 타일 콜라이더 비활성화 (플레이어 밀림/끼임 버그 방지)
             _collider.enabled = false;
@@ -235,9 +235,6 @@ public class FallingTile : MonoBehaviour
                 AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
                 if (aiBot != null && !aiBot.IsOutOfPlay)
                 {
-                    PhotonView aiPV = aiBot.GetComponent<PhotonView>();
-                    if (aiPV != null && !PhotonNetwork.IsMasterClient) continue;
-
                     DisableAIOnObject(aiBot.gameObject);
 
                     CharacterController cc = aiBot.GetComponent<CharacterController>();
@@ -254,21 +251,17 @@ public class FallingTile : MonoBehaviour
                 }
             }
 
-            // ★ [LAN 이식] 사람 플레이어는 발판이 건드리지 않는다.
+            // ★ 사람 플레이어는 발판이 건드리지 않는다.
             //
-            //   원래 이 줄이 NetworkPlayerSync로 사람을 걸러냈다. 그 컴포넌트를 걷어낸 뒤로
-            //   <b>사람도 일반 물체 취급</b>이 되어, 발판이 CharacterController를 꺼버리고
-            //   Rigidbody를 붙였다. 그런데 PlayerMovement는 계속 돌기 때문에
+            //   걸러내지 않으면 발판이 CharacterController를 꺼버리고 Rigidbody를 붙이는데,
+            //   PlayerMovement는 계속 돌기 때문에
             //   "CharacterController.Move called on inactive controller"가 쏟아진다.
             //   (사람의 낙하는 PlayerMovement/초콜릿 경로가 따로 처리한다)
-            if (rb.GetComponentInParent<JellyNet.LanPlayerState>() != null) continue;
+            if (rb.GetComponentInParent<LanPlayerState>() != null) continue;
 
             // 원격 오브젝트는 소유자 쪽에서만 물리를 돌린다
-            JellyNet.NetIdentity nid = rb.GetComponentInParent<JellyNet.NetIdentity>();
+            NetIdentity nid = rb.GetComponentInParent<NetIdentity>();
             if (nid != null && !nid.IsSimulatedHere) continue;
-
-            PhotonView netView = rb.GetComponent<PhotonView>();
-            if (netView != null && !PhotonNetwork.IsMasterClient) continue;
 
             DisableAIOnObject(rb.gameObject);
 
@@ -345,7 +338,8 @@ public class FallingTile : MonoBehaviour
         _navObstacle.carveOnlyStationary = false;
 
         // 한 판 동안 무한 누적되는 carve 오브젝트를 매니저가 소유해 라운드 종료 시 일괄 정리한다. (G7)
-        TileCollapseManager.Instance?.RegisterCarveObject(carveObj);
+        if (TileCollapseManager.Instance != null)
+            TileCollapseManager.Instance.RegisterCarveObject(carveObj);
     }
 
     // AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다

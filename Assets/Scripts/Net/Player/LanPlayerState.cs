@@ -34,7 +34,6 @@ namespace JellyNet
         public string PlayerName { get; private set; }
         public PlayerFlags Flags { get; private set; }
 
-        public bool IsEliminated { get { return (Flags & PlayerFlags.Eliminated) != 0; } }
         public bool IsAbsorbed { get { return (Flags & PlayerFlags.Absorbed) != 0; } }
 
         public bool IsOutOfPlay { get { return Flags != PlayerFlags.None; } }
@@ -43,7 +42,12 @@ namespace JellyNet
         private PlayerScaleController scale;
         private Color shownColor;
 
+        private float scoreTimer;
+
         public int EntityId { get { return id != null ? id.NetId : 0; } }
+
+        //Awake에서 캐시해둔 것을 그대로 준다. 밖에서 GetComponent를 다시 부르지 않게
+        public NetIdentity Identity { get { return id; } }
 
         public bool IsMine { get { return id != null && id.IsMine; } }
 
@@ -54,29 +58,14 @@ namespace JellyNet
             get { return scale != null ? scale.currentScaleValue : 1f; }
         }
 
-        private void OnEnable() { EntityRegistry.Register(this); }
-        private void OnDisable() { EntityRegistry.Unregister(this); }
-
-        private void Start()
+        private void OnEnable() 
         {
-            if (!IsMine || string.IsNullOrEmpty(LanRoomConfig.Nickname))
-                return;
+            EntityRegistry.Register(this);
+        }
 
-            NetManager net = NetManager.Instance;
-            if (net == null || net.CurrentMode == NetManager.Mode.None)
-                return;
-
-            if (net.IsHost)
-            {
-                HostSetName(LanRoomConfig.Nickname);
-                return;
-            }
-
-            NetWriter w = new NetWriter();
-            w.Begin(MsgType.SetMyName);
-            w.WriteString(LanRoomConfig.Nickname);
-            w.End();
-            net.Client.Send(w);
+        private void OnDisable()
+        {
+            EntityRegistry.Unregister(this); 
         }
 
         private void Awake()
@@ -91,30 +80,35 @@ namespace JellyNet
             PlayerName = "";
         }
 
-        private float scoreTimer;
-
-        private void HostRecomputeScore()
+        private void Start()
         {
+            if (!IsMine)
+                return;
+
             NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost)
-                return;
-            if (DataManager.Instance == null)
+            if (NetManager.Offline)
                 return;
 
-            if (LanGameFlow.Instance != null
-                && LanGameFlow.Instance.mode == GameModeType.Push) return;
+            //닉네임이 비어도 반드시 뭔가는 보낸다. 이름표는 이름이 도착해야 채워지므로
+            //(LanPlayerSetup은 플레이스홀더가 보이지 않게 비워둔다) 여기서 조용히
+            //빠지면 그 플레이어의 이름표가 영영 빈칸으로 남는다.
+            //로비가 빈 닉네임을 막고 있지만 그건 로비의 사정이고, 이 불변식
+            //'살아있는 플레이어의 PlayerName은 비지 않는다'는 여기서 지킨다
+            string nick = !string.IsNullOrEmpty(LanRoomConfig.Nickname)
+                ? LanRoomConfig.Nickname
+                : ("P" + OwnerId);
 
-            scoreTimer += Time.deltaTime;
-            if (scoreTimer < 0.25f)
+            if (net.IsHost)
+            {
+                HostSetName(nick);
                 return;
-            scoreTimer = 0f;
+            }
 
-            int s = DataManager.Instance.ScoreFromScale(ScaleValue);
-            if (s == Score)
-                return;
-
-            Score = s;
-            HostBroadcast();
+            NetWriter w = new NetWriter();
+            w.Begin(MsgType.SetMyName);
+            w.WriteString(nick);
+            w.End();
+            net.Client.Send(w);
         }
 
         private void Update()
@@ -136,19 +130,36 @@ namespace JellyNet
             targetRenderer.material.color = shownColor;
         }
 
+
+        private void HostRecomputeScore()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost)
+                return;
+            if (DataManager.Instance == null)
+                return;
+
+            if (LanGameFlow.IsMode(GameModeType.Push))
+                return;
+
+            scoreTimer += Time.deltaTime;
+            if (scoreTimer < 0.25f)
+                return;
+            scoreTimer = 0f;
+
+            int s = DataManager.Instance.ScoreFromScale(ScaleValue);
+            if (s == Score)
+                return;
+
+            Score = s;
+            HostBroadcast();
+        }
+
         public void HostAddScore(int delta)
         {
             if (!IsHost())
                 return;
             Score += delta;
-            HostBroadcast();
-        }
-
-        public void HostSetColor(Color c)
-        {
-            if (!IsHost())
-                return;
-            DisplayColor = c;
             HostBroadcast();
         }
 
@@ -182,7 +193,7 @@ namespace JellyNet
             if (pm != null)
                 pm.enabled = false;
 
-            Animator anim = pm != null ? pm.jellyAnimator : null;
+            Animator anim = pm != null ? pm.animator : null;
             if (anim == null)
                 anim = GetComponentInChildren<Animator>(true);
             if (anim != null)
@@ -196,22 +207,6 @@ namespace JellyNet
                     LanGameFlow.Instance.ShowLocalGameOver(
                         LanGameFlow.EliminationReason + "\n관전 중...");
             }
-        }
-
-        public void ReportOwnScore(int score)
-        {
-            Score = score;
-            if (IsHost())
-                HostBroadcast();
-        }
-
-        public void HostReward(int scoreDelta, Color newColor)
-        {
-            if (!IsHost())
-                return;
-            Score += scoreDelta;
-            DisplayColor = newColor;
-            HostBroadcast();
         }
 
         public void HostSetName(string name)
@@ -249,8 +244,8 @@ namespace JellyNet
             SetName(name);
         }
 
-        //이름은 스폰보다 늦게 도착한다. LanPlayerSetup이 그때 붙여둔 "P1" 임시 이름을
-        //여기서 갈아끼우지 않으면 닉네임이 화면에 영영 안 뜬다
+        //이름은 스폰보다 늦게 도착한다. LanPlayerSetup은 이름표를 비워만 두므로
+        //여기서 채우지 않으면 그 플레이어의 이름표가 영영 빈칸으로 남는다
         private void SetName(string name)
         {
             PlayerName = name ?? "";
@@ -264,11 +259,5 @@ namespace JellyNet
                 tag.SetName(PlayerName);
         }
 
-        public void SnapColorNow()
-        {
-            shownColor = DisplayColor;
-            if (targetRenderer != null)
-                targetRenderer.material.color = shownColor;
-        }
     }
 }

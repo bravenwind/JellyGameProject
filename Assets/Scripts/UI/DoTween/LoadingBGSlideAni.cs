@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using DG.Tweening;
 using UnityEngine;
@@ -33,7 +33,7 @@ public class LoadingBGSlideAni : MonoBehaviour
 
     // 센터->오른쪽(퇴장) 이동을 '시작'하는 순간 발생. 자식 LoadingCenterMultiAni가 이 시점에
     // Phase3(사라짐)를 재생해 BG 슬라이드와 동시에 나가도록 동기화하는 데 쓴다.
-    public event System.Action ExitStarted;
+    public event Action ExitStarted;
 
     // ─────────────────────────────────────────────────────────
     // 나가는 조건 / 콜백 (LoadingSceneController가 주입)

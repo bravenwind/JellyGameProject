@@ -15,8 +15,6 @@ public class AIWanderState : AIBaseState
     private bool    _hasTarget    = false;
     private float   _lastSetTime  = -10f;
 
-    private const float STUCK_THRESHOLD = 1.5f;
-
     private float _retryTimer = 0f; // 목적지 탐색 실패 시 쿨다운
 
     public AIWanderState(AIPlayerMovement ai) : base(ai) { }
