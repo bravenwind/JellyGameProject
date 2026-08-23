@@ -31,8 +31,7 @@ public class FallingTile : MonoBehaviour
     private Transform _shakeTransform;
     private Vector3 _shakeOrigin;
 
-    // 디버그용: 최근 AwakePhysicsOnTile이 잡은 콜라이더들을 일정 시간 강조 표시
-    private Collider[] _lastOverlapResult;
+    // 디버그용: 최근 AwakePhysicsOnTile이 돌아간 시각. 기즈모 강조 표시에 쓴다
     private float _lastOverlapTime = -999f;
 
     private void EnsureInit()
@@ -202,7 +201,6 @@ public class FallingTile : MonoBehaviour
         Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, mask);
 
         // 디버그: 시각화용 기록 + Scene 뷰에 라인으로 5초간 그림
-        _lastOverlapResult = OverlappedCols;
         _lastOverlapTime = Time.time;
         if (drawOverlapGizmo)
         {
@@ -222,6 +220,18 @@ public class FallingTile : MonoBehaviour
         foreach (var col in OverlappedCols)
         {
             if (col == _collider) continue;
+
+            // ★ 건드릴 자격을 '무엇을 바꾸기 전에' 본다
+            //
+            //   예전엔 AI를 끄고 CharacterController를 끄고 Rigidbody까지 붙인 뒤에야
+            //   아래에서 소유권을 봤다. 그래서 클라가 호스트 소유인 남의 봇에
+            //   물리를 붙여놓고 continue로 빠져나갔고, 그 뒤로 NetTransform이 보내주는
+            //   위치와 클라 쪽 중력이 서로를 밀어 봇이 화면마다 다르게 보였다.
+            //   (사람 플레이어를 걸러내는 이유는 아래 주석과 같다)
+            if (col.GetComponentInParent<LanPlayerState>() != null) continue;
+
+            NetIdentity idOnCol = col.GetComponentInParent<NetIdentity>();
+            if (idOnCol != null && !idOnCol.IsSimulatedHere) continue;
 
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
 

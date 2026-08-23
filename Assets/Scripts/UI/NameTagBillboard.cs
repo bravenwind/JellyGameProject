@@ -67,10 +67,19 @@ public class NameTagBillboard : MonoBehaviour
             transform.localPosition = new Vector3(0f, heightOffset, 0f);
         }
 
-        // ── 2. 빌보드: 카메라 정면을 바라봄 ──
-        transform.rotation = Quaternion.LookRotation(
-            transform.position - _cam.transform.position
-        );
+        // ── 2. 빌보드: 화면과 평행하게 세운다 ──
+        //
+        // ★ LookRotation(카메라 → 나)이 아니라 카메라 회전을 그대로 복사한다
+        //   예전 방식은 이름표마다 '카메라가 있는 지점을 향하는' 서로 다른 회전을 만든다.
+        //   이 게임처럼 위에서 내려다보는 카메라에서는 그 방향이 거의 수직이라
+        //   LookRotation이 기준으로 삼는 up(월드 Y축)이 뭉개지고, 남은 roll이
+        //   화면 안에서의 위치(중앙에서 얼마나 벗어났는지)에 따라 달라진다.
+        //   → 플레이어가 화면 가장자리로 갈수록 이름표가 기울어 보였다.
+        //
+        //   카메라 회전을 그대로 쓰면 텍스트 평면이 항상 화면과 평행해져
+        //   위치와 상관없이 언제나 가로로 반듯하게 보인다.
+        //   (같은 씬의 BillboardEffect가 이미 쓰고 있는 방식이다)
+        transform.rotation = _cam.transform.rotation;
 
         // ── 3. 크기 고정: 부모 스케일 상쇄 → 텍스트 크기는 항상 일정하게 ──
         if (fixedWorldSize && _parentTf != null)

@@ -30,7 +30,6 @@ public class PlayerColorVisual : MonoBehaviour
 
     // ── Events ──
     public event Action<JellyColorType, RYBColor, Color> OnColorApplied;
-    public event Action OnColorUIUpdate;
 
     private void Start()
     {
@@ -49,7 +48,6 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(FresnelProperty,       currentFresnelColor);
 
         CurrentRYB = RYBColor.white;
-        OnColorUIUpdate?.Invoke();
     }
 
     public void HandleJellyAbsorbed(JellyColorType type)
@@ -121,8 +119,6 @@ public class PlayerColorVisual : MonoBehaviour
         rend.material.SetColor(BaseColor_01Property, currentBaseColor);
         rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
         rend.material.SetColor(FresnelProperty, currentFresnelColor);
-
-        OnColorUIUpdate?.Invoke();
     }
 
     /// <summary>

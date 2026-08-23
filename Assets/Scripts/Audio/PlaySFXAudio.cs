@@ -13,10 +13,6 @@ public class PlaySFXAudio : MonoBehaviour
     public AudioClip button1Audio;
     public AudioClip buttonClickAudio;
 
-    [Header("Machine")]
-    public AudioClip machineAudio;
-    public float machineSpeed = 2.0f;
-
     [Header("Color Mix")]
     public AudioClip colorMix2Audio;
 
@@ -27,7 +23,6 @@ public class PlaySFXAudio : MonoBehaviour
     public AudioClip jumpAudio;
 
     [Header("Game State")]
-    public AudioClip failAudio;
     public bool isSteppingMilk;
     private bool prevIsSteppingMilk;
 

@@ -34,6 +34,10 @@ namespace JellyNet
         LoadGameScene = 53,
         SceneReady = 54,
 
+        //로비 대기 화면의 인원수·카운트다운. 호스트만 아는 값이라
+        //이걸 안 보내면 클라는 "게임 시작!"만 갑자기 보게 된다
+        LobbyStatus = 55,
+
         TileCollapse = 60,
         TileWear = 61,
 

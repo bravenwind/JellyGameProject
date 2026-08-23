@@ -6,8 +6,6 @@ public class MainCamera_Action : MonoBehaviour
 {
     public Transform target;
 
-    public float followSpeed = 10f;
-
     [Header("Offset (Local Space)")]
     public Vector3 offset = new Vector3(0f, 10f, -10f);
 
@@ -15,16 +13,9 @@ public class MainCamera_Action : MonoBehaviour
     public float pitch = 0.0f;   // X
     public float yaw = -45f;    // Y
 
-    public float currentSize;
-    public float targetSize;
-
-    [Header("Base Settings")]
-    [Tooltip("레벨 1일 때의 기본 카메라 크기 (기존 리셋값인 6.1 기준)")]
-    public float baseOrthographicSize = 6.1f;
-
     // 기존 Lerp 대신 SmoothDamp 사용 권장
     private Vector3 currentVelocity; // SmoothDamp용 참조 변수
-    public float smoothTime = 0.1f;  // followSpeed 대신 사용 (작을수록 빠름)
+    public float smoothTime = 0.1f;  // 작을수록 빠르게 따라붙는다
 
     Rigidbody targetRb;
 
@@ -125,32 +116,6 @@ public class MainCamera_Action : MonoBehaviour
         {
             t += Time.unscaledDeltaTime;
             Camera.main.orthographicSize = Mathf.Lerp(startSize, targetSize, t / duration);
-            yield return null;
-        }
-
-        Camera.main.orthographicSize = targetSize; // 정확한 값으로 안착
-    }
-
-    // 🔥 [추가] 특정 레벨에 맞는 카메라 크기로 바로 변경하는 함수
-    public void ChangeCameraSizeToLevel(int targetLevel)
-    {
-        currentSize = Camera.main.orthographicSize;
-
-        // 목표 사이즈 계산: 기본 사이즈 + (레벨 차이 * 단계당 증가 사이즈)
-        float targetSize = baseOrthographicSize + (targetLevel - 1) * DataManager.Instance.scaleChangedPlusSize;
-
-        StartCoroutine(OnScaleChanged_Co(targetSize, DataManager.Instance.scaleIncreaseDuration));
-    }
-
-    IEnumerator OnScaleChanged_Co(float targetSize, float duration)
-    {
-        float t = 0f;
-
-        while (t <= duration)
-        {
-            // 🔥 버그 수정: Time.deltaTime을 루프 안에서 매 프레임 새로 받아오도록 수정
-            t += Time.unscaledDeltaTime;
-            Camera.main.orthographicSize = Mathf.Lerp(currentSize, targetSize, t / duration);
             yield return null;
         }
 

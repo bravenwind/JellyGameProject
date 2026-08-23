@@ -75,6 +75,28 @@ namespace JellyNet
 
         private int shownHumans = -1;
 
+        // ─────────────────────────────────────────────────────────
+        //  대기 화면 상태 — 호스트가 방송하고 클라는 그대로 따른다
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ 왜 필요한가
+        //   인원수도 카운트다운도 호스트만 안다(HumanCount는 클라에서 언제나 1,
+        //   Update의 카운트다운 블록도 !IsHost면 그 자리에서 빠져나간다).
+        //   그래서 클라 화면은 "다른 참가자를 기다리는 중..." 에서 곧장
+        //   "게임 시작!"으로 튀었다 — 매칭 완료도 3·2·1도 본 적이 없다.
+        //   호스트가 바뀔 때마다 LobbyStatus를 쏴주면 양쪽이 같은 화면을 본다.
+        private int netHumans = -1;   //-1 = 아직 못 받음
+        private int netTotal;
+        private int netAi;
+
+        //같은 값을 60fps로 다시 쏘지 않기 위한 마지막 방송값
+        private int sentHumans = -1;
+        private int sentCountdown = -2;
+
+        //"매칭 완료!" 연출은 한 번만. 호스트는 countdown이 -1→양수로 바뀌는 순간,
+        //클라는 카운트다운이 실린 첫 LobbyStatus에서 재생한다
+        private bool matchCompleteShown;
+
         private void Awake()
         {
             Instance = this;
@@ -90,6 +112,7 @@ namespace JellyNet
             }
 
             net.RouteClient(MsgType.LoadGameScene, HandleLoadGameScene);
+            net.RouteClient(MsgType.LobbyStatus, HandleLobbyStatus);
             net.OnPeerJoined += HandlePeerChanged;
             net.OnPeerLeft += HandlePeerChanged;
             net.OnDisconnected += HandleDisconnected;
@@ -108,6 +131,11 @@ namespace JellyNet
             if (net == null || !matching || launching)
                 return;
 
+            //클라의 인원 표시는 LobbyStatus가 갱신한다. 여기서 폴링하면
+            //자기 자신만 세는 HumanCount가 다시 덮어써 "1 / 4명"에서 멈춘다
+            if (!net.IsHost)
+                return;
+
             int humans = HumanCount();
             if (humans != shownHumans)
             {
@@ -116,24 +144,24 @@ namespace JellyNet
                 PlayJoinPop();
             }
 
-            if (!net.IsHost)
-                return;
-
             if (countdown < 0f)
             {
-                if (HumanCount() < LanRoomConfig.HumanCount)
+                if (humans < LanRoomConfig.HumanCount)
+                {
+                    HostBroadcastStatus();
                     return;
+                }
 
                 countdown = countdownSeconds;
                 PlayMatchingComplete();
+                HostBroadcastStatus();
                 return;
             }
 
             countdown -= Time.unscaledDeltaTime;
 
-            int shown = Mathf.CeilToInt(Mathf.Max(0f, countdown));
-            if (countdownText != null && countdownText.text != shown.ToString())
-                ShowCountdown(shown);
+            ShowCountdown(Mathf.CeilToInt(Mathf.Max(0f, countdown)));
+            HostBroadcastStatus();
 
             if (countdown > 0f)
                 return;
@@ -142,12 +170,75 @@ namespace JellyNet
             HostLaunch();
         }
 
+        //대기 화면에서 카운트다운이 아직 안 돌고 있음을 뜻하는 값.
+        //바이트 하나로 보내려고 -1 대신 255를 쓴다
+        private const int CD_WAITING = 255;
+
+        /// <summary>
+        /// 호스트만 아는 대기 화면 상태(인원·정원·AI·카운트다운)를 클라에 알린다.
+        /// 값이 바뀔 때만 나가므로 프레임마다 불러도 된다.
+        /// </summary>
+        private void HostBroadcastStatus(bool force = false)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost || net.Host == null)
+                return;
+
+            int humans = HumanCount();
+            int shown = countdown < 0f ? CD_WAITING : Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(0f, countdown)), 0, 254);
+
+            if (!force && humans == sentHumans && shown == sentCountdown)
+                return;
+
+            sentHumans = humans;
+            sentCountdown = shown;
+
+            w.Begin(MsgType.LobbyStatus);
+            w.WriteByte((byte)Mathf.Clamp(humans, 0, 255));
+            w.WriteByte((byte)Mathf.Clamp(LanRoomConfig.HumanCount, 0, 255));
+            w.WriteByte((byte)Mathf.Clamp(LanRoomConfig.AiCount, 0, 255));
+            w.WriteByte((byte)shown);
+            w.End();
+            net.Host.Broadcast(w);
+        }
+
+        /// <summary>호스트가 보낸 대기 화면 상태를 그대로 재생한다(클라 전용).</summary>
+        private void HandleLobbyStatus(NetReader r)
+        {
+            int humans = r.ReadByte();
+            int total = r.ReadByte();
+            int ai = r.ReadByte();
+            int cd = r.ReadByte();
+
+            if (!matching || launching)
+                return;
+
+            bool changed = humans != netHumans;
+
+            netHumans = humans;
+            netTotal = total;
+            netAi = ai;
+
+            UpdatePlayerCountUI();
+            if (changed)
+                PlayJoinPop();
+
+            if (cd == CD_WAITING)
+                return;
+
+            if (!matchCompleteShown)
+                PlayMatchingComplete();
+
+            ShowCountdown(cd);
+        }
+
         private void OnDestroy()
         {
             NetManager net = NetManager.Instance;
             if (net != null)
             {
                 net.UnrouteClient(MsgType.LoadGameScene);
+                net.UnrouteClient(MsgType.LobbyStatus);
                 net.OnPeerJoined -= HandlePeerChanged;
                 net.OnPeerLeft -= HandlePeerChanged;
                 net.OnDisconnected -= HandleDisconnected;
@@ -379,6 +470,11 @@ namespace JellyNet
         private void OpenMatching(string label)
         {
             matching = true;
+            matchCompleteShown = false;
+            shownHumans = -1;
+            netHumans = -1;
+            sentHumans = -1;
+            sentCountdown = -2;
 
             if (cancelMatchingButton != null)
                 cancelMatchingButton.SetActive(true);
@@ -406,6 +502,15 @@ namespace JellyNet
             matching = false;
             countdown = -1f;
             launching = false;
+
+            CancelInvoke(nameof(LaunchNow));
+
+            pendingScene = null;
+            matchCompleteShown = false;
+            shownHumans = -1;
+            netHumans = -1;
+            sentHumans = -1;
+            sentCountdown = -2;
 
             if (LanDiscovery.Instance != null)
                 LanDiscovery.Instance.StopAll();
@@ -444,6 +549,10 @@ namespace JellyNet
         {
             UpdatePlayerCountUI();
             PlayJoinPop();
+
+            //새로 들어온 사람에게도 지금 인원이 몇인지 알려야 한다.
+            //값이 안 바뀌었어도(예: 나갔다가 같은 수로 다시 참) 강제로 한 번 보낸다
+            HostBroadcastStatus(true);
         }
 
         private void HandleDisconnected()
@@ -471,15 +580,31 @@ namespace JellyNet
                 return;
 
             NetManager net = NetManager.Instance;
+
+            int humans, total, ai;
+
             if (net != null && net.IsHost)
             {
-                currentPlayerCountText.text = HumanCount() + " / " + LanRoomConfig.HumanCount + "명"
-                    + (LanRoomConfig.AiCount > 0 ? ("   AI " + LanRoomConfig.AiCount) : "");
+                humans = HumanCount();
+                total = LanRoomConfig.HumanCount;
+                ai = LanRoomConfig.AiCount;
             }
             else
             {
-                currentPlayerCountText.text = "접속됨";
+                //호스트가 보내주기 전까지는 숫자를 지어내지 않는다
+                if (netHumans < 0)
+                {
+                    currentPlayerCountText.text = "접속됨";
+                    return;
+                }
+
+                humans = netHumans;
+                total = netTotal;
+                ai = netAi;
             }
+
+            currentPlayerCountText.text = humans + " / " + total + "명"
+                + (ai > 0 ? ("   AI " + ai) : "");
         }
 
         private void PlayJoinPop()
@@ -506,6 +631,8 @@ namespace JellyNet
 
         private void PlayMatchingComplete()
         {
+            matchCompleteShown = true;
+
             if (dots != null)
             {
                 StopCoroutine(dots);
@@ -531,6 +658,14 @@ namespace JellyNet
             if (countdownText == null)
                 return;
 
+            //0은 띄우지 않는다 — 마지막 한 프레임만 보였다가 곧바로 시작 연출에 가려진다
+            if (number < 1)
+                return;
+
+            //호출부(호스트 Update / 클라 수신)가 매 프레임 불러도 숫자가 바뀔 때만 튄다
+            if (countdownText.text == number.ToString())
+                return;
+
             countdownText.rectTransform.DOKill();
             countdownText.text = number.ToString();
             countdownText.rectTransform.localScale = Vector3.zero;
@@ -544,20 +679,8 @@ namespace JellyNet
             if (net == null || !net.IsHost || launching)
                 return;
 
-            launching = true;
-
             if (LanDiscovery.Instance != null)
                 LanDiscovery.Instance.StopAll();
-
-            if (countdownText != null)
-                countdownText.gameObject.SetActive(false);
-            if (gameStartText != null)
-            {
-                gameStartText.gameObject.SetActive(true);
-                gameStartText.rectTransform.localScale = Vector3.zero;
-                gameStartText.rectTransform
-                    .DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
-            }
 
             string scene = SceneFor(LanRoomConfig.Mode);
 
@@ -572,12 +695,51 @@ namespace JellyNet
             w.End();
             net.Host.Broadcast(w);
 
-            Invoke(nameof(LaunchNow), 0.6f);
+            BeginLaunch(scene, LanRoomConfig.Mode);
+        }
+
+        //"게임 시작!"을 보여주는 시간. 호스트와 클라가 같은 값을 써야
+        //양쪽이 같은 순간에 로딩 커튼으로 넘어간다.
+        //예전엔 호스트만 0.6초를 기다리고 클라는 수신 즉시 씬을 로드해서,
+        //클라가 0.6초 먼저 게임 씬에 들어가 인게임 카운트다운까지 어긋났다
+        private const float LAUNCH_DELAY = 0.6f;
+
+        private string pendingScene;
+        private GameModeType pendingMode;
+
+        /// <summary>양쪽 공용 — "게임 시작!" 연출을 띄우고 잠시 뒤 씬을 넘긴다.</summary>
+        private void BeginLaunch(string scene, GameModeType mode)
+        {
+            if (launching && pendingScene != null)
+                return;
+
+            launching = true;
+            pendingScene = scene;
+            pendingMode = mode;
+
+            if (dots != null)
+            {
+                StopCoroutine(dots);
+                dots = null;
+            }
+
+            if (countdownText != null)
+                countdownText.gameObject.SetActive(false);
+
+            if (gameStartText != null)
+            {
+                gameStartText.gameObject.SetActive(true);
+                gameStartText.rectTransform.localScale = Vector3.zero;
+                gameStartText.rectTransform
+                    .DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
+            }
+
+            Invoke(nameof(LaunchNow), LAUNCH_DELAY);
         }
 
         private void LaunchNow()
         {
-            LoadGameScene(SceneFor(LanRoomConfig.Mode), LanRoomConfig.Mode, loadingScene);
+            LoadGameScene(pendingScene, pendingMode, loadingScene);
         }
 
         private string SceneFor(GameModeType m)
@@ -594,16 +756,15 @@ namespace JellyNet
 
             LanRoomConfig.Set(m, total, ai);
 
-            launching = true;
-            if (dots != null)
-            {
-                StopCoroutine(dots);
-                dots = null;
-            }
-            if (matchingStatusText != null)
-                matchingStatusText.text = "게임 시작!";
+            //호스트가 카운트다운을 다 못 보여준 채(패킷 유실·늦은 접속) 여기로 왔다면
+            //적어도 "매칭 완료!" 상태는 맞춰두고 시작 연출로 넘어간다
+            if (!matchCompleteShown)
+                PlayMatchingComplete();
 
-            LoadGameScene(scene, m, loadingScene);
+            //호스트와 같은 연출·같은 대기시간으로 넘어간다.
+            //예전엔 여기서 상태 문구만 "게임 시작!"으로 바꾸고 곧바로 씬을 로드해,
+            //클라 화면에서는 매칭 완료도 3·2·1도 없이 갑자기 화면이 넘어갔다
+            BeginLaunch(scene, m);
         }
 
         public static void LoadGameScene(string sceneName, GameModeType m, string loadingSceneName = null)

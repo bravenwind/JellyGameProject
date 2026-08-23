@@ -367,31 +367,37 @@ public class AIPlayerMovement : MonoBehaviour
             if (!Agent.enabled) continue;
 
             // Agent는 켜져 있는데 NavMesh 밖에 있는 봇 = 넉백/붕괴로 발판 없는 허공에 박제된 경우.
-            // Push 모드는 CheckGroundBelow가 별도로 낙하시키므로, 낙하가 아닌 '안전 타일 복귀'를
-            // 설계로 쓰는 흡수 모드에서만 가장 가까운 안전 타일로 Warp해 floating을 해소한다.
-            // (이 분기가 없으면 흡수 모드에서 허공에 뜬 봇이 낙하도 복구도 안 돼 영구히 떠 있다.)
+            //
+            // ★ 무너진 발판 위에 있었으면 '구조'가 아니라 '낙하'가 맞다
+            //   예전엔 흡수 모드에서 무조건 가장 가까운 안전 타일로 Warp했다.
+            //   그래서 발판과 함께 초콜릿으로 떨어져야 할 봇이, FallingTile의
+            //   OverlapBox에 안 잡히기만 하면 슬그머니 땅 위로 되돌아왔다
+            //   ("봇이 초콜릿에 안 들어가고 땅에 남아 있다"의 정체).
+            //   먼저 발밑을 재서 진짜 허공이면 떨어뜨리고, 발판이 있는데 NavMesh만
+            //   어긋난 경우(유령 NavMesh)에만 예전처럼 안전 타일로 복귀시킨다.
             if (!Agent.isOnNavMesh)
             {
-                if (GameState.CurrentGameMode != GameModeType.Push)
+                if (CheckGroundBelow(true)) continue;   //발밑이 비었다 → 물리 낙하
+
+                var c = TileCollapseManager.Instance;
+                if (c != null && c.FindNearestSafeTile(transform.position, out Vector3 offSafe)
+                    && (NavMesh.SamplePosition(offSafe, out NavMeshHit offHit, 10f, NavFilter)
+                        || NavMesh.SamplePosition(offSafe, out offHit, 10f, NavMesh.AllAreas)))
                 {
-                    var c = TileCollapseManager.Instance;
-                    if (c != null && c.FindNearestSafeTile(transform.position, out Vector3 offSafe)
-                        && (NavMesh.SamplePosition(offSafe, out NavMeshHit offHit, 10f, NavFilter)
-                            || NavMesh.SamplePosition(offSafe, out offHit, 10f, NavMesh.AllAreas)))
-                    {
-                        Agent.Warp(offHit.position);
-                        if (Agent.isOnNavMesh && Agent.hasPath) Agent.ResetPath();
-                    }
+                    Agent.Warp(offHit.position);
+                    if (Agent.isOnNavMesh && Agent.hasPath) Agent.ResetPath();
                 }
                 continue;
             }
 
             // 발판이 없는 허공(붕괴된 타일 자리의 잔존 NavMesh 등) 위에 떠 있으면
-            // 가장 가까운 안전 타일로 즉시 복귀시킨다. 이렇게 해야 AI가 공중에서
-            // 도달 불가능한 목적지를 못 찾아 WanderState로 Idle 박제되는 현상이 사라진다.
+            // 먼저 떨어뜨려 본다. 발판이 남아 있는데 그리드만 붕괴로 표시된 경우에는
+            // 예전처럼 가장 가까운 안전 타일로 복귀시켜 공중 박제를 푼다.
             var collapse = TileCollapseManager.Instance;
             if (collapse != null && collapse.IsOverVoid(transform.position))
             {
+                if (CheckGroundBelow(true)) continue;   //발밑이 비었다 → 물리 낙하
+
                 if (collapse.FindNearestSafeTile(transform.position, out Vector3 safeTile)
                     && (NavMesh.SamplePosition(safeTile, out NavMeshHit voidHit, 10f, NavFilter)
                         || NavMesh.SamplePosition(safeTile, out voidHit, 10f, NavMesh.AllAreas)))
@@ -406,7 +412,7 @@ public class AIPlayerMovement : MonoBehaviour
 
             if (GameState.CurrentGameMode == GameModeType.Push)
             {
-                if (FindThreat() != null) { ChangeState(FleeState); continue; }
+                if (Detector.FindThreat() != null) { ChangeState(FleeState); continue; }
                 ChangeState(PushSurviveState);
                 continue;
             }
@@ -431,7 +437,7 @@ public class AIPlayerMovement : MonoBehaviour
     {
         // ★ 밀치기 모드 판정을 위협 검사보다 <b>먼저</b> 한다.
         //
-        //   예전엔 FindThreat()가 먼저였다. 그런데 밀치기에서는 배트를 맞히면 커지므로,
+        //   예전엔 위협 검사가 먼저였다. 그런데 밀치기에서는 배트를 맞히면 커지므로,
         //   상대가 한 대만 맞혀도 그 순간부터 '나보다 큰 상대'가 된다.
         //   그러면 봇이 PushSurviveState를 버리고 FleeState로 넘어가 <b>도망만 다닌다.</b>
         //   공격도, 발판 회피도, 대쉬도 전부 PushSurviveState에 들어 있는데 그게 안 돈다.
@@ -446,9 +452,9 @@ public class AIPlayerMovement : MonoBehaviour
             return;
         }
 
-        if (FindThreat() != null) { ChangeState(FleeState); return; }
+        if (Detector.FindThreat() != null) { ChangeState(FleeState); return; }
 
-        if (FindTargetToChase() != null) { ChangeState(ChaseState); return; }
+        if (Detector.FindTargetToChase() != null) { ChangeState(ChaseState); return; }
         ChangeState(WanderState);
     }
 
@@ -522,8 +528,10 @@ public class AIPlayerMovement : MonoBehaviour
             return;
         }
 
-        if (GameState.CurrentGameMode == GameModeType.Push)
-            CheckGroundBelow();
+        //예전엔 Push 모드에서만 발밑을 봤다. 흡수 모드에도 무너지는 발판과 초콜릿 강이
+        //있으므로 모드를 가릴 이유가 없다 — 발판이 사라졌으면 어느 모드든 떨어져야 한다.
+        //(호출부가 IsDriver로 이미 걸러져 있어 클라는 남의 봇에 물리를 붙이지 않는다)
+        if (CheckGroundBelow()) return;
 
         if (!Agent.enabled || !Agent.isOnNavMesh) return;
 
@@ -544,7 +552,7 @@ public class AIPlayerMovement : MonoBehaviour
             && Time.time - _lastUrgentThreatCheck >= 0.1f)
         {
             _lastUrgentThreatCheck = Time.time;
-            if (FindThreat() != null)
+            if (Detector.FindThreat() != null)
                 ChangeState(FleeState);
         }
 
@@ -596,14 +604,9 @@ public class AIPlayerMovement : MonoBehaviour
         return flow != null && flow.Phase != GamePhase.Playing;
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 탐지 함수 (AIDetector에 위임, 상태 클래스 호환용 래퍼)
-    // ─────────────────────────────────────────────────────────
-
-    public Transform FindThreat() => Detector.FindThreat();
-    public Transform FindPrey() => Detector.FindPrey();
-    public Transform FindTargetToChase() => Detector.FindTargetToChase();
-    public Transform FindNearestJelly() => Detector.FindNearestJelly();
+    // 탐지는 전부 AIDetector가 한다. 예전엔 여기 같은 이름의 위임 래퍼가 네 개 있었는데
+    // 로직이 한 줄도 없으면서 "탐지가 이상하다 → 여기 열어봄 → 또 다른 파일로 점프"만
+    // 만들었다. Detector가 이미 public이라 감싸서 얻는 것도 없었다.
 
     /// <summary>
     /// 스폰 위치가 NavMesh로부터 멀리 떨어진 경우 폴백 위치 탐색.
@@ -674,16 +677,20 @@ public class AIPlayerMovement : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────
-    // Push 모드: 발 밑 지면 확인 → 없으면 낙하
+    // 발 밑 지면 확인 → 없으면 낙하 (Push·흡수 공통)
     // ─────────────────────────────────────────────────────────
 
-    private void CheckGroundBelow(bool immediate = false)
+    /// <summary>
+    /// 발밑에 지면이 없으면 Agent를 끄고 Rigidbody를 붙여 물리로 떨어뜨린다.
+    /// </summary>
+    /// <returns>이번 호출로 낙하가 시작됐거나 이미 낙하 중이면 true.</returns>
+    private bool CheckGroundBelow(bool immediate = false)
     {
-        if (!immediate && Time.frameCount % 15 != 0) return;
-        if (IsEliminated || IsBeingAbsorbed) return;
+        if (!immediate && Time.frameCount % 15 != 0) return false;
+        if (IsEliminated || IsBeingAbsorbed) return false;
 
         Vector3 origin = transform.position + Vector3.up * 0.5f;
-        if (Physics.Raycast(origin, Vector3.down, 3f)) return;
+        if (Physics.Raycast(origin, Vector3.down, 3f)) return false;
 
         if (Agent != null) Agent.enabled = false;
         _currentState?.Exit();
@@ -694,6 +701,8 @@ public class AIPlayerMovement : MonoBehaviour
         rb.isKinematic = false;
         rb.useGravity = true;
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+
+        return true;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -778,30 +787,35 @@ public class AIPlayerMovement : MonoBehaviour
     }
 
     /// <summary>
-    /// 초콜릿 등으로 탈락 처리. 리더보드/이름표 제거, AI/Agent 정지.
-    /// 오브젝트는 파괴하지 않고 둥둥 떠다니게 유지.
-    /// 호스트에서 호출되면 BotEliminated 방송으로 전 클라에 전파된다.
+    /// 초콜릿 등으로 탈락했다고 신고한다. 모든 기계에서 불리지만 판정은 호스트만 한다.
+    ///
+    /// ★ IsEliminated를 여기서 세우면 안 된다
+    ///   이 함수는 클라에서도 불린다(ChocolateFluid.OnTriggerEnter는 각자 돈다).
+    ///   그런데 클라는 아래 IsDriver 검사에서 되돌아가고, 실제 탈락은 호스트가 보내는
+    ///   BotEliminated를 받아 ApplyEliminated로 처리한다.
+    ///   여기서 플래그를 먼저 세워버리면 클라에서는
+    ///     ① 정리(Agent 정지·이름표 제거)는 하나도 안 한 채 '탈락됨'으로 표시되고
+    ///     ② 나중에 진짜 통보가 와도 ApplyEliminated의 첫 줄에 걸려 통째로 무시된다
+    ///   → 봇이 죽은 셈 치는데 계속 걸어다니는 유령이 된다.
+    ///   플래그는 '정리를 실제로 끝냈다'는 뜻이어야 하므로 ApplyEliminated가 세운다.
+    ///   호스트에서 두 번 불려도 그 사이가 전부 동기 호출이라 중복 정산은 없다.
     /// </summary>
     public void OnEliminated()
     {
         if (IsEliminated) return;
 
-        // [LAN 이식] 탈락은 호스트가 판정하고 전원에게 알린다.
-        //   호스트 자신도 즉시 반영해야 하므로 방송 후 로컬 적용까지 한다.
-        //   봇은 전부 NetWorld가 스폰하므로 _netId가 없는 봇은 존재하지 않는다 —
-        //   예전엔 그 경우의 폴백이 있었는데, 그쪽은 IsDriver 검사를 건너뛰어서
-        //   만약 도달했다면 클라가 봇을 제멋대로 죽일 수 있었다
+        //봇은 전부 NetWorld가 스폰하므로 _netId가 없는 봇은 존재하지 않는다 —
+        //예전엔 그 경우의 폴백이 있었는데, 그쪽은 IsDriver 검사를 건너뛰어서
+        //만약 도달했다면 클라가 봇을 제멋대로 죽일 수 있었다
         if (!IsDriver) return;                       // 클라는 스스로 죽이지 않는다
 
-        // [밀치기] 나를 민 사람이 있으면 내 점수를 넘긴다. 탈락 처리 전에 해야 한다.
-        if (PushMode.Instance != null)
-            PushMode.Instance.HostAwardKillCredit(_netId.NetId);
-
-        if (_botSync != null) _botSync.HostBroadcastEliminated();
-        ApplyEliminatedLocally();
+        //킬 크레딧 정산·방송·로컬 적용은 전부 이 관문 안에서 일어난다.
+        //사람의 탈락(LanGameFlow.HostConfirmEliminated)도 같은 문으로 들어간다
+        NetEntity.HostEliminate(_netId);
     }
 
-    private void ApplyEliminatedLocally()
+    /// <summary>[LAN] 탈락을 실제로 적용한다. 호스트는 NetEntity를 거쳐, 클라는 통보를 받아 부른다.</summary>
+    public void ApplyEliminated()
     {
         if (IsEliminated) return;
         IsEliminated = true;
@@ -820,12 +834,6 @@ public class AIPlayerMovement : MonoBehaviour
         if (_anim != null) _anim.SetBool("IsMoving", false);
 
         if (nameTagBillboard != null) nameTagBillboard.gameObject.SetActive(false);
-    }
-
-    /// <summary>[LAN] 호스트가 보낸 탈락 통보. NetWorld가 호출한다.</summary>
-    public void ApplyEliminatedFromNet()
-    {
-        ApplyEliminatedLocally();
     }
 
     /// <summary>[LAN] 호스트가 확정한 흡수. 전원이 각자 같은 연출을 재생한다.</summary>

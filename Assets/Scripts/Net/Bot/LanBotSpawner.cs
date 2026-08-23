@@ -145,14 +145,14 @@ namespace JellyNet
             if (spawned == null)
                 return;
 
-            NavMeshAgent ag = spawned.GetComponentInChildren<NavMeshAgent>();
-            if (ag != null)
+            NavMeshAgent agent = spawned.GetComponentInChildren<NavMeshAgent>();
+            if (agent != null)
             {
-                ag.enabled = false;
-                ag.transform.position = pos;
-                ag.enabled = true;
-                if (ag.isOnNavMesh)
-                    ag.Warp(pos);
+                agent.enabled = false;
+                agent.transform.position = pos;
+                agent.enabled = true;
+                if (agent.isOnNavMesh)
+                    agent.Warp(pos);
             }
 
             if (verboseLog)

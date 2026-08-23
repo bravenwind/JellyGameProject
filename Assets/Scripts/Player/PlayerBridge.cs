@@ -21,10 +21,11 @@ public class PlayerBridge : MonoBehaviour
 
     // ★ 점수는 호스트만 만든다
     //   예전엔 여기서도 ScoreFromScale을 계산해 LanPlayerState.Score에 직접 써넣었다.
-    //   같은 계산이 LanPlayerState.HostRecomputeScore에도 있어서 두 갈래였는데,
-    //   그쪽에는 `if (IsMode(Push)) return;` 가드가 있고 이쪽에는 없었다.
-    //   그래서 밀치기 모드에서 크기가 변하면 HostAddScore로 쌓인 밀치기 점수를
+    //   같은 계산이 상태 컴포넌트 안에도 있어서 두 갈래였는데, 그쪽에만 모드 가드가
+    //   있었다. 그래서 밀치기 모드에서 크기가 변하면 밀치기로 쌓은 점수를
     //   크기 환산값이 통째로 덮어썼다.
+    //   지금은 '점수를 어떻게 정할지'가 모드(AbsorbMode/PushMode)에만 있고
+    //   적는 일은 NetEntity가 한다.
     //
     //   아래 GameState.CurrentScore는 내 화면 HUD용 예측치라 그대로 둔다.
     //   판정에 쓰이는 LanPlayerState.Score는 호스트의 방송으로만 채워진다.
@@ -73,7 +74,6 @@ public class PlayerBridge : MonoBehaviour
         if (_colorVisual != null)
         {
             _colorVisual.OnColorApplied += HandleColorApplied;
-            _colorVisual.OnColorUIUpdate += HandleColorUIUpdate;
         }
 
         if (_absorber != null)
@@ -98,7 +98,6 @@ public class PlayerBridge : MonoBehaviour
         if (_colorVisual != null)
         {
             _colorVisual.OnColorApplied -= HandleColorApplied;
-            _colorVisual.OnColorUIUpdate -= HandleColorUIUpdate;
         }
 
         if (_absorber != null)
@@ -113,7 +112,6 @@ public class PlayerBridge : MonoBehaviour
     {
         if (!IsLocalOwner) return; // [W6] 원격 아바타는 전역 GameState/HUD를 건드리지 않는다
         GameState.PlayerCurrentScale = scaleValue;
-        PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
     private void HandleGrowStarted(bool playEffect)
@@ -164,8 +162,6 @@ public class PlayerBridge : MonoBehaviour
         GameState.PlayerCurrentScale = scaleValue;
 
         GameState.CurrentScore = DataManager.Instance.ScoreFromScale(scaleValue);
-
-        PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
     private void HandleScaleReset()
@@ -173,7 +169,6 @@ public class PlayerBridge : MonoBehaviour
         if (!IsLocalOwner) return; // [W6]
         PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
         GameState.PlayerCurrentScale = 1f;
-        PlayerEvents.OnScaleUIUpdate?.Invoke();
     }
 
     // ── Color ──
@@ -184,12 +179,6 @@ public class PlayerBridge : MonoBehaviour
         // GameState.CurrentDisplayColor(로컬 플레이어 색·SyncColor 소스)를 덮으면 내 색이 남의 색으로 샌다.
         if (!IsLocalOwner) return;
         GameState.CurrentDisplayColor = displayColor;
-        PlayerEvents.OnColorChanged?.Invoke(dominantType, ryb);
-    }
-
-    private void HandleColorUIUpdate()
-    {
-        PlayerEvents.OnColorUIUpdate?.Invoke();
     }
 
     // ── Absorb ──
@@ -208,7 +197,5 @@ public class PlayerBridge : MonoBehaviour
             UIPoolManager.Instance.SpawnUI(UIType.JellyEat);
         if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
         if (_levelUpPool != null) _levelUpPool.Play();
-        if (GameState.CurrentScore >= dm.targetScore)
-            dm.missions[1].missionCleared = true;
     }
 }

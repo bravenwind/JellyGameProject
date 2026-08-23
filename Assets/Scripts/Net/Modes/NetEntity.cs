@@ -7,6 +7,12 @@ namespace JellyNet
     //같은 판단이 AbsorbMode와 PushMode에 따로 있다가 한쪽만 고쳐지는 일이 반복됐다
     public static class NetEntity
     {
+        //판정을 내려도 되는 쪽인가. 오프라인은 혼자 다 굴린다
+        private static bool IsHostNow
+        {
+            get { return NetManager.Instance != null && NetManager.Instance.IsHost; }
+        }
+
         public static bool IsJelly(NetIdentity id)
         {
             if (id == null)
@@ -58,6 +64,18 @@ namespace JellyNet
             return id.transform.localScale.x;
         }
 
+        // ═══════════════════════════════════════════════════════
+        //  점수 — 사람·봇, 두 모드가 모두 지나가는 유일한 관문
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 예전엔 모드마다 다른 길로 갔다
+        //     밀치기 : PushMode → NetEntity.AddScore → 각 상태 컴포넌트 (방송 O)
+        //     흡수   : LanPlayerState.HostRecomputeScore  (방송 O)
+        //              LanBotState.HostSendScale 안의 한 줄  (방송 X)
+        //   같은 '점수'인데 규칙이 세 곳에 흩어져 있었고, 그중 봇의 흡수 점수만
+        //   방송을 안 해서 클라 순위표의 봇 점수가 영영 0이었다.
+        //   이제 두 모드 다 여기를 지난다. 모드별 규칙(더할 것이냐 크기에서 뽑을 것이냐)은
+        //   PushMode/AbsorbMode가 알고, '누구에게 어떻게 적는지'는 여기만 안다.
         public static void AddScore(NetIdentity id, int delta)
         {
             if (id == null || delta == 0)
@@ -75,6 +93,78 @@ namespace JellyNet
 
             if (bot != null)
                 bot.HostAddScore(delta);
+        }
+
+        /// <summary>점수를 특정 값으로 맞춘다. 값이 바뀔 때만 방송이 나간다.</summary>
+        public static void SetScore(NetIdentity id, int score)
+        {
+            if (id == null)
+                return;
+
+            LanPlayerState state = id.PlayerState;
+
+            if (state != null)
+            {
+                state.HostSetScore(score);
+                return;
+            }
+
+            LanBotState bot = id.BotState;
+
+            if (bot != null)
+                bot.HostSetScore(score);
+        }
+
+        /// <summary>
+        /// 흡수 모드의 점수 규칙 — 점수는 '지금 크기'에서 나온다.
+        /// 사람이든 봇이든 같은 공식을 쓰도록 여기 한 곳에만 둔다.
+        /// </summary>
+        public static void HostSetScoreFromScale(NetIdentity id)
+        {
+            if (id == null || DataManager.Instance == null)
+                return;
+
+            SetScore(id, DataManager.Instance.ScoreFromScale(ScaleOf(id)));
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  탈락 — 사람·봇 공통 관문 (호스트 전용)
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 예전엔 같은 사건이 두 벌로 구현돼 있었다
+        //     사람 : LanGameFlow.HostConfirmEliminated
+        //            → PushMode.HostAwardKillCredit + ps.HostSetFlag(Eliminated)
+        //     봇   : AIPlayerMovement.OnEliminated
+        //            → PushMode.HostAwardKillCredit + botSync.HostBroadcastEliminated
+        //   '밀치기의 킬 점수 정산'이라는 모드 전용 규칙이 양쪽에 복사돼 있어서,
+        //   한쪽만 고치면 사람과 봇의 탈락 처리가 조용히 갈라졌다.
+        //   이제 두 갈래가 여기서 만난다.
+        public static void HostEliminate(NetIdentity id)
+        {
+            //오프라인(에디터 단독 실행)에서는 나 혼자가 곧 호스트다.
+            //이 허용이 없으면 접속 없이 테스트할 때 봇이 초콜릿에 빠져도 안 죽는다
+            if (!NetManager.Offline && !IsHostNow)
+                return;
+            if (id == null || IsOutOfPlay(id))
+                return;
+
+            //모드 전용 정산은 그 모드가 씬에 있을 때만 돈다.
+            //탈락 표시보다 먼저 해야 피해자의 점수가 남아 있다
+            if (PushMode.Instance != null)
+                PushMode.Instance.HostAwardKillCredit(id.NetId);
+
+            LanPlayerState state = id.PlayerState;
+
+            if (state != null)
+            {
+                state.HostSetFlag(PlayerFlags.Eliminated, true);
+                return;
+            }
+
+            LanBotState bot = id.BotState;
+
+            if (bot != null)
+                bot.HostEliminate();
         }
 
         public static int ScoreOf(NetIdentity id)

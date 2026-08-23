@@ -4,8 +4,8 @@ namespace JellyNet
 {
     public class LanBotState : MonoBehaviour
     {
-        [Header("크기 전송")]
-        [Tooltip("초당 몇 번 보낼지. 크기는 자주 안 변해서 낮아도 된다.")]
+        [Header("상태 전송")]
+        [Tooltip("초당 몇 번 보낼지. 크기·색·점수는 자주 안 변해서 낮아도 된다.")]
         public float scaleSendRate = 5f;
 
         [Tooltip("이만큼 차이 나야 보낸다. 미세 떨림으로 도배되는 걸 막는다.")]
@@ -13,7 +13,6 @@ namespace JellyNet
 
         private NetIdentity id;
         private PlayerScaleController scaleCtrl;
-        private AIPlayerMovement bot;
         private NameTagBillboard nameTag;
         private PlayerColorVisual colorVisual;
 
@@ -27,12 +26,31 @@ namespace JellyNet
 
         public int CurrentScore { get; private set; }
 
+        // ★ 점수도 방송해야 한다
+        //   예전엔 CurrentScore를 호스트에서만 올리고 패킷에는 싣지 않았다.
+        //   그래서 클라의 인게임 순위표에서 봇 점수가 언제나 0이었다.
+        //   (결과 화면은 호스트가 만든 FinalStandings를 그대로 받아 맞게 보였기 때문에
+        //    판이 끝나야 숫자가 갑자기 생기는 것처럼 보였다)
+        //   사람 쪽 LanPlayerState는 처음부터 점수를 방송하고 있었다 — 그 짝을 맞춘다.
         public void HostAddScore(int delta)
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost)
+            if (!IsHost() || delta == 0)
                 return;
             CurrentScore += delta;
+            HostBroadcastState();
+        }
+
+        public void HostSetScore(int score)
+        {
+            if (!IsHost() || score == CurrentScore)
+                return;
+            CurrentScore = score;
+            HostBroadcastState();
+        }
+
+        private static bool IsHost()
+        {
+            return NetManager.Instance != null && NetManager.Instance.IsHost;
         }
 
         public bool IsDriver
@@ -44,7 +62,6 @@ namespace JellyNet
         private void Awake()
         {
             id = GetComponent<NetIdentity>();
-            bot = GetComponent<AIPlayerMovement>();
             scaleCtrl = GetComponent<PlayerScaleController>();
             nameTag = GetComponentInChildren<NameTagBillboard>(true);
             colorVisual = GetComponentInChildren<PlayerColorVisual>(true);
@@ -70,10 +87,12 @@ namespace JellyNet
                 FollowScale();
         }
 
+        //크기·색이 눈에 띄게 변했을 때만 주기적으로 내보낸다.
+        //점수는 여기서 계산하지 않는다 — 흡수 모드의 '크기→점수' 규칙은
+        //AbsorbMode가 NetEntity를 통해 사람·봇 모두에게 똑같이 적용한다
         private void HostSendScale()
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost || id == null)
+            if (!IsHost() || id == null)
                 return;
 
             sendTimer += Time.deltaTime;
@@ -89,6 +108,19 @@ namespace JellyNet
             if (!scaleChanged && !colorChanged)
                 return;
 
+            HostBroadcastState();
+        }
+
+        /// <summary>봇의 크기·색·점수를 한 패킷으로 내보낸다.</summary>
+        private void HostBroadcastState()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost || id == null)
+                return;
+
+            float s = CurrentScale;
+            Color c = ReadVisualColor();
+
             lastSentScale = s;
             lastSentColor = c;
 
@@ -98,11 +130,9 @@ namespace JellyNet
             w.WriteFloat(c.r);
             w.WriteFloat(c.g);
             w.WriteFloat(c.b);
+            w.WriteInt(CurrentScore);
             w.End();
             net.Host.Broadcast(w);
-
-            if (DataManager.Instance != null && !LanGameFlow.IsMode(GameModeType.Push))
-                CurrentScore = DataManager.Instance.ScoreFromScale(s);
         }
 
         private void FollowScale()
@@ -113,9 +143,10 @@ namespace JellyNet
                 transform.localScale, Vector3.one * targetScale, Time.deltaTime * 10f);
         }
 
-        public void ApplyState(float scale, Color color)
+        public void ApplyState(float scale, Color color, int score)
         {
             targetScale = scale;
+            CurrentScore = score;
             ApplyVisualColor(color);
         }
 
@@ -175,27 +206,42 @@ namespace JellyNet
             }
         }
 
-        public void HostBroadcastEliminated()
+        /// <summary>
+        /// 이 봇을 탈락시킨다 — 전원에게 알리고 내 쪽에도 즉시 반영한다.
+        /// 호출자는 NetEntity.HostEliminate 하나뿐이다(사람과 같은 관문).
+        /// </summary>
+        public void HostEliminate()
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || id == null)
+            //오프라인 단독 실행에서도 봇은 죽어야 한다(방송만 건너뛴다)
+            if (!IsHost() && !NetManager.Offline)
                 return;
 
-            if (NetManager.Offline)
-                return;
-            if (!net.IsHost)
-                return;
+            AIPlayerMovement brain = id != null ? id.Bot : null;
 
-            w.Begin(MsgType.BotEliminated);
-            w.WriteInt(id.NetId);
-            w.End();
-            net.Host.Broadcast(w);
+            if (!NetManager.Offline && id != null)
+            {
+                w.Begin(MsgType.BotEliminated);
+                w.WriteInt(id.NetId);
+                w.End();
+                NetManager.Instance.Host.Broadcast(w);
+            }
+
+            if (brain != null)
+                brain.ApplyEliminated();
         }
 
-        public void HostDespawnSelf()
+        /// <summary>
+        /// 흡수 연출이 끝난 봇의 몸을 세상에서 치운다. <b>흡수 모드 전용</b>이다.
+        ///
+        /// ★ 왜 밀치기에는 짝이 없나
+        ///   밀치기의 탈락은 '떨어져서 초콜릿에 둥둥 뜬 상태'가 곧 결과 표현이다.
+        ///   몸이 남아 있어야 관전 카메라도 보여줄 게 있다. 반대로 흡수는 몸이
+        ///   상대에게 빨려 들어가 사라지는 게 연출의 끝이라, 그 시점에 치워야 한다.
+        ///   이름에 조건을 적어두지 않으면 "왜 한 모드에서만 부르지?"로 읽힌다.
+        /// </summary>
+        public void HostDespawnAfterAbsorbed()
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost || id == null || NetWorld.Instance == null)
+            if (!IsHost() || id == null || NetWorld.Instance == null)
                 return;
             NetWorld.Instance.HostDespawn(id.NetId);
         }

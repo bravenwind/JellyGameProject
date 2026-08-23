@@ -318,7 +318,7 @@ namespace JellyNet
             if (botState != null)
             {
                 //호스트가 아니면 아무 일도 안 한다. 클라는 DespawnEntity를 받아 치운다
-                botState.HostDespawnSelf();
+                botState.HostDespawnAfterAbsorbed();
                 return;
             }
 

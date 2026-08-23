@@ -14,24 +14,11 @@ public class DataManager : MonoBehaviour
     public static DataManager Instance;
 
     [Serializable]
-    public struct ColorSet
-    {
-        public string colorName;
-        public Material colorMaterial;
-        public JellyColorType colorType;
-        public Color normal;
-    }
-
-    [Serializable]
     public class JellyEffectData
     {
-        public string colorName;
         public JellyColorType type;
         public RYBColor rybChange;
     }
-
-    [Header("JellySpawnSettings")]
-    public float spawnCoolTime = 10.0f;
 
     [Header("Scale Settings")]
     public float jellyScaleIncrease = 0.05f;
@@ -41,7 +28,6 @@ public class DataManager : MonoBehaviour
     public float maxScale = 5f;
     public float jumpScaleThreshold = 2f;
     public float scaleIncreaseTime = 1.0f;
-    public float scaleDecreaseTime = 1.0f;
     public float IncreaseJumpForceValue = 5;
 
     [Header("Bat Attack Settings (Push Mode)")]
@@ -59,8 +45,6 @@ public class DataManager : MonoBehaviour
     public float batArcAngle = 120f;
 
     [Header("Push Mode - Fall & Tile Settings")]
-    [Tooltip("이 Y좌표 아래로 떨어지면 낙사 판정")]
-    public float fallOffThreshold = -10f;
     [Tooltip("타일을 밟은 후 붕괴까지 딜레이 (초)")]
     public float stepTileCollapseDelay = 2f;
     [Tooltip("밟힌 타일 경고 흔들림 시간 (초)")]
@@ -78,7 +62,6 @@ public class DataManager : MonoBehaviour
     public float cameraZoomThresholdStep = 4f;
 
     [Header("Score Settings")]
-    public int targetScore = 1000;
     public int scorePerJelly = 100;
     public float startingScale = 2f;
 
@@ -91,16 +74,6 @@ public class DataManager : MonoBehaviour
     [Header("Detection Settings")]
 
     public LayerMask objectLayerMask;
-
-    [Serializable]
-    public struct MissionSet
-    {
-        public string missionName;
-        public bool missionCleared;
-    }
-
-    [Header("Mission Settings")]
-    public MissionSet[] missions;
 
     [Header("Jelly Effects (RYB)")]
     public List<JellyEffectData> jellyEffects;
@@ -157,7 +130,6 @@ public class DataManager : MonoBehaviour
         }
 
         if (scaleIncreaseTime <= 0f) scaleIncreaseTime = 0.1f;
-        if (scaleDecreaseTime <= 0f) scaleDecreaseTime = 0.1f;
         if (scorePerJelly <= 0) scorePerJelly = 1;
     }
 }

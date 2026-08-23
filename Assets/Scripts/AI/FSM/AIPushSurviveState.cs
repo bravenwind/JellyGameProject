@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 
 public class AIPushSurviveState : AIBaseState
@@ -40,6 +40,11 @@ public class AIPushSurviveState : AIBaseState
 
         _checkTimer += Time.deltaTime;
         if (_checkTimer < CHECK_INTERVAL) return;
+
+        //이번 판단이 실제로 몇 초 만에 돌아왔는지. 아래 공격 스캔 주기가 이 값을 쓴다.
+        //예전엔 상수 CHECK_INTERVAL을 그대로 더해서, 프레임이 길거나 도주 분기로
+        //빠진 틱이 있으면 공격 스캔 간격이 실제 시간과 조용히 어긋났다
+        float sinceLastCheck = _checkTimer;
         _checkTimer = 0f;
 
         var collapse = TileCollapseManager.Instance;
@@ -70,6 +75,9 @@ public class AIPushSurviveState : AIBaseState
 
             // 속도는 플레이어와 동일(moveSpeed)하게 유지한다. 위험(무너지는 발판) 회피는
             // 속도 부스트가 아니라 아래 TryDash(짧은 대쉬 버스트)로 처리한다.
+            // ★ 여기만 TrySetSafePath를 쓰지 않는다 — 의도적이다.
+            //   이미 무너지는 발판 위에 서 있는 상황이라, "경로가 위험 구간을 지난다"는
+            //   이유로 탈출을 막으면 제자리에서 같이 떨어진다. 나가는 길은 막지 않는다.
             if (NavMesh.SamplePosition(safePos, out NavMeshHit hit, 5f, ai.NavFilter))
             {
                 ai.CachedPath.ClearCorners();
@@ -91,7 +99,7 @@ public class AIPushSurviveState : AIBaseState
         }
         else
         {
-            UpdateCombatOrWander();
+            UpdateCombatOrWander(sinceLastCheck);
         }
     }
 
@@ -99,9 +107,9 @@ public class AIPushSurviveState : AIBaseState
     /// 안전한 상태일 때의 행동. 근처에 타겟이 있으면 추격/공격, 없으면 위험 타일을
     /// 피해 평소처럼 배회(roam)한다.
     /// </summary>
-    private void UpdateCombatOrWander()
+    private void UpdateCombatOrWander(float deltaSinceLastCheck)
     {
-        _attackScanTimer += CHECK_INTERVAL;
+        _attackScanTimer += deltaSinceLastCheck;
         if (_attackScanTimer < ATTACK_SCAN_INTERVAL) return;
         _attackScanTimer = 0f;
 
@@ -182,7 +190,8 @@ public class AIPushSurviveState : AIBaseState
         Vector3 vel = Vector3.zero;
 
         CharacterController cc = target.GetComponentInChildren<CharacterController>();
-        if (cc != null && cc.enabled) vel = cc.velocity;
+        if (cc != null && cc.enabled) 
+            vel = cc.velocity;
         else
         {
             NavMeshAgent ag = target.GetComponentInChildren<NavMeshAgent>();
@@ -259,22 +268,6 @@ public class AIPushSurviveState : AIBaseState
         {
             TrySetSafePath(hit.position);
         }
-    }
-
-    /// <summary>위험 구간을 지나지 않는 경로일 때만 SetPath. (붕괴 타일 회피 이중 안전장치)</summary>
-    private bool TrySetSafePath(Vector3 destination)
-    {
-        ai.CachedPath.ClearCorners();
-        if (!ai.Agent.CalculatePath(destination, ai.CachedPath)
-            || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
-            return false;
-
-        var collapse = TileCollapseManager.Instance;
-        if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
-            return false;
-
-        ai.Agent.SetPath(ai.CachedPath);
-        return true;
     }
 
     // 자기보다 '작은' 먹잇감만 추격 대상으로 본다.

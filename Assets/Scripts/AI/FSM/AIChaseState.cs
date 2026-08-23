@@ -5,20 +5,19 @@ public class AIChaseState : AIBaseState
 {
     private Transform _target;
     private float _pathTimer = 0f;
-    private float _reassessTimer = 0f; // 💡 주기적인 재탐색 타이머 추가
-    private float _stuckTimer = 0f;
+    private float _reassessTimer = 0f;
 
     private const float CHASE_PATH_RATE = 0.15f;
-    private const float REASSESS_RATE = 0.5f;  // 💡 0.5초마다 타겟 갈아탈지 고민함
+    private const float REASSESS_RATE = 0.5f;  // 0.5초마다 더 나은 타겟이 있는지 다시 본다
 
     public AIChaseState(AIPlayerMovement ai) : base(ai) { }
 
     public override void Enter()
     {
-        _target = ai.FindTargetToChase();
-        _pathTimer = CHASE_PATH_RATE;
+        _target = ai.Detector.FindTargetToChase();
+        _pathTimer = CHASE_PATH_RATE;   //진입 즉시 경로 계산
         _reassessTimer = 0f;
-        _stuckTimer = 0f;
+        ResetStuck();
         ai.Agent.speed = ai.moveSpeed;
         ai.Agent.stoppingDistance = 0f;
     }
@@ -27,23 +26,21 @@ public class AIChaseState : AIBaseState
     {
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
 
-        // ── 💡 주기적으로 주변을 다시 스캔해서 타겟 갱신 ──
+        // ── 주기적으로 주변을 다시 스캔해서 타겟 갱신 ──
         _reassessTimer += Time.deltaTime;
         if (_reassessTimer >= REASSESS_RATE)
         {
             _reassessTimer = 0f;
-            Transform bestTarget = ai.FindTargetToChase(); // AIPlayerMovement에서 우선순위 반영된 함수 호출
+            Transform bestTarget = ai.Detector.FindTargetToChase();
 
-            if (bestTarget != null)
+            //더 좋은 타겟(가까운 먹잇감 등)이 있으면 갈아탄다.
+            //아무도 없으면(전부 나보다 커졌거나 멀어졌으면) 추격 자체를 접는다
+            if (bestTarget == null)
             {
-                _target = bestTarget; // 더 좋은 타겟(플레이어 등)이 있으면 갈아탐
-            }
-            else
-            {
-                // 타겟을 찾을 수 없다면 (모두 나보다 커졌거나 멀어졌다면) 추적 포기
                 ai.EvaluateAndTransition();
                 return;
             }
+            _target = bestTarget;
         }
 
         // 타겟이 파괴(먹힘)되었을 때의 방어 코드
@@ -53,45 +50,24 @@ public class AIChaseState : AIBaseState
             return;
         }
 
-        // ── 💡 [추가됨] 정지(Stuck) 감지 방어 코드 ──
-        // (Agent가 길을 찾고 있다고 생각하지만 실제 물리적인 속도가 안 나는 경우 강제 초기화)
-        if (ai.Agent.hasPath && ai.Agent.velocity.magnitude < 0.1f)
-        {
-            _stuckTimer += Time.deltaTime; // 전역 변수로 private float _stuckTimer = 0f; 선언 필요
-            if (_stuckTimer >= 1.0f) // 1초 이상 버벅거리면
-            {
-                _stuckTimer = 0f;
-                ai.Agent.ResetPath(); // 현재 경로 포기 (다음 프레임에 새로 길 찾도록 유도)
-                return;
-            }
-        }
-        else
-        {
-            _stuckTimer = 0f;
-        }
+        // ── 끼임 감지 (경로는 있는데 안 움직임) ──
+        if (HandleStuck()) return;
 
         // ── 경로 갱신 ──
         _pathTimer += Time.deltaTime;
-        if (_pathTimer >= CHASE_PATH_RATE)
-        {
-            _pathTimer = 0f;
+        if (_pathTimer < CHASE_PATH_RATE) return;
+        _pathTimer = 0f;
 
-            Vector3 dest = _target.position;
-            if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
-                dest = hit.position;
+        Vector3 dest = _target.position;
+        if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
+            dest = hit.position;
 
-            ai.CachedPath.ClearCorners();
-            if (ai.Agent.CalculatePath(dest, ai.CachedPath) && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
-            {
-                var collapse = TileCollapseManager.Instance;
-                if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
-                {
-                    ai.EvaluateAndTransition();
-                    return;
-                }
-                ai.Agent.SetPath(ai.CachedPath);
-            }
-        }
+        //실패(경로 불완전 / 위험 구간 경유)하면 이번 주기만 건너뛴다.
+        //예전엔 여기서 EvaluateAndTransition()을 불렀는데, 먹잇감이 그대로 있으니
+        //대개 같은 ChaseState로 되돌아오는 no-op이었다(ChangeState가 동일 상태를 막는다).
+        //얻는 것 없이 위협·타겟 스캔만 두 번 더 돌렸고, 상태 재평가는 어차피
+        //StateEvalLoop이 같은 주기(0.15초)로 하고 있다.
+        TrySetSafePath(dest);
     }
 
     public override void Exit()

@@ -36,6 +36,7 @@ namespace JellyNet
         private readonly HashSet<int> runtimeJellies = new HashSet<int>();
 
         private float spawnTimer;
+        private float scoreTimer;
         private NetIdentity myPlayer;
 
         //매 프레임 순회에 재사용한다. 새로 만들면 초당 60개의 쓰레기가 생긴다
@@ -46,6 +47,7 @@ namespace JellyNet
             runtimeJellies.Clear();
             myPlayer = null;
             spawnTimer = 0f;
+            scoreTimer = 0f;
         }
 
         protected override void HandleSpawned(NetIdentity id)
@@ -81,12 +83,40 @@ namespace JellyNet
             if (IsHost && IsCurrentMode)
             {
                 HostSpawnTick();
+                HostScoreTick();
             }
 
             if (!IsPlaying)
                 return;
 
             CheckMyPlayerAbsorb();
+        }
+
+        [Header("점수")]
+        [Tooltip("크기에서 점수를 다시 뽑는 주기(초).")]
+        public float scoreRecomputeInterval = 0.25f;
+
+        // ═══════════════════════════════════════════════════════
+        //  흡수 모드의 점수 규칙 — "점수는 지금 크기에서 나온다"
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 왜 모드가 들고 있어야 하나
+        //   예전엔 이 규칙이 LanPlayerState(사람)와 LanBotState(봇) 안에
+        //   `if (IsMode(Push)) return;` 가드를 달고 따로 살았다. 둘 다 두 모드에서
+        //   쓰이는 공통 컴포넌트인데 흡수 전용 규칙을 품고 있었던 셈이고,
+        //   그래서 주기(0.25초 vs 크기전송 주기)도 방송 여부도 서로 어긋났다.
+        //   모드 전용 규칙은 모드가 알고, 적는 일은 NetEntity가 한다.
+        private void HostScoreTick()
+        {
+            scoreTimer += Time.deltaTime;
+            if (scoreTimer < scoreRecomputeInterval)
+                return;
+            scoreTimer = 0f;
+
+            NetEntity.CollectCharacters(characters);
+
+            for (int i = 0; i < characters.Count; i++)
+                NetEntity.HostSetScoreFromScale(characters[i]);
         }
 
         private void HostSpawnTick()
@@ -549,7 +579,13 @@ namespace JellyNet
             else
                 v.gameObject.SetActive(false);
 
-            if (!v.IsMine)
+            // ★ IsMine만으로는 "내가 조종하는 캐릭터"가 아니다
+            //   봇은 전부 호스트 소유(OwnerId = NetHost.HOST_ID)라, 호스트 화면에서는
+            //   맵의 모든 봇이 IsMine == true 다. 그래서 내가 봇을 흡수했을 뿐인데
+            //   호스트에게 "흡수당했습니다! 관전 중..."이 뜨고 조작까지 잠겼다.
+            //   (봇끼리 흡수하거나 클라가 봇을 먹어도 호스트에서 똑같이 터졌다)
+            //   PushMode.SendKilledBy가 IsBot을 먼저 걸러내는 것과 같은 이유다.
+            if (v.IsBot || !v.IsMine)
                 return;
 
             LanSpectator.ReportKiller(absorberNetId);

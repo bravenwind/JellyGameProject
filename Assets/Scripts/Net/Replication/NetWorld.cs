@@ -531,6 +531,7 @@ namespace JellyNet
                 float cr = r.ReadFloat();
                 float cg = r.ReadFloat();
                 float cb = r.ReadFloat();
+                int score = r.ReadInt();
 
                 NetIdentity id = Find(netId);
                 if (id == null)
@@ -538,7 +539,7 @@ namespace JellyNet
 
                 LanBotState bs = id.BotState;
                 if (bs != null)
-                    bs.ApplyState(s, new Color(cr, cg, cb, 1f));
+                    bs.ApplyState(s, new Color(cr, cg, cb, 1f), score);
             });
 
             net.RouteClient(MsgType.BotEliminated, r =>
@@ -551,7 +552,7 @@ namespace JellyNet
 
                 AIPlayerMovement bot = id.Bot;
                 if (bot != null)
-                    bot.ApplyEliminatedFromNet();
+                    bot.ApplyEliminated();
             });
 
             net.RouteClient(MsgType.PlayerNameSet, r =>

@@ -42,8 +42,6 @@ namespace JellyNet
         private PlayerScaleController scale;
         private Color shownColor;
 
-        private float scoreTimer;
-
         public int EntityId { get { return id != null ? id.NetId : 0; } }
 
         //Awake에서 캐시해둔 것을 그대로 준다. 밖에서 GetComponent를 다시 부르지 않게
@@ -113,8 +111,6 @@ namespace JellyNet
 
         private void Update()
         {
-            HostRecomputeScore();
-
             if (targetRenderer == null)
                 return;
             if (shownColor == DisplayColor)
@@ -131,35 +127,22 @@ namespace JellyNet
         }
 
 
-        private void HostRecomputeScore()
+        //점수를 '어떻게' 정할지는 모드가 안다(밀치기는 더하기, 흡수는 크기에서).
+        //여기는 그 결과를 적고 방송하는 일만 한다 — 예전엔 흡수 규칙(크기→점수)이
+        //이 안에 Push 가드와 함께 들어 있어서, 모드 전용 규칙이 공통 컴포넌트로 새어 있었다
+        public void HostAddScore(int delta)
         {
-            NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost)
+            if (!IsHost() || delta == 0)
                 return;
-            if (DataManager.Instance == null)
-                return;
-
-            if (LanGameFlow.IsMode(GameModeType.Push))
-                return;
-
-            scoreTimer += Time.deltaTime;
-            if (scoreTimer < 0.25f)
-                return;
-            scoreTimer = 0f;
-
-            int s = DataManager.Instance.ScoreFromScale(ScaleValue);
-            if (s == Score)
-                return;
-
-            Score = s;
+            Score += delta;
             HostBroadcast();
         }
 
-        public void HostAddScore(int delta)
+        public void HostSetScore(int score)
         {
-            if (!IsHost())
+            if (!IsHost() || score == Score)
                 return;
-            Score += delta;
+            Score = score;
             HostBroadcast();
         }
 

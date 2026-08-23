@@ -176,18 +176,10 @@ namespace JellyNet
             if (Phase != GamePhase.Playing)
                 return;
 
-            NetIdentity id = NetWorld.Instance.Find(netId);
-            if (id == null)
-                return;
-
-            LanPlayerState ps = id.PlayerState;
-            if (ps == null || ps.IsOutOfPlay)
-                return;
-
-            if (PushMode.Instance != null)
-                PushMode.Instance.HostAwardKillCredit(netId);
-
-            ps.HostSetFlag(PlayerFlags.Eliminated, true);
+            //사람이든 봇이든 탈락은 NetEntity 한 관문을 지난다.
+            //예전엔 여기서 직접 킬 크레딧을 정산하고 플래그를 세웠는데,
+            //봇 쪽(AIPlayerMovement.OnEliminated)에 같은 코드가 한 벌 더 있었다
+            NetEntity.HostEliminate(NetWorld.Instance.Find(netId));
         }
 
         private void RegisterRoutes(NetManager net)
@@ -410,6 +402,12 @@ namespace JellyNet
 
             for (int n = Mathf.RoundToInt(countdownSeconds); n >= 1; n--)
             {
+                //내 로딩 커튼이 늦게 걷히는 동안 호스트가 이미 Playing으로 넘어갔다면
+                //남은 숫자를 마저 세는 건 거짓말이다 — 곧바로 "시작!"으로 건너뛴다.
+                //(호스트는 이 루틴 안에서 스스로 Playing을 만들므로 여기 걸리지 않는다)
+                if (Phase != GamePhase.Countdown)
+                    break;
+
                 hud.Pop(n.ToString());
                 yield return new WaitForSecondsRealtime(1f);
             }

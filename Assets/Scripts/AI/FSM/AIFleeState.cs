@@ -11,7 +11,6 @@ using UnityEngine.AI;
 public class AIFleeState : AIBaseState
 {
     private float _pathTimer = 0f;
-    private float _stuckTimer = 0f;
 
     private const float FLEE_PATH_RATE = 0.2f;
     private const float FLEE_DISTANCE = 15f;
@@ -24,39 +23,26 @@ public class AIFleeState : AIBaseState
         ai.Agent.speed = ai.moveSpeed;
         ai.Agent.stoppingDistance = 0f;
         _pathTimer = FLEE_PATH_RATE; // 진입 즉시 경로 계산
-        _stuckTimer = 0f;
+        ResetStuck();
     }
 
     public override void Update()
     {
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
 
-        // ── 💡 [추가됨] 정지(Stuck) 감지 방어 코드 ──
-        // 주의: _pathTimer의 early return보다 위에 있어야 매 프레임 정상 작동합니다!
-        if (ai.Agent.hasPath && ai.Agent.velocity.magnitude < 0.1f)
-        {
-            _stuckTimer += Time.deltaTime;
-            if (_stuckTimer >= 1.0f) // 1초 이상 버벅거리면
-            {
-                _stuckTimer = 0f;
-                ai.Agent.ResetPath(); // 현재 경로 포기 (벽에 비비는 현상 탈출)
-                return;
-            }
-        }
-        else
-        {
-            _stuckTimer = 0f;
-        }
+        // ── 끼임 감지 (벽에 비비는 현상 탈출) ──
+        // 주의: _pathTimer의 early return보다 위에 있어야 매 프레임 누적된다
+        if (HandleStuck()) return;
 
         // ── 경로 갱신 타이머 ──
         _pathTimer += Time.deltaTime;
-        if (_pathTimer < FLEE_PATH_RATE) return; // 여기서 return 되기 전에 위에서 Stuck 체크를 마쳐야 함
+        if (_pathTimer < FLEE_PATH_RATE) return;
         _pathTimer = 0f;
 
         // ── 위협 탐지 ──
-        Transform threat = ai.FindThreat();
+        Transform threat = ai.Detector.FindThreat();
 
-        // 💡 위협이 널이 되었다는 건 쫓아오던 애가 죽었거나, 나보다 작아졌다는 뜻!
+        // 위협이 null이 되었다는 건 쫓아오던 상대가 죽었거나 나보다 작아졌다는 뜻
         if (threat == null)
         {
             // 즉시 상태를 재평가해서 역으로 쫓아가거나 배회(Wander) 상태로 전환합니다.
@@ -86,26 +72,7 @@ public class AIFleeState : AIBaseState
             TryFleeToSafeZone();
     }
 
-    /// <summary>
-    /// 목적지까지 경로를 계산하고, 위험 구간을 지나지 않을 때만 SetPath.
-    /// 위험하거나 경로가 불완전하면 false를 반환해 호출부가 대안을 시도하게 한다.
-    /// </summary>
-    private bool TrySetSafePath(Vector3 destination)
-    {
-        ai.CachedPath.ClearCorners();
-        if (!ai.Agent.CalculatePath(destination, ai.CachedPath)
-            || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
-            return false;
-
-        var collapse = TileCollapseManager.Instance;
-        if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
-            return false;
-
-        ai.Agent.SetPath(ai.CachedPath);
-        return true;
-    }
-
-    // 💡 짧은 거리 폴백 도주 (위험 검사 포함)
+    // 짧은 거리 폴백 도주 (TrySetSafePath가 위험 검사까지 한다)
     private bool TryFallbackFlee(Vector3 fleeDir)
     {
         Vector3 fallback = ai.transform.position + fleeDir * 5f;

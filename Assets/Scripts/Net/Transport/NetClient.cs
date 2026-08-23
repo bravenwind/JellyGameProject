@@ -6,7 +6,6 @@ namespace JellyNet
     public class NetClient
     {
         private FramedConnection conn;
-        private readonly NetWriter writer = new NetWriter();
 
         public int MyId { get; private set; }
         public bool Connected { get { return conn != null && conn.Alive; } }
