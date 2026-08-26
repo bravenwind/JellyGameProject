@@ -21,40 +21,43 @@ using TMPro;
 public class NameTagBillboard : MonoBehaviour
 {
     [Header("텍스트 컴포넌트")]
-    public TextMeshPro nameText;
+    [SerializeField] private TextMeshPro nameText;
 
     [Header("위치 오프셋 (부모 기준 로컬)")]
     [Tooltip("플레이어 머리 위로 얼마나 띄울지. 스케일 1 기준.")]
-    public float heightOffset = 2.5f;
+    [SerializeField] private float heightOffset = 2.5f;
 
     [Header("크기 고정")]
     [Tooltip("true면 부모 스케일이 커져도 이름표 크기를 항상 일정하게 유지")]
-    public bool fixedWorldSize = true;
+    [SerializeField] private bool fixedWorldSize = true;
 
     [Header("이름표 색상")]
-    public Color playerColor = Color.white;   // 로컬 플레이어
-    public Color otherColor  = new Color(1f, 0.8f, 0.2f, 1f);  // 다른 플레이어 (노란색)
-    public Color botColor    = new Color(0.8f, 0.8f, 0.8f, 1f); // AI봇 (회색)
+    [SerializeField] private Color playerColor = Color.white;   // 로컬 플레이어
+    [SerializeField] private Color otherColor  = new Color(1f, 0.8f, 0.2f, 1f);  // 다른 플레이어 (노란색)
+    [SerializeField] private Color botColor    = new Color(0.8f, 0.8f, 0.8f, 1f); // AI봇 (회색)
 
     [Header("TopTransform 기준")]
     [Tooltip("비어있으면 기존 heightOffset 방식, 할당하면 TopTransform 위치 + heightOffset")]
-    public Transform topTransform;
+    [SerializeField] private Transform topTransform;
+    public Transform TopTransform { get { return topTransform; } set { topTransform = value; } }
 
-    private Camera _cam;
-    private Transform _parentTf;
+    private Camera cam;
+    private Transform parentTf;
 
     private void Awake()
     {
-        _cam      = Camera.main;
-        _parentTf = transform.parent;
+        cam      = Camera.main;
+        parentTf = transform.parent;
     }
 
     private void LateUpdate()
     {
-        if (_cam == null) _cam = Camera.main;
-        if (_cam == null) return;
+        if (cam == null)
+            cam = Camera.main;
+        if (cam == null)
+            return;
 
-        float parentScale = _parentTf != null ? Mathf.Max(_parentTf.localScale.x, 0.01f) : 1f;
+        float parentScale = parentTf != null ? Mathf.Max(parentTf.localScale.x, 0.01f) : 1f;
 
         // ── 1. 위치: TopTransform 기준 또는 기존 heightOffset 방식 ──
         if (topTransform != null)
@@ -63,9 +66,7 @@ public class NameTagBillboard : MonoBehaviour
             transform.position = worldPos;
         }
         else
-        {
             transform.localPosition = new Vector3(0f, heightOffset, 0f);
-        }
 
         // ── 2. 빌보드: 화면과 평행하게 세운다 ──
         //
@@ -79,13 +80,11 @@ public class NameTagBillboard : MonoBehaviour
         //   카메라 회전을 그대로 쓰면 텍스트 평면이 항상 화면과 평행해져
         //   위치와 상관없이 언제나 가로로 반듯하게 보인다.
         //   (같은 씬의 BillboardEffect가 이미 쓰고 있는 방식이다)
-        transform.rotation = _cam.transform.rotation;
+        transform.rotation = cam.transform.rotation;
 
         // ── 3. 크기 고정: 부모 스케일 상쇄 → 텍스트 크기는 항상 일정하게 ──
-        if (fixedWorldSize && _parentTf != null)
-        {
+        if (fixedWorldSize && parentTf != null)
             transform.localScale = Vector3.one / parentScale;
-        }
     }
 
     // ─────────────────────────────────────────────────────────

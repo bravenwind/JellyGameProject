@@ -10,16 +10,16 @@ namespace JellyNet
 
         [Header("스폰 포인트")]
         [Tooltip("직접 지정. 비워두면 태그로 자동 탐색한다.")]
-        public Transform[] spawnPoints;
+        [SerializeField] private Transform[] spawnPoints;
 
         [Tooltip("자동 탐색에 쓸 태그")]
-        public string spawnPointTag = "SpawnPoint";
+        [SerializeField] private string spawnPointTag = "SpawnPoint";
 
         [Header("가상 포인트 (슬롯이 부족할 때)")]
         [Tooltip("최소 이만큼의 슬롯을 확보한다")]
-        public int minSlots = 8;
+        [SerializeField] private int minSlots = 8;
         [Tooltip("가상 포인트를 만들 때 시드에서 떨어뜨릴 거리")]
-        public float virtualRadius = 8f;
+        [SerializeField] private float virtualRadius = 8f;
 
         private readonly List<Vector3> slots = new List<Vector3>();
         private bool prepared;
@@ -96,7 +96,8 @@ namespace JellyNet
         private static Vector3 Project(Vector3 p)
         {
             NavMeshHit hit;
-            if (NavMesh.SamplePosition(p, out hit, 10f, NavMesh.AllAreas))
+            //사람·봇 모두 타입 0(PlayerJelly)이라 int 오버로드로 충분하다. 영역만 Walkable로 좁힌다
+            if (NavMesh.SamplePosition(p, out hit, 10f, NavMeshUtil.WalkableMask))
                 return hit.position;
             return p;
         }
@@ -109,14 +110,6 @@ namespace JellyNet
             Vector3 p = slots[nextSlot % slots.Count];
             nextSlot++;
             return p;
-        }
-
-        public Vector3 Random_()
-        {
-            Prepare();
-            if (slots.Count == 0)
-                return Vector3.zero;
-            return slots[Random.Range(0, slots.Count)];
         }
 
         public void ResetAssignment()

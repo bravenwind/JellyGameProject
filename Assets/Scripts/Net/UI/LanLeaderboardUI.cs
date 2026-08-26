@@ -7,17 +7,17 @@ namespace JellyNet
     {
         [Header("연결")]
         [Tooltip("순위 행들이 들어갈 부모.")]
-        public Transform container;
+        [SerializeField] private Transform container;
 
         [Tooltip("한 줄 프리팹(LanLeaderboardRow 보유).")]
-        public GameObject entryPrefab;
+        [SerializeField] private GameObject entryPrefab;
 
         [Header("표시")]
         [Tooltip("몇 등까지 보여줄지.")]
-        public int displayCount = 5;
+        [SerializeField] private int displayCount = 5;
 
         [Tooltip("초당 몇 번 갱신할지. 매 프레임 정렬할 이유가 없다.")]
-        public float refreshRate = 4f;
+        [SerializeField] private float refreshRate = 4f;
 
         private readonly List<LanLeaderboardRow> rows = new List<LanLeaderboardRow>();
         private ComponentPool<LanLeaderboardRow> pool;

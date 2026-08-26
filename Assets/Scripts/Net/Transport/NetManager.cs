@@ -11,9 +11,11 @@ namespace JellyNet
         public static NetManager Instance { get; private set; }
 
         [Header("설정")]
-        public int port = NetConfig.DEFAULT_PORT;
-        public string joinIp = "127.0.0.1";
-        public int maxLogLines = 200;
+        [SerializeField] private int port = NetConfig.DEFAULT_PORT;
+        public int Port { get { return port; } set { port = value; } }
+        [SerializeField] private string joinIp = "127.0.0.1";
+        public string JoinIp { get { return joinIp; } set { joinIp = value; } }
+        [SerializeField] private int maxLogLines = 200;
 
         public Mode CurrentMode { get; private set; }
         public NetHost Host { get; private set; }
@@ -67,9 +69,12 @@ namespace JellyNet
 
         public bool ConnectionLost { get; private set; }
 
+        /// <summary>StartHost/JoinHost가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
+        public string LastError { get; private set; }
+
         [Header("씬 전환")]
         [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
-        public bool persistAcrossScenes = true;
+        [SerializeField] private bool persistAcrossScenes = true;
 
         private void Awake()
         {
@@ -124,7 +129,15 @@ namespace JellyNet
                 Instance = null;
         }
 
-        public void StartHost()
+        /// <summary>
+        /// 방을 연다. 실패하면 false — 호출부가 반드시 확인해야 한다.
+        ///
+        /// ★ 예전엔 void였다
+        ///   포트가 이미 쓰이는 중이면 조용히 return했고, 로비는 그걸 모른 채
+        ///   대기 화면으로 넘어가 영원히 "다른 참가자를 기다리는 중"을 띄웠다.
+        ///   실패를 반환값으로 표현할 수 없으면 호출부는 실패를 무시하게 된다.
+        /// </summary>
+        public bool StartHost()
         {
             Shutdown();
 
@@ -137,7 +150,8 @@ namespace JellyNet
             if (!Host.Start(port))
             {
                 Host = null;
-                return;
+                LastError = "포트 " + port + " 를 열 수 없습니다. 다른 게임이 켜져 있는지 확인해주세요.";
+                return false;
             }
 
             CurrentMode = Mode.Host;
@@ -147,9 +161,11 @@ namespace JellyNet
                 AddLog("  다른 기기에서 접속: " + ip + ":" + port);
 
             OnHostStarted?.Invoke();
+            return true;
         }
 
-        public void JoinHost()
+        /// <summary>방에 붙는다. 실패하면 false — IP 오타·방이 닫힘 등.</summary>
+        public bool JoinHost()
         {
             Shutdown();
 
@@ -160,11 +176,13 @@ namespace JellyNet
             if (!Client.Connect(joinIp, port))
             {
                 Client = null;
-                return;
+                LastError = joinIp + ":" + port + " 에 접속하지 못했습니다. 주소를 확인해주세요.";
+                return false;
             }
 
             CurrentMode = Mode.Client;
             AddLog("== 참가 모드 ==");
+            return true;
         }
 
         public void Shutdown()

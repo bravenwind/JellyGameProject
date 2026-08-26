@@ -52,7 +52,8 @@ public class AutoGridMapGenerator : MonoBehaviour
 
         // 1. 프리팹 크기 계산
         Renderer prefabRenderer = tilePrefab.GetComponent<Renderer>();
-        if (prefabRenderer == null) prefabRenderer = tilePrefab.GetComponentInChildren<Renderer>();
+        if (prefabRenderer == null)
+            prefabRenderer = tilePrefab.GetComponentInChildren<Renderer>();
 
         if (prefabRenderer == null)
         {
@@ -100,36 +101,29 @@ public class AutoGridMapGenerator : MonoBehaviour
 
         // 3. 콜라이더 설정
         if (addAreaCollider)
-        {
             ApplyColliderMath(tileSize, stepX, stepZ, centerOffsetY);
-        }
 
         Debug.Log($"생성 완료: {width}x{height}");
 
         // 4. [추가됨] NavMesh 자동 베이크
         if (autoBakeNavMesh)
-        {
             BakeNavMesh();
-        }
     }
 
     private void BakeNavMesh()
     {
         if (navMeshSurface_BearJelly != null)
-        {
             navMeshSurface_BearJelly.BuildNavMesh();
-        }
 
         if (navMeshSurface_PlayerJelly != null) 
-        {
             navMeshSurface_PlayerJelly.BuildNavMesh();
-        }
     }
 
     private void ApplyColliderMath(Vector3 tileSize, float stepX, float stepZ, float centerOffsetY)
     {
         BoxCollider boxCol = GetComponent<BoxCollider>();
-        if (boxCol == null) boxCol = gameObject.AddComponent<BoxCollider>();
+        if (boxCol == null)
+            boxCol = gameObject.AddComponent<BoxCollider>();
 
         float totalWidth = (width * stepX) - gap;
         float totalDepth = (height * stepZ) - gap;
@@ -159,14 +153,16 @@ public class AutoGridMapGenerator : MonoBehaviour
         while (transform.childCount > 0)
         {
             Transform child = transform.GetChild(0);
-            if (Application.isPlaying) Destroy(child.gameObject);
+            if (Application.isPlaying)
+                Destroy(child.gameObject);
             else DestroyImmediate(child.gameObject);
         }
 
         BoxCollider boxCol = GetComponent<BoxCollider>();
         if (boxCol != null)
         {
-            if (Application.isPlaying) Destroy(boxCol);
+            if (Application.isPlaying)
+                Destroy(boxCol);
             else DestroyImmediate(boxCol);
         }
 

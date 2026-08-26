@@ -11,38 +11,38 @@ namespace JellyNet
         public static LanLobby Instance { get; private set; }
 
         [Header("NickName UI")]
-        public RectTransform nicknamePanel;
-        public TMP_InputField nicknameInput;
-        public GameObject nicknameWarningText;
-        public int nicknameMaxLength = 10;
+        [SerializeField] private RectTransform nicknamePanel;
+        [SerializeField] private TMP_InputField nicknameInput;
+        [SerializeField] private GameObject nicknameWarningText;
+        [SerializeField] private int nicknameMaxLength = 10;
 
         [Header("Select Room UI")]
-        public RectTransform roomChoicePanel;
+        [SerializeField] private RectTransform roomChoicePanel;
 
         [Header("Room Option UI")]
-        public RectTransform hostOptionPanel;
+        [SerializeField] private RectTransform hostOptionPanel;
         [Tooltip("0 = absorb, 1 = push")]
-        public TMP_Dropdown modeDropdown;
-        public TMP_InputField portInput;
-        public TMP_InputField totalPlayersInput;
-        public TMP_InputField aiCountInput;
-        public TMP_Text roomSettingWarningText;
+        [SerializeField] private TMP_Dropdown modeDropdown;
+        [SerializeField] private TMP_InputField portInput;
+        [SerializeField] private TMP_InputField totalPlayersInput;
+        [SerializeField] private TMP_InputField aiCountInput;
+        [SerializeField] private TMP_Text roomSettingWarningText;
 
         //주소를 직접 입력하지 않는다. 이 패널 안에서 LanRoomListUI가 같은 대역의 방 목록을 띄우고,
         //방을 고르면 LanRoomListUI.OnPick → JoinRoom(ip, port)로 들어온다
         [Header("Join Room UI")]
-        public RectTransform joinPanel;
+        [SerializeField] private RectTransform joinPanel;
 
         [Header("Matching UI")]
-        public RectTransform matchingPanel;
-        public TMP_Text matchingStatusText;
-        public TMP_Text currentPlayerCountText;
-        public TMP_Text roomAddressText;
-        public GameObject cancelMatchingButton;
+        [SerializeField] private RectTransform matchingPanel;
+        [SerializeField] private TMP_Text matchingStatusText;
+        [SerializeField] private TMP_Text currentPlayerCountText;
+        [SerializeField] private TMP_Text roomAddressText;
+        [SerializeField] private GameObject cancelMatchingButton;
 
         [Header("Countdown UI")]
-        public TMP_Text countdownText;
-        public TMP_Text gameStartText;
+        [SerializeField] private TMP_Text countdownText;
+        [SerializeField] private TMP_Text gameStartText;
 
         [Header("애니메이션")]
         [SerializeField] Vector2 nicknameLeftPos = new Vector2(-400f, 0f);
@@ -54,15 +54,14 @@ namespace JellyNet
         [SerializeField] float matchingCompleteSlideY = 60f;
 
         [Header("씬")]
-        public string gameSceneAbsorb = "Game_io_AbsorbMode";
-        public string gameScenePush = "Game_io_PushMode";
-        public string loadingScene = "Loading";
+        [SerializeField] private string gameSceneAbsorb = "Game_io_AbsorbMode";
+        [SerializeField] private string gameScenePush = "Game_io_PushMode";
 
         [Header("기본값")]
-        public int defaultPort = NetConfig.DEFAULT_PORT;
-        public int defaultTotalPlayers = 4;
-        public int defaultAiCount = 2;
-        public float countdownSeconds = 3f;
+        [SerializeField] private int defaultPort = NetConfig.DEFAULT_PORT;
+        [SerializeField] private int defaultTotalPlayers = 4;
+        [SerializeField] private int defaultAiCount = 2;
+        [SerializeField] private float countdownSeconds = 3f;
 
         private Vector2 nicknameOriginPos;
         private Vector2 matchingStatusOriginPos;
@@ -256,16 +255,25 @@ namespace JellyNet
         {
             //RectTransform은 UnityEngine.Object라 ?. 를 쓰면 안 된다.
             //?. 는 C# 참조만 보므로 이미 파괴된(페이크 널) 오브젝트를 통과시킨다
-            if (nicknamePanel != null) nicknamePanel.DOKill();
-            if (roomChoicePanel != null) roomChoicePanel.DOKill();
-            if (hostOptionPanel != null) hostOptionPanel.DOKill();
-            if (joinPanel != null) joinPanel.DOKill();
-            if (matchingPanel != null) matchingPanel.DOKill();
+            if (nicknamePanel != null)
+                nicknamePanel.DOKill();
+            if (roomChoicePanel != null)
+                roomChoicePanel.DOKill();
+            if (hostOptionPanel != null)
+                hostOptionPanel.DOKill();
+            if (joinPanel != null)
+                joinPanel.DOKill();
+            if (matchingPanel != null)
+                matchingPanel.DOKill();
 
-            if (matchingStatusText != null) matchingStatusText.rectTransform.DOKill();
-            if (currentPlayerCountText != null) currentPlayerCountText.rectTransform.DOKill();
-            if (countdownText != null) countdownText.rectTransform.DOKill();
-            if (gameStartText != null) gameStartText.rectTransform.DOKill();
+            if (matchingStatusText != null)
+                matchingStatusText.rectTransform.DOKill();
+            if (currentPlayerCountText != null)
+                currentPlayerCountText.rectTransform.DOKill();
+            if (countdownText != null)
+                countdownText.rectTransform.DOKill();
+            if (gameStartText != null)
+                gameStartText.rectTransform.DOKill();
         }
 
         private void CacheOriginPositions()
@@ -433,8 +441,12 @@ namespace JellyNet
 
             LanRoomConfig.Set(mode, total, ai);
 
-            net.port = port;
-            net.StartHost();
+            net.Port = port;
+            if (!net.StartHost())
+            {
+                ShowLobbyError(net.LastError);
+                return;
+            }
 
             if (roomAddressText != null)
                 roomAddressText.text = NetUtil.GetPrimaryIPv4() + " : " + port;
@@ -452,9 +464,13 @@ namespace JellyNet
             if (net == null)
                 return;
 
-            net.joinIp = ip;
-            net.port = port;
-            net.JoinHost();
+            net.JoinIp = ip;
+            net.Port = port;
+            if (!net.JoinHost())
+            {
+                ShowLobbyError(net.LastError);
+                return;
+            }
 
             if (roomAddressText != null)
                 roomAddressText.text = ip + " : " + port;
@@ -466,6 +482,21 @@ namespace JellyNet
         //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
         //양쪽 다 "판이 차기를 기다린다"는 같은 상태이므로 문구도 하나로 둔다
         private const string MATCHING_LABEL = "다른 참가자를 기다리는 중";
+
+        //실패했으면 대기 화면으로 넘어가지 않는다. 넘어가면 영원히 기다리는 것처럼 보인다
+        private void ShowLobbyError(string message)
+        {
+            Debug.LogWarning("[로비] " + message);
+
+            if (nicknameWarningText == null)
+                return;
+
+            TMP_Text label = nicknameWarningText.GetComponentInChildren<TMP_Text>(true);
+            if (label != null)
+                label.text = message;
+
+            nicknameWarningText.SetActive(true);
+        }
 
         private void OpenMatching(string label)
         {
@@ -739,7 +770,7 @@ namespace JellyNet
 
         private void LaunchNow()
         {
-            LoadGameScene(pendingScene, pendingMode, loadingScene);
+            LanSceneFlow.ToGame(pendingScene, pendingMode);
         }
 
         private string SceneFor(GameModeType m)
@@ -765,11 +796,6 @@ namespace JellyNet
             //예전엔 여기서 상태 문구만 "게임 시작!"으로 바꾸고 곧바로 씬을 로드해,
             //클라 화면에서는 매칭 완료도 3·2·1도 없이 갑자기 화면이 넘어갔다
             BeginLaunch(scene, m);
-        }
-
-        public static void LoadGameScene(string sceneName, GameModeType m, string loadingSceneName = null)
-        {
-            LanSceneFlow.ToGame(sceneName, m);
         }
 
         public static string Label(GameModeType m)

@@ -13,7 +13,8 @@ public class MultiRandomMaterialApplier : MonoBehaviour
     {
         allRenderers = GetComponentsInChildren<Renderer>();
 
-        if (materialList == null || materialList.Count == 0 || allRenderers.Length == 0) return;
+        if (materialList == null || materialList.Count == 0 || allRenderers.Length == 0)
+            return;
 
         ApplyIndividualRandomMaterials();
     }

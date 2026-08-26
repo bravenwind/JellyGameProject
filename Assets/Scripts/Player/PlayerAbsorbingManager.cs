@@ -3,9 +3,9 @@
 public class PlayerAbsorbingManager : MonoBehaviour
 {
     [Header("Player Parts")]
-    public PlayerAbsorber absorber;
-    public PlayerColorVisual colorVisual;
-    public PlayerScaleController scaleController;
+    [SerializeField] private PlayerAbsorber absorber;
+    [SerializeField] private PlayerColorVisual colorVisual;
+    [SerializeField] private PlayerScaleController scaleController;
 
     private void OnEnable()
     {

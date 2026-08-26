@@ -17,14 +17,11 @@ public class SoundSettings : MonoBehaviour
     public TMP_Text volumeText_SFX;
 
     [Header("볼륨 범위 (dB)")]
-    public float minVolume_BGM = -40f; // -20은 너무 클 수 있어 보통 -40~-60 추천
-    public float maxVolume_BGM = 0f;   // 5는 소리가 깨질 수 있어 0 추천
+    [SerializeField] private float minVolume_BGM = -40f; // -20은 너무 클 수 있어 보통 -40~-60 추천
+    [SerializeField] private float maxVolume_BGM = 0f;   // 5는 소리가 깨질 수 있어 0 추천
 
     public float minVolume_SFX = -40f;
     public float maxVolume_SFX = 0f;
-
-    [Header("참조")]
-    public UIManager uiManager;
 
     private void Start()
     {
@@ -79,19 +76,16 @@ public class SoundSettings : MonoBehaviour
     private void UpdateVolumeText(TMP_Text textComponent, float value)
     {
         if (textComponent != null)
-        {
             textComponent.text = ((int)(value * 100)).ToString();
-        }
     }
 
     public void OnSettingsBtnClicked()
     {
         // 싱글톤 인스턴스 null 체크 권장
         if (PlaySFXAudio.Instance != null)
-        {
             PlaySFXAudio.Instance.PlayButtonClickSound();
-        }
 
-        uiManager.SetState(UIState.Settings);
+        if (UIManager.Instance != null)
+            UIManager.Instance.SetState(UIState.Settings);
     }
 }

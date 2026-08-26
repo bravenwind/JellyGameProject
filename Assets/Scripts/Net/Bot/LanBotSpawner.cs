@@ -61,9 +61,7 @@ namespace JellyNet
                 SpawnAll();
             }
             else if (flow.Phase == GamePhase.Loading)
-            {
                 spawned = false;
-            }
         }
 
         private void WarnOnce(string msg)
@@ -178,7 +176,8 @@ namespace JellyNet
         private static Vector3 Snap(Vector3 p)
         {
             NavMeshHit hit;
-            return NavMesh.SamplePosition(p, out hit, 10f, NavMesh.AllAreas) ? hit.position : p;
+            //봇은 타입 0(PlayerJelly)이라 int 오버로드로 충분하다. 영역만 Walkable로 좁힌다
+            return NavMesh.SamplePosition(p, out hit, 10f, NavMeshUtil.WalkableMask) ? hit.position : p;
         }
     }
 }

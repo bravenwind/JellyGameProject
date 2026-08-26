@@ -19,5 +19,9 @@ public class PlayerExternalEventLinker : MonoBehaviour
         PlayerEvents.OnCameraScaleIncreased -= CameraChange_Increase;
     }
 
-    private void CameraChange_Increase() { if (mainCamera_Action != null) mainCamera_Action.ScaleIncreased(); }
+    private void CameraChange_Increase()
+    {
+        if (mainCamera_Action != null)
+            mainCamera_Action.ScaleIncreased();
+    }
 }

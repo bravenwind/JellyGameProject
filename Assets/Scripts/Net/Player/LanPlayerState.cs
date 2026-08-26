@@ -2,14 +2,14 @@
 
 namespace JellyNet
 {
-    public class LanPlayerState : MonoBehaviour
+    public class LanPlayerState : MonoBehaviour, INetEntity
     {
         [Header("표시")]
         [Tooltip("색을 칠할 렌더러. 비워두면 자식에서 찾는다.")]
-        public Renderer targetRenderer;
+        [SerializeField] private Renderer targetRenderer;
 
         [Tooltip("색이 바뀔 때 부드럽게 전환하는 속도. 0이면 즉시.")]
-        public float colorLerpSpeed = 6f;
+        [SerializeField] private float colorLerpSpeed = 6f;
 
         public int Score { get; private set; }
 
@@ -49,12 +49,18 @@ namespace JellyNet
 
         public bool IsMine { get { return id != null && id.IsMine; } }
 
+        //INetEntity — 봇(LanBotState)과 같은 창구로 묻기 위한 것들
+        public bool IsBot { get { return false; } }
+        public string DisplayName { get { return string.IsNullOrEmpty(PlayerName) ? ("P" + OwnerId) : PlayerName; } }
+
         public int OwnerId { get { return id != null ? id.OwnerId : 0; } }
 
         public float ScaleValue
         {
             get { return scale != null ? scale.currentScaleValue : 1f; }
         }
+
+        public Transform Transform { get { return transform; } }
 
         private void OnEnable() 
         {
@@ -176,7 +182,7 @@ namespace JellyNet
             if (pm != null)
                 pm.enabled = false;
 
-            Animator anim = pm != null ? pm.animator : null;
+            Animator anim = pm != null ? pm.Anim : null;
             if (anim == null)
                 anim = GetComponentInChildren<Animator>(true);
             if (anim != null)
@@ -222,14 +228,9 @@ namespace JellyNet
             SetFlags((PlayerFlags)flags);
         }
 
-        public void ApplyName(string name)
-        {
-            SetName(name);
-        }
-
         //이름은 스폰보다 늦게 도착한다. LanPlayerSetup은 이름표를 비워만 두므로
         //여기서 채우지 않으면 그 플레이어의 이름표가 영영 빈칸으로 남는다
-        private void SetName(string name)
+        public void SetName(string name)
         {
             PlayerName = name ?? "";
             gameObject.name = "Player_" + PlayerName + "_net" + (id != null ? id.NetId : 0);

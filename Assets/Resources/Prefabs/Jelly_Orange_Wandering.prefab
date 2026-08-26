@@ -1166,7 +1166,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   NetId: 0
-  SceneNetId: 0
+  sceneNetId: 0
   OwnerId: 0
   PrefabId: 0
 --- !u!114 &4284807624417594732

@@ -1,14 +1,18 @@
-using System.Xml.Serialization;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class SettingsUI : MonoBehaviour
 {
-    public ButtonScaleUp buttonScaleUp;
+    [SerializeField] private ButtonScaleUp buttonScaleUp;
 
     public void ReturnToInGame()
     {
-        UIManager.Instance.SetState(UIState.InGame);
-        PlaySFXAudio.Instance.PlayButton1Sound();
-        buttonScaleUp.OnPointerExit();
+        if (UIManager.Instance != null)
+            UIManager.Instance.SetState(UIState.InGame);
+
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.PlayButton1Sound();
+
+        if (buttonScaleUp != null)
+            buttonScaleUp.OnPointerExit();
     }
 }

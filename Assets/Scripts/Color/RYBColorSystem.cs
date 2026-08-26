@@ -120,7 +120,8 @@ public struct RYBColor
     private float PuritySingle(float wanted, float unwanted)
     {
         float total = wanted + unwanted;
-        if (total < 0.05f || wanted < 0.05f) return 0f;
+        if (total < 0.05f || wanted < 0.05f)
+            return 0f;
         return Mathf.Clamp01(1f - unwanted / total);
     }
 
@@ -128,10 +129,12 @@ public struct RYBColor
     private float PurityMixed(float w1, float w2, float unwanted)
     {
         float total = w1 + w2 + unwanted;
-        if (total < 0.05f) return 0f;
+        if (total < 0.05f)
+            return 0f;
 
         float wantedSum = w1 + w2;
-        if (wantedSum < 0.05f) return 0f;
+        if (wantedSum < 0.05f)
+            return 0f;
 
         // 불순물 페널티 (unwanted가 높을수록 순도 ↓)
         float cleanness = 1f - unwanted / total;
@@ -153,7 +156,8 @@ public struct RYBColor
     public JellyColorType GetDominantType()
     {
         float total = Total;
-        if (total < 0.1f) return JellyColorType.White;
+        if (total < 0.1f)
+            return JellyColorType.White;
 
         JellyColorType best = JellyColorType.None;
         float bestPurity = 0f;
@@ -175,26 +179,10 @@ public struct RYBColor
     private void CheckCandidate(JellyColorType type, ref JellyColorType best, ref float bestPurity)
     {
         float p = GetPurity(type);
-        if (p > bestPurity) { bestPurity = p; best = type; }
-    }
-
-    // ================================================================
-    // 목표 색상의 대표 RYB 값 (UI 표시용)
-    // ================================================================
-
-    public static RYBColor GetIdealColor(JellyColorType type)
-    {
-        switch (type)
+        if (p > bestPurity)
         {
-            case JellyColorType.Red:    return new RYBColor(1f, 0f, 0f);
-            case JellyColorType.Yellow: return new RYBColor(0f, 1f, 0f);
-            case JellyColorType.Blue:   return new RYBColor(0f, 0f, 1f);
-            case JellyColorType.Orange: return new RYBColor(1f, 1f, 0f);
-            case JellyColorType.Green:  return new RYBColor(0f, 1f, 1f);
-            case JellyColorType.Purple: return new RYBColor(1f, 0f, 1f);
-            case JellyColorType.White:  return white;
-            case JellyColorType.Black:  return black;
-            default:                  return white;
+            bestPurity = p;
+            best = type;
         }
     }
 

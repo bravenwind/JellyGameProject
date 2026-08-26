@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // AIFleeState.cs
 // ============================================================
 // 나보다 큰 상대(위협)로부터 도망치는 상태.
@@ -10,7 +10,7 @@ using UnityEngine.AI;
 
 public class AIFleeState : AIBaseState
 {
-    private float _pathTimer = 0f;
+    private float pathTimer = 0f;
 
     private const float FLEE_PATH_RATE = 0.2f;
     private const float FLEE_DISTANCE = 15f;
@@ -20,24 +20,27 @@ public class AIFleeState : AIBaseState
     public override void Enter()
     {
         // 속도는 플레이어와 동일(moveSpeed) 유지(부스트 제거). 급한 회피는 대쉬로 처리한다.
-        ai.Agent.speed = ai.moveSpeed;
+        ai.Agent.speed = ai.MoveSpeed;
         ai.Agent.stoppingDistance = 0f;
-        _pathTimer = FLEE_PATH_RATE; // 진입 즉시 경로 계산
+        pathTimer = FLEE_PATH_RATE; // 진입 즉시 경로 계산
         ResetStuck();
     }
 
     public override void Update()
     {
-        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return;
 
         // ── 끼임 감지 (벽에 비비는 현상 탈출) ──
-        // 주의: _pathTimer의 early return보다 위에 있어야 매 프레임 누적된다
-        if (HandleStuck()) return;
+        // 주의: pathTimer의 early return보다 위에 있어야 매 프레임 누적된다
+        if (HandleStuck())
+            return;
 
         // ── 경로 갱신 타이머 ──
-        _pathTimer += Time.deltaTime;
-        if (_pathTimer < FLEE_PATH_RATE) return;
-        _pathTimer = 0f;
+        pathTimer += Time.deltaTime;
+        if (pathTimer < FLEE_PATH_RATE)
+            return;
+        pathTimer = 0f;
 
         // ── 위협 탐지 ──
         Transform threat = ai.Detector.FindThreat();
@@ -84,7 +87,7 @@ public class AIFleeState : AIBaseState
     /// <summary>
     /// 모든 직선 도주 방향이 위험할 때(보통 위협이 맵 중심 쪽에 있어 도주 방향이
     /// 가장자리=붕괴 구역을 향할 때) 떨어지지 않도록 안전한 곳으로 도주한다.
-    /// 주의: 예전엔 GetSafeBounds의 '중심 한 점'으로 보냈는데, Push 모드에선 _lastShakenRing이
+    /// 주의: 예전엔 GetSafeBounds의 '중심 한 점'으로 보냈는데, Push 모드에선 lastShakenRing이
     /// 갱신되지 않아(=링 붕괴 미사용) 그 중심이 '맵 정중앙 고정점'이 된다. 그러면 도주하는
     /// 모든 봇이 같은 한 점에 뭉쳐 step 마모로 바닥이 동시에 무너지며 떼죽음한다.
     /// → 각 봇을 자기 위치 기준 가장 가까운 '곧 붕괴하지 않을' 타일로 분산 도주시킨다.
@@ -92,7 +95,8 @@ public class AIFleeState : AIBaseState
     private void TryFleeToSafeZone()
     {
         var collapse = TileCollapseManager.Instance;
-        if (collapse == null) return;
+        if (collapse == null)
+            return;
 
         if (collapse.FindNearestSafeTile(ai.transform.position, out Vector3 safe, avoidDangerous: true))
             TrySetSafePath(safe);
@@ -100,8 +104,8 @@ public class AIFleeState : AIBaseState
 
     public override void Exit()
     {
-        ai.Agent.speed = ai.moveSpeed; // 속도 복원
+        ai.Agent.speed = ai.MoveSpeed; // 속도 복원
         ai.Agent.stoppingDistance = 0f; // 기본값 복원
-        _pathTimer = 0f;
+        pathTimer = 0f;
     }
 }

@@ -14,15 +14,11 @@ public class PushObject : MonoBehaviour // 본인의 클래스 이름과 동일하게 유지하�
 
             // 1. 부딪힌 오브젝트에 리지드바디가 없거나, Kinematic(물리무시) 상태라면 무시
             if (body == null || body.isKinematic)
-            {
                 return;
-            }
 
             // 2. 캐릭터가 공 위에 올라타서 밟았을 때 공이 땅 밑으로 꺼지는 것 방지
             if (hit.moveDirection.y < -0.3f)
-            {
                 return;
-            }
 
             // 3. 밀어낼 방향 계산 (Y축은 제외하고 수평으로만 밀기 위함)
             Vector3 pushDir = new Vector3(hit.moveDirection.x, 0, hit.moveDirection.z);

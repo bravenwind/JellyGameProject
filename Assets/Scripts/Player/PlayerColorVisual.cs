@@ -33,7 +33,8 @@ public class PlayerColorVisual : MonoBehaviour
 
     private void Start()
     {
-        if (rend == null) rend = GetComponentInChildren<Renderer>();
+        if (rend == null)
+            rend = GetComponentInChildren<Renderer>();
 
         originalBaseColor    = Color.white;
         originalFresnelColor = Color.white;
@@ -52,7 +53,8 @@ public class PlayerColorVisual : MonoBehaviour
 
     public void HandleJellyAbsorbed(JellyColorType type)
     {
-        if (currentCoroutine != null) StopCoroutine(currentCoroutine);
+        if (currentCoroutine != null)
+            StopCoroutine(currentCoroutine);
 
         if (type == JellyColorType.White)
         {
@@ -133,7 +135,8 @@ public class PlayerColorVisual : MonoBehaviour
     /// </summary>
     public void ApplyNetworkColor(Color visualTarget)
     {
-        if (currentCoroutine != null) StopCoroutine(currentCoroutine);
+        if (currentCoroutine != null)
+            StopCoroutine(currentCoroutine);
 
         Color targetBase = DarkenColor(visualTarget, 0.85f);
         Color targetBase02 = GetLighterColor(targetBase, baseColor02Lightness);

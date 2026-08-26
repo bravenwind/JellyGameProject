@@ -68,7 +68,7 @@ namespace JellyNet
                 return;
             Running = false;
 
-            for (int i = 0; i < peers.Count; i++) peers[i].Conn.Close();
+            for (int i = 0; i < peers.Count; i++) peers[i].Conn.Kill();
             peers.Clear();
 
             try { listener.Stop(); } catch { }

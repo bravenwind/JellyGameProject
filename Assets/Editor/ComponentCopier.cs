@@ -8,17 +8,20 @@ public class ComponentCopier : EditorWindow
     [MenuItem("GameObject/Copy All Components", false, 0)]
     static void Copy()
     {
-        if (Selection.activeGameObject == null) return;
+        if (Selection.activeGameObject == null)
+            return;
         copiedComponents = Selection.activeGameObject.GetComponents<Component>();
     }
 
     [MenuItem("GameObject/Paste All Components", false, 0)]
     static void Paste()
     {
-        if (Selection.activeGameObject == null || copiedComponents == null) return;
+        if (Selection.activeGameObject == null || copiedComponents == null)
+            return;
         foreach (var comp in copiedComponents)
         {
-            if (comp is Transform) continue; // Transform은 제외
+            if (comp is Transform)
+                continue; // Transform은 제외
             UnityEditorInternal.ComponentUtility.CopyComponent(comp);
             UnityEditorInternal.ComponentUtility.PasteComponentAsNew(Selection.activeGameObject);
         }

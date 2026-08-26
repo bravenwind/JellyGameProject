@@ -233,7 +233,7 @@ namespace JellyNet
             NavMeshQueryFilter filter = new NavMeshQueryFilter
             {
                 agentTypeID = agent != null ? agent.agentTypeID : 0,
-                areaMask = NavMesh.AllAreas
+                areaMask = NavMeshUtil.WalkableMask
             };
 
             if (!TrySampleNavMeshPos(filter, out pos))
@@ -400,7 +400,7 @@ namespace JellyNet
             //   선착순(이미 먹힌 젤리는 Find가 null) — 이중 흡수는 여전히 막힌다.
 
             JellyObject jo = jelly.GetComponent<JellyObject>();
-            int colorType = jo != null ? (int)jo.jellyType : (int)JellyColorType.None;
+            int colorType = jo != null ? (int)jo.JellyType : (int)JellyColorType.None;
 
             NetWorld.Instance.HostDespawn(jellyNetId);
 
@@ -533,7 +533,6 @@ namespace JellyNet
                 return;
 
             LanPlayerState victimState = victim.PlayerState;
-            LanPlayerState absorberState = absorber.PlayerState;
 
             if (victimState != null)
             {

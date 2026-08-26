@@ -3,15 +3,17 @@
 public class MinimapArrow : MonoBehaviour
 {
     [Header("추적 대상 (플레이어)")]
-    public Transform target;
+    [SerializeField] private Transform target;
+    public Transform Target { get { return target; } set { target = value; } }
 
     [Header("위치 오프셋 (높이 조절)")]
     [Tooltip("플레이어 머리 위쪽, 미니맵 카메라 높이에 맞게 Y값을 조정하세요.")]
-    public Vector3 offset = new Vector3(0f, 2f, 0f);
+    [SerializeField] private Vector3 offset = new Vector3(0f, 2f, 0f);
+    public Vector3 Offset { get { return offset; } set { offset = value; } }
 
     [Header("회전 동기화 설정")]
     [Tooltip("체크하면 플레이어 전방방향 화살표의 Y축(좌우 방향)만 회전합니다.")]
-    public bool syncOnlyYRotation = true;
+    [SerializeField] private bool syncOnlyYRotation = true;
 
     // ─────────────────────────────────────────────────────────
     // 색상 설정 (미니맵 매니저에서 초기화 시 호출)
@@ -37,14 +39,16 @@ public class MinimapArrow : MonoBehaviour
         Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
         foreach (var r in renderers)
         {
-            if (r is SpriteRenderer) continue; // 위에서 이미 처리
+            if (r is SpriteRenderer)
+                continue; // 위에서 이미 처리
             r.material.color = color;          // 인스턴스 머티리얼 자동 생성
         }
     }
 
     private void LateUpdate()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         // 1. 위치 동기화 (목표 위치 + 오프셋)
         transform.position = target.position + offset;
@@ -56,8 +60,6 @@ public class MinimapArrow : MonoBehaviour
             transform.rotation = Quaternion.Euler(transform.eulerAngles.x, targetEuler.y, transform.eulerAngles.z);
         }
         else
-        {
             transform.rotation = target.rotation;
-        }
     }
 }

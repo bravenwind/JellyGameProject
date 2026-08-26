@@ -2,14 +2,14 @@
 
 namespace JellyNet
 {
-    public class LanBotState : MonoBehaviour
+    public class LanBotState : MonoBehaviour, INetEntity
     {
         [Header("상태 전송")]
         [Tooltip("초당 몇 번 보낼지. 크기·색·점수는 자주 안 변해서 낮아도 된다.")]
-        public float scaleSendRate = 5f;
+        [SerializeField] private float scaleSendRate = 5f;
 
         [Tooltip("이만큼 차이 나야 보낸다. 미세 떨림으로 도배되는 걸 막는다.")]
-        public float scaleThreshold = 0.01f;
+        [SerializeField] private float scaleThreshold = 0.01f;
 
         private NetIdentity id;
         private PlayerScaleController scaleCtrl;
@@ -53,15 +53,79 @@ namespace JellyNet
             return NetManager.Instance != null && NetManager.Instance.IsHost;
         }
 
+        // ─────────────────────────────────────────────────────────
+        //  INetEntity — 밖에서 봇에게 묻는 것들
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ IsOutOfPlay는 AIPlayerMovement에 있다
+        //   봇의 '판 밖' 상태는 두뇌(IsEliminated / IsBeingAbsorbed)가 들고 있어서
+        //   여기서 그대로 넘겨준다. 사람 쪽 LanPlayerState는 PlayerFlags를 직접 들고 있는데,
+        //   그 비대칭을 **이 한 줄 안에 가둔다** — 밖에서는 둘 다 INetEntity.IsOutOfPlay다.
+        //   예전엔 NetEntity·LanScoreboard·AIDetector가 각자 if (IsBot)로 갈랐다.
+        public NetIdentity Identity { get { return id; } }
+        public int EntityId { get { return id != null ? id.NetId : 0; } }
+        public int OwnerId { get { return id != null ? id.OwnerId : 0; } }
+        public bool IsBot { get { return true; } }
+        public string DisplayName { get { return string.IsNullOrEmpty(BotName) ? ("AI 봇 " + EntityId) : BotName; } }
+        /// <summary>
+        /// 이 봇의 크기. **읽는 기계에 따라 출처가 다르다.**
+        ///
+        /// ★ 왜 갈라지나
+        ///   봇의 PlayerScaleController는 호스트에서만 돈다 —
+        ///   LanPlayerVisual.ApplyGrow가 `if (bot != null && !bot.IsDriver) return;` 으로 막는다.
+        ///   막는 이유는 클라에서 FollowScale(절대값 수신)과 ScaleTo(성장 연출)가
+        ///   둘 다 transform.localScale을 써서 크기가 튀기 때문이다. 쓰는 쪽을 하나로 둔 것이다.
+        ///
+        ///   그 결과 클라의 currentScaleValue는 스폰 당시 값에 머문다.
+        ///   그걸 그대로 읽으면 클라 순위표의 봇 크기가 안 움직이고,
+        ///   AbsorbMode가 '먹을 수 있다'고 잘못 판단해 호스트에 헛요청을 보낸다.
+        ///
+        ///   그래서 호스트(=구동자)는 논리값을, 클라는 실제로 갱신되는 transform을 읽는다.
+        /// </summary>
+        public float ScaleValue
+        {
+            get
+            {
+                if (IsDriver && scaleCtrl != null)
+                    return scaleCtrl.currentScaleValue;
+
+                return transform.localScale.x;
+            }
+        }
+        public Transform Transform { get { return transform; } }
+        public int Score { get { return CurrentScore; } }
+        public Color VisualColor { get { return ReadVisualColor(); } }
+        public bool IsOutOfPlay { get { return bot != null && bot.IsOutOfPlay; } }
+
+        private AIPlayerMovement bot;
+
         public bool IsDriver
         {
             //봇은 전부 NetWorld가 스폰하므로 id가 없는 봇은 없다
             get { return id != null && id.IsMineOrOffline; }
         }
 
+        //봇의 INetEntity 구현체는 이 컴포넌트다. 등록도 여기서 한다 —
+        //AIPlayerMovement는 두뇌라 밖에서 물어보는 창구가 아니다.
+        //
+        //★ 예전엔 AIPlayerMovement가 EntityRegistry.Bots에 자기를 넣었다.
+        //  사람 쪽 짝은 LanPlayerState인데 봇만 두뇌를 등록하니 층이 어긋났고,
+        //  밖에서 "사람이든 봇이든 같은 질문"을 할 때마다 목록 두 개를 따로 돌면서
+        //  한쪽에만 조건이 빠지는 일이 반복됐다(발판 마모의 IsBeingAbsorbed 누락 등).
+        private void OnEnable()
+        {
+            EntityRegistry.Register(this);
+        }
+
+        private void OnDisable()
+        {
+            EntityRegistry.Unregister(this);
+        }
+
         private void Awake()
         {
             id = GetComponent<NetIdentity>();
+            bot = GetComponent<AIPlayerMovement>();
             scaleCtrl = GetComponent<PlayerScaleController>();
             nameTag = GetComponentInChildren<NameTagBillboard>(true);
             colorVisual = GetComponentInChildren<PlayerColorVisual>(true);
@@ -131,23 +195,49 @@ namespace JellyNet
             w.WriteFloat(c.g);
             w.WriteFloat(c.b);
             w.WriteInt(CurrentScore);
+            w.WriteByte(IsEliminatedNow ? (byte)1 : (byte)0);
             w.End();
             net.Host.Broadcast(w);
         }
+
+        //호스트가 보내주는 크기로 부드럽게 따라간다. 클라에서만 돈다
+        //(호스트는 PlayerScaleController가 직접 몰기 때문에 이 경로를 타지 않는다)
+        private const float ScaleFollowSpeed = 10f;
 
         private void FollowScale()
         {
             if (targetScale <= 0f)
                 return;
+
+            //★ 예전엔 t 자리에 Time.deltaTime * 10f 을 그대로 넣었다
+            //  Lerp의 결과를 다시 자기 자신에 대입하는 형태라 남은 차이가
+            //  (1 - 10·dt)^n 으로 줄어드는데, 여기엔 프레임 수 n이 지수로 들어간다.
+            //  → 60fps와 30fps에서 봇 크기가 따라붙는 속도가 달랐다.
+            //  같은 파일 옆의 NetTransform.ApplyLerp는 이미 아래 형태를 쓰고 있었다
             transform.localScale = Vector3.Lerp(
-                transform.localScale, Vector3.one * targetScale, Time.deltaTime * 10f);
+                transform.localScale,
+                Vector3.one * targetScale,
+                SmoothDamping.Factor(ScaleFollowSpeed, Time.deltaTime));
         }
 
-        public void ApplyState(float scale, Color color, int score)
+        //호스트의 '이 봇은 탈락했다'를 패킷에 실어 보내기 위한 창구.
+        //판정 자체는 두뇌(AIPlayerMovement)가 들고 있다
+        private bool IsEliminatedNow { get { return bot != null && bot.IsEliminated; } }
+
+        public void ApplyState(float scale, Color color, int score, bool eliminated)
         {
             targetScale = scale;
             CurrentScore = score;
             ApplyVisualColor(color);
+
+            //★ 탈락은 이제 '사건'이 아니라 '상태'다
+            //  예전엔 MsgType.BotEliminated 한 방으로만 알렸다. 일회성이라 그 순간
+            //  접속해 있지 않았거나 패킷을 놓친 클라에서는 봇이 영영 안 죽은 것으로 남았다.
+            //  (사람 쪽 LanPlayerState는 처음부터 Flags를 상태로 실어 보내고 있었다)
+            //  상태로 바꾸면 주기 방송이 알아서 따라잡는다. ApplyEliminated는 첫 줄에
+            //  중복 가드가 있어 몇 번 들어와도 한 번만 처리된다
+            if (eliminated && bot != null)
+                bot.ApplyEliminated();
         }
 
         private Renderer bodyRenderer;
@@ -218,16 +308,12 @@ namespace JellyNet
 
             AIPlayerMovement brain = id != null ? id.Bot : null;
 
-            if (!NetManager.Offline && id != null)
-            {
-                w.Begin(MsgType.BotEliminated);
-                w.WriteInt(id.NetId);
-                w.End();
-                NetManager.Instance.Host.Broadcast(w);
-            }
-
+            //먼저 두뇌에 반영해야 아래 방송이 탈락 상태를 실어 나간다
             if (brain != null)
                 brain.ApplyEliminated();
+
+            if (!NetManager.Offline)
+                HostBroadcastState();
         }
 
         /// <summary>

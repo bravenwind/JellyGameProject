@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -12,14 +12,14 @@ namespace JellyNet
 
         [Header("UI")]
         [Tooltip("← 이름 → 묶음. 관전 중에만 켜진다.")]
-        public GameObject bar;
+        [SerializeField] private GameObject bar;
 
         [Tooltip("지금 보고 있는 참가자 이름.")]
-        public TextMeshProUGUI targetNameText;
+        [SerializeField] private TextMeshProUGUI targetNameText;
 
         [Header("표시")]
-        public string deadSuffix = " (탈락)";
-        public string noTargetLabel = "남은 참가자 없음";
+        [SerializeField] private string deadSuffix = " (탈락)";
+        [SerializeField] private string noTargetLabel = "남은 참가자 없음";
 
         public bool IsSpectating { get; private set; }
 
@@ -143,7 +143,7 @@ namespace JellyNet
                 camAction = FindFirstObjectByType<MainCamera_Action>(FindObjectsInactive.Include);
 
             if (topDown != null)
-                topDown.target = target;
+                topDown.Target = target;
 
             if (camAction != null)
                 camAction.SetTarget(target);

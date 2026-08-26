@@ -18,6 +18,7 @@
 
 using System.Collections.Generic;
 using UnityEngine;
+using JellyNet;
 
 public class MinimapArrowManager : MonoBehaviour
 {
@@ -25,30 +26,30 @@ public class MinimapArrowManager : MonoBehaviour
     // 인스펙터 설정
     // ─────────────────────────────────────────────────────────
     [Header("화살표 프리팹 (MinimapArrow 컴포넌트 포함)")]
-    public GameObject arrowPrefab;
+    [SerializeField] private GameObject arrowPrefab;
 
     [Header("색상")]
-    public Color localPlayerColor  = Color.green;
-    public Color remotePlayerColor = Color.red;
-    public Color botColor          = Color.red;
+    [SerializeField] private Color localPlayerColor  = Color.green;
+    [SerializeField] private Color remotePlayerColor = Color.red;
+    [SerializeField] private Color botColor          = Color.red;
 
     [Header("화살표 높이 오프셋 (미니맵 카메라 아래에 위치)")]
     [Tooltip("미니맵 카메라보다 조금 낮게 두면 화살표가 카메라에 잘 잡힙니다.")]
-    public Vector3 arrowOffset = new Vector3(0f, 1f, 0f);
+    [SerializeField] private Vector3 arrowOffset = new Vector3(0f, 1f, 0f);
 
     [Header("미니맵 레이어 이름")]
     [Tooltip("화살표를 배치할 레이어 이름. 미니맵 카메라의 Culling Mask와 맞춰야 합니다.")]
-    public string minimapLayerName = "Minimap";
+    [SerializeField] private string minimapLayerName = "Minimap";
 
     // ─────────────────────────────────────────────────────────
     // 내부 상태
     // ─────────────────────────────────────────────────────────
     // key = 추적 대상 Transform, value = 생성된 화살표 GameObject
-    private Dictionary<Transform, GameObject> _arrows = new Dictionary<Transform, GameObject>();
+    private Dictionary<Transform, GameObject> arrows = new Dictionary<Transform, GameObject>();
 
     // 스캔 주기 (매 프레임마다 FindObjectsByType을 하면 비용이 크므로 0.5초마다)
-    private float _scanInterval = 0.5f;
-    private float _scanTimer    = 0f;
+    private float scanInterval = 0.5f;
+    private float scanTimer    = 0f;
 
     // ─────────────────────────────────────────────────────────
     // 초기화 & 업데이트
@@ -60,10 +61,10 @@ public class MinimapArrowManager : MonoBehaviour
 
     private void Update()
     {
-        _scanTimer += Time.deltaTime;
-        if (_scanTimer >= _scanInterval)
+        scanTimer += Time.deltaTime;
+        if (scanTimer >= scanInterval)
         {
-            _scanTimer = 0f;
+            scanTimer = 0f;
             ScanAndRefresh();
         }
 
@@ -76,36 +77,27 @@ public class MinimapArrowManager : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     private void ScanAndRefresh()
     {
-        // ── 사람 플레이어 ──
         //EntityRegistry는 OnEnable에서 등록된 목록이라 씬 전체를 훑지 않는다.
         //변경이 없으면 같은 스냅샷을 재사용하므로 GC 할당도 없다
-        foreach (var player in EntityRegistry.Players)
+        foreach (INetEntity e in EntityRegistry.Entities)
         {
-            if (player == null) continue;
-            Transform tf = player.transform;
+            if (e == null || e.Transform == null)
+                continue;
+            Transform tf = e.Transform;
 
-            if (!_arrows.ContainsKey(tf))
-            {
-                // 로컬 판별은 NetIdentity로 한다.
-                //   틀리면 내 화살표가 원격 색으로 나오고 미니맵 카메라가 아무도 안 따라간다.
-                bool isLocal = player.IsMine;
-                Color color  = isLocal ? localPlayerColor : remotePlayerColor;
-                if (isLocal)
-                    BindMinimapCamera(player.transform);
-                SpawnArrow(tf, color);
-            }
-        }
+            if (arrows.ContainsKey(tf))
+                continue;
 
-        // ── 봇 ──
-        foreach (var bot in EntityRegistry.Bots)
-        {
-            if (bot == null) continue;
-            Transform tf = bot.transform;
+            // ★ IsMine만 보면 안 된다
+            //   봇의 소유자는 호스트(1)라, 호스트 화면에서는 봇도 Identity.IsMine이 true다.
+            //   그대로 쓰면 봇 화살표가 초록으로 나오고 미니맵 카메라가 봇을 따라간다.
+            //   "내 캐릭터"는 사람이면서 내 소유인 것 하나뿐이다.
+            bool isLocal = !e.IsBot && e.Identity != null && e.Identity.IsMine;
 
-            if (!_arrows.ContainsKey(tf))
-            {
-                SpawnArrow(tf, botColor);
-            }
+            if (isLocal)
+                BindMinimapCamera(tf);
+
+            SpawnArrow(tf, isLocal ? localPlayerColor : (e.IsBot ? botColor : remotePlayerColor));
         }
     }
 
@@ -119,7 +111,7 @@ public class MinimapArrowManager : MonoBehaviour
 
         TopDownCameraFollow follow = cam.GetComponent<TopDownCameraFollow>();
         if (follow != null)
-            follow.target = target;
+            follow.Target = target;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -139,28 +131,22 @@ public class MinimapArrowManager : MonoBehaviour
         // 레이어 설정
         int layer = LayerMask.NameToLayer(minimapLayerName);
         if (layer >= 0)
-        {
             SetLayerRecursively(arrow, layer);
-        }
         else
-        {
             Debug.LogWarning($"[MinimapArrowManager] '{minimapLayerName}' 레이어를 찾을 수 없습니다. Project Settings > Tags and Layers에서 추가하세요.");
-        }
 
         // MinimapArrow 컴포넌트 설정
         MinimapArrow minimapArrow = arrow.GetComponent<MinimapArrow>();
         if (minimapArrow != null)
         {
-            minimapArrow.target = target;
-            minimapArrow.offset = arrowOffset;
+            minimapArrow.Target = target;
+            minimapArrow.Offset = arrowOffset;
             minimapArrow.SetColor(color);
         }
         else
-        {
             Debug.LogWarning("[MinimapArrowManager] arrowPrefab에 MinimapArrow 컴포넌트가 없습니다.");
-        }
 
-        _arrows[target] = arrow;
+        arrows[target] = arrow;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -170,13 +156,15 @@ public class MinimapArrowManager : MonoBehaviour
     {
         List<Transform> toRemove = null;
 
-        foreach (var kvp in _arrows)
+        foreach (var kvp in arrows)
         {
             // Transform이 null이면 오브젝트가 파괴된 것
             if (kvp.Key == null)
             {
-                if (kvp.Value != null) Destroy(kvp.Value);
-                if (toRemove == null) toRemove = new List<Transform>();
+                if (kvp.Value != null)
+                    Destroy(kvp.Value);
+                if (toRemove == null)
+                    toRemove = new List<Transform>();
                 toRemove.Add(kvp.Key);
             }
         }
@@ -184,7 +172,7 @@ public class MinimapArrowManager : MonoBehaviour
         if (toRemove != null)
         {
             foreach (var key in toRemove)
-                _arrows.Remove(key);
+                arrows.Remove(key);
         }
     }
 

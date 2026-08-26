@@ -21,68 +21,93 @@ public class DataManager : MonoBehaviour
     }
 
     [Header("Scale Settings")]
-    public float jellyScaleIncrease = 0.05f;
+    [SerializeField] private float jellyScaleIncrease = 0.05f;
+    public float JellyScaleIncrease { get { return jellyScaleIncrease; } }
     [Range(0f, 1f)]
-    public float absorbScalePercent = 0.3f;
-    public float minScale = 1f;
-    public float maxScale = 5f;
-    public float jumpScaleThreshold = 2f;
-    public float scaleIncreaseTime = 1.0f;
-    public float IncreaseJumpForceValue = 5;
+    [SerializeField] private float absorbScalePercent = 0.3f;
+    public float AbsorbScalePercent { get { return absorbScalePercent; } }
+    [SerializeField] private float minScale = 1f;
+    public float MinScale { get { return minScale; } }
+    [SerializeField] private float maxScale = 5f;
+    public float MaxScale { get { return maxScale; } }
+    [SerializeField] private float jumpScaleThreshold = 2f;
+    public float JumpScaleThreshold { get { return jumpScaleThreshold; } }
+    [SerializeField] private float scaleIncreaseTime = 1.0f;
+    public float ScaleIncreaseTime { get { return scaleIncreaseTime; } }
+    [SerializeField] private float increaseJumpForceValue = 5;
+    public float IncreaseJumpForceValue { get { return increaseJumpForceValue; } }
 
     [Header("Bat Attack Settings (Push Mode)")]
     [Tooltip("방망이 공격 쿨다운 (초)")]
-    public float batCooldown = 1.2f;
+    [SerializeField] private float batCooldown = 1.2f;
+    public float BatCooldown { get { return batCooldown; } }
     [Tooltip("방망이 공격 지속 시간 (초)")]
-    public float batSwingDuration = 0.35f;
+    [SerializeField] private float batSwingDuration = 0.35f;
+    public float BatSwingDuration { get { return batSwingDuration; } }
     [Tooltip("방망이 공격 범위 (플레이어 전방)")]
-    public float batRange = 2.0f;
+    [SerializeField] private float batRange = 2.0f;
+    public float BatRange { get { return batRange; } }
     [Tooltip("방망이 밀치기 힘")]
-    public float batPushForce = 18f;
+    [SerializeField] private float batPushForce = 18f;
+    public float BatPushForce { get { return batPushForce; } }
     [Tooltip("방망이 명중 시 성장량 (크기 1 기준)")]
-    public float batHitGrowth = 0.08f;
+    [SerializeField] private float batHitGrowth = 0.08f;
+    public float BatHitGrowth { get { return batHitGrowth; } }
     [Tooltip("방망이 공격 전방 각도 (좌우 합산)")]
-    public float batArcAngle = 120f;
+    [SerializeField] private float batArcAngle = 120f;
+    public float BatArcAngle { get { return batArcAngle; } }
 
     [Header("Push Mode - Fall & Tile Settings")]
     [Tooltip("타일을 밟은 후 붕괴까지 딜레이 (초)")]
-    public float stepTileCollapseDelay = 2f;
+    [SerializeField] private float stepTileCollapseDelay = 2f;
+    public float StepTileCollapseDelay { get { return stepTileCollapseDelay; } }
     [Tooltip("밟힌 타일 경고 흔들림 시간 (초)")]
-    public float stepTileWarningDuration = 1.5f;
+    [SerializeField] private float stepTileWarningDuration = 1.5f;
+    public float StepTileWarningDuration { get { return stepTileWarningDuration; } }
     [Tooltip("타일이 붕괴되기까지 필요한 밟은 횟수")]
-    public int stepTileStepsToCollapse = 3;
+    [SerializeField] private int stepTileStepsToCollapse = 3;
+    public int StepTileStepsToCollapse { get { return stepTileStepsToCollapse; } }
     [Tooltip("한 타일 위에 가만히 머물 때 견디는 횟수가 1 감소하기까지의 시간 (초). 0 이하면 제자리 마모 비활성")]
-    public float stepTileIdleWearSeconds = 2f;
+    [SerializeField] private float stepTileIdleWearSeconds = 2f;
+    public float StepTileIdleWearSeconds { get { return stepTileIdleWearSeconds; } }
 
     [Header("Camera Settings")]
-    public float scaleIncreaseDuration = 1.0f;
-    public float scaleDecreaseDuration = 1.0f;
-    public float scaleChangedPlusSize = 3.0f;
-    public float cameraZoomFirstThreshold = 6f;
-    public float cameraZoomThresholdStep = 4f;
+    [SerializeField] private float scaleIncreaseDuration = 1.0f;
+    public float ScaleIncreaseDuration { get { return scaleIncreaseDuration; } }
+    [SerializeField] private float scaleDecreaseDuration = 1.0f;
+    public float ScaleDecreaseDuration { get { return scaleDecreaseDuration; } }
+    [SerializeField] private float scaleChangedPlusSize = 3.0f;
+    public float ScaleChangedPlusSize { get { return scaleChangedPlusSize; } }
+    [SerializeField] private float cameraZoomFirstThreshold = 6f;
+    public float CameraZoomFirstThreshold { get { return cameraZoomFirstThreshold; } }
+    [SerializeField] private float cameraZoomThresholdStep = 4f;
+    public float CameraZoomThresholdStep { get { return cameraZoomThresholdStep; } }
 
     [Header("Score Settings")]
-    public int scorePerJelly = 100;
-    public float startingScale = 2f;
+    [SerializeField] private int scorePerJelly = 100;
+    [SerializeField] private float startingScale = 2f;
+    public float StartingScale { get { return startingScale; } }
 
     public int ScoreFromScale(float scale)
     {
-        if (jellyScaleIncrease <= 0f) return 0;
+        if (jellyScaleIncrease <= 0f)
+            return 0;
         return Mathf.Max(0, Mathf.RoundToInt((scale - startingScale) * scorePerJelly / jellyScaleIncrease));
     }
 
     [Header("Detection Settings")]
 
-    public LayerMask objectLayerMask;
+    [SerializeField] private LayerMask objectLayerMask ;
+    public LayerMask ObjectLayerMask { get { return objectLayerMask; } }
 
     [Header("Jelly Effects (RYB)")]
-    public List<JellyEffectData> jellyEffects;
+    [SerializeField] private List<JellyEffectData> jellyEffects;
 
-    private Dictionary<JellyColorType, RYBColor> _jellyEffectCache;
+    private Dictionary<JellyColorType, RYBColor> jellyEffectCache;
 
     public RYBColor GetJellyRYBEffect(JellyColorType type)
     {
-        if (_jellyEffectCache != null && _jellyEffectCache.TryGetValue(type, out var cached))
+        if (jellyEffectCache != null && jellyEffectCache.TryGetValue(type, out var cached))
             return cached;
         return new RYBColor(0, 0, 0);
     }
@@ -112,12 +137,13 @@ public class DataManager : MonoBehaviour
 
     private void BuildJellyEffectCache()
     {
-        _jellyEffectCache = new Dictionary<JellyColorType, RYBColor>();
-        if (jellyEffects == null) return;
+        jellyEffectCache = new Dictionary<JellyColorType, RYBColor>();
+        if (jellyEffects == null)
+            return;
         foreach (var data in jellyEffects)
         {
             if (data != null)
-                _jellyEffectCache[data.type] = data.rybChange;
+                jellyEffectCache[data.type] = data.rybChange;
         }
     }
 
@@ -129,7 +155,9 @@ public class DataManager : MonoBehaviour
             (minScale, maxScale) = (maxScale, minScale);
         }
 
-        if (scaleIncreaseTime <= 0f) scaleIncreaseTime = 0.1f;
-        if (scorePerJelly <= 0) scorePerJelly = 1;
+        if (scaleIncreaseTime <= 0f)
+            scaleIncreaseTime = 0.1f;
+        if (scorePerJelly <= 0)
+            scorePerJelly = 1;
     }
 }

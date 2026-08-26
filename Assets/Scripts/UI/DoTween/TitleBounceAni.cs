@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,22 +6,22 @@ using UnityEngine.UI;
 public class TitleBounceAni : MonoBehaviour
 {
     [Header("Target UI (RectTransform)")]
-    [SerializeField] private RectTransform target;
+    public RectTransform target;
 
     [Header("Optional: Root Canvas (if null, auto)")]
-    [SerializeField] private Canvas rootCanvas;
+    public Canvas rootCanvas;
 
     [Header("Shake Settings")]
-    [SerializeField] private float duration = 0.6f;
-    [SerializeField] private Vector3 strength = new Vector3(0.2f, 0.2f, 0f);
-    [SerializeField] private int vibrato = 14;
+    public float duration = 0.6f;
+    public Vector3 strength = new Vector3(0.2f, 0.2f, 0f);
+    public int vibrato = 14;
     [SerializeField] private float randomness = 90f;
-    [SerializeField] private bool fadeOut = true;
+    public bool fadeOut = true;
     [SerializeField] private ShakeRandomnessMode randomnessMode = ShakeRandomnessMode.Full;
 
     [Header("Options")]
-    [SerializeField] private bool playOnEnable = true;
-    [SerializeField] private bool ignoreTimeScale = true;
+    public bool playOnEnable = true;
+    public bool ignoreTimeScale = true;
 
     [SerializeField] private bool playAfterLayoutReady = true;
     [SerializeField] private int delayFrames = 1;
@@ -37,23 +37,25 @@ public class TitleBounceAni : MonoBehaviour
 
     private void Awake()
     {
-        if (target == null) target = GetComponent<RectTransform>();
-        if (rootCanvas == null && target != null) rootCanvas = target.GetComponentInParent<Canvas>();
+        if (target == null)
+            target = GetComponent<RectTransform>();
+        if (rootCanvas == null && target != null)
+            rootCanvas = target.GetComponentInParent<Canvas>();
     }
 
     private void OnEnable()
     {
-        if (!playOnEnable) return;
+        if (!playOnEnable)
+            return;
 
         if (playAfterLayoutReady)
         {
-            if (playRoutine != null) StopCoroutine(playRoutine);
+            if (playRoutine != null)
+                StopCoroutine(playRoutine);
             playRoutine = StartCoroutine(CoPlayAfterLayoutReady());
         }
         else
-        {
             PlayShakeImmediate();
-        }
     }
 
     private void OnDisable()
@@ -87,7 +89,8 @@ public class TitleBounceAni : MonoBehaviour
 
     private void ForceUIRebuild()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         Canvas.ForceUpdateCanvases();
 
@@ -97,8 +100,10 @@ public class TitleBounceAni : MonoBehaviour
 
     public void PlayShakeImmediate()
     {
-        if (target == null) target = GetComponent<RectTransform>();
-        if (target == null) return;
+        if (target == null)
+            target = GetComponent<RectTransform>();
+        if (target == null)
+            return;
 
         Kill();
 

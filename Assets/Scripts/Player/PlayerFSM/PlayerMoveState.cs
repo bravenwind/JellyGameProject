@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 // ==========================================
-// 2. Move ���� Ŭ����
+// 2. Move 상태 클래스
 // ==========================================
 public class PlayerMoveState : PlayerBaseState
 {
@@ -9,8 +9,10 @@ public class PlayerMoveState : PlayerBaseState
 
     public override void Enter()
     {
-        if (player.animator != null) player.animator.SetBool("IsMoving", true);
-        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.StartWalking();
+        if (player.Anim != null)
+            player.Anim.SetBool("IsMoving", true);
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.StartWalking();
     }
 
     public override void Update()
@@ -20,25 +22,25 @@ public class PlayerMoveState : PlayerBaseState
 
         if (Input.GetMouseButtonDown(0) && player.CanAttack())
         {
-            player.ChangeState(player.attackState);
+            player.ChangeState(player.AttackState);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanDash())
         {
-            player.ChangeState(player.dashState);
+            player.ChangeState(player.DashState);
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded && !PlayerMovement.InputLocked)
+        if (Input.GetKeyDown(KeyCode.Space) && player.IsGrounded && !PlayerMovement.InputLocked)
         {
-            player.ChangeState(player.jumpState);
+            player.ChangeState(player.JumpState);
             return;
         }
 
         if (!player.IsMoveInputActive())
         {
-            player.ChangeState(player.idleState);
+            player.ChangeState(player.IdleState);
             return;
         }
 
@@ -47,7 +49,9 @@ public class PlayerMoveState : PlayerBaseState
 
     public override void Exit()
     {
-        if (player.animator != null) player.animator.SetBool("IsMoving", false);
-        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.StopWalking();
+        if (player.Anim != null)
+            player.Anim.SetBool("IsMoving", false);
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.StopWalking();
     }
 }

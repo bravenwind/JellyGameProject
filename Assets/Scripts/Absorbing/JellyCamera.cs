@@ -46,9 +46,7 @@ public class JellyCamera : MonoBehaviour
         defaultRotation = cam.transform.localRotation;
 
         if (globalVolume.profile.TryGet(out lensDistortion))
-        {
             lensDistortion.intensity.overrideState = true;
-        }
     }
 
 #if UNITY_EDITOR
@@ -57,9 +55,7 @@ public class JellyCamera : MonoBehaviour
         // [R3] P키 연출 테스트는 에디터 전용 — 빌드에서는 게임 중 P를 눌러도
         // 렌즈왜곡/FOV 연출이 오발동하지 않는다. (에디터 테스트는 ContextMenu로도 가능)
         if (Input.GetKeyDown(KeyCode.P))
-        {
             PlayDing();
-        }
     }
 #endif
 

@@ -184,19 +184,9 @@ MonoBehaviour:
   dashSpeed: 80
   dashDuration: 0.2
   dashCooldown: 3
-  dashCooldownTimer: 0
-  attackCooldownTimer: 0
   animator: {fileID: 365858056229833277}
-  uiManager: {fileID: 0}
   batPivot: {fileID: 6098355761757895932}
   hideBatWhenIdle: 1
-  controller: {fileID: 0}
-  inputDir: {x: 0, y: 0, z: 0}
-  verticalVelocity: 0
-  targetRotation: {x: 0, y: 0, z: 0, w: 0}
-  isGrounded: 0
-  inputH: 0
-  inputV: 0
 --- !u!114 &3536485665450355811
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -400,10 +390,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  NetId: 0
-  SceneNetId: 0
-  OwnerId: 0
-  PrefabId: 0
+  sceneNetId: 0
 --- !u!114 &623676650804486841
 MonoBehaviour:
   m_ObjectHideFlags: 0

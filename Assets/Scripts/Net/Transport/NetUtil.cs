@@ -166,9 +166,12 @@ namespace JellyNet
             if (b.Length != 4)
                 return false;
 
-            if (b[0] == 192 && b[1] == 168) return true;
-            if (b[0] == 10) return true;
-            if (b[0] == 172 && b[1] >= 16 && b[1] <= 31) return true;
+            if (b[0] == 192 && b[1] == 168)
+                return true;
+            if (b[0] == 10)
+                return true;
+            if (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
+                return true;
 
             return false;
         }

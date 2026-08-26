@@ -5,7 +5,7 @@ namespace JellyNet
 {
     public class LanDiagnostics : MonoBehaviour
     {
-        public KeyCode dumpKey = KeyCode.F1;
+        [SerializeField] private KeyCode dumpKey = KeyCode.F1;
 
         private void Update()
         {
@@ -40,7 +40,7 @@ namespace JellyNet
             {
                 s.AppendLine("  단계: " + flow.Phase + "   모드: " + LanGameFlow.Mode
                              + "   남은시간: " + flow.Remaining.ToString("F1"));
-                s.AppendLine("  최소인원: " + flow.minPlayersToStart);
+                s.AppendLine("  최소인원: " + flow.MinPlayersToStart);
             }
             s.AppendLine("  GameState.Phase: " + GameState.Phase);
             s.AppendLine("  PlayerMovement.InputLocked: " + PlayerMovement.InputLocked
@@ -118,7 +118,7 @@ namespace JellyNet
                 {
                     PlayerScaleController psc = id.GetComponentInChildren<PlayerScaleController>(true);
                     PlayerColorVisual pcv = id.GetComponentInChildren<PlayerColorVisual>(true);
-                    Animator anim = vis.animator;
+                    Animator anim = vis.Anim;
                     s.AppendLine("      LanPlayerVisual 있음  ScaleCtrl:" + (psc == null ? "★없음" : psc.currentScaleValue.ToString("F2"))
                                  + "  ColorVisual:" + (pcv == null ? "★없음" : "ok")
                                  + "  Animator:" + (anim == null ? "★없음" : "ok"));
@@ -134,11 +134,11 @@ namespace JellyNet
 
             TopDownCameraFollow f = FindFirstObjectByType<TopDownCameraFollow>(FindObjectsInactive.Include);
             s.AppendLine("  TopDownCameraFollow: " + (f == null ? "★씬에 없음"
-                         : f.gameObject.name + " → 타겟 " + (f.target == null ? "★없음" : f.target.name)));
+                         : f.gameObject.name + " → 타겟 " + (f.Target == null ? "★없음" : f.Target.name)));
 
             MainCamera_Action ma = FindFirstObjectByType<MainCamera_Action>(FindObjectsInactive.Include);
             s.AppendLine("  MainCamera_Action:   " + (ma == null ? "★씬에 없음"
-                         : ma.gameObject.name + " → 타겟 " + (ma.target == null ? "★없음" : ma.target.name)));
+                         : ma.gameObject.name + " → 타겟 " + (ma.Target == null ? "★없음" : ma.Target.name)));
 
             AudioListener[] als = FindObjectsByType<AudioListener>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             int onCount = 0;

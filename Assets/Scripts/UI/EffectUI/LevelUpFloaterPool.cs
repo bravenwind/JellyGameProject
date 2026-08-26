@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
@@ -10,38 +10,41 @@ using System.Collections.Generic;
 public class LevelUpFloaterPool : MonoBehaviour
 {
     [Header("팝업 프리팹 (LevelUpFloater 부착). 비우면 런타임 생성")]
-    public LevelUpFloater floaterPrefab;
+    [SerializeField] private LevelUpFloater floaterPrefab;
 
     [Tooltip("미리 생성해둘 인스턴스 개수")]
-    public int prewarm = 3;
+    [SerializeField] private int prewarm = 3;
 
-    private Transform _scaleRef;   // 크기 상쇄 기준 = 플레이어 루트(이 컨테이너의 부모)
-    private readonly Queue<LevelUpFloater> _free = new Queue<LevelUpFloater>();
+    private Transform scaleRef;   // 크기 상쇄 기준 = 플레이어 루트(이 컨테이너의 부모)
+    private readonly Queue<LevelUpFloater> free = new Queue<LevelUpFloater>();
 
     private void Awake()
     {
-        _scaleRef = transform.parent;
+        scaleRef = transform.parent;
         for (int i = 0; i < prewarm; i++)
-            _free.Enqueue(Create());
+            free.Enqueue(Create());
     }
 
     /// <summary>성장 이펙트 1회 표시. 동시 호출되면 각 인스턴스가 독립적으로 떠오른다.</summary>
     public void Play()
     {
-        if (_scaleRef == null) _scaleRef = transform.parent;
+        if (scaleRef == null)
+            scaleRef = transform.parent;
 
         LevelUpFloater f = Get();
-        if (f == null) return;
-        f.Play(_scaleRef, Return);
+        if (f == null)
+            return;
+        f.Play(scaleRef, Return);
     }
 
     private LevelUpFloater Get()
     {
         // 반환된 인스턴스 재사용(파괴된 건 건너뜀)
-        while (_free.Count > 0)
+        while (free.Count > 0)
         {
-            LevelUpFloater f = _free.Dequeue();
-            if (f != null) return f;
+            LevelUpFloater f = free.Dequeue();
+            if (f != null)
+                return f;
         }
         return Create();
     }
@@ -50,9 +53,7 @@ public class LevelUpFloaterPool : MonoBehaviour
     {
         LevelUpFloater f;
         if (floaterPrefab != null)
-        {
             f = Instantiate(floaterPrefab, transform);
-        }
         else
         {
             // 프리팹 미지정 시 런타임 생성(폰트 에셋 의존 없이 동작)
@@ -66,6 +67,7 @@ public class LevelUpFloaterPool : MonoBehaviour
 
     private void Return(LevelUpFloater f)
     {
-        if (f != null) _free.Enqueue(f);
+        if (f != null)
+            free.Enqueue(f);
     }
 }

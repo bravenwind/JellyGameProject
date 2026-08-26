@@ -6,8 +6,8 @@ public class PlaySFXAudio : MonoBehaviour
     public static PlaySFXAudio Instance;
 
     [Header("Audio Sources")]
-    public AudioSource fxAudioSource;   // 효과음용 (버튼, 점프 등)
-    public AudioSource walkAudioSource; // 걷기 전용 (반복 재생용)
+    [SerializeField] private AudioSource fxAudioSource;   // 효과음용 (버튼, 점프 등)
+    [SerializeField] private AudioSource walkAudioSource; // 걷기 전용 (반복 재생용)
 
     [Header("Buttons")]
     public AudioClip button1Audio;
@@ -35,9 +35,7 @@ public class PlaySFXAudio : MonoBehaviour
             DontDestroyOnLoad(gameObject);
         }
         else
-        {
             Destroy(gameObject);
-        }
 
         prevIsSteppingMilk = isSteppingMilk;
         walkAudioSource.clip = isSteppingMilk ? milkWalkAudio : walkAudio;
@@ -69,9 +67,7 @@ public class PlaySFXAudio : MonoBehaviour
 
             // 만약 걷고 있던 중이었다면, 바뀐 소리로 즉시 이어서 재생
             if (isCurrentlyWalking)
-            {
                 walkAudioSource.Play();
-            }
         }
     }
 

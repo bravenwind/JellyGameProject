@@ -3,11 +3,11 @@ using JellyNet;
 
 public class PlayerBridge : MonoBehaviour
 {
-    private PlayerScaleController _scaleCtrl;
-    private PlayerColorVisual _colorVisual;
-    private PlayerAbsorber _absorber;
-    private PlayerMovement _playerController;
-    private LevelUpFloaterPool _levelUpPool;
+    private PlayerScaleController scaleCtrl;
+    private PlayerColorVisual colorVisual;
+    private PlayerAbsorber absorber;
+    private PlayerMovement playerController;
+    private LevelUpFloaterPool levelUpPool;
 
     // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
     // PlayerScaleController.Start는 소유 무관하게 OnScaleInit을 발화한다. 아래 핸들러들이 전역 정적
@@ -17,7 +17,7 @@ public class PlayerBridge : MonoBehaviour
     //
     //   이 가드가 무력화되면 원격 아바타가 커져도 내 카메라가 줌되고,
     //   전역 GameState/HUD가 남의 값으로 오염된다.
-    private NetIdentity _netId;
+    private NetIdentity netId;
 
     // ★ 점수는 호스트만 만든다
     //   예전엔 여기서도 ScoreFromScale을 계산해 LanPlayerState.Score에 직접 써넣었다.
@@ -36,81 +36,72 @@ public class PlayerBridge : MonoBehaviour
         {
             //PlayerBridge는 플레이어 프리팹에만 붙고, 그 루트엔 항상 NetIdentity가 있다.
             //없다면 배선 사고이므로 전역 상태를 건드리지 않는 쪽(false)이 안전하다
-            return _netId != null && _netId.IsMine;
+            return netId != null && netId.IsMine;
         }
     }
 
     private void Awake()
     {
-        _netId = GetComponentInParent<NetIdentity>();
-        _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
-        _colorVisual = GetComponentInChildren<PlayerColorVisual>();
-        _absorber = GetComponentInChildren<PlayerAbsorber>();
-        _playerController = GetComponentInChildren<PlayerMovement>();
+        netId = GetComponentInParent<NetIdentity>();
+        scaleCtrl = GetComponentInChildren<PlayerScaleController>();
+        colorVisual = GetComponentInChildren<PlayerColorVisual>();
+        absorber = GetComponentInChildren<PlayerAbsorber>();
+        playerController = GetComponentInChildren<PlayerMovement>();
 
         // 풀(컨테이너)이 프리팹에 있으면 사용, 없으면 동적 생성
-        _levelUpPool = GetComponentInChildren<LevelUpFloaterPool>();
-        if (_levelUpPool == null)
+        levelUpPool = GetComponentInChildren<LevelUpFloaterPool>();
+        if (levelUpPool == null)
         {
             var go = new GameObject("LevelUpFloaterPool");
             go.transform.SetParent(transform, false);
-            _levelUpPool = go.AddComponent<LevelUpFloaterPool>();
+            levelUpPool = go.AddComponent<LevelUpFloaterPool>();
         }
     }
 
     private void OnEnable()
     {
-        if (_scaleCtrl != null)
+        if (scaleCtrl != null)
         {
-            _scaleCtrl.OnScaleInit += HandleScaleInit;
-            _scaleCtrl.OnGrowStarted += HandleGrowStarted;
-            _scaleCtrl.OnShrinkStarted += HandleShrinkStarted;
-            _scaleCtrl.OnScaleThresholdUp += HandleScaleThresholdUp;
-            _scaleCtrl.OnScaleThresholdDown += HandleScaleThresholdDown;
-            _scaleCtrl.OnScaleCompleted += HandleScaleCompleted;
-            _scaleCtrl.OnScaleReset += HandleScaleReset;
+            scaleCtrl.OnScaleInit += HandleScaleInit;
+            scaleCtrl.OnGrowStarted += HandleGrowStarted;
+            scaleCtrl.OnShrinkStarted += HandleShrinkStarted;
+            scaleCtrl.OnScaleThresholdUp += HandleScaleThresholdUp;
+            scaleCtrl.OnScaleThresholdDown += HandleScaleThresholdDown;
+            scaleCtrl.OnScaleCompleted += HandleScaleCompleted;
         }
 
-        if (_colorVisual != null)
-        {
-            _colorVisual.OnColorApplied += HandleColorApplied;
-        }
+        if (colorVisual != null)
+            colorVisual.OnColorApplied += HandleColorApplied;
 
-        if (_absorber != null)
-        {
-            _absorber.OnJellyScored += HandleJellyScored;
-        }
+        if (absorber != null)
+            absorber.OnJellyScored += HandleJellyScored;
     }
 
     private void OnDisable()
     {
-        if (_scaleCtrl != null)
+        if (scaleCtrl != null)
         {
-            _scaleCtrl.OnScaleInit -= HandleScaleInit;
-            _scaleCtrl.OnGrowStarted -= HandleGrowStarted;
-            _scaleCtrl.OnShrinkStarted -= HandleShrinkStarted;
-            _scaleCtrl.OnScaleThresholdUp -= HandleScaleThresholdUp;
-            _scaleCtrl.OnScaleThresholdDown -= HandleScaleThresholdDown;
-            _scaleCtrl.OnScaleCompleted -= HandleScaleCompleted;
-            _scaleCtrl.OnScaleReset -= HandleScaleReset;
+            scaleCtrl.OnScaleInit -= HandleScaleInit;
+            scaleCtrl.OnGrowStarted -= HandleGrowStarted;
+            scaleCtrl.OnShrinkStarted -= HandleShrinkStarted;
+            scaleCtrl.OnScaleThresholdUp -= HandleScaleThresholdUp;
+            scaleCtrl.OnScaleThresholdDown -= HandleScaleThresholdDown;
+            scaleCtrl.OnScaleCompleted -= HandleScaleCompleted;
         }
 
-        if (_colorVisual != null)
-        {
-            _colorVisual.OnColorApplied -= HandleColorApplied;
-        }
+        if (colorVisual != null)
+            colorVisual.OnColorApplied -= HandleColorApplied;
 
-        if (_absorber != null)
-        {
-            _absorber.OnJellyScored -= HandleJellyScored;
-        }
+        if (absorber != null)
+            absorber.OnJellyScored -= HandleJellyScored;
     }
 
     // ── Scale ──
 
     private void HandleScaleInit(float scaleValue)
     {
-        if (!IsLocalOwner) return; // [W6] 원격 아바타는 전역 GameState/HUD를 건드리지 않는다
+        if (!IsLocalOwner)
+            return; // [W6] 원격 아바타는 전역 GameState/HUD를 건드리지 않는다
         GameState.PlayerCurrentScale = scaleValue;
     }
 
@@ -124,7 +115,8 @@ public class PlayerBridge : MonoBehaviour
                 if (GameState.CurrentGameMode == GameModeType.Absorb)
                     PlaySFXAudio.Instance.PlayColorMixSound();
             }
-            if (_levelUpPool != null) _levelUpPool.Play();
+            if (levelUpPool != null)
+                levelUpPool.Play();
         }
     }
 
@@ -140,44 +132,41 @@ public class PlayerBridge : MonoBehaviour
     //   같은 가드가 있었는데(W6) 이 둘만 빠져 있었다.
     private void HandleScaleThresholdUp()
     {
-        if (!IsLocalOwner) return;
+        if (!IsLocalOwner)
+            return;
         PlayerEvents.OnCameraScaleIncreased?.Invoke();
     }
 
     private void HandleScaleThresholdDown()
     {
-        if (!IsLocalOwner) return;
+        if (!IsLocalOwner)
+            return;
         PlayerEvents.OnCameraScaleDecreased?.Invoke();
     }
 
     private void HandleScaleCompleted(float scaleValue)
     {
-        if (!IsLocalOwner) return; // [W6] 원격 아바타의 성장 완료가 로컬 전역 상태를 오염시키지 않게
-        if (_playerController != null)
+        if (!IsLocalOwner)
+            return; // [W6] 원격 아바타의 성장 완료가 로컬 전역 상태를 오염시키지 않게
+        if (playerController != null)
         {
-            _playerController.jumpForce = scaleValue >= DataManager.Instance.jumpScaleThreshold
-                ? _playerController.originalJumpForce + DataManager.Instance.IncreaseJumpForceValue
-                : _playerController.originalJumpForce;
+            playerController.JumpForce = scaleValue >= DataManager.Instance.JumpScaleThreshold
+                ? playerController.OriginalJumpForce + DataManager.Instance.IncreaseJumpForceValue
+                : playerController.OriginalJumpForce;
         }
         GameState.PlayerCurrentScale = scaleValue;
 
         GameState.CurrentScore = DataManager.Instance.ScoreFromScale(scaleValue);
     }
 
-    private void HandleScaleReset()
-    {
-        if (!IsLocalOwner) return; // [W6]
-        PlayerEvents.OnCameraOrthoSizeChanged?.Invoke(6.1f);
-        GameState.PlayerCurrentScale = 1f;
-    }
-
     // ── Color ──
 
     private void HandleColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor)
     {
-        // [W6] 원격 아바타의 색은 색 스트림(_networkColor)이 담당한다. 여기서 전역
+        // [W6] 원격 아바타의 색은 색 스트림(networkColor)이 담당한다. 여기서 전역
         // GameState.CurrentDisplayColor(로컬 플레이어 색·SyncColor 소스)를 덮으면 내 색이 남의 색으로 샌다.
-        if (!IsLocalOwner) return;
+        if (!IsLocalOwner)
+            return;
         GameState.CurrentDisplayColor = displayColor;
     }
 
@@ -186,16 +175,19 @@ public class PlayerBridge : MonoBehaviour
     private void HandleJellyScored()
     {
         //내 화면의 HUD만 갱신한다. 실제 점수는 호스트가 크기를 보고 따로 만든다
-        if (!IsLocalOwner) return;
+        if (!IsLocalOwner)
+            return;
 
         var dm = DataManager.Instance;
-        float predictedScale = _scaleCtrl != null
-            ? _scaleCtrl.PendingScale
-            : GameState.PlayerCurrentScale + dm.jellyScaleIncrease;
+        float predictedScale = scaleCtrl != null
+            ? scaleCtrl.PendingScale
+            : GameState.PlayerCurrentScale + dm.JellyScaleIncrease;
         GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
         if (UIPoolManager.Instance != null)
             UIPoolManager.Instance.SpawnUI(UIType.JellyEat);
-        if (PlaySFXAudio.Instance != null) PlaySFXAudio.Instance.PlayColorMixSound();
-        if (_levelUpPool != null) _levelUpPool.Play();
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.PlayColorMixSound();
+        if (levelUpPool != null)
+            levelUpPool.Play();
     }
 }

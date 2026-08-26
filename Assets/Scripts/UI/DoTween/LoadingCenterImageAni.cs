@@ -53,26 +53,28 @@ public class LoadingCenterMultiAni : MonoBehaviour
     private readonly List<Sequence> runningSeqs = new List<Sequence>();
 
     // [동기화] 부모 BG 슬라이드. Phase3(사라짐)를 BG의 센터->오른쪽(퇴장) 시작에 맞춰 재생하기 위해 구독한다.
-    private LoadingBGSlideAni _bgSlide;
-    private bool _exitPlayed;
+    private LoadingBGSlideAni bgSlide;
+    private bool exitPlayed;
 
     private void OnEnable()
     {
         // BG 슬라이드의 '퇴장 시작'에 Phase3를 맞추기 위해 구독(재생 여부와 무관하게 먼저 건다).
-        _bgSlide = GetComponentInParent<LoadingBGSlideAni>();
-        if (_bgSlide != null) _bgSlide.ExitStarted += OnBGExitStarted;
+        bgSlide = GetComponentInParent<LoadingBGSlideAni>();
+        if (bgSlide != null)
+            bgSlide.ExitStarted += OnBGExitStarted;
 
-        if (!playOnEnable) return;
-        _exitPlayed = false;
+        if (!playOnEnable)
+            return;
+        exitPlayed = false;
         RunAll();
     }
 
     private void OnDisable()
     {
-        if (_bgSlide != null)
+        if (bgSlide != null)
         {
-            _bgSlide.ExitStarted -= OnBGExitStarted;
-            _bgSlide = null;
+            bgSlide.ExitStarted -= OnBGExitStarted;
+            bgSlide = null;
         }
         KillAll();
         RestoreAll();
@@ -89,10 +91,12 @@ public class LoadingCenterMultiAni : MonoBehaviour
         for (int i = 0; i < targets.Count; i++)
         {
             TargetUI t = targets[i];
-            if (t.rect == null) continue;
+            if (t.rect == null)
+                continue;
 
             Sequence seq = DOTween.Sequence();
-            if (ignoreTimeScale) seq.SetUpdate(true);
+            if (ignoreTimeScale)
+                seq.SetUpdate(true);
 
             if (t.delay > 0f)
                 seq.AppendInterval(t.delay);
@@ -100,7 +104,8 @@ public class LoadingCenterMultiAni : MonoBehaviour
             // Phase 1: Fade In + Shrink (등장 — BG의 왼->센터 동안)
             if (t.doPhase1)
             {
-                if (t.group != null) t.group.alpha = phase1StartAlpha;
+                if (t.group != null)
+                    t.group.alpha = phase1StartAlpha;
                 t.rect.localScale = t.baseScale * phase1StartScaleMul;
 
                 if (t.group != null)
@@ -123,12 +128,14 @@ public class LoadingCenterMultiAni : MonoBehaviour
                         .SetUpdate(ignoreTimeScale)
                         .OnComplete(() =>
                         {
-                            if (t.rect != null) t.rect.localScale = shakeBase;
+                            if (t.rect != null)
+                                t.rect.localScale = shakeBase;
                         });
 
                     seq.OnKill(() =>
                     {
-                        if (shake != null && shake.IsActive()) shake.Kill();
+                        if (shake != null && shake.IsActive())
+                            shake.Kill();
                     });
                 });
             }
@@ -141,8 +148,9 @@ public class LoadingCenterMultiAni : MonoBehaviour
     // BG 커튼이 센터->오른쪽으로 나가기 시작할 때 호출 → 센터 이미지도 Phase3(커지며 사라짐)로 동시에 퇴장.
     private void OnBGExitStarted()
     {
-        if (_exitPlayed) return;
-        _exitPlayed = true;
+        if (exitPlayed)
+            return;
+        exitPlayed = true;
         PlayPhase3();
     }
 
@@ -153,10 +161,12 @@ public class LoadingCenterMultiAni : MonoBehaviour
         for (int i = 0; i < targets.Count; i++)
         {
             TargetUI t = targets[i];
-            if (t.rect == null || !t.doPhase3) continue;
+            if (t.rect == null || !t.doPhase3)
+                continue;
 
             Sequence seq = DOTween.Sequence();
-            if (ignoreTimeScale) seq.SetUpdate(true);
+            if (ignoreTimeScale)
+                seq.SetUpdate(true);
 
             if (t.group != null)
                 seq.Append(t.group.DOFade(phase3EndAlpha, phase3Duration).SetEase(phase3Ease));
@@ -174,7 +184,8 @@ public class LoadingCenterMultiAni : MonoBehaviour
         for (int i = 0; i < targets.Count; i++)
         {
             TargetUI t = targets[i];
-            if (t.rect == null) continue;
+            if (t.rect == null)
+                continue;
 
             t.baseScale = t.rect.localScale;
 
@@ -191,7 +202,8 @@ public class LoadingCenterMultiAni : MonoBehaviour
         for (int i = 0; i < runningSeqs.Count; i++)
         {
             Sequence s = runningSeqs[i];
-            if (s != null && s.IsActive()) s.Kill();
+            if (s != null && s.IsActive())
+                s.Kill();
         }
         runningSeqs.Clear();
     }
@@ -201,10 +213,12 @@ public class LoadingCenterMultiAni : MonoBehaviour
         for (int i = 0; i < targets.Count; i++)
         {
             TargetUI t = targets[i];
-            if (t.rect == null) continue;
+            if (t.rect == null)
+                continue;
 
             t.rect.localScale = t.baseScale;
-            if (t.group != null) t.group.alpha = 1f;
+            if (t.group != null)
+                t.group.alpha = 1f;
         }
     }
 }

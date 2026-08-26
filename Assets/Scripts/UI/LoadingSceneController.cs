@@ -49,9 +49,9 @@ public class LoadingSceneController : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     public static string NextSceneName;
 
-    private string _targetScene;
-    private GameObject _activePanel;
-    private bool _enteringGame; // 타겟이 게임 씬(입장)인지. 결과/메인(퇴장) 전환과 로드 타이밍을 구분.
+    private string targetScene;
+    private GameObject activePanel;
+    private bool targetIsGameScene; // 타겟이 게임 씬(입장)인지. 결과/메인(퇴장) 전환과 로드 타이밍을 구분.
 
     /// <summary>
     /// 로딩 커튼이 화면에 떠 있는 동안 true. 커튼이 걷히기 시작(ExitRoutine 진입)하면 false로 내린다.
@@ -71,15 +71,15 @@ public class LoadingSceneController : MonoBehaviour
     ///   "새 전환을 시작해도 되는가"를 물으려면 이쪽을 봐야 한다.
     ///   진행 중인데 또 시작하면 앞의 전환을 덮어써서 씬이 꼬인다.
     /// </summary>
-    public static bool IsTransitioning { get { return _instance != null; } }
+    public static bool IsTransitioning { get { return instance != null; } }
 
-    private static LoadingSceneController _instance;
-    private bool _targetSceneLoaded;
-    private float _elapsed;
-    private bool _exiting;
-    private bool _nextSceneTriggered; // 씬 로드 중복 호출 방지
-    private LoadingBGSlideAni _slide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
-    private float _targetLoadedElapsed = -1f; // 도착 씬이 로드된 시점의 _elapsed(정착 대기 계산용)
+    private static LoadingSceneController instance;
+    private bool targetSceneLoaded;
+    private float elapsed;
+    private bool exiting;
+    private bool nextSceneTriggered; // 씬 로드 중복 호출 방지
+    private LoadingBGSlideAni activeSlide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
+    private float targetLoadedElapsed = -1f; // 도착 씬이 로드된 시점의 _elapsed(정착 대기 계산용)
 
     // ── 완전판(출발 씬 슬라이드인) ───────────────────────────────
     // Resources에 이 이름의 커튼 프리팹이 있으면, '출발 씬'에서 커튼을 미리 띄워 왼->센터 슬라이드인을
@@ -87,21 +87,21 @@ public class LoadingSceneController : MonoBehaviour
     // 프리팹 만드는 법: Loading 씬의 'Canvas' 오브젝트(LoadingSceneController+두 패널 포함)를
     //   Assets/Resources/ 로 드래그해 'LoadingCurtain.prefab'으로 저장.
     private const string CURTAIN_RESOURCE_PATH = "LoadingCurtain";
-    private static bool _pendingDepartureIntro; // 다음 Instantiate가 '출발 씬 슬라이드인' 모드임을 알리는 플래그
-    private bool _departureIntro;                // 이 인스턴스가 출발 씬에서 미리 떠 슬라이드인부터 하는지
-    private bool _loadingRequested;             // (완전판) 슬라이드인 후 Loading 씬 로드를 이미 요청했는지
-    private bool _inLoadingScene;               // (완전판) 커튼이 센터 상태로 Loading 씬에 도착했는지
+    private static bool pendingDepartureIntro; // 다음 Instantiate가 '출발 씬 슬라이드인' 모드임을 알리는 플래그
+    private bool departureIntro;                // 이 인스턴스가 출발 씬에서 미리 떠 슬라이드인부터 하는지
+    private bool loadingRequested;             // (완전판) 슬라이드인 후 Loading 씬 로드를 이미 요청했는지
+    private bool inLoadingScene;               // (완전판) 커튼이 센터 상태로 Loading 씬에 도착했는지
 
     private void Awake()
     {
-        if (_instance != null)
+        if (instance != null)
         {
             Destroy(gameObject);
             return;
         }
-        _instance = this;
-        _departureIntro = _pendingDepartureIntro; // 출발 씬에서 미리 띄워진 커튼인지
-        _pendingDepartureIntro = false;
+        instance = this;
+        departureIntro = pendingDepartureIntro; // 출발 씬에서 미리 띄워진 커튼인지
+        pendingDepartureIntro = false;
         DontDestroyOnLoad(gameObject);
         IsPresenting = true; // 커튼이 뜨는 순간부터 걷힐 때까지 유지
         BringLoadingCanvasToFront(); // 다음 씬 UI에 가려지지 않도록 최상단 정렬
@@ -109,26 +109,27 @@ public class LoadingSceneController : MonoBehaviour
 
         //목적지는 LanSceneFlow.Begin이 항상 채워둔다. 읽고 나서 즉시 비워
         //다음 전환에 지난 목적지가 새어 들어가지 않게 한다
-        _targetScene = NextSceneName;
+        targetScene = NextSceneName;
         NextSceneName = null;
 
         // [중요] 커튼 애니 설정은 패널을 '활성화하기 전에' 끝낸다. 패널을 SetActive하면 애니 OnEnable→Play가
-        // 즉시 돌며 슬라이드인 유예(_slideInDelay)를 읽으므로, 그 전에 값이 주입돼 있어야 유예가 적용된다.
+        // 즉시 돌며 슬라이드인 유예(slideInDelay)를 읽으므로, 그 전에 값이 주입돼 있어야 유예가 적용된다.
         ResolveActivePanel();
 
         // 활성화할 패널 안의 애니를 (비활성 포함) 미리 잡는다. 없으면 인스펙터 bgSlide.
-        _slide = (_activePanel != null) ? _activePanel.GetComponentInChildren<LoadingBGSlideAni>(true) : null;
-        if (_slide == null) _slide = bgSlide;
-        if (_slide != null)
+        activeSlide = (activePanel != null) ? activePanel.GetComponentInChildren<LoadingBGSlideAni>(true) : null;
+        if (activeSlide == null)
+            activeSlide = bgSlide;
+        if (activeSlide != null)
         {
-            _slide.SetExitCondition(
+            activeSlide.SetExitCondition(
                 isNextSceneReady: IsTargetSettled,   // 도착 씬 로드 + 정착 대기까지 끝나야 나간다(끊김 회피)
                 onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
                 onExited: OnCurtainExited,           // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
                 // 완전판: 출발 씬 위에서 슬라이드인이 끝난 순간에 비로소 도착 씬을 로드한다(로드-애니 분리).
-                onSlideInDone: _departureIntro ? OnDepartureSlideInDone : (Action)null,
+                onSlideInDone: departureIntro ? OnDepartureSlideInDone : (Action)null,
                 // 완전판에서만 슬라이드인 유예 적용(인스턴스화 히칭 회피). 기존 경로는 0(검은 프레임 없음).
-                slideInDelay: _departureIntro ? departureSlideInDelay : 0f
+                slideInDelay: departureIntro ? departureSlideInDelay : 0f
             );
         }
 
@@ -140,7 +141,7 @@ public class LoadingSceneController : MonoBehaviour
     // 커튼이 센터->오른쪽으로 나가기 '시작'할 때(=화면이 드러나기 시작). 결과 씬 시퀀스는 이때부터 진행된다.
     private void OnCurtainExitStarted()
     {
-        _exiting = true;      // Update의 로드/종료 처리를 멈춘다
+        exiting = true;      // Update의 로드/종료 처리를 멈춘다
         IsPresenting = false; // 결과 씬 등 다음 씬 연출 대기 해제 신호
     }
 
@@ -156,8 +157,14 @@ public class LoadingSceneController : MonoBehaviour
     // 슬라이드아웃(도착 씬 위)으로 이어진다. 즉 슬라이드인/아웃은 각각 출발/도착 씬(한가한 구간)에서만 돈다.
     private void OnDepartureSlideInDone()
     {
-        if (_loadingRequested) return;
-        _loadingRequested = true;
+        if (loadingRequested)
+            return;
+        loadingRequested = true;
+
+        //커튼이 화면을 완전히 덮은 지금이 시간 정지를 푸는 자리다.
+        //종료 연출(LanGameFlow)이 0으로 멈춰둔 것을 여기서 되돌린다 —
+        //더 일찍 풀면 슬로우가 풀린 화면이 커튼 밖으로 보인다
+        Time.timeScale = 1f;
         string loadingScene = LanSceneFlow.LOADING_SCENE;
         SceneManager.LoadScene(loadingScene);
     }
@@ -170,10 +177,12 @@ public class LoadingSceneController : MonoBehaviour
     /// </summary>
     public static bool TryBeginDepartureIntro()
     {
-        if (_instance != null) return false;                  // 이미 커튼이 떠 있으면 중복 방지 → 폴백
+        if (instance != null)
+            return false;                  // 이미 커튼이 떠 있으면 중복 방지 → 폴백
         var prefab = Resources.Load<GameObject>(CURTAIN_RESOURCE_PATH);
-        if (prefab == null) return false;                     // 프리팹 미설정 → 폴백
-        _pendingDepartureIntro = true;
+        if (prefab == null)
+            return false;                     // 프리팹 미설정 → 폴백
+        pendingDepartureIntro = true;
         Instantiate(prefab);                                  // Awake가 departure-intro로 셋업 + 슬라이드인 시작
         return true;
     }
@@ -186,8 +195,8 @@ public class LoadingSceneController : MonoBehaviour
     // 어떤 패널을 쓸지 결정만 한다(활성화는 하지 않음 — 애니 설정을 먼저 끝내기 위해 분리).
     private void ResolveActivePanel()
     {
-        _enteringGame = IsGameScene(_targetScene);
-        _activePanel = _enteringGame ? toGamePanel : toMainOrResultPanel;
+        targetIsGameScene = IsGameScene(targetScene);
+        activePanel = targetIsGameScene ? toGamePanel : toMainOrResultPanel;
     }
 
     // ═══════════════════════════════════════════════════════
@@ -199,25 +208,28 @@ public class LoadingSceneController : MonoBehaviour
 
     private bool IsGameScene(string sceneName)
     {
-        if (string.IsNullOrEmpty(sceneName)) return false;
+        if (string.IsNullOrEmpty(sceneName))
+            return false;
         return sceneName == lanPushSceneName || sceneName == lanAbsorbSceneName;
     }
 
     // 결정된 패널을 실제로 켠다(SetActive) → 이때 애니 OnEnable→Play가 재생된다.
     private void ActivateTransitionPanels()
     {
-        if (toGamePanel != null) toGamePanel.SetActive(_enteringGame);
-        if (toMainOrResultPanel != null) toMainOrResultPanel.SetActive(!_enteringGame);
+        if (toGamePanel != null)
+            toGamePanel.SetActive(targetIsGameScene);
+        if (toMainOrResultPanel != null)
+            toMainOrResultPanel.SetActive(!targetIsGameScene);
     }
 
     // 게임 씬으로 입장하는 로딩일 때만 모드별 조작 팁을 띄운다.
-    // 결과 씬 전환(인게임→결과)도 같은 Loading 씬을 거치므로(_targetScene이 결과 씬),
+    // 결과 씬 전환(인게임→결과)도 같은 Loading 씬을 거치므로(targetScene이 결과 씬),
     // 그 경우엔 조작 팁이 뜨면 어색하다 → 타겟이 게임 씬일 때로 한정한다.
     // 모드 판정은 로컬 의도(SelectedGameMode)가 아니라 룸 권위값(GameState.CurrentGameMode)을
-    // 쓴다 — 위 _targetScene 결정과 동일한 기준이라 표시 팁과 실제 입장 씬이 항상 일치한다.
+    // 쓴다 — 위 targetScene 결정과 동일한 기준이라 표시 팁과 실제 입장 씬이 항상 일치한다.
     private void ApplyModeTipPanels()
     {
-        bool enteringGame = IsGameScene(_targetScene);
+        bool enteringGame = IsGameScene(targetScene);
 
         bool isPush = GameState.CurrentGameMode == GameModeType.Push;
 
@@ -233,26 +245,28 @@ public class LoadingSceneController : MonoBehaviour
         {
             // [완전판] 출발 씬에서 슬라이드인을 마친 커튼이 '센터 상태로' Loading 씬에 도착.
             // 여기서부터 Loading hold(holdSeconds) → 도착 씬 로드 → 슬라이드아웃(도착 씬)으로 이어진다.
-            if (_departureIntro && !_inLoadingScene)
+            if (departureIntro && !inLoadingScene)
             {
-                _inLoadingScene = true;
-                _elapsed = 0f; // Loading hold 기준을 'Loading 진입 시점'으로 리셋
+                inLoadingScene = true;
+                elapsed = 0f; // Loading hold 기준을 'Loading 진입 시점'으로 리셋
             }
             return;
         }
-        _targetSceneLoaded = true;
-        if (_targetLoadedElapsed < 0f) _targetLoadedElapsed = _elapsed; // 정착 대기의 기준 시각
+        targetSceneLoaded = true;
+        if (targetLoadedElapsed < 0f)
+            targetLoadedElapsed = elapsed; // 정착 대기의 기준 시각
     }
 
     // 도착 씬이 '로드됐고' + '정착 시간(settleAfterLoad)까지 지났는지'.
     // 슬라이드아웃은 이 조건이 참일 때만 시작해, 도착 씬 초기화의 프레임 끊김과 겹치지 않는다.
     private bool IsTargetSettled()
-        => _targetSceneLoaded && (_elapsed - _targetLoadedElapsed) >= settleAfterLoad;
+        => targetSceneLoaded && (elapsed - targetLoadedElapsed) >= settleAfterLoad;
 
     private void Update()
     {
-        if (_exiting) return;
-        _elapsed += Time.unscaledDeltaTime;
+        if (exiting)
+            return;
+        elapsed += Time.unscaledDeltaTime;
 
         // 다음 씬 로드 트리거. 각자 자기 씬을 로드한다.
         //
@@ -267,32 +281,32 @@ public class LoadingSceneController : MonoBehaviour
         //
         // ※ [통합] 미루는 기준을 '활성 패널 커튼의 holdSeconds'로 통일했다(옛 minDisplayTime 폐지).
         //   같은 holdSeconds가 (a)커튼 최소 표시시간이자 (b)로드 지연 기준이라, 값이 전환마다 딱 하나다.
-        //   커튼이 언제 나갈지는 여전히 애니가 holdSeconds && _targetSceneLoaded(씬 준비)로 스스로 판단.
+        //   커튼이 언제 나갈지는 여전히 애니가 holdSeconds && targetSceneLoaded(씬 준비)로 스스로 판단.
         // 도착 씬 로드 트리거.
-        // [완전판] departure-intro는 '센터 상태로 Loading 씬에 도착한 뒤'(_inLoadingScene)에만 도착 씬을
+        // [완전판] departure-intro는 '센터 상태로 Loading 씬에 도착한 뒤'(inLoadingScene)에만 도착 씬을
         //   로드한다(그 전 Main→Loading 전환은 OnDepartureSlideInDone이 담당). born-in-Loading은 즉시(기존).
         //씬 로드는 동기라 그 프레임에 화면이 교체된다. 커튼이 다 덮이기 전에 로드하면
         //도착 씬 UI가 커튼 위로 그려져 번쩍인다. 그래서 표시 시간이 지난 뒤에 로드한다
         float loadAfter = ActiveHoldSeconds();
-        bool canLoadArrival = !_departureIntro || _inLoadingScene;
-        if (canLoadArrival && !_nextSceneTriggered && _elapsed >= loadAfter)
+        bool canLoadArrival = !departureIntro || inLoadingScene;
+        if (canLoadArrival && !nextSceneTriggered && elapsed >= loadAfter)
         {
-            _nextSceneTriggered = true;
-            SceneManager.LoadScene(_targetScene);
+            nextSceneTriggered = true;
+            SceneManager.LoadScene(targetScene);
         }
 
         // 커튼 애니가 있으면 나가는 타이밍은 그 애니가 스스로 판단한다(holdSeconds && 씬 준비).
         // 애니가 없는 예외적 경우에만 컨트롤러가 직접 정리한다(폴백, FALLBACK_HOLD_SECONDS 기준).
-        if (_slide == null && _targetSceneLoaded && _elapsed >= FALLBACK_HOLD_SECONDS)
+        if (activeSlide == null && targetSceneLoaded && elapsed >= FALLBACK_HOLD_SECONDS)
         {
-            _exiting = true;
+            exiting = true;
             StartCoroutine(ExitRoutine());
         }
     }
 
     // '최소 표시시간 = 로드 지연 기준'의 단일 출처: 활성 커튼 애니의 holdSeconds.
     // 커튼 애니가 없으면(예외) 상수 폴백을 쓴다.
-    private float ActiveHoldSeconds() => _slide != null ? _slide.holdSeconds : FALLBACK_HOLD_SECONDS;
+    private float ActiveHoldSeconds() => activeSlide != null ? activeSlide.HoldSeconds : FALLBACK_HOLD_SECONDS;
 
     // 로딩 커튼 캔버스를 다른 모든 UI(다음 씬 UI 포함) 위에 그려지도록 최상단 정렬 순서로 올린다.
     // 로딩 씬은 DontDestroyOnLoad로 다음 씬 위에 겹쳐 있으므로, 다음 씬 캔버스에 가려지지 않으려면 필수.
@@ -300,8 +314,10 @@ public class LoadingSceneController : MonoBehaviour
     private void BringLoadingCanvasToFront()
     {
         Canvas any = GetComponent<Canvas>();
-        if (any == null) any = GetComponentInChildren<Canvas>(true);
-        if (any == null) any = GetComponentInParent<Canvas>();
+        if (any == null)
+            any = GetComponentInChildren<Canvas>(true);
+        if (any == null)
+            any = GetComponentInParent<Canvas>();
         if (any == null)
         {
             Debug.LogWarning("[Loading] 커튼 캔버스를 찾지 못해 정렬 순서를 올리지 못했습니다.");
@@ -321,8 +337,10 @@ public class LoadingSceneController : MonoBehaviour
         // 패널 컨테이너 자체를 LoadingBGSlideAni의 슬라이드 대상(target)으로 두면, 패널 안 모든
         // UI(키 팁 등)가 함께 빠져 '일부만 남는' 문제가 없다. 슬라이드가 끝난 뒤 캔버스를 정리한다.
         LoadingBGSlideAni slide = null;
-        if (_activePanel != null) slide = _activePanel.GetComponentInChildren<LoadingBGSlideAni>(true);
-        if (slide == null) slide = bgSlide;
+        if (activePanel != null)
+            slide = activePanel.GetComponentInChildren<LoadingBGSlideAni>(true);
+        if (slide == null)
+            slide = bgSlide;
 
         float wait = 0.2f;
         if (slide != null)
@@ -339,9 +357,9 @@ public class LoadingSceneController : MonoBehaviour
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
-        if (_instance == this)
+        if (instance == this)
         {
-            _instance = null;
+            instance = null;
             // ExitRoutine을 거치지 않고 파괴되는 경로(중복 인스턴스/강제 정리)에서도 신호가 걸리지 않게 안전 해제.
             IsPresenting = false;
         }

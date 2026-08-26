@@ -6,7 +6,8 @@ public enum UIType { JellyEat, ScaleIncrease, MilkScaleDecrease }
 
 public class PooledUI : MonoBehaviour
 {
-    public UIType originType;
+    //어느 풀에서 나왔는지. UIPoolManager가 꺼낼 때 찍어준다
+    public UIType OriginType { get; set; }
 }
 
 public class UIPoolManager : MonoBehaviour
@@ -14,7 +15,7 @@ public class UIPoolManager : MonoBehaviour
     public static UIPoolManager Instance;
 
     [Header("Settings")]
-    public Transform canvasTransform;
+    [SerializeField] private Transform canvasTransform;
 
     [Serializable]
     public struct PoolDefinition
@@ -25,14 +26,15 @@ public class UIPoolManager : MonoBehaviour
         public int initialSize;
     }
 
-    public List<PoolDefinition> prewarmPools;
+    [SerializeField] private List<PoolDefinition> prewarmPools;
 
-    private Dictionary<UIType, ComponentPool<Transform>> _pools = new Dictionary<UIType, ComponentPool<Transform>>();
-    private Dictionary<UIType, Transform> _parents = new Dictionary<UIType, Transform>();
+    private Dictionary<UIType, ComponentPool<Transform>> pools = new Dictionary<UIType, ComponentPool<Transform>>();
+    private Dictionary<UIType, Transform> parents = new Dictionary<UIType, Transform>();
 
     void Awake()
     {
-        if (Instance == null) Instance = this;
+        if (Instance == null)
+            Instance = this;
         else Destroy(gameObject);
 
         InitializePools();
@@ -42,17 +44,18 @@ public class UIPoolManager : MonoBehaviour
     {
         foreach (var def in prewarmPools)
         {
-            if (def.prefab == null || _pools.ContainsKey(def.uiType)) continue;
+            if (def.prefab == null || pools.ContainsKey(def.uiType))
+                continue;
 
             Transform parent = def.parentTransform != null ? def.parentTransform : canvasTransform;
-            _pools[def.uiType] = new ComponentPool<Transform>(def.prefab.transform, parent, def.initialSize);
-            _parents[def.uiType] = parent;
+            pools[def.uiType] = new ComponentPool<Transform>(def.prefab.transform, parent, def.initialSize);
+            parents[def.uiType] = parent;
         }
     }
 
     public GameObject SpawnUI(UIType type)
     {
-        if (!_pools.TryGetValue(type, out var pool))
+        if (!pools.TryGetValue(type, out var pool))
         {
             Debug.LogError($"[UIPoolManager] {type}에 해당하는 풀이 없습니다!");
             return null;
@@ -62,7 +65,7 @@ public class UIPoolManager : MonoBehaviour
         if (!t.TryGetComponent(out PooledUI tag))
         {
             tag = t.gameObject.AddComponent<PooledUI>();
-            tag.originType = type;
+            tag.OriginType = type;
         }
         return t.gameObject;
     }

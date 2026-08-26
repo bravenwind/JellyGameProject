@@ -3,26 +3,26 @@ using JellyNet;
 
 public class PlayerAttackState : PlayerBaseState
 {
-    private float _elapsed;
-    private bool _hitDetected;
+    private float elapsed;
+    private bool hitDetected;
 
-    private float _swingDuration;
+    private float swingDuration;
 
     public PlayerAttackState(PlayerMovement player) : base(player) { }
 
     public override void Enter()
     {
-        _elapsed = 0f;
-        _hitDetected = false;
+        elapsed = 0f;
+        hitDetected = false;
 
         var dm = DataManager.Instance;
-        _swingDuration = dm.batSwingDuration;
-        player.attackCooldownTimer = dm.batCooldown;
+        swingDuration = dm.BatSwingDuration;
+        player.StartAttackCooldown();
 
-        float halfArc = dm.batArcAngle * 0.5f;
+        float halfArc = dm.BatArcAngle * 0.5f;
 
-        if (player.animator != null)
-            player.animator.SetTrigger("Attack");
+        if (player.Anim != null)
+            player.Anim.SetTrigger("Attack");
 
         //배트 회전은 LanPlayerVisual이 돌린다 — 원격 화면·봇과 같은 코드다
         if (player.Visual != null)
@@ -31,33 +31,33 @@ public class PlayerAttackState : PlayerBaseState
             player.Visual.SendTrigger(LanPlayerVisual.ANIM_ATTACK);
         }
 
-        BatDebugVisualizer.NotifySwing(player.transform, dm.batRange * player.AuthorityScale, halfArc, _swingDuration);
+        BatDebugVisualizer.NotifySwing(player.transform, dm.BatRange * player.AuthorityScale, halfArc, swingDuration);
     }
 
     public override void Update()
     {
-        _elapsed += Time.deltaTime;
+        elapsed += Time.deltaTime;
 
         player.ApplyGravity();
         player.CalculateMoveDirection();
         player.MoveAndRotate();
 
-        if (!_hitDetected)
+        if (!hitDetected)
             DetectBatHit();
 
-        if (_elapsed >= _swingDuration)
+        if (elapsed >= swingDuration)
         {
             if (player.IsMoveInputActive())
-                player.ChangeState(player.moveState);
+                player.ChangeState(player.MoveState);
             else
-                player.ChangeState(player.idleState);
+                player.ChangeState(player.IdleState);
         }
     }
 
     public override void Exit()
     {
-        if (player.animator != null)
-            player.animator.ResetTrigger("Attack");
+        if (player.Anim != null)
+            player.Anim.ResetTrigger("Attack");
 
         //배트를 원위치·숨김 처리하는 것도 BatSwingRoutine이 끝내면서 한다
     }
@@ -73,7 +73,8 @@ public class PlayerAttackState : PlayerBaseState
 
         if (myId != null)
         {
-            if (!myId.IsMine) return;
+            if (!myId.IsMine)
+                return;
             DetectBatHitLan(myId);
             return;
         }
@@ -91,41 +92,50 @@ public class PlayerAttackState : PlayerBaseState
     private void DetectBatHitLan(NetIdentity myId)
     {
         var push = PushMode.Instance;
-        if (push == null) return;
+        if (push == null)
+            return;
 
         var dm = DataManager.Instance;
-        if (dm == null) return;
+        if (dm == null)
+            return;
 
         float scale = player.AuthorityScale;
-        float range = dm.batRange * scale;
+        float range = dm.BatRange * scale;
         Vector3 origin = player.transform.position
-                         + Vector3.up * (player.controller.height * 0.5f * scale);
-        float halfArc = dm.batArcAngle * 0.5f;
+                         + Vector3.up * (player.Controller.height * 0.5f * scale);
+        float halfArc = dm.BatArcAngle * 0.5f;
 
-        int mask = LayerMask.GetMask("Player") | LayerMask.GetMask("Edible");
+        //젤리(Edible 레이어)는 뺀다 — 아래 IsJelly에서 어차피 걸러진다
+        int mask = LayerMask.GetMask("Player");
         Collider[] hits = Physics.OverlapSphere(origin, range, mask);
 
         foreach (var hit in hits)
         {
-            if (hit.transform.root == player.transform.root) continue;
+            if (hit.transform.root == player.transform.root)
+                continue;
 
             Vector3 toTarget = hit.transform.position - player.transform.position;
             toTarget.y = 0f;
-            if (toTarget.sqrMagnitude < 0.001f) continue;
+            if (toTarget.sqrMagnitude < 0.001f)
+                continue;
 
-            if (Vector3.Angle(player.transform.forward, toTarget) > halfArc) continue;
+            if (Vector3.Angle(player.transform.forward, toTarget) > halfArc)
+                continue;
 
             NetIdentity victim = hit.GetComponentInParent<NetIdentity>();
-            if (victim == null || victim == myId) continue;
+            if (victim == null || victim == myId)
+                continue;
 
-            // 젤리는 대상이 아니다(봇은 대상이다 — IsBot으로 구분된다)
-            if (!victim.IsBot && victim.PrefabId >= NetConfig.JELLY_PREFAB_START) continue;
+            // 젤리는 대상이 아니다(봇은 대상이다 — IsJelly가 IsBot으로 갈라준다)
+            if (NetEntity.IsJelly(victim))
+                continue;
 
             // 이미 판 밖인 봇은 건너뛴다
             AIPlayerMovement bot = victim.Bot;
-            if (bot != null && bot.IsOutOfPlay) continue;
+            if (bot != null && bot.IsOutOfPlay)
+                continue;
 
-            _hitDetected = true;
+            hitDetected = true;
             push.RequestBatHit(victim.NetId, myId.NetId);
             return;
         }

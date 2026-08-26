@@ -42,7 +42,6 @@ namespace JellyNet
         TileWear = 61,
 
         BotState = 70,
-        BotEliminated = 71,
     }
 
     public static class NetConfig

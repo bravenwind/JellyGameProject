@@ -45,7 +45,7 @@ namespace JellyNet
         public void Disconnect()
         {
             if (conn != null)
-                conn.Close();
+                conn.Kill();
             conn = null;
             MyId = 0;
             Log("연결 종료");

@@ -16,9 +16,9 @@ namespace JellyNet
 
         //배트 수치는 DataManager 하나에서만 온다. 예전엔 인스펙터 사본이 따로 있어
         //둘이 벌어지면서 밀치기 힘이 의도의 절반만 나오는 일이 있었다
-        private static float BatRange   => DataManager.Instance != null ? DataManager.Instance.batRange : 1.6f;
-        private static float BatPushForce => DataManager.Instance != null ? DataManager.Instance.batPushForce : 8f;
-        private static float BatHitGrowth => DataManager.Instance != null ? DataManager.Instance.batHitGrowth : 0.06f;
+        private static float BatRange   => DataManager.Instance != null ? DataManager.Instance.BatRange : 1.6f;
+        private static float BatPushForce => DataManager.Instance != null ? DataManager.Instance.BatPushForce : 8f;
+        private static float BatHitGrowth => DataManager.Instance != null ? DataManager.Instance.BatHitGrowth : 0.06f;
 
         [Header("점수")]
         [Tooltip("밀치기에 성공할 때마다 얻는 점수.")]
@@ -116,7 +116,7 @@ namespace JellyNet
             if (!judgement.WithinReach((BatRange * aScale + vScale) * rangeTolerance))
                 return;
 
-            float startScale = DataManager.Instance != null ? DataManager.Instance.startingScale : 1f;
+            float startScale = DataManager.Instance != null ? DataManager.Instance.StartingScale : 1f;
             float force = BatPushForce * (aScale / Mathf.Max(0.01f, startScale));
 
             SendKnockback(victim, judgement.DirectionToTarget(), force);
@@ -230,16 +230,12 @@ namespace JellyNet
 
             PlayerMovement pm = victim.GetComponentInChildren<PlayerMovement>(true);
             if (pm != null && pm.enabled)
-            {
                 pm.ApplyKnockback(dir, force);
-            }
             else
             {
                 AIPlayerMovement bot = victim.Bot;
                 if (bot != null)
-                {
                     bot.ApplyKnockbackFromNet(dir.x, dir.z, force);
-                }
                 else
                 {
                     //사람도 봇도 아닌 네트워크 오브젝트(씬에 놓인 캔디 등)용.

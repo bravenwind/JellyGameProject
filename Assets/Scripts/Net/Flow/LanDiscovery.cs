@@ -16,10 +16,10 @@ namespace JellyNet
         private const string MAGIC = "JELLYPANG1";
 
         [Tooltip("방장이 몇 초마다 알릴지.")]
-        public float beaconInterval = 1f;
+        [SerializeField] private float beaconInterval = 1f;
 
         [Tooltip("이 시간 동안 소식이 없으면 목록에서 지움. ")]
-        public float roomTimeout = 3.5f;
+        [SerializeField] private float roomTimeout = 3.5f;
 
         public class RoomInfo
         {
@@ -160,7 +160,7 @@ namespace JellyNet
             string msg = string.Join("|", new string[]
             {
                 MAGIC,
-                net.port.ToString(),
+                net.Port.ToString(),
                 name,
                 ((int)LanRoomConfig.Mode).ToString(),
                 current.ToString(),

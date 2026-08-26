@@ -7,10 +7,10 @@ public class FallingTile : MonoBehaviour
 {
     [Header("디버그")]
     [Tooltip("AwakePhysicsOnTile이 사용하는 OverlapBox 범위를 Scene 뷰에 시각화")]
-    public bool drawOverlapGizmo = false;   // 빌드에서 붕괴 때마다 Debug.Log가 쏟아지지 않도록 기본 off (G3)
+    [SerializeField] private bool drawOverlapGizmo = false;   // 빌드에서 붕괴 때마다 Debug.Log가 쏟아지지 않도록 기본 off (G3)
 
     [Tooltip("OverlapBox 높이 (타일 위로 몇 미터까지 검사할지)")]
-    public float overlapBoxHeight = 20f;
+    [SerializeField] private float overlapBoxHeight = 20f;
 
     // 경고 단계 색 변경용 셰이더 프로퍼티(URP=_BaseColor / 빌트인=_Color). MaterialPropertyBlock으로
     // 칠하면 .material처럼 인스턴스를 복제하지 않아 배칭이 유지된다. (G3)
@@ -18,49 +18,58 @@ public class FallingTile : MonoBehaviour
     private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     // TileCollapseManager가 붕괴 예약 시 채워주는 그리드 좌표. carve 시점에 '허공'으로 마킹할 때 사용.
-    [HideInInspector] public int GridX = -1;
-    [HideInInspector] public int GridZ = -1;
+    //격자 좌표. TileCollapseManager가 타일을 등록하면서 넣어준다
+    public int GridX { get; private set; } = -1;
+    public int GridZ { get; private set; } = -1;
 
-    private Coroutine _idleCoroutine;
-    private Vector3 _originalPos;
-    private float _phase;
-    private bool _initialized;
-    private Collider _collider;
-    private NavMeshObstacle _navObstacle;
+    public void SetGridPos(int x, int z)
+    {
+        GridX = x;
+        GridZ = z;
+    }
 
-    private Transform _shakeTransform;
-    private Vector3 _shakeOrigin;
+    private Coroutine idleCoroutine;
+    private Vector3 originalPos;
+    private float phase;
+    private bool initialized;
+    private Collider tileCollider;
+    private NavMeshObstacle navObstacle;
+
+    private Transform shakeTransform;
+    private Vector3 shakeOrigin;
 
     // 디버그용: 최근 AwakePhysicsOnTile이 돌아간 시각. 기즈모 강조 표시에 쓴다
-    private float _lastOverlapTime = -999f;
+    private float lastOverlapTime = -999f;
 
     private void EnsureInit()
     {
-        if (_initialized) return;
-        _initialized = true;
-        _originalPos = transform.localPosition;
-        _phase = (_originalPos.x * 12.9898f + _originalPos.z * 78.233f) % (Mathf.PI * 2f);
+        if (initialized)
+            return;
+        initialized = true;
+        originalPos = transform.localPosition;
+        phase = (originalPos.x * 12.9898f + originalPos.z * 78.233f) % (Mathf.PI * 2f);
 
-        _collider = GetComponent<Collider>(); // AwakePhysics에서 쓰기 위해 미리 캐싱
+        tileCollider = GetComponent<Collider>(); // AwakePhysics에서 쓰기 위해 미리 캐싱
 
         Renderer rend = GetComponentInChildren<Renderer>();
         if (rend != null && rend.transform != transform)
         {
-            _shakeTransform = rend.transform;
-            _shakeOrigin = _shakeTransform.localPosition;
+            shakeTransform = rend.transform;
+            shakeOrigin = shakeTransform.localPosition;
         }
         else
         {
-            _shakeTransform = transform;
-            _shakeOrigin = _originalPos;
+            shakeTransform = transform;
+            shakeOrigin = originalPos;
         }
     }
 
     public void StartIdleShake()
     {
         EnsureInit();
-        if (_idleCoroutine != null) return;
-        _idleCoroutine = StartCoroutine(IdleShakeRoutine());
+        if (idleCoroutine != null)
+            return;
+        idleCoroutine = StartCoroutine(IdleShakeRoutine());
     }
 
     public void StartFall(float warningDuration, float fallDuration, float fallDistance, float delay)
@@ -77,11 +86,11 @@ public class FallingTile : MonoBehaviour
         while (true)
         {
             Vector3 shake = new Vector3(
-                Mathf.Sin(elapsed * 25f + _phase) * intensity,
-                Mathf.Abs(Mathf.Sin(elapsed * 35f + _phase)) * intensity * 0.2f,
-                Mathf.Sin(elapsed * 31f + _phase) * intensity
+                Mathf.Sin(elapsed * 25f + phase) * intensity,
+                Mathf.Abs(Mathf.Sin(elapsed * 35f + phase)) * intensity * 0.2f,
+                Mathf.Sin(elapsed * 31f + phase) * intensity
             );
-            _shakeTransform.localPosition = _shakeOrigin + shake;
+            shakeTransform.localPosition = shakeOrigin + shake;
             elapsed += Time.deltaTime;
             yield return null;
         }
@@ -93,11 +102,11 @@ public class FallingTile : MonoBehaviour
         if (delay > 0f)
             yield return new WaitForSeconds(delay);
 
-        if (_idleCoroutine != null)
+        if (idleCoroutine != null)
         {
-            StopCoroutine(_idleCoroutine);
-            _idleCoroutine = null;
-            transform.localPosition = _originalPos;
+            StopCoroutine(idleCoroutine);
+            idleCoroutine = null;
+            transform.localPosition = originalPos;
         }
 
         // 색 변경은 .material(인스턴스 복제) 대신 MaterialPropertyBlock으로 → 붕괴 타일마다 머티리얼
@@ -121,11 +130,11 @@ public class FallingTile : MonoBehaviour
             float t = elapsed / warningDuration;
             float intensity = Mathf.Lerp(0.12f, 0.4f, t);
             Vector3 shake = new Vector3(
-                Mathf.Sin(elapsed * 37f + _phase) * intensity,
-                Mathf.Abs(Mathf.Sin(elapsed * 53f + _phase)) * intensity * 0.25f,
-                Mathf.Sin(elapsed * 43f + _phase) * intensity
+                Mathf.Sin(elapsed * 37f + phase) * intensity,
+                Mathf.Abs(Mathf.Sin(elapsed * 53f + phase)) * intensity * 0.25f,
+                Mathf.Sin(elapsed * 43f + phase) * intensity
             );
-            _shakeTransform.localPosition = _shakeOrigin + shake;
+            shakeTransform.localPosition = shakeOrigin + shake;
 
             if (mpb != null)
             {
@@ -139,17 +148,17 @@ public class FallingTile : MonoBehaviour
         }
 
         // ── 붕괴 직전 타이밍 (여기서 물리를 깨우고 바닥을 치웁니다) ──
-        _shakeTransform.localPosition = _shakeOrigin;
+        shakeTransform.localPosition = shakeOrigin;
 
-        if (_collider != null)
+        if (tileCollider != null)
         {
             // 1. 위에 있는 오브젝트들 물리 켜기 (HalfExtents 공식 적용)
-            AwakePhysicsOnTile(_collider.bounds.size);
+            AwakePhysicsOnTile(tileCollider.bounds.size);
 
             // 2. NavMeshObstacle(Carving)을 켜서 이 타일 위치의 NavMesh에 구멍을 뚫는다.
             //    NavMesh는 게임 시작 시 한 번만 베이크되므로, 타일이 사라져도 NavMesh 표면은 그대로 남아
             //    AI가 빈 공간을 걸어다니는 원인이 된다. Carving은 런타임에 NavMesh를 동적으로 잘라준다.
-            CarveNavMesh(_collider.bounds.size);
+            CarveNavMesh(tileCollider.bounds.size);
 
             // 2-1. 발판이 실제로 사라지는 시점이므로 이 칸을 '허공'으로 표시한다.
             //      AI가 잔존 NavMesh 위에 떠 있게 되는 경우를 감지/복구하는 데 쓰인다.
@@ -157,7 +166,7 @@ public class FallingTile : MonoBehaviour
                 TileCollapseManager.Instance.MarkCellCollapsed(GridX, GridZ);
 
             // 3. 낙하하는 타일 콜라이더 비활성화 (플레이어 밀림/끼임 버그 방지)
-            _collider.enabled = false;
+            tileCollider.enabled = false;
         }
 
         // 낙하 단계: 전체 transform을 Y축으로 가속 하강
@@ -166,13 +175,13 @@ public class FallingTile : MonoBehaviour
         {
             float t = elapsed / fallDuration;
             float fallY = fallDistance * (t * t);
-            transform.localPosition = _originalPos + Vector3.down * fallY;
+            transform.localPosition = originalPos + Vector3.down * fallY;
 
             elapsed += Time.deltaTime;
             yield return null;
         }
 
-        transform.localPosition = _originalPos + Vector3.down * fallDistance;
+        transform.localPosition = originalPos + Vector3.down * fallDistance;
         gameObject.SetActive(false);
     }
 
@@ -192,16 +201,18 @@ public class FallingTile : MonoBehaviour
         // (NameToLayer가 -1이면 C# 시프트 마스킹으로 1<<-1 == 1<<31이 되어
         //  엉뚱한 31번 레이어가 마스크에 섞이는 것도 함께 차단)
         var dm = DataManager.Instance;
-        int mask = dm != null ? dm.objectLayerMask.value : 0;
+        int mask = dm != null ? dm.ObjectLayerMask.value : 0;
         int playerLayer = LayerMask.NameToLayer("Player");
-        if (playerLayer >= 0) mask |= 1 << playerLayer;
+        if (playerLayer >= 0)
+            mask |= 1 << playerLayer;
         int edibleLayer = LayerMask.NameToLayer("Edible");
-        if (edibleLayer >= 0) mask |= 1 << edibleLayer;
+        if (edibleLayer >= 0)
+            mask |= 1 << edibleLayer;
 
         Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, mask);
 
         // 디버그: 시각화용 기록 + Scene 뷰에 라인으로 5초간 그림
-        _lastOverlapTime = Time.time;
+        lastOverlapTime = Time.time;
         if (drawOverlapGizmo)
         {
             DebugDrawOverlapBox(boxCenter, halfExtents, transform.rotation, Color.red, 5f);
@@ -210,7 +221,8 @@ public class FallingTile : MonoBehaviour
             Debug.Log($"[FallingTile] {name} AwakePhysicsOnTile: {OverlappedCols.Length}개 콜라이더 감지");
             foreach (var c in OverlappedCols)
             {
-                if (c == null || c == _collider) continue;
+                if (c == null || c == tileCollider)
+                    continue;
                 Rigidbody r = c.GetComponentInParent<Rigidbody>();
                 Debug.Log($"  └ {c.name} layer={LayerMask.LayerToName(c.gameObject.layer)} tag={c.tag} rb={(r != null ? r.name + "(kin=" + r.isKinematic + ")" : "없음")}");
             }
@@ -219,7 +231,8 @@ public class FallingTile : MonoBehaviour
 
         foreach (var col in OverlappedCols)
         {
-            if (col == _collider) continue;
+            if (col == tileCollider)
+                continue;
 
             // ★ 건드릴 자격을 '무엇을 바꾸기 전에' 본다
             //
@@ -228,17 +241,17 @@ public class FallingTile : MonoBehaviour
             //   물리를 붙여놓고 continue로 빠져나갔고, 그 뒤로 NetTransform이 보내주는
             //   위치와 클라 쪽 중력이 서로를 밀어 봇이 화면마다 다르게 보였다.
             //   (사람 플레이어를 걸러내는 이유는 아래 주석과 같다)
-            if (col.GetComponentInParent<LanPlayerState>() != null) continue;
+            if (col.GetComponentInParent<LanPlayerState>() != null)
+                continue;
 
             NetIdentity idOnCol = col.GetComponentInParent<NetIdentity>();
-            if (idOnCol != null && !idOnCol.IsSimulatedHere) continue;
+            if (idOnCol != null && !idOnCol.IsSimulatedHere)
+                continue;
 
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
 
             if (col.GetComponent<Milk>() != null)
-            {
                 rb = transform.root.GetComponent<Rigidbody>();
-            }
 
             if (rb == null)
             {
@@ -248,7 +261,8 @@ public class FallingTile : MonoBehaviour
                     DisableAIOnObject(aiBot.gameObject);
 
                     CharacterController cc = aiBot.GetComponent<CharacterController>();
-                    if (cc != null) cc.enabled = false;
+                    if (cc != null)
+                        cc.enabled = false;
 
                     rb = aiBot.gameObject.AddComponent<Rigidbody>();
                     MakeCollidersDynamicSafe(rb);
@@ -256,9 +270,7 @@ public class FallingTile : MonoBehaviour
                     rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
                 }
                 else
-                {
                     continue;
-                }
             }
 
             // ★ 사람 플레이어는 발판이 건드리지 않는다.
@@ -267,16 +279,19 @@ public class FallingTile : MonoBehaviour
             //   PlayerMovement는 계속 돌기 때문에
             //   "CharacterController.Move called on inactive controller"가 쏟아진다.
             //   (사람의 낙하는 PlayerMovement/초콜릿 경로가 따로 처리한다)
-            if (rb.GetComponentInParent<LanPlayerState>() != null) continue;
+            if (rb.GetComponentInParent<LanPlayerState>() != null)
+                continue;
 
             // 원격 오브젝트는 소유자 쪽에서만 물리를 돌린다
             NetIdentity nid = rb.GetComponentInParent<NetIdentity>();
-            if (nid != null && !nid.IsSimulatedHere) continue;
+            if (nid != null && !nid.IsSimulatedHere)
+                continue;
 
             DisableAIOnObject(rb.gameObject);
 
             CharacterController ccOnRb = rb.GetComponent<CharacterController>();
-            if (ccOnRb != null) ccOnRb.enabled = false;
+            if (ccOnRb != null)
+                ccOnRb.enabled = false;
 
             MakeCollidersDynamicSafe(rb);
 
@@ -317,7 +332,8 @@ public class FallingTile : MonoBehaviour
         MeshCollider[] mcs = rb.GetComponentsInChildren<MeshCollider>(true);
         for (int i = 0; i < mcs.Length; i++)
         {
-            if (mcs[i] == null || mcs[i].convex) continue;
+            if (mcs[i] == null || mcs[i].convex)
+                continue;
             mcs[i].convex = true;
         }
     }
@@ -337,15 +353,15 @@ public class FallingTile : MonoBehaviour
         carveObj.transform.position = transform.position;
         carveObj.transform.rotation = transform.rotation;
 
-        _navObstacle = carveObj.AddComponent<NavMeshObstacle>();
-        _navObstacle.shape = NavMeshObstacleShape.Box;
-        _navObstacle.size = new Vector3(colliderSize.x, colliderSize.y + 1f, colliderSize.z);
-        _navObstacle.center = Vector3.up * (colliderSize.y * 0.5f);
-        _navObstacle.carving = true;
+        navObstacle = carveObj.AddComponent<NavMeshObstacle>();
+        navObstacle.shape = NavMeshObstacleShape.Box;
+        navObstacle.size = new Vector3(colliderSize.x, colliderSize.y + 1f, colliderSize.z);
+        navObstacle.center = Vector3.up * (colliderSize.y * 0.5f);
+        navObstacle.carving = true;
         // 고정 오브젝트라 한 번만 carving되고 이후 재계산 비용이 없다.
         // false로 두면 stationary 타이머(~0.5초)를 기다리지 않고 즉시 구멍을 뚫어,
         // 그 사이 AI가 허공으로 튕기는 타이밍 공백을 없앤다.
-        _navObstacle.carveOnlyStationary = false;
+        navObstacle.carveOnlyStationary = false;
 
         // 한 판 동안 무한 누적되는 carve 오브젝트를 매니저가 소유해 라운드 종료 시 일괄 정리한다. (G7)
         if (TileCollapseManager.Instance != null)
@@ -353,15 +369,12 @@ public class FallingTile : MonoBehaviour
     }
 
     // AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다
-    // (JellyAgentAI가 구동 권한을 잡으면 agent를 켠다) → 발판이 사라진 자리를 계속 걸어다닌다.
+    // (WanderingAI가 구동 권한을 잡으면 agent를 켠다) → 발판이 사라진 자리를 계속 걸어다닌다.
     // agent는 자식에 달린 프리팹도 있어 GetComponentsInChildren으로 훑는다.
     private static void DisableAIOnObject(GameObject obj)
     {
         foreach (var wandering in obj.GetComponentsInChildren<WanderingAI>(true))
             wandering.enabled = false;
-
-        foreach (var patrol in obj.GetComponentsInChildren<AIWaypointPatrol>(true))
-            patrol.enabled = false;
 
         foreach (var navAgent in obj.GetComponentsInChildren<NavMeshAgent>(true))
             navAgent.enabled = false;
@@ -396,17 +409,19 @@ public class FallingTile : MonoBehaviour
     /// <summary>Scene 뷰 항상 표시: 이 타일의 OverlapBox 예정 범위를 녹색 와이어로 표시</summary>
     private void OnDrawGizmos()
     {
-        if (!drawOverlapGizmo) return;
+        if (!drawOverlapGizmo)
+            return;
 
-        Collider col = _collider != null ? _collider : GetComponent<Collider>();
-        if (col == null) return;
+        Collider col = tileCollider != null ? tileCollider : GetComponent<Collider>();
+        if (col == null)
+            return;
 
         Vector3 size = col.bounds.size;
         Vector3 halfExtents = new Vector3(size.x * 0.5f, overlapBoxHeight * 0.5f, size.z * 0.5f);
         Vector3 center = transform.position + new Vector3(0f, halfExtents.y, 0f);
 
         // 최근에 트리거된 박스는 빨강, 아니면 녹색
-        bool recentlyTriggered = Time.time - _lastOverlapTime < 5f;
+        bool recentlyTriggered = Time.time - lastOverlapTime < 5f;
         Color baseColor = recentlyTriggered ? Color.red : Color.green;
 
         Matrix4x4 prev = Gizmos.matrix;

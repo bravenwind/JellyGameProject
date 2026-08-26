@@ -1,11 +1,11 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.AI;
 
 public class AIChaseState : AIBaseState
 {
-    private Transform _target;
-    private float _pathTimer = 0f;
-    private float _reassessTimer = 0f;
+    private Transform target;
+    private float pathTimer = 0f;
+    private float reassessTimer = 0f;
 
     private const float CHASE_PATH_RATE = 0.15f;
     private const float REASSESS_RATE = 0.5f;  // 0.5초마다 더 나은 타겟이 있는지 다시 본다
@@ -14,23 +14,24 @@ public class AIChaseState : AIBaseState
 
     public override void Enter()
     {
-        _target = ai.Detector.FindTargetToChase();
-        _pathTimer = CHASE_PATH_RATE;   //진입 즉시 경로 계산
-        _reassessTimer = 0f;
+        target = ai.Detector.FindTargetToChase();
+        pathTimer = CHASE_PATH_RATE;   //진입 즉시 경로 계산
+        reassessTimer = 0f;
         ResetStuck();
-        ai.Agent.speed = ai.moveSpeed;
+        ai.Agent.speed = ai.MoveSpeed;
         ai.Agent.stoppingDistance = 0f;
     }
 
     public override void Update()
     {
-        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return;
 
         // ── 주기적으로 주변을 다시 스캔해서 타겟 갱신 ──
-        _reassessTimer += Time.deltaTime;
-        if (_reassessTimer >= REASSESS_RATE)
+        reassessTimer += Time.deltaTime;
+        if (reassessTimer >= REASSESS_RATE)
         {
-            _reassessTimer = 0f;
+            reassessTimer = 0f;
             Transform bestTarget = ai.Detector.FindTargetToChase();
 
             //더 좋은 타겟(가까운 먹잇감 등)이 있으면 갈아탄다.
@@ -40,25 +41,27 @@ public class AIChaseState : AIBaseState
                 ai.EvaluateAndTransition();
                 return;
             }
-            _target = bestTarget;
+            target = bestTarget;
         }
 
         // 타겟이 파괴(먹힘)되었을 때의 방어 코드
-        if (_target == null)
+        if (target == null)
         {
             ai.EvaluateAndTransition();
             return;
         }
 
         // ── 끼임 감지 (경로는 있는데 안 움직임) ──
-        if (HandleStuck()) return;
+        if (HandleStuck())
+            return;
 
         // ── 경로 갱신 ──
-        _pathTimer += Time.deltaTime;
-        if (_pathTimer < CHASE_PATH_RATE) return;
-        _pathTimer = 0f;
+        pathTimer += Time.deltaTime;
+        if (pathTimer < CHASE_PATH_RATE)
+            return;
+        pathTimer = 0f;
 
-        Vector3 dest = _target.position;
+        Vector3 dest = target.position;
         if (NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
             dest = hit.position;
 
@@ -72,7 +75,7 @@ public class AIChaseState : AIBaseState
 
     public override void Exit()
     {
-        _target = null;
-        _pathTimer = 0f;
+        target = null;
+        pathTimer = 0f;
     }
 }

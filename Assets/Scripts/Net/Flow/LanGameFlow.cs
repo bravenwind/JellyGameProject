@@ -23,49 +23,57 @@ namespace JellyNet
 
         [Header("진행")]
         [Tooltip("흡수 모드 제한 시간(초). 밀치기는 시간 제한 없이 생존자로 끝난다.")]
-        public float gameDuration = 180f;
+        [SerializeField] private float gameDuration = 180f;
+        public float GameDuration { get { return gameDuration; } }
         [Tooltip("시작 전 카운트다운(초)")]
-        public float countdownSeconds = 3f;
+        [SerializeField] private float countdownSeconds = 3f;
         [Tooltip("이 인원이 모이면 호스트가 게임을 시작한다")]
-        public int minPlayersToStart = 2;
+        [SerializeField] private int minPlayersToStart = 2;
+        public int MinPlayersToStart { get { return minPlayersToStart; } set { minPlayersToStart = value; } }
 
         [Header("HUD")]
         [Tooltip("남은 시간 표시.")]
-        public TextMeshProUGUI gameTimerText;
+        [SerializeField] private TextMeshProUGUI gameTimerText;
 
         [Header("카운트다운")]
         [Tooltip("화면 가운데에 3·2·1·시작!을 띄울 텍스트.")]
-        public TextMeshProUGUI centerCountdownText;
-        public string gameStartLabel = "시작!";
-        public string gameEndLabel = "게임 종료!";
+        [SerializeField] private TextMeshProUGUI centerCountdownText;
+        [SerializeField] private string gameStartLabel = "시작!";
+        [SerializeField] private string gameEndLabel = "게임 종료!";
 
         [Header("종료 연출")]
         [Tooltip("종료 몇 초 전부터 3·2·1을 셀지.")]
-        public float endCountdownFrom = 3f;
+        [SerializeField] private float endCountdownFrom = 3f;
 
         [Tooltip("게임 속도가 1 → 0.1로 느려지는 시간.")]
-        public float slowDownDuration = 1.2f;
+        [SerializeField] private float slowDownDuration = 1.2f;
 
         [Tooltip("완전히 멈춘 뒤 결과 씬으로 넘어가기까지 기다리는 시간.")]
-        public float freezeHold = 1f;
+        [SerializeField] private float freezeHold = 1f;
 
         [Tooltip("로딩 커튼 신호가 유실됐을 때 이만큼 기다렸다가 그냥 진행한다.")]
-        public float countdownCurtainTimeout = 6f;
+        [SerializeField] private float countdownCurtainTimeout = 6f;
 
         [Header("게임오버 화면 (흡수당했을 때)")]
         [Tooltip("씬의 결과 패널.")]
-        public GameObject gameResultPanel;
-        public TextMeshProUGUI resultTitleText;
+        [SerializeField] private GameObject gameResultPanel;
+        [SerializeField] private TextMeshProUGUI resultTitleText;
 
         [Tooltip("탈락했을 때만 나오는 '관전하기' 버튼.")]
-        public GameObject spectateButton;
+        [SerializeField] private GameObject spectateButton;
 
         [Tooltip("호스트와 연결이 끊겼을 때만 나오는 '메인으로 돌아가기' 버튼.")]
-        public GameObject returnToMainButton;
+        [SerializeField] private GameObject returnToMainButton;
 
         [Header("결과 씬")]
-        public string resultSceneAbsorb = "GameResult_AbsorbMode";
-        public string resultScenePush = "GameResult_PushMode";
+        [SerializeField] private string resultSceneAbsorb = "GameResult_AbsorbMode";
+        [SerializeField] private string resultScenePush = "GameResult_PushMode";
+
+        /// <summary>지금 모드에 맞는 결과 씬 이름. 모드 분기를 밖에서 다시 쓰지 않게 여기서 준다.</summary>
+        public string ResultSceneName
+        {
+            get { return Mode == GameModeType.Push ? resultScenePush : resultSceneAbsorb; }
+        }
 
         public GamePhase Phase { get; private set; }
         public float Remaining { get; private set; }
@@ -648,7 +656,7 @@ namespace JellyNet
 
         private void GoToResultScene()
         {
-            string scene = (Mode == GameModeType.Push) ? resultScenePush : resultSceneAbsorb;
+            string scene = ResultSceneName;
             if (string.IsNullOrEmpty(scene))
                 return;
 

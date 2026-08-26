@@ -2,38 +2,32 @@
 
 public class BotBridge : MonoBehaviour
 {
-    private PlayerScaleController _scaleCtrl;
+    private PlayerScaleController scaleCtrl;
+    private AIPlayerMovement bot;
 
     private void Awake()
     {
-        _scaleCtrl = GetComponentInChildren<PlayerScaleController>();
+        scaleCtrl = GetComponentInChildren<PlayerScaleController>();
+        bot = GetComponent<AIPlayerMovement>();
     }
 
     private void OnEnable()
     {
-        if (_scaleCtrl != null)
-        {
-            _scaleCtrl.OnPostScalePhysics += HandlePostScalePhysics;
-            _scaleCtrl.OnScaleCompleted += HandleScaleCompleted;
-        }
+        if (scaleCtrl != null)
+            scaleCtrl.OnPostScalePhysics += HandlePostScalePhysics;
     }
 
     private void OnDisable()
     {
-        if (_scaleCtrl != null)
-        {
-            _scaleCtrl.OnPostScalePhysics -= HandlePostScalePhysics;
-            _scaleCtrl.OnScaleCompleted -= HandleScaleCompleted;
-        }
+        if (scaleCtrl != null)
+            scaleCtrl.OnPostScalePhysics -= HandlePostScalePhysics;
     }
 
+    //몸집이 바뀌면 NavMeshAgent를 새 크기에 맞춰 다시 맞춘다(캡슐 크기·회피 우선순위·재착지).
+    //봇에만 필요한 일이라 여기 있다 — 사람은 CharacterController라 이 뒤처리가 없다
     private void HandlePostScalePhysics()
     {
-        AIPlayerMovement bot = GetComponent<AIPlayerMovement>();
-        if (bot != null) bot.RecenterCC();
-    }
-
-    private void HandleScaleCompleted(float scaleValue)
-    {
+        if (bot != null)
+            bot.ChangeScale();
     }
 }

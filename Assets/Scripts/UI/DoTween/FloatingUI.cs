@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 
@@ -16,13 +16,15 @@ public class FloatingUI : MonoBehaviour
 
     void Awake()
     {
-        if (target == null) target = transform as RectTransform;
+        if (target == null)
+            target = transform as RectTransform;
         basePos = target.anchoredPosition;
     }
 
     public void StartFloating()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         StopFloating();
 

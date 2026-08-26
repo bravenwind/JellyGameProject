@@ -8,33 +8,33 @@ public class ChocolateFluid : MonoBehaviour
 {
     [Header("기본 설정")]
     [Tooltip("기본 부력 (낙하 가속도를 끊고 밀어올리기 위해 25~30 이상 추천)")]
-    public float buoyancyForce = 30f;
+    [SerializeField] private float buoyancyForce = 30f;
 
     [Tooltip("초콜릿의 점성 (들어오는 순간 속도를 급브레이크 잡기 위해 상향 추천)")]
-    public float chocolateViscosity = 5f;
+    [SerializeField] private float chocolateViscosity = 5f;
 
     [Header("독립적인 물결 움직임 설정")]
     [Tooltip("수평(X, Z)으로 흐르는 힘")]
-    public float flowForce = 5f;
+    [SerializeField] private float flowForce = 5f;
     [Tooltip("Y축 출렁임 속도 (파도의 빠르기)")]
-    public float waveSpeed = 2f;
+    [SerializeField] private float waveSpeed = 2f;
     [Tooltip("Y축 출렁임 강도 (위아래로 밀어주는 힘)")]
-    public float waveForce = 3f;
+    [SerializeField] private float waveForce = 3f;
     [Tooltip("흐름 주기 변화 시간")]
-    public float changeDirectionInterval;
+    [SerializeField] private float changeDirectionInterval;
 
     [Header("수명 설정")]
     [Tooltip("초콜릿에 빠진 오브젝트가 자동 비활성화되기까지의 시간 (초). 0이면 비활성화 안 함")]
-    public float floatingLifetime = 5f;
+    [SerializeField] private float floatingLifetime = 5f;
 
     [Header("디버그")]
-    public bool debugLogTriggers = true;
+    [SerializeField] private bool debugLogTriggers = true;
 
     // 현재 흐르는 방향 (코루틴에서 실시간으로 변경됨)
-    private Vector3 _currentFlowDirection;
+    private Vector3 currentFlowDirection;
 
     // OnTriggerEnter에서 이미 물리 설정 완료된 Rigidbody 캐싱 (Stay에서 중복 GetComponent 방지)
-    private readonly HashSet<Rigidbody> _processedBodies = new HashSet<Rigidbody>();
+    private readonly HashSet<Rigidbody> processedBodies = new HashSet<Rigidbody>();
 
     private struct FloatData
     {
@@ -43,22 +43,23 @@ public class ChocolateFluid : MonoBehaviour
         public float forceMul;
         public Vector2 flowOffset;
     }
-    private readonly Dictionary<Rigidbody, FloatData> _floatData = new Dictionary<Rigidbody, FloatData>();
+    private readonly Dictionary<Rigidbody, FloatData> floatData = new Dictionary<Rigidbody, FloatData>();
 
     private const float PurgeInterval = 5f;
-    private float _lastPurgeTime;
-    private int _lastDirectionInterval = -1;
+    private float lastPurgeTime;
+    private int lastDirectionInterval = -1;
 
     private void UpdateFlowDirection()
     {
         int interval = GetCurrentInterval();
-        if (interval == _lastDirectionInterval) return;
-        _lastDirectionInterval = interval;
+        if (interval == lastDirectionInterval)
+            return;
+        lastDirectionInterval = interval;
 
         var rng = new System.Random(interval);
         float x = (float)(rng.NextDouble() * 2.0 - 1.0);
         float z = (float)(rng.NextDouble() * 2.0 - 1.0);
-        _currentFlowDirection = new Vector3(x, 0, z).normalized;
+        currentFlowDirection = new Vector3(x, 0, z).normalized;
     }
 
     private int GetCurrentInterval()
@@ -77,17 +78,18 @@ public class ChocolateFluid : MonoBehaviour
     {
         UpdateFlowDirection();
 
-        if (Time.time - _lastPurgeTime >= PurgeInterval)
+        if (Time.time - lastPurgeTime >= PurgeInterval)
         {
             PurgeDestroyedEntries();
-            _lastPurgeTime = Time.time;
+            lastPurgeTime = Time.time;
         }
 
         Rigidbody rb = other.attachedRigidbody;
-        if (rb == null) return;
+        if (rb == null)
+            return;
 
         // OnTriggerEnter 누락 안전장치: 아직 미처리된 오브젝트만 체크
-        if (!_processedBodies.Contains(rb) && (rb.useGravity || rb.isKinematic))
+        if (!processedBodies.Contains(rb) && (rb.useGravity || rb.isKinematic))
         {
             bool isEdible = other.CompareTag("Edible");
             int bgLayer = LayerMask.NameToLayer("BackGroundObject");
@@ -100,7 +102,7 @@ public class ChocolateFluid : MonoBehaviour
                 rb.useGravity = false;
                 rb.linearDamping = chocolateViscosity;
                 rb.angularDamping = chocolateViscosity;
-                _processedBodies.Add(rb);
+                processedBodies.Add(rb);
             }
         }
 
@@ -109,17 +111,17 @@ public class ChocolateFluid : MonoBehaviour
             rb.AddForce(Vector3.up * buoyancyForce, ForceMode.Acceleration);
 
         // 오브젝트별 고유 출렁임
-        if (!_floatData.TryGetValue(rb, out FloatData fd))
+        if (!floatData.TryGetValue(rb, out FloatData fd))
         {
             fd = CreateFloatData(rb);
-            _floatData[rb] = fd;
+            floatData[rb] = fd;
         }
 
         float waveY = Mathf.Sin(Time.time * waveSpeed * fd.speedMul + fd.phase);
         rb.AddForce(new Vector3(
-            (_currentFlowDirection.x + fd.flowOffset.x) * flowForce,
+            (currentFlowDirection.x + fd.flowOffset.x) * flowForce,
             waveY * waveForce * fd.forceMul,
-            (_currentFlowDirection.z + fd.flowOffset.y) * flowForce
+            (currentFlowDirection.z + fd.flowOffset.y) * flowForce
         ), ForceMode.Acceleration);
     }
 
@@ -145,11 +147,11 @@ public class ChocolateFluid : MonoBehaviour
         }
 
         Rigidbody rb = other.attachedRigidbody;
-        if (rb == null) return;
+        if (rb == null)
+            return;
 
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
-        AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
 
         bool isEdible = other.CompareTag("Edible") || rb.gameObject.CompareTag("Edible");
@@ -176,21 +178,22 @@ public class ChocolateFluid : MonoBehaviour
             rb.useGravity = false;
             rb.linearDamping = chocolateViscosity;
             rb.angularDamping = chocolateViscosity;
-            _processedBodies.Add(rb);
+            processedBodies.Add(rb);
 
             if (!isAI && floatingLifetime > 0f)
                 StartCoroutine(DeactivateAfterDelay(rb.gameObject, floatingLifetime));
         }
 
-        if (wanderingAI != null) wanderingAI.enabled = false;
-        if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = false;
-        if (navMeshAgent != null) navMeshAgent.enabled = false;
+        if (wanderingAI != null)
+            wanderingAI.enabled = false;
+        if (navMeshAgent != null)
+            navMeshAgent.enabled = false;
 
         if (aiPlayer != null)
         {
             //탈락 판정 권한은 OnEliminated 안에서 IsDriver로 이미 본다.
             //여기서 또 보면 규칙이 두 곳에 생기고, botId가 없을 때의 폴백까지 달라진다
-            aiPlayer.OnEliminated();
+            aiPlayer.ReportEliminated();
         }
     }
 
@@ -216,8 +219,8 @@ public class ChocolateFluid : MonoBehaviour
             var rb = obj.GetComponent<Rigidbody>();
             if (rb != null)
             {
-                _processedBodies.Remove(rb);
-                _floatData.Remove(rb);
+                processedBodies.Remove(rb);
+                floatData.Remove(rb);
             }
             obj.SetActive(false);
         }
@@ -225,10 +228,10 @@ public class ChocolateFluid : MonoBehaviour
 
     private void PurgeDestroyedEntries()
     {
-        _processedBodies.RemoveWhere(rb => rb == null);
+        processedBodies.RemoveWhere(rb => rb == null);
 
         List<Rigidbody> staleKeys = null;
-        foreach (var kvp in _floatData)
+        foreach (var kvp in floatData)
         {
             if (kvp.Key == null)
             {
@@ -238,22 +241,23 @@ public class ChocolateFluid : MonoBehaviour
         }
         if (staleKeys != null)
             foreach (var key in staleKeys)
-                _floatData.Remove(key);
+                floatData.Remove(key);
     }
 
     private void OnDisable()
     {
-        _processedBodies.Clear();
-        _floatData.Clear();
+        processedBodies.Clear();
+        floatData.Clear();
     }
 
     private void OnTriggerExit(Collider other)
     {
         Rigidbody rb = other.attachedRigidbody;
-        if (rb == null) return;
+        if (rb == null)
+            return;
 
-        _processedBodies.Remove(rb);
-        _floatData.Remove(rb);
+        processedBodies.Remove(rb);
+        floatData.Remove(rb);
 
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
 
@@ -266,14 +270,15 @@ public class ChocolateFluid : MonoBehaviour
         {
             rb.linearDamping = 0.05f;
             rb.angularDamping = 0.05f;
-            if (isBackgroundObject) rb.useGravity = true;
+            if (isBackgroundObject)
+                rb.useGravity = true;
         }
 
-        if (aiPlayer != null && aiPlayer.IsEliminated) return;
+        if (aiPlayer != null && aiPlayer.IsEliminated)
+            return;
 
         NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
-        AIWaypointPatrol aiWaypointPatrol = rb.GetComponent<AIWaypointPatrol>();
 
         // ═════════════════════════════════════════════
         //  [LAN 이식] NavMeshAgent를 되살릴 자격
@@ -290,8 +295,10 @@ public class ChocolateFluid : MonoBehaviour
         if (navMeshAgent != null && drives)
         {
             NavMeshHit hit;
+            //agent 자신의 타입 + 걸어다닐 수 있는 영역만. int 마스크 오버로드는
+            //타입 0(PlayerJelly) 기준이라 젤리를 그 자리에 놓으면 다시 NavMesh 밖이 된다
             bool onMesh = NavMesh.SamplePosition(
-                rb.transform.position, out hit, 10f, NavMesh.AllAreas);
+                rb.transform.position, out hit, 10f, NavMeshUtil.WalkableFilter(navMeshAgent));
 
             if (onMesh)
             {
@@ -302,15 +309,16 @@ public class ChocolateFluid : MonoBehaviour
         }
 
         // AI 스크립트는 원격에서도 켠다 — 이동은 안 하고 걷는 애니메이션만 맞춘다.
-        if (wanderingAI != null) wanderingAI.enabled = true;
-        if (aiWaypointPatrol != null) aiWaypointPatrol.enabled = true;
+        if (wanderingAI != null)
+            wanderingAI.enabled = true;
     }
 
     /// <summary>이 기계가 그 오브젝트의 NavMeshAgent를 굴리는가(= 호스트이거나 오프라인).</summary>
     private static bool NavDriverOf(Rigidbody rb)
     {
         NetIdentity id = rb.GetComponentInParent<NetIdentity>();
-        if (id != null) return id.IsSimulatedHere;
+        if (id != null)
+            return id.IsSimulatedHere;
 
         var net = NetManager.Instance;
         return NetManager.Offline || net.IsHost;

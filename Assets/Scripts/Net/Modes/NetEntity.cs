@@ -24,20 +24,33 @@ namespace JellyNet
             return id.PrefabId >= NetConfig.JELLY_PREFAB_START;
         }
 
-        //사람은 LanPlayerState, 봇은 AIPlayerMovement가 판 밖 여부를 들고 있다
+        /// <summary>
+        /// 이 개체가 판에서 빠졌나. 사람·봇을 가리지 않는다.
+        ///
+        /// ★ 예전엔 여기 if (id.IsBot) 분기가 있었다
+        ///   사람은 LanPlayerState, 봇은 AIPlayerMovement가 판 밖 여부를 들고 있어서다.
+        ///   이제 둘 다 INetEntity를 구현하므로 물어보는 쪽은 그 차이를 몰라도 된다.
+        ///   봇의 비대칭(두뇌가 들고 있는 것)은 LanBotState.IsOutOfPlay 한 줄에 갇혀 있다.
+        /// </summary>
         public static bool IsOutOfPlay(NetIdentity id)
         {
             if (id == null)
                 return true;
 
-            if (id.IsBot)
-            {
-                AIPlayerMovement bot = id.Bot;
-                return bot != null && bot.IsOutOfPlay;
-            }
+            INetEntity e = EntityOf(id);
+            return e != null && e.IsOutOfPlay;
+        }
 
-            LanPlayerState state = id.PlayerState;
-            return state != null && state.IsOutOfPlay;
+        /// <summary>netId가 가리키는 참가자. 젤리·소품이면 null.</summary>
+        public static INetEntity EntityOf(NetIdentity id)
+        {
+            if (id == null)
+                return null;
+
+            if (id.PlayerState != null)
+                return id.PlayerState;
+
+            return id.BotState;
         }
 
         // ★ 크기를 묻는 유일한 창구
@@ -52,16 +65,14 @@ namespace JellyNet
         //   이제 전부 PlayerScaleController를 거친다 — 없을 때만 transform으로 떨어진다.
         public static float ScaleOf(NetIdentity id)
         {
-            if (id == null)
-                return 1f;
+            //참가자면 그 개체가 자기 사정을 안다(봇은 호스트/클라에서 출처가 다르다).
+            //젤리·소품은 INetEntity가 아니므로 transform으로 떨어진다
+            INetEntity e = EntityOf(id);
 
-            LanPlayerVisual visual = id.Visual;
+            if (e != null)
+                return e.ScaleValue;
 
-            if (visual != null && visual.HasScaleController)
-                return visual.ScaleValue;
-
-            //봇 프리팹에 LanPlayerVisual이 없거나 스케일 컨트롤러가 빠진 경우의 마지막 보루
-            return id.transform.localScale.x;
+            return id != null ? id.transform.localScale.x : 1f;
         }
 
         // ═══════════════════════════════════════════════════════
@@ -78,21 +89,13 @@ namespace JellyNet
         //   PushMode/AbsorbMode가 알고, '누구에게 어떻게 적는지'는 여기만 안다.
         public static void AddScore(NetIdentity id, int delta)
         {
-            if (id == null || delta == 0)
+            if (delta == 0)
                 return;
 
-            LanPlayerState state = id.PlayerState;
+            INetEntity e = EntityOf(id);
 
-            if (state != null)
-            {
-                state.HostAddScore(delta);
-                return;
-            }
-
-            LanBotState bot = id.BotState;
-
-            if (bot != null)
-                bot.HostAddScore(delta);
+            if (e != null)
+                e.HostAddScore(delta);
         }
 
         /// <summary>점수를 특정 값으로 맞춘다. 값이 바뀔 때만 방송이 나간다.</summary>
@@ -148,6 +151,13 @@ namespace JellyNet
             if (id == null || IsOutOfPlay(id))
                 return;
 
+            //★ 예전엔 이 검사가 사람 경로(LanGameFlow.ReportSelfEliminated/HostConfirmEliminated)
+            //  에만 있었다. 봇은 AIPlayerMovement.ReportEliminated → 여기로 바로 들어와서
+            //  카운트다운 중이나 게임이 끝난 뒤에 초콜릿에 빠지면 사람과 달리 탈락했다.
+            //  관문이 관문이려면 관문에서 봐야 한다
+            if (LanGameFlow.Instance != null && LanGameFlow.Instance.Phase != GamePhase.Playing)
+                return;
+
             //모드 전용 정산은 그 모드가 씬에 있을 때만 돈다.
             //탈락 표시보다 먼저 해야 피해자의 점수가 남아 있다
             if (PushMode.Instance != null)
@@ -169,16 +179,8 @@ namespace JellyNet
 
         public static int ScoreOf(NetIdentity id)
         {
-            if (id == null)
-                return 0;
-
-            LanPlayerState state = id.PlayerState;
-
-            if (state != null)
-                return state.Score;
-
-            LanBotState bot = id.BotState;
-            return bot != null ? bot.CurrentScore : 0;
+            INetEntity e = EntityOf(id);
+            return e != null ? e.Score : 0;
         }
 
         //봇은 전부 호스트 소유라 OwnerId 비교만으로는 같은 편으로 오인된다
@@ -208,35 +210,13 @@ namespace JellyNet
         {
             into.Clear();
 
-            IReadOnlyList<LanPlayerState> players = EntityRegistry.Players;
-            for (int i = 0; i < players.Count; i++)
+            IReadOnlyList<INetEntity> entities = EntityRegistry.Entities;
+            for (int i = 0; i < entities.Count; i++)
             {
-                LanPlayerState p = players[i];
-                if (p != null && p.Identity != null)
-                    into.Add(p.Identity);
+                INetEntity e = entities[i];
+                if (e != null && e.Identity != null)
+                    into.Add(e.Identity);
             }
-
-            IReadOnlyList<AIPlayerMovement> bots = EntityRegistry.Bots;
-            for (int i = 0; i < bots.Count; i++)
-            {
-                AIPlayerMovement b = bots[i];
-                if (b != null && b.Identity != null)
-                    into.Add(b.Identity);
-            }
-        }
-
-        public static NetIdentity FindMyPlayer()
-        {
-            IReadOnlyList<LanPlayerState> players = EntityRegistry.Players;
-
-            for (int i = 0; i < players.Count; i++)
-            {
-                LanPlayerState p = players[i];
-                if (p != null && p.IsMine)
-                    return p.Identity;
-            }
-
-            return null;
         }
     }
 }

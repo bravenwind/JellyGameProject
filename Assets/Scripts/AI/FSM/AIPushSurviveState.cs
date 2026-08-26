@@ -1,11 +1,12 @@
 ﻿using UnityEngine;
 using UnityEngine.AI;
+using JellyNet;
 
 public class AIPushSurviveState : AIBaseState
 {
-    private float _checkTimer;
-    private bool _fleeing;
-    private float _attackScanTimer;
+    private float checkTimer;
+    private bool fleeing;
+    private float attackScanTimer;
 
     // ═══════════════════════════════════════════════════════
     //  ★ 반응 속도
@@ -24,10 +25,10 @@ public class AIPushSurviveState : AIBaseState
 
     public override void Enter()
     {
-        _checkTimer = 0f;
-        _fleeing = false;
-        _attackScanTimer = 0f;
-        ai.Agent.speed = ai.moveSpeed;
+        checkTimer = 0f;
+        fleeing = false;
+        attackScanTimer = 0f;
+        ai.Agent.speed = ai.MoveSpeed;
         ai.Agent.stoppingDistance = 0.3f;
         ai.Agent.ResetPath();
         ai.Agent.velocity = Vector3.zero;
@@ -35,20 +36,24 @@ public class AIPushSurviveState : AIBaseState
 
     public override void Update()
     {
-        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
-        if (ai.IsDashing || ai.IsAttacking) return;
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return;
+        if (ai.IsDashing || ai.IsAttacking)
+            return;
 
-        _checkTimer += Time.deltaTime;
-        if (_checkTimer < CHECK_INTERVAL) return;
+        checkTimer += Time.deltaTime;
+        if (checkTimer < CHECK_INTERVAL)
+            return;
 
         //이번 판단이 실제로 몇 초 만에 돌아왔는지. 아래 공격 스캔 주기가 이 값을 쓴다.
         //예전엔 상수 CHECK_INTERVAL을 그대로 더해서, 프레임이 길거나 도주 분기로
         //빠진 틱이 있으면 공격 스캔 간격이 실제 시간과 조용히 어긋났다
-        float sinceLastCheck = _checkTimer;
-        _checkTimer = 0f;
+        float sinceLastCheck = checkTimer;
+        checkTimer = 0f;
 
         var collapse = TileCollapseManager.Instance;
-        if (collapse == null) return;
+        if (collapse == null)
+            return;
 
         bool onDanger = collapse.IsPositionDangerous(ai.transform.position);
 
@@ -85,22 +90,20 @@ public class AIPushSurviveState : AIBaseState
                     && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
                 {
                     ai.Agent.SetPath(ai.CachedPath);
-                    _fleeing = true;
+                    fleeing = true;
                     ai.TryDash();
                 }
             }
         }
-        else if (_fleeing)
+        else if (fleeing)
         {
             ai.Agent.ResetPath();
             ai.Agent.velocity = Vector3.zero;
-            ai.Agent.speed = ai.moveSpeed;
-            _fleeing = false;
+            ai.Agent.speed = ai.MoveSpeed;
+            fleeing = false;
         }
         else
-        {
             UpdateCombatOrWander(sinceLastCheck);
-        }
     }
 
     /// <summary>
@@ -109,9 +112,10 @@ public class AIPushSurviveState : AIBaseState
     /// </summary>
     private void UpdateCombatOrWander(float deltaSinceLastCheck)
     {
-        _attackScanTimer += deltaSinceLastCheck;
-        if (_attackScanTimer < ATTACK_SCAN_INTERVAL) return;
-        _attackScanTimer = 0f;
+        attackScanTimer += deltaSinceLastCheck;
+        if (attackScanTimer < ATTACK_SCAN_INTERVAL)
+            return;
+        attackScanTimer = 0f;
 
         Transform target = FindNearestTarget();
         if (target != null && TryEngageTarget(target))
@@ -129,7 +133,7 @@ public class AIPushSurviveState : AIBaseState
         float dist = dirToTarget.magnitude;
 
         var dm = DataManager.Instance;
-        float range = dm != null ? dm.batRange * ai.GetMyAuthorityScale() : 2f;
+        float range = dm != null ? dm.BatRange * ai.GetMyAuthorityScale() : 2f;
 
         // ── 사거리 안: 돌아서서 친다 ──
         //
@@ -158,19 +162,20 @@ public class AIPushSurviveState : AIBaseState
         //   ★ 목표 지점은 '지금 위치'가 아니라 '갈 곳'으로 잡는다.
         //     상대가 움직이는 동안 현재 위치로만 경로를 잡으면 계속 뒤를 따라간다.
         //     조금 앞을 노리면 실제로 따라잡는다.
-        if (dist < ai.detectRadius)
+        if (dist < ai.DetectRadius)
         {
             Vector3 aim = target.position + PredictLead(target, dist);
 
             if (NavMesh.SamplePosition(aim, out NavMeshHit hit, 5f, ai.NavFilter)
                 || NavMesh.SamplePosition(target.position, out hit, 5f, ai.NavFilter))
             {
-                ai.Agent.speed = ai.moveSpeed;
+                ai.Agent.speed = ai.MoveSpeed;
 
                 if (TrySetSafePath(hit.position))
                 {
                     // 거리가 꽤 벌어져 있으면 대쉬로 붙는다(원래 도주에만 쓰던 것을 공격에도).
-                    if (dist > range * 3f) ai.TryDash();
+                    if (dist > range * 3f)
+                        ai.TryDash();
                     return true;
                 }
             }
@@ -185,7 +190,8 @@ public class AIPushSurviveState : AIBaseState
     /// </summary>
     private Vector3 PredictLead(Transform target, float dist)
     {
-        if (ai.moveSpeed <= 0.01f) return Vector3.zero;
+        if (ai.MoveSpeed <= 0.01f)
+            return Vector3.zero;
 
         Vector3 vel = Vector3.zero;
 
@@ -195,13 +201,15 @@ public class AIPushSurviveState : AIBaseState
         else
         {
             NavMeshAgent ag = target.GetComponentInChildren<NavMeshAgent>();
-            if (ag != null && ag.enabled) vel = ag.velocity;
+            if (ag != null && ag.enabled)
+                vel = ag.velocity;
         }
 
         vel.y = 0f;
-        if (vel.sqrMagnitude < 0.01f) return Vector3.zero;
+        if (vel.sqrMagnitude < 0.01f)
+            return Vector3.zero;
 
-        float travelTime = Mathf.Clamp(dist / ai.moveSpeed, 0f, 0.7f);
+        float travelTime = Mathf.Clamp(dist / ai.MoveSpeed, 0f, 0.7f);
         return vel * travelTime;
     }
 
@@ -214,18 +222,16 @@ public class AIPushSurviveState : AIBaseState
         float best = float.MaxValue;
         Vector3 pos = ai.transform.position;
 
-        foreach (var p in EntityRegistry.Players)
+        foreach (INetEntity e in EntityRegistry.Entities)
         {
-            if (p == null || p.IsOutOfPlay) continue;
-            float d = Vector3.Distance(ai.transform.position, p.transform.position);
-            if (d < best) { best = d; pos = p.transform.position; }
-        }
-
-        foreach (var b in EntityRegistry.Bots)
-        {
-            if (b == null || b == ai || b.IsOutOfPlay) continue;
-            float d = Vector3.Distance(ai.transform.position, b.transform.position);
-            if (d < best) { best = d; pos = b.transform.position; }
+            if (e == null || e.Transform == null || e.Transform == ai.transform || e.IsOutOfPlay)
+                continue;
+            float d = Vector3.Distance(ai.transform.position, e.Transform.position);
+            if (d < best)
+            {
+                best = d;
+                pos = e.Transform.position;
+            }
         }
 
         return pos;
@@ -238,16 +244,19 @@ public class AIPushSurviveState : AIBaseState
     private void TryOpportunisticSwing()
     {
         var dm = DataManager.Instance;
-        if (dm == null) return;
+        if (dm == null)
+            return;
 
-        float range = dm.batRange * ai.GetMyAuthorityScale();
+        float range = dm.BatRange * ai.GetMyAuthorityScale();
 
         Transform target = FindNearestTarget();
-        if (target == null) return;
+        if (target == null)
+            return;
 
         Vector3 d = target.position - ai.transform.position;
         d.y = 0f;
-        if (d.magnitude > range * 1.2f) return;
+        if (d.magnitude > range * 1.2f)
+            return;
 
         FaceTarget(d);
         ai.TryAttack();
@@ -257,11 +266,12 @@ public class AIPushSurviveState : AIBaseState
     private void Wander()
     {
         // 이미 경로를 따라 이동 중이면 목적지 도착/경로 소실 전까진 그대로 둔다.
-        if (ai.Agent.pathPending) return;
+        if (ai.Agent.pathPending)
+            return;
         if (ai.Agent.hasPath && ai.Agent.remainingDistance > ai.Agent.stoppingDistance + 0.5f)
             return;
 
-        ai.Agent.speed = ai.moveSpeed;
+        ai.Agent.speed = ai.MoveSpeed;
 
         if (ai.TryGetWanderDestination(out Vector3 dest)
             && NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
@@ -281,55 +291,49 @@ public class AIPushSurviveState : AIBaseState
         Transform best = null;
         float myScale = ai.GetMyAuthorityScale();
 
-        foreach (var player in EntityRegistry.Players)
+        foreach (INetEntity e in EntityRegistry.Entities)
         {
-            if (player == null || player.IsOutOfPlay) continue; // 탈락/흡수 판정 단일 출처 (G6/K2)
+            if (e == null || e.Transform == null || e.Transform == ai.transform)
+                continue;
+            if (e.IsOutOfPlay)
+                continue; // 탈락/흡수 판정 단일 출처 (G6/K2)
 
-            // ★ 사람은 크기와 무관하게 대상이다.
+            // ★ 크기 조건은 봇에게만 건다 — 사람은 크기와 무관하게 대상이다.
             //
             //   밀치기 모드에는 <b>잡아먹히는 개념이 없다.</b> 큰 상대라고 피할 이유가 없고,
             //   오히려 큰 상대일수록 밀어 떨어뜨릴 가치가 있다.
             //
-            //   예전엔 크기로 걸렀는데 그게 이런 악순환을 만들었다:
+            //   예전엔 사람도 크기로 걸렀는데 그게 이런 악순환을 만들었다:
             //     플레이어가 배트를 맞힌다 → 커진다 → 봇의 대상에서 빠진다
             //     → 봇이 공격을 못 한다 → 봇은 안 커진다 → 격차가 더 벌어진다
             //   한 번 맞기 시작하면 봇이 영원히 반격하지 못하는 구조였다.
             //
-            //   크기 조건은 아래 '봇끼리' 순회에만 남긴다 — 그건 서로 추격하며
-            //   한 타일에 뭉치는 것을 막기 위한 별개의 규칙이다.
+            //   봇끼리만 크기를 보는 건 서로 추격하며 한 타일에 뭉치는 것을
+            //   막기 위한 별개의 규칙이다. 그래서 이 한 줄만 IsBot으로 갈린다.
+            if (e.IsBot && e.ScaleValue >= myScale)
+                continue;
 
-            float d = Vector3.Distance(ai.transform.position, player.transform.position);
+            float d = Vector3.Distance(ai.transform.position, e.Transform.position);
             if (d < bestDist)
             {
                 bestDist = d;
-                best = player.transform;
+                best = e.Transform;
             }
         }
 
-        foreach (var bot in EntityRegistry.Bots)
-        {
-            if (bot == null || bot == ai || bot.IsEliminated || bot.IsBeingAbsorbed) continue;
-            if (bot.GetMyAuthorityScale() >= myScale) continue; // 동급/대형 봇은 추격 안 함(상호 추격 차단)
-            float d = Vector3.Distance(ai.transform.position, bot.transform.position);
-            if (d < bestDist)
-            {
-                bestDist = d;
-                best = bot.transform;
-            }
-        }
-
-        return bestDist < ai.detectRadius ? best : null;
+        return bestDist < ai.DetectRadius ? best : null;
     }
 
     private void FaceTarget(Vector3 direction)
     {
-        if (direction.sqrMagnitude < 0.01f) return;
+        if (direction.sqrMagnitude < 0.01f)
+            return;
         ai.transform.rotation = Quaternion.LookRotation(direction.normalized);
     }
 
     public override void Exit()
     {
-        ai.Agent.speed = ai.moveSpeed;
+        ai.Agent.speed = ai.MoveSpeed;
         ai.Agent.stoppingDistance = 0f;
     }
 }

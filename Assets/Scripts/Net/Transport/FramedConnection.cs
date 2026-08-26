@@ -109,12 +109,7 @@ namespace JellyNet
             }
         }
 
-        public void Close()
-        {
-            Kill("정상 종료");
-        }
-
-        private void Kill(string reason)
+        public void Kill(string reason = "정상 종료")
         {
             if (!Alive)
                 return;

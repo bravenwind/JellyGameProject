@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Playables;
 
 // ==========================================
@@ -11,36 +11,36 @@ public class PlayerIdleState : PlayerBaseState
     public override void Enter()
     {
         // [N1] 매 Idle 진입마다 찍히던 로그 제거 — 전환 로그는 ChangeState(에디터 전용) 한 곳으로 통일.
-        player.inputDir = Vector3.zero;
-        player.verticalVelocity = 0;
+        player.InputDir = Vector3.zero;
+        player.VerticalVelocity = 0;
     }
 
     public override void Update()
     {
         player.ApplyGravity();
-        player.controller.Move(new Vector3(0, player.verticalVelocity, 0) * Time.deltaTime);
+        player.Controller.Move(new Vector3(0, player.VerticalVelocity, 0) * Time.deltaTime);
 
         if (Input.GetMouseButtonDown(0) && player.CanAttack())
         {
-            player.ChangeState(player.attackState);
+            player.ChangeState(player.AttackState);
             return;
         }
 
         if (Input.GetKeyDown(KeyCode.LeftShift) && player.CanDash())
         {
-            player.ChangeState(player.dashState);
+            player.ChangeState(player.DashState);
             return;
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && player.isGrounded && !PlayerMovement.InputLocked)
+        if (Input.GetKeyDown(KeyCode.Space) && player.IsGrounded && !PlayerMovement.InputLocked)
         {
-            player.ChangeState(player.jumpState);
+            player.ChangeState(player.JumpState);
             return;
         }
 
         if (player.IsMoveInputActive())
         {
-            player.ChangeState(player.moveState);
+            player.ChangeState(player.MoveState);
             return;
         }
     }

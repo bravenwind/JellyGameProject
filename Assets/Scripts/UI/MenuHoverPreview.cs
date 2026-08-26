@@ -5,27 +5,27 @@ using UnityEngine.UI;
 public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
     [Header("Target UI")]
-    public Image characterImage;
-    public Text legacyText;
+    [SerializeField] private Image characterImage;
+    [SerializeField] private Text legacyText;
 
     [Header("Hover Data")]
-    public Sprite hoverSprite;
-    [TextArea] public string hoverMessage;
+    [SerializeField] private Sprite hoverSprite;
+    [TextArea] [SerializeField] private string hoverMessage;
 
     [Header("Revert On Exit")]
-    public bool revertOnExit = true;
+    [SerializeField] private bool revertOnExit = true;
 
     [Header("No Hover State")]
-    public bool hideImageWhenNoHover = true;
-    public float noHoverAlpha = 0f; 
+    [SerializeField] private bool hideImageWhenNoHover = true;
+    [SerializeField] private float noHoverAlpha = 0f; 
 
-    public Image BG;
-    [Range(0, 255)] public int bgNoHoverAlpha = 40;
-    [Range(0, 255)] public int bgHoverAlpha = 200;
+    [SerializeField] private Image BG;
+    [Range(0, 255)] [SerializeField] private int bgNoHoverAlpha = 40;
+    [Range(0, 255)] [SerializeField] private int bgHoverAlpha = 200;
 
-    public FloatingUI floating;
-    [TextArea] public string defaultMessage;
-    public ImagePreviewAni preview;
+    [SerializeField] private FloatingUI floating;
+    [TextArea] [SerializeField] private string defaultMessage;
+    [SerializeField] private ImagePreviewAni preview;
 
     void Awake()
     {
@@ -51,7 +51,8 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        if (!revertOnExit) return;
+        if (!revertOnExit)
+            return;
 
         if (preview != null)
             preview.Hide(true);
@@ -64,14 +65,16 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
 
     private void SetImageAlpha(float a)
     {
-        if (characterImage == null) return;
+        if (characterImage == null)
+            return;
         Color c = characterImage.color;
         c.a = a;
         characterImage.color = c;
     }
     private void SetBGAlpha(int a255)
     {
-        if (BG == null) return;
+        if (BG == null)
+            return;
         float a01 = Mathf.Clamp01(a255 / 255f);
         Color c = BG.color;
         c.a = a01;

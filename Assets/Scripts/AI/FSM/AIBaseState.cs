@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // AIBaseState.cs
 // ============================================================
 // PlayerBaseState와 동일한 패턴의 AI 상태 기본 클래스.
@@ -50,7 +50,8 @@ public abstract class AIBaseState
     /// <returns>경로를 실제로 적용했으면 true. false면 호출부가 대안을 시도해야 한다.</returns>
     protected bool TrySetSafePath(Vector3 destination)
     {
-        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return false;
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return false;
 
         //CachedPath는 봇 하나가 평생 재사용하는 객체라 직전 질의의 corner가 남아 있다.
         //비우지 않으면 계산이 실패했을 때 아래 위험 검사가 '지난 경로'를 보고 판단한다
@@ -73,7 +74,7 @@ public abstract class AIBaseState
     // 공용: 끼임 감지
     // ─────────────────────────────────────────────────────────
 
-    private float _stuckTimer;
+    private float stuckTimer;
 
     protected const float STUCK_SECONDS = 1.0f;
 
@@ -89,23 +90,23 @@ public abstract class AIBaseState
     {
         if (ai.Agent.hasPath && ai.Agent.velocity.sqrMagnitude < STUCK_SPEED_SQR)
         {
-            _stuckTimer += Time.deltaTime;
-            if (_stuckTimer >= STUCK_SECONDS)
+            stuckTimer += Time.deltaTime;
+            if (stuckTimer >= STUCK_SECONDS)
             {
-                _stuckTimer = 0f;
+                stuckTimer = 0f;
                 ai.Agent.ResetPath();   //다음 갱신 때 새 길을 찾도록 유도
                 return true;
             }
             return false;
         }
 
-        _stuckTimer = 0f;
+        stuckTimer = 0f;
         return false;
     }
 
     /// <summary>상태에 들어올 때 끼임 누적을 초기화한다.</summary>
     protected void ResetStuck()
     {
-        _stuckTimer = 0f;
+        stuckTimer = 0f;
     }
 }

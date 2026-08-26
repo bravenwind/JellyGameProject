@@ -4,18 +4,19 @@ using UnityEngine;
 
 public class MainCamera_Action : MonoBehaviour
 {
-    public Transform target;
+    [SerializeField] private Transform target;
+    public Transform Target { get { return target; } }
 
     [Header("Offset (Local Space)")]
     public Vector3 offset = new Vector3(0f, 10f, -10f);
 
     [Header("Camera Rotation")]
-    public float pitch = 0.0f;   // X
-    public float yaw = -45f;    // Y
+    [SerializeField] private float pitch = 0.0f;   // X
+    [SerializeField] private float yaw = -45f;    // Y
 
     // 기존 Lerp 대신 SmoothDamp 사용 권장
     private Vector3 currentVelocity; // SmoothDamp용 참조 변수
-    public float smoothTime = 0.1f;  // 작을수록 빠르게 따라붙는다
+    [SerializeField] private float smoothTime = 0.1f;  // 작을수록 빠르게 따라붙는다
 
     Rigidbody targetRb;
 
@@ -29,20 +30,12 @@ public class MainCamera_Action : MonoBehaviour
     {
         PlayerEvents.OnCameraScaleIncreased += ScaleIncreased;
         PlayerEvents.OnCameraScaleDecreased += ScaleDecreased;
-        PlayerEvents.OnCameraOrthoSizeChanged += SetOrthographicSizeDirect;
     }
 
     private void OnDisable()
     {
         PlayerEvents.OnCameraScaleIncreased -= ScaleIncreased;
         PlayerEvents.OnCameraScaleDecreased -= ScaleDecreased;
-        PlayerEvents.OnCameraOrthoSizeChanged -= SetOrthographicSizeDirect;
-    }
-
-    private void SetOrthographicSizeDirect(float size)
-    {
-        if (Camera.main != null)
-            Camera.main.orthographicSize = size;
     }
 
     public void SetTarget(Transform newTarget)
@@ -53,7 +46,8 @@ public class MainCamera_Action : MonoBehaviour
 
     void LateUpdate()
     {
-        if (target == null) return;
+        if (target == null)
+            return;
 
         Quaternion camRot = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 followPos =
@@ -77,14 +71,16 @@ public class MainCamera_Action : MonoBehaviour
     // 🔥 수정됨: 큐에 크기 변화량(+ 또는 -)만 등록합니다.
     public void ScaleIncreased()
     {
-        cameraSizeQueue.Enqueue(DataManager.Instance.scaleChangedPlusSize);
-        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue(DataManager.Instance.scaleIncreaseDuration));
+        cameraSizeQueue.Enqueue(DataManager.Instance.ScaleChangedPlusSize);
+        if (!isCameraScaling)
+            StartCoroutine(ProcessCameraQueue(DataManager.Instance.ScaleIncreaseDuration));
     }
 
     public void ScaleDecreased()
     {
-        cameraSizeQueue.Enqueue(-DataManager.Instance.scaleChangedPlusSize);
-        if (!isCameraScaling) StartCoroutine(ProcessCameraQueue(DataManager.Instance.scaleDecreaseDuration));
+        cameraSizeQueue.Enqueue(-DataManager.Instance.ScaleChangedPlusSize);
+        if (!isCameraScaling)
+            StartCoroutine(ProcessCameraQueue(DataManager.Instance.ScaleDecreaseDuration));
     }
 
     // 큐 처리 코루틴

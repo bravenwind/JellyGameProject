@@ -17,55 +17,37 @@ namespace JellyNet
             public bool isLocal;
         }
 
+        // ★ 예전엔 사람용·봇용 두 벌 루프였다
+        //   같은 Entry를 채우는데 읽는 프로퍼티 이름만 달랐다
+        //   (PlayerName/BotName, Score/CurrentScore, VisualColor/ReadVisualColor…).
+        //   그래서 한쪽에만 고친 게 실제로 있었다 — 봇 점수를 방송하지 않아
+        //   클라 순위표에서 봇이 0점으로 보였다. 이제 INetEntity 한 벌로 돈다.
         public static List<Entry> Collect(bool includeDead = false)
         {
             List<Entry> list = new List<Entry>();
 
-            IReadOnlyList<LanPlayerState> players = EntityRegistry.Players;
-            for (int i = 0; i < players.Count; i++)
+            IReadOnlyList<INetEntity> entities = EntityRegistry.Entities;
+
+            for (int i = 0; i < entities.Count; i++)
             {
-                LanPlayerState p = players[i];
-                if (p == null)
+                INetEntity en = entities[i];
+
+                //MonoBehaviour가 파괴된 뒤에도 인터페이스 참조는 남는다.
+                //Identity(UnityEngine.Object)로 확인해야 페이크 널이 걸린다
+                if (en == null || en.Identity == null)
                     continue;
-                if (!includeDead && p.IsOutOfPlay)
+                if (!includeDead && en.IsOutOfPlay)
                     continue;
 
                 Entry e;
-                e.name = string.IsNullOrEmpty(p.PlayerName) ? ("P" + p.OwnerId) : p.PlayerName;
-                e.isBot = false;
-                e.netId = p.EntityId;
-                e.ownerId = p.OwnerId;
-                e.scale = p.ScaleValue;
-                e.score = p.Score;
-                e.color = p.VisualColor;
-                e.isLocal = p.IsMine;
-                list.Add(e);
-            }
-
-            IReadOnlyList<AIPlayerMovement> bots = EntityRegistry.Bots;
-            for (int i = 0; i < bots.Count; i++)
-            {
-                AIPlayerMovement b = bots[i];
-                if (b == null)
-                    continue;
-                if (!includeDead && b.IsOutOfPlay)
-                    continue;
-
-                LanBotState bs = b.BotState;
-
-                int netId = b.EntityId;
-
-                Entry e;
-                e.name = bs != null && !string.IsNullOrEmpty(bs.BotName)
-                    ? bs.BotName
-                    : ("AI 봇 " + netId);
-                e.isBot = true;
-                e.netId = netId;
-                e.ownerId = 0;
-                e.scale = b.GetMyAuthorityScale();
-                e.score = bs != null ? bs.CurrentScore : 0;
-                e.color = bs != null ? bs.ReadVisualColor() : Color.white;
-                e.isLocal = false;
+                e.name = en.DisplayName;
+                e.isBot = en.IsBot;
+                e.netId = en.EntityId;
+                e.ownerId = en.OwnerId;
+                e.scale = en.ScaleValue;
+                e.score = en.Score;
+                e.color = en.VisualColor;
+                e.isLocal = en.Identity.IsMine;
                 list.Add(e);
             }
 

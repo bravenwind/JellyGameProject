@@ -6,8 +6,8 @@ namespace JellyNet
     public class LanPlayerSetup : MonoBehaviour
     {
         [Header("연결 (비우면 자동 탐색)")]
-        public PlayerMovement playerController;
-        public NameTagBillboard nameTagBillboard;
+        [SerializeField] private PlayerMovement playerController;
+        [SerializeField] private NameTagBillboard nameTagBillboard;
 
         private NetIdentity id;
         private bool applied;
@@ -39,7 +39,7 @@ namespace JellyNet
         {
             TopDownCameraFollow cam = FindFirstObjectByType<TopDownCameraFollow>(FindObjectsInactive.Include);
             if (cam != null)
-                cam.target = transform;
+                cam.Target = transform;
 
             MainCamera_Action camAction = FindFirstObjectByType<MainCamera_Action>(FindObjectsInactive.Include);
             if (camAction != null)
@@ -97,11 +97,11 @@ namespace JellyNet
 
         private void ApplyBatVisibility()
         {
-            if (playerController == null || playerController.batPivot == null)
+            if (playerController == null || playerController.BatPivot == null)
                 return;
 
             bool pushMode = LanGameFlow.IsMode(GameModeType.Push);
-            playerController.batPivot.gameObject.SetActive(pushMode && !playerController.hideBatWhenIdle);
+            playerController.BatPivot.gameObject.SetActive(pushMode && !playerController.HideBatWhenIdle);
         }
     }
 }

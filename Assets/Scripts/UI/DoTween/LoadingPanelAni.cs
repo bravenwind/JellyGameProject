@@ -20,16 +20,21 @@ public class LoadingPanelAni : MonoBehaviour
 
     private void Start()
     {
-        if (!playOnStart) return;
+        if (!playOnStart)
+            return;
 
-        if (anyKeyPanel != null) anyKeyPanel.SetActive(true);
-        if (loadingPanel != null) loadingPanel.SetActive(false);
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
+        if (anyKeyPanel != null)
+            anyKeyPanel.SetActive(true);
+        if (loadingPanel != null)
+            loadingPanel.SetActive(false);
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(false);
     }
 
     private void Update()
     {
-        if (fired) return;
+        if (fired)
+            return;
 
         if (IsAnyKeyPressed())
         {
@@ -49,11 +54,14 @@ public class LoadingPanelAni : MonoBehaviour
     private IEnumerator CoSwitchFlow()
     {
         // 1) 로딩 패널 켜기
-        if (loadingPanel != null) loadingPanel.SetActive(true);
+        if (loadingPanel != null)
+            loadingPanel.SetActive(true);
 
         // 2) 홀드 구간 동안(=로딩 중) AnyKey는 끄고 MainMenu는 켜기
-        if (anyKeyPanel != null) anyKeyPanel.SetActive(false);
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
+        if (anyKeyPanel != null)
+            anyKeyPanel.SetActive(false);
+        if (mainMenuPanel != null)
+            mainMenuPanel.SetActive(true);
 
         // 3) 지정 시간 대기 (타임스케일 무시)
         float t = 0f;
@@ -64,7 +72,8 @@ public class LoadingPanelAni : MonoBehaviour
         }
 
         // 4) 로딩 패널 끄기 (메인메뉴는 그대로)
-        if (loadingPanel != null) loadingPanel.SetActive(false);
+        if (loadingPanel != null)
+            loadingPanel.SetActive(false);
 
         routine = null;
     }

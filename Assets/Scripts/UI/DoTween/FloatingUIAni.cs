@@ -67,13 +67,15 @@ public class FloatingUIAni : MonoBehaviour
 
     private void Awake()
     {
-        if (target == null) target = GetComponent<RectTransform>();
+        if (target == null)
+            target = GetComponent<RectTransform>();
         CacheBase();
     }
 
     private void OnEnable()
     {
-        if (playOnEnable) Play();
+        if (playOnEnable)
+            Play();
     }
 
     private void OnDisable()
@@ -89,8 +91,10 @@ public class FloatingUIAni : MonoBehaviour
 
     public void Play()
     {
-        if (target == null) target = GetComponent<RectTransform>();
-        if (target == null) return;
+        if (target == null)
+            target = GetComponent<RectTransform>();
+        if (target == null)
+            return;
 
         // ★ 순서가 중요하다: 멈추고 → 기준으로 되돌리고 → 새로 시작.
         //   되돌리지 않고 시작하면 떠 있던 자리가 새 기준이 되어 조금씩 밀린다.
@@ -99,7 +103,8 @@ public class FloatingUIAni : MonoBehaviour
         RestoreBase();
 
         seq = DOTween.Sequence().SetId(this);
-        if (ignoreTimeScale) seq.SetUpdate(true);
+        if (ignoreTimeScale)
+            seq.SetUpdate(true);
 
         // 기준을 가운데 두고 위아래로 대칭이 되게 흔든다
         Vector2 half = new Vector2(floatX, floatY) * 0.5f;
@@ -147,7 +152,8 @@ public class FloatingUIAni : MonoBehaviour
     /// <summary>기준값은 <b>처음 한 번만</b> 잡는다. 다시 잡으면 밀림이 누적된다.</summary>
     private void CacheBase()
     {
-        if (baseCached || target == null) return;
+        if (baseCached || target == null)
+            return;
 
         basePos = target.anchoredPosition;
         baseScale = target.localScale;
@@ -161,7 +167,8 @@ public class FloatingUIAni : MonoBehaviour
 
     private void RestoreBase()
     {
-        if (target == null || !baseCached) return;
+        if (target == null || !baseCached)
+            return;
         target.anchoredPosition = basePos;
         target.localScale = baseScale;
         target.localEulerAngles = baseRot;
@@ -176,8 +183,10 @@ public class FloatingUIAni : MonoBehaviour
     private static float Norm(float a)
     {
         a %= 360f;
-        if (a > 180f) a -= 360f;
-        if (a < -180f) a += 360f;
+        if (a > 180f)
+            a -= 360f;
+        if (a < -180f)
+            a += 360f;
         return a;
     }
 

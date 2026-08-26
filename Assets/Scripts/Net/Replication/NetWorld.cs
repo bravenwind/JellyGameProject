@@ -86,10 +86,8 @@ namespace JellyNet
                 if (id == null || id.SceneNetId == 0)
                     continue;
 
-                id.NetId = id.SceneNetId;
-                id.OwnerId = 0;
-                if (id.PrefabId == 0)
-                    id.PrefabId = NetConfig.JELLY_PREFAB_START;
+                //씬 배치물: netId는 고정 씬 ID, 주인은 없음(0), 프리팹 번호가 비었으면 젤리로 본다
+                id.Assign(id.SceneNetId, 0, id.PrefabId == 0 ? NetConfig.JELLY_PREFAB_START : id.PrefabId);
 
                 objects[id.NetId] = id;
                 OnSpawned?.Invoke(id);
@@ -532,6 +530,7 @@ namespace JellyNet
                 float cg = r.ReadFloat();
                 float cb = r.ReadFloat();
                 int score = r.ReadInt();
+                bool eliminated = r.ReadByte() != 0;
 
                 NetIdentity id = Find(netId);
                 if (id == null)
@@ -539,20 +538,7 @@ namespace JellyNet
 
                 LanBotState bs = id.BotState;
                 if (bs != null)
-                    bs.ApplyState(s, new Color(cr, cg, cb, 1f), score);
-            });
-
-            net.RouteClient(MsgType.BotEliminated, r =>
-            {
-                int netId = r.ReadInt();
-
-                NetIdentity id = Find(netId);
-                if (id == null)
-                    return;
-
-                AIPlayerMovement bot = id.Bot;
-                if (bot != null)
-                    bot.ApplyEliminated();
+                    bs.ApplyState(s, new Color(cr, cg, cb, 1f), score, eliminated);
             });
 
             net.RouteClient(MsgType.PlayerNameSet, r =>
@@ -566,7 +552,7 @@ namespace JellyNet
 
                 LanPlayerState ps = id.PlayerState;
                 if (ps != null)
-                    ps.ApplyName(name);
+                    ps.SetName(name);
             });
 
             net.RouteClient(MsgType.DespawnEntity, r => DespawnLocal(r.ReadInt()));
@@ -597,7 +583,6 @@ namespace JellyNet
             net.UnrouteClient(MsgType.TileCollapse);
             net.UnrouteClient(MsgType.TileWear);
             net.UnrouteClient(MsgType.BotState);
-            net.UnrouteClient(MsgType.BotEliminated);
             net.UnrouteClient(MsgType.PlayerNameSet);
             net.UnrouteClient(MsgType.DespawnEntity);
             net.UnrouteClient(MsgType.TransformUpdate);
@@ -646,9 +631,7 @@ namespace JellyNet
 
             EnsurePlayerComponents(go);
 
-            id.NetId = netId;
-            id.OwnerId = ownerId;
-            id.PrefabId = prefabId;
+            id.Assign(netId, ownerId, prefabId);
 
             //EnsurePlayerComponents가 방금 붙였을 수 있다. Awake는 그 전에 돌았다
             id.RefreshComponentCache();

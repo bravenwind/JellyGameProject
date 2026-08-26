@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using DG.Tweening;
 
 public class UIDropBounce : MonoBehaviour
@@ -9,13 +9,14 @@ public class UIDropBounce : MonoBehaviour
     [SerializeField] private Ease ease = Ease.OutBounce;
     [SerializeField] private bool ignoreTimeScale = true;
 
-    private Vector2 _endPos;
-    private Tween _tween;
+    private Vector2 endPos;
+    private Tween tween;
 
     private void Awake()
     {
-        if (target == null) target = GetComponent<RectTransform>();
-        _endPos = target.anchoredPosition;
+        if (target == null)
+            target = GetComponent<RectTransform>();
+        endPos = target.anchoredPosition;
     }
 
     private void OnEnable()
@@ -25,13 +26,13 @@ public class UIDropBounce : MonoBehaviour
 
     public void Play()
     {
-        _tween?.Kill();
+        tween?.Kill();
 
         // start above
-        target.anchoredPosition = new Vector2(_endPos.x, startY);
+        target.anchoredPosition = new Vector2(endPos.x, startY);
 
         // drop + bounce
-        _tween = target.DOAnchorPosY(_endPos.y, duration)
+        tween = target.DOAnchorPosY(endPos.y, duration)
                        .SetEase(ease)
                        .SetUpdate(ignoreTimeScale);
     }

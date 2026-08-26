@@ -164,7 +164,6 @@ GameObject:
   - component: {fileID: 4254254042053524925}
   - component: {fileID: 8243670208968478441}
   - component: {fileID: 4126782972355622655}
-  - component: {fileID: 7313302041195541813}
   m_Layer: 5
   m_Name: ResultPanel
   m_TagString: Untagged
@@ -247,29 +246,6 @@ MonoBehaviour:
   duration: 1
   ease: 30
   ignoreTimeScale: 1
---- !u!114 &7313302041195541813
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1893355185813184718}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2850e2d7aa1fec44081eb60e13bfb6fc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  failTopImage: {fileID: 703292600604906021}
-  clearTopImage: {fileID: 3015112051053251236}
-  stars:
-  - {fileID: 9222132324425279522}
-  - {fileID: 7127926250185513282}
-  - {fileID: 8822168843351734958}
-  miniStars:
-  - {fileID: 5210295144576528973}
-  - {fileID: 3499887540869051918}
-  - {fileID: 291593022858151000}
-  _starIndex: 0
 --- !u!1 &2025236277411328935
 GameObject:
   m_ObjectHideFlags: 0

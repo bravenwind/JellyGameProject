@@ -6,12 +6,13 @@ namespace JellyNet
     public class LanPlayerVisual : MonoBehaviour
     {
         [Header("연결 (비우면 자동 탐색)")]
-        public PlayerScaleController scaleController;
-        public PlayerColorVisual colorVisual;
-        public Animator animator;
+        [SerializeField] private PlayerScaleController scaleController;
+        [SerializeField] private PlayerColorVisual colorVisual;
+        [SerializeField] private Animator animator;
+        public Animator Anim { get { return animator; } }
 
         [Header("애니메이션 동기화")]
-        public float animSendRate = 10f;
+        [SerializeField] private float animSendRate = 10f;
 
         private NetIdentity id;
         private float animTimer;
@@ -39,7 +40,7 @@ namespace JellyNet
             {
                 PlayerMovement pm = GetComponentInChildren<PlayerMovement>(true);
                 if (pm != null)
-                    animator = pm.animator;
+                    animator = pm.Anim;
 
                 if (animator == null)
                     animator = GetComponentInChildren<Animator>(true);
@@ -128,16 +129,16 @@ namespace JellyNet
             PlayerMovement pm = GetComponentInChildren<PlayerMovement>(true);
             if (pm != null)
             {
-                batPivot = pm.batPivot;
-                hideBatWhenIdle = pm.hideBatWhenIdle;
+                batPivot = pm.BatPivot;
+                hideBatWhenIdle = pm.HideBatWhenIdle;
                 return;
             }
 
             AIPlayerMovement bot = GetComponentInChildren<AIPlayerMovement>(true);
             if (bot != null)
             {
-                batPivot = bot.batPivot;
-                hideBatWhenIdle = bot.hideBatWhenIdle;
+                batPivot = bot.BatPivot;
+                hideBatWhenIdle = bot.HideBatWhenIdle;
             }
         }
 
@@ -168,7 +169,7 @@ namespace JellyNet
         {
             DataManager dm = DataManager.Instance;
 
-            float halfArc = dm.batArcAngle * 0.5f;
+            float halfArc = dm.BatArcAngle * 0.5f;
             Quaternion from = Quaternion.Euler(0f, -halfArc, 0f);
             Quaternion to = Quaternion.Euler(0f, halfArc, 0f);
 
@@ -177,10 +178,10 @@ namespace JellyNet
 
             float elapsed = 0f;
 
-            while (elapsed < dm.batSwingDuration)
+            while (elapsed < dm.BatSwingDuration)
             {
                 elapsed += Time.deltaTime;
-                batPivot.localRotation = Quaternion.Slerp(from, to, elapsed / dm.batSwingDuration);
+                batPivot.localRotation = Quaternion.Slerp(from, to, elapsed / dm.BatSwingDuration);
                 yield return null;
             }
 
@@ -221,8 +222,6 @@ namespace JellyNet
             get { return scaleController != null ? scaleController.currentScaleValue : 1f; }
         }
 
-        public bool HasScaleController { get { return scaleController != null; } }
-
         private bool absorbedPlaying;
 
         // ═══════════════════════════════════════════════════════
@@ -248,10 +247,9 @@ namespace JellyNet
                 return;
             absorbedPlaying = true;
 
-            //봇의 '판 밖' 판정은 AIPlayerMovement가 들고 있다. 연출을 시작하는 순간
-            //표시해줘야 리더보드·AI 표적 선정에서 즉시 빠진다
-            if (id != null && id.Bot != null)
-                id.Bot.IsBeingAbsorbed = true;
+            //StartCoroutine은 첫 yield까지 동기 실행이라 아래 루틴의 StopDriving()이
+            //이 자리에서 바로 돈다 → 봇의 IsBeingAbsorbed는 거기서 세워진다.
+            //예전엔 여기서도 한 번 더 세워 같은 플래그를 두 곳에서 관리했다
 
             StartCoroutine(AbsorbedRoutine(absorber));
         }

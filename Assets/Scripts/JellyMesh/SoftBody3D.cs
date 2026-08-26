@@ -6,155 +6,161 @@ public class SoftBody3D : MonoBehaviour
 {
     [Header("Jelly Settings")]
     [Tooltip("체크 시 에디터에서 칠한 값(0인 부분)은 유지하고, 나머지만 Softness로 제어합니다.")]
-    public bool useHybridSoftness = true;
+    [SerializeField] private bool useHybridSoftness = true;
 
     [Tooltip("최대 이동 허용 거리 (칠해진 부분을 제외한 나머지 젤리 부분의 출렁임 정도)")]
     [Range(0f, 100f)]
-    public float softness = 0.5f;
+    [SerializeField] private float softness = 0.5f;
 
     [Tooltip("공기 저항 (0에 가까울수록 계속 출렁거림)")]
     [Range(0f, 1f)]
-    public float damping = 0.01f;
+    [SerializeField] private float damping = 0.01f;
 
     [Tooltip("형태 유지력 (1이면 잘 안 늘어남)")]
     [Range(0f, 1f)]
-    public float stretchingStiffness = 1.0f;
+    [SerializeField] private float stretchingStiffness = 1.0f;
 
     [Tooltip("굽힘 강도 (0에 가까울수록 표면이 잘 구겨짐)")]
     [Range(0f, 1f)]
-    public float bendingStiffness = 0.1f;
+    [SerializeField] private float bendingStiffness = 0.1f;
 
     [Header("Motion Settings")]
-    [Range(0f, 5f)] public float worldVelocityScale = 0.3f;
-    [Range(0f, 5f)] public float worldAccelerationScale = 0.3f;
+    [Range(0f, 5f)] [SerializeField] private float worldVelocityScale = 0.3f;
+    [Range(0f, 5f)] [SerializeField] private float worldAccelerationScale = 0.3f;
 
-    private Cloth _cloth;
-    private SkinnedMeshRenderer _skinnedMeshRenderer;
-    private float _lastSoftness;
-    private bool _isRebuilding = false;
+    private Cloth cloth;
+    private SkinnedMeshRenderer skinnedMeshRenderer;
+    private float lastSoftness;
+    private bool isRebuilding = false;
 
     // 🔥 에디터에서 칠한 초기값을 저장할 배열
-    private ClothSkinningCoefficient[] _initialCoefficients;
+    private ClothSkinningCoefficient[] initialCoefficients;
 
     private void Awake()
     {
         InitCloth();
-        _lastSoftness = softness;
+        lastSoftness = softness;
     }
 
     private void Update()
     {
-        if (_cloth == null) return;
+        if (cloth == null)
+            return;
 
-        _cloth.damping = damping;
-        _cloth.stretchingStiffness = stretchingStiffness;
-        _cloth.bendingStiffness = bendingStiffness;
-        _cloth.worldVelocityScale = worldVelocityScale;
-        _cloth.worldAccelerationScale = worldAccelerationScale;
-        _cloth.useGravity = true;
+        cloth.damping = damping;
+        cloth.stretchingStiffness = stretchingStiffness;
+        cloth.bendingStiffness = bendingStiffness;
+        cloth.worldVelocityScale = worldVelocityScale;
+        cloth.worldAccelerationScale = worldAccelerationScale;
+        cloth.useGravity = true;
 
-        if (!Mathf.Approximately(_lastSoftness, softness))
+        if (!Mathf.Approximately(lastSoftness, softness))
         {
             UpdateSoftness();
-            _lastSoftness = softness;
+            lastSoftness = softness;
         }
     }
 
     void InitCloth()
     {
-        _skinnedMeshRenderer = GetComponent<SkinnedMeshRenderer>();
-        if (_skinnedMeshRenderer == null) return;
+        skinnedMeshRenderer = GetComponent<SkinnedMeshRenderer>();
+        if (skinnedMeshRenderer == null)
+            return;
 
-        _cloth = GetComponent<Cloth>();
-        if (_cloth == null)
-            _cloth = gameObject.AddComponent<Cloth>();
+        cloth = GetComponent<Cloth>();
+        if (cloth == null)
+            cloth = gameObject.AddComponent<Cloth>();
 
         ApplyClothSettings();
 
         // 1. 게임 시작 시 에디터에서 칠한 추가 제약 적용
-        _initialCoefficients = _cloth.coefficients;
+        initialCoefficients = cloth.coefficients;
 
         UpdateSoftness();
     }
 
     void ApplyClothSettings()
     {
-        if (_cloth == null) return;
-        _cloth.damping = damping;
-        _cloth.stretchingStiffness = stretchingStiffness;
-        _cloth.bendingStiffness = bendingStiffness;
-        _cloth.worldVelocityScale = worldVelocityScale;
-        _cloth.worldAccelerationScale = worldAccelerationScale;
-        _cloth.useGravity = false;
+        if (cloth == null)
+            return;
+        cloth.damping = damping;
+        cloth.stretchingStiffness = stretchingStiffness;
+        cloth.bendingStiffness = bendingStiffness;
+        cloth.worldVelocityScale = worldVelocityScale;
+        cloth.worldAccelerationScale = worldAccelerationScale;
+        cloth.useGravity = false;
     }
 
     void UpdateSoftness()
     {
-        if (_skinnedMeshRenderer == null || _cloth == null || _initialCoefficients == null) return;
+        if (skinnedMeshRenderer == null || cloth == null || initialCoefficients == null)
+            return;
 
-        int vertexCount = _initialCoefficients.Length;
+        int vertexCount = initialCoefficients.Length;
         ClothSkinningCoefficient[] currentCoefficients = new ClothSkinningCoefficient[vertexCount];
 
         for (int i = 0; i < vertexCount; i++)
         {
             if (useHybridSoftness)
             {
-                if (_initialCoefficients[i].maxDistance < softness)
-                    currentCoefficients[i].maxDistance = _initialCoefficients[i].maxDistance;
+                if (initialCoefficients[i].maxDistance < softness)
+                    currentCoefficients[i].maxDistance = initialCoefficients[i].maxDistance;
                 else
                     currentCoefficients[i].maxDistance = softness;
             }
             else
-            {
                 currentCoefficients[i].maxDistance = softness;
-            }
 
             currentCoefficients[i].collisionSphereDistance = 0.0f;
         }
 
-        _cloth.coefficients = currentCoefficients;
+        cloth.coefficients = currentCoefficients;
     }
 
     public void DisableCloth()
     {
-        if (_cloth != null)
-            _cloth.enabled = false;
+        if (cloth != null)
+            cloth.enabled = false;
     }
 
     public void RemoveCloth()
     {
-        Mesh cachedMesh = _skinnedMeshRenderer != null ? _skinnedMeshRenderer.sharedMesh : null;
+        Mesh cachedMesh = skinnedMeshRenderer != null ? skinnedMeshRenderer.sharedMesh : null;
 
-        if (_cloth != null)
-            Destroy(_cloth);
-        _cloth = null;
+        if (cloth != null)
+            Destroy(cloth);
+        cloth = null;
 
-        if (_skinnedMeshRenderer != null)
+        if (skinnedMeshRenderer != null)
         {
-            _skinnedMeshRenderer.updateWhenOffscreen = true;
+            skinnedMeshRenderer.updateWhenOffscreen = true;
             if (cachedMesh != null)
-                _skinnedMeshRenderer.sharedMesh = cachedMesh;
+                skinnedMeshRenderer.sharedMesh = cachedMesh;
         }
         enabled = false;
     }
 
     public void RequestRebuildCloth()
     {
-        if (!gameObject.activeInHierarchy) return;
-        if (_isRebuilding) return;
+        if (!gameObject.activeInHierarchy)
+            return;
+        if (isRebuilding)
+            return;
         StartCoroutine(EnableAndRebuildCloth());
     }
 
     public IEnumerator EnableAndRebuildCloth()
     {
-        if (_skinnedMeshRenderer == null) yield break;
-        if (_isRebuilding) yield break;
+        if (skinnedMeshRenderer == null)
+            yield break;
+        if (isRebuilding)
+            yield break;
 
-        _isRebuilding = true;
+        isRebuilding = true;
 
         // 기존 Cloth 제거 (렌더러는 끄지 않아 깜빡임 방지)
-        if (_cloth != null)
-            Destroy(_cloth);
+        if (cloth != null)
+            Destroy(cloth);
 
         // Destroy 반영 대기 (2프레임)
         yield return null;
@@ -163,20 +169,20 @@ public class SoftBody3D : MonoBehaviour
         // SetActive(false)로 인해 오브젝트가 비활성화되었으면 중단
         if (!gameObject.activeInHierarchy)
         {
-            _isRebuilding = false;
+            isRebuilding = false;
             yield break;
         }
 
         // 현재 포즈 위에서 Cloth 새로 생성
-        _cloth = gameObject.AddComponent<Cloth>();
+        cloth = gameObject.AddComponent<Cloth>();
 
-        _initialCoefficients = _cloth.coefficients;
+        initialCoefficients = cloth.coefficients;
         ApplyClothSettings();
         UpdateSoftness();
 
-        _cloth.ClearTransformMotion();
-        _cloth.enabled = true;
+        cloth.ClearTransformMotion();
+        cloth.enabled = true;
 
-        _isRebuilding = false;
+        isRebuilding = false;
     }
 }

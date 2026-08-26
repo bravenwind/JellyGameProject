@@ -64,7 +64,8 @@ public class BillboardEffect : MonoBehaviour
 
     void HandleBillboard()
     {
-        if (Camera.main == null) return;
+        if (Camera.main == null)
+            return;
 
         if (freezeXZAxis)
         {
@@ -73,9 +74,7 @@ public class BillboardEffect : MonoBehaviour
             transform.LookAt(lookAtPos);
         }
         else
-        {
             transform.rotation = Camera.main.transform.rotation;
-        }
     }
 
     void SetAlpha(float alpha)

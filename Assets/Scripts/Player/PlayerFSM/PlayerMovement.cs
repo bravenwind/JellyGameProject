@@ -1,25 +1,66 @@
 ﻿using UnityEngine;
-using UnityEngine.Playables;
+using JellyNet;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerMovement : MonoBehaviour
 {   
     [Header("Player Settings")]
-    public float moveSpeed = 6.0f;
-    public float rotateSpeed = 10.0f;
+    [SerializeField] private float moveSpeed = 6.0f;
+    public float MoveSpeed { get { return moveSpeed; } set { moveSpeed = value; } }
+    [SerializeField] private float rotateSpeed = 10.0f;
 
     [Header("Physics")]
-    public float jumpForce = 7.5f;
-    public float originalJumpForce = 10.0f;
-    public float gravity = -20.0f;
-    public float terminalVelocity = -53.0f;
+    [SerializeField] private float jumpForce = 7.5f;
+    public float JumpForce { get { return jumpForce; } set { jumpForce = value; } }
+    [SerializeField] private float originalJumpForce = 10.0f;
+    public float OriginalJumpForce { get { return originalJumpForce; } }
+    [SerializeField] private float gravity = -20.0f;
+    [SerializeField] private float terminalVelocity = -53.0f;
 
     [Header("Dash Settings")]
-    public float dashSpeed = 50f;
-    public float dashDuration = 0.2f;
-    public float dashCooldown = 3f;
-    [HideInInspector] public float dashCooldownTimer = 0f;
-    [HideInInspector] public float attackCooldownTimer = 0f;
+    [SerializeField] private float dashSpeed = 50f;
+    public float DashSpeed { get { return dashSpeed; } }
+    [SerializeField] private float dashDuration = 0.2f;
+    public float DashDuration { get { return dashDuration; } }
+    [SerializeField] private float dashCooldown = 3f;
+    public float DashCooldown { get { return dashCooldown; } }
+    //쿨타임 잔여 시간. 밖에서는 읽기만 하고, 거는 것은 아래 두 메서드로만 한다 —
+    //예전엔 public 필드라 어디서든 임의의 값을 써넣을 수 있었다
+    public float DashCooldownTimer { get; private set; }
+    public float AttackCooldownTimer { get; private set; }
+
+    /// <summary>HUD가 쿨타임 하나를 그리는 데 필요한 전부. 세 값을 따로 묻지 않게 묶는다.</summary>
+    public readonly struct Cooldown
+    {
+        public readonly float Ratio;      // 0 = 준비 완료, 1 = 방금 써서 풀 쿨다운
+        public readonly float Remaining;  // 남은 초
+        public readonly bool Ready;
+
+        public Cooldown(float remaining, float max)
+        {
+            Remaining = remaining;
+            Ratio = max > 0f ? Mathf.Clamp01(remaining / max) : 0f;
+            Ready = remaining <= 0f;
+        }
+    }
+
+    public Cooldown DashCooldownInfo => new Cooldown(DashCooldownTimer, dashCooldown);
+
+    public Cooldown AttackCooldownInfo
+    {
+        get
+        {
+            DataManager dm = DataManager.Instance;
+            return new Cooldown(AttackCooldownTimer, dm != null ? dm.BatCooldown : 0f);
+        }
+    }
+
+    public void StartDashCooldown() => DashCooldownTimer = dashCooldown;
+    public void StartAttackCooldown()
+    {
+        DataManager dm = DataManager.Instance;
+        AttackCooldownTimer = dm != null ? dm.BatCooldown : 0f;
+    }
 
     // ── 로컬 플레이어(내 캐릭터) 전역 접근점 — HUD(대쉬 쿨타임 UI 등)에서 사용 ──
     // LanPlayerSetup이 IsMine일 때 MarkAsLocal()로 지정한다.
@@ -32,44 +73,36 @@ public class PlayerMovement : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetInputLocked() => InputLocked = false;
 
-    /// <summary>0 = 대쉬 준비 완료, 1 = 방금 써서 풀 쿨다운. (UI 채움 비율용)</summary>
-    public float DashCooldownRatio => dashCooldown > 0f ? Mathf.Clamp01(dashCooldownTimer / dashCooldown) : 0f;
-    /// <summary>쿨타임이 끝난 상태(상태머신 제약까지 보려면 CanDash() 사용).</summary>
-    public bool DashReady => dashCooldownTimer <= 0f;
-
-    /// <summary>0 = 공격 준비 완료, 1 = 방금 써서 풀 쿨다운. 최댓값은 DataManager.batCooldown(Push 전용).</summary>
-    public float AttackCooldownRatio
-    {
-        get
-        {
-            var dm = DataManager.Instance;
-            float max = dm != null ? dm.batCooldown : 0f;
-            return max > 0f ? Mathf.Clamp01(attackCooldownTimer / max) : 0f;
-        }
-    }
-    /// <summary>공격 쿨타임이 끝난 상태(모드/상태머신 제약까지 보려면 CanAttack() 사용).</summary>
-    public bool AttackReady => attackCooldownTimer <= 0f;
 
     [Header("Model Settings")]
-    public Animator animator;
-    public UIManager uiManager;
+    [SerializeField] private Animator animator;
+    public Animator Anim { get { return animator; } }
 
     [Header("Bat (Push Mode)")]
     [Tooltip("배트 오브젝트의 Transform (플레이어 자식으로 배치)")]
-    public Transform batPivot;
+    [SerializeField] private Transform batPivot;
+    public Transform BatPivot { get { return batPivot; } }
     [Tooltip("평상시 배트 숨기기")]
-    public bool hideBatWhenIdle = true;
+    [SerializeField] private bool hideBatWhenIdle = true;
+    public bool HideBatWhenIdle { get { return hideBatWhenIdle; } }
 
-    // 상태 클래스들이 접근할 수 있도록 public + HideInInspector 처리
-    [HideInInspector] public CharacterController controller;
-    [HideInInspector] public Vector3 inputDir;
-    [HideInInspector] public float verticalVelocity;
-    [HideInInspector] public Quaternion targetRotation;
-    [HideInInspector] public bool isGrounded;
+    // ─────────────────────────────────────────────────────────
+    //  상태 클래스들이 함께 쓰는 값
+    // ─────────────────────────────────────────────────────────
+    //
+    // ★ 예전엔 [HideInInspector] public 필드였다
+    //   그 표기는 "인스펙터에는 감추되 직렬화는 한다"는 뜻이라, 매 프레임 바뀌는
+    //   런타임 값이 씬 파일에 저장되고 다음 실행에 옛 값으로 되살아난다.
+    //   감추고 싶었던 것이지 저장하고 싶었던 게 아니므로 프로퍼티가 맞다.
+    public CharacterController Controller { get; private set; }
+    public Vector3 InputDir { get; set; }
+    public float VerticalVelocity { get; set; }
+    public bool IsGrounded { get; private set; }
+
 
     // 입력 캐싱 (프레임당 1회만 읽기)
-    [HideInInspector] public float inputH;
-    [HideInInspector] public float inputV;
+    private float inputH;
+    private float inputV;
 
     // 카메라 벡터
     private Vector3 camForward;
@@ -80,15 +113,16 @@ public class PlayerMovement : MonoBehaviour
     // 현재 상태
     private PlayerBaseState currentState;
 
-    public PlayerIdleState idleState;
-    public PlayerMoveState moveState;
-    public PlayerJumpState jumpState;
-    public PlayerDashState dashState;
-    public PlayerKnockbackState knockbackState;
-    public PlayerAttackState attackState;
+    //Start에서 한 번 만들어 재사용한다. 인스펙터 값이 아니라 런타임 객체다
+    public PlayerIdleState IdleState { get; private set; }
+    public PlayerMoveState MoveState { get; private set; }
+    public PlayerJumpState JumpState { get; private set; }
+    public PlayerDashState DashState { get; private set; }
+    private PlayerKnockbackState knockbackState;
+    public PlayerAttackState AttackState { get; private set; }
 
     /// <summary>애니메이션 트리거를 네트워크로 알리는 창구. 루트에 붙어 있다.</summary>
-    public JellyNet.LanPlayerVisual Visual { get; private set; }
+    public LanPlayerVisual Visual { get; private set; }
 
     /// <summary>
     /// 판정에 쓰는 내 크기. 사거리·흡수 판정은 전부 이 값을 봐야 한다.
@@ -102,24 +136,24 @@ public class PlayerMovement : MonoBehaviour
     //Awake에서 잡는다. 원격 아바타는 스폰 도중 이 컴포넌트가 꺼지므로 Start가 아예 안 불린다
     void Awake()
     {
-        Visual = GetComponentInParent<JellyNet.LanPlayerVisual>();
+        Visual = GetComponentInParent<LanPlayerVisual>();
     }
 
     void Start()
     {
-        controller = GetComponent<CharacterController>();
+        Controller = GetComponent<CharacterController>();
         jumpForce = originalJumpForce;
         UpdateCameraVectors();
 
-        idleState = new PlayerIdleState(this);
-        moveState = new PlayerMoveState(this);
-        jumpState = new PlayerJumpState(this);
-        dashState = new PlayerDashState(this);
+        IdleState = new PlayerIdleState(this);
+        MoveState = new PlayerMoveState(this);
+        JumpState = new PlayerJumpState(this);
+        DashState = new PlayerDashState(this);
         knockbackState = new PlayerKnockbackState(this);
-        attackState = new PlayerAttackState(this);
+        AttackState = new PlayerAttackState(this);
 
         // 첫 상태 진입
-        ChangeState(idleState);
+        ChangeState(IdleState);
     }
 
     void Update()
@@ -136,24 +170,25 @@ public class PlayerMovement : MonoBehaviour
             inputV = Input.GetAxis("Vertical");
         }
 
-        if (dashCooldownTimer > 0f)
-            dashCooldownTimer -= Time.deltaTime;
-        if (attackCooldownTimer > 0f)
-            attackCooldownTimer -= Time.deltaTime;
+        if (DashCooldownTimer > 0f)
+            DashCooldownTimer -= Time.deltaTime;
+        if (AttackCooldownTimer > 0f)
+            AttackCooldownTimer -= Time.deltaTime;
 
         currentState?.Update();
     }
 
     private void OnDestroy()
     {
-        if (Local == this) Local = null;
+        if (Local == this)
+            Local = null;
     }
 
     public bool CanDash()
     {
         return !InputLocked
-            && dashCooldownTimer <= 0f
-            && currentState != dashState
+            && DashCooldownTimer <= 0f
+            && currentState != DashState
             && currentState != knockbackState;
     }
 
@@ -161,8 +196,8 @@ public class PlayerMovement : MonoBehaviour
     {
         return !InputLocked
             && GameState.CurrentGameMode == GameModeType.Push
-            && attackCooldownTimer <= 0f
-            && currentState != attackState
+            && AttackCooldownTimer <= 0f
+            && currentState != AttackState
             && currentState != knockbackState;
     }
 
@@ -175,7 +210,8 @@ public class PlayerMovement : MonoBehaviour
     // 상태 변경 함수
     public void ChangeState(PlayerBaseState newState)
     {
-        if (currentState == newState) return;
+        if (currentState == newState)
+            return;
 
         currentState?.Exit();
         currentState = newState;
@@ -192,20 +228,19 @@ public class PlayerMovement : MonoBehaviour
     // -----------------------------------------------------------------------
     public void ApplyGravity()
     {
-        isGrounded = controller.isGrounded;
+        IsGrounded = Controller.isGrounded;
 
-        if (isGrounded && verticalVelocity < 0)
-        {
-            verticalVelocity = -2f;
-        }
+        if (IsGrounded && VerticalVelocity < 0)
+            VerticalVelocity = -2f;
 
-        verticalVelocity += gravity * Time.deltaTime;
-        if (verticalVelocity < terminalVelocity) verticalVelocity = terminalVelocity;
+        VerticalVelocity += gravity * Time.deltaTime;
+        if (VerticalVelocity < terminalVelocity)
+            VerticalVelocity = terminalVelocity;
     }
 
     public void CalculateMoveDirection()
     {
-        inputDir = (camForward * inputV + camRight * inputH).normalized;
+        InputDir = (camForward * inputV + camRight * inputH).normalized;
     }
 
     public bool IsMoveInputActive()
@@ -219,22 +254,24 @@ public class PlayerMovement : MonoBehaviour
         //   흡수 연출·발판 낙하·탈락 처리가 CharacterController를 끄는데,
         //   FSM은 그걸 모르고 계속 Move를 부른다 → 매 프레임 에러가 쏟아진다.
         //   끄는 쪽마다 FSM까지 챙기게 하는 것보다, 쓰는 쪽에서 한 번 막는 게 확실하다.
-        if (controller == null || !controller.enabled) return;
+        if (Controller == null || !Controller.enabled)
+            return;
 
-        Vector3 finalMove = inputDir * moveSpeed;
-        finalMove.y = verticalVelocity;
-        controller.Move(finalMove * Time.deltaTime);
+        Vector3 finalMove = InputDir * moveSpeed;
+        finalMove.y = VerticalVelocity;
+        Controller.Move(finalMove * Time.deltaTime);
 
-        if (inputDir != Vector3.zero)
+        if (InputDir != Vector3.zero)
         {
-            targetRotation = Quaternion.LookRotation(inputDir);
-            transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotateSpeed * Time.deltaTime);
+            transform.rotation = SmoothDamping.RotateTowards(
+                transform.rotation, InputDir, rotateSpeed, Time.deltaTime);
         }
     }
 
     private void UpdateCameraVectors()
     {
-        if (Camera.main == null) return;
+        if (Camera.main == null)
+            return;
         Transform cam = Camera.main.transform;
         camForward = cam.forward;
         camRight = cam.right;
@@ -244,8 +281,4 @@ public class PlayerMovement : MonoBehaviour
         camRight.Normalize();
     }
 
-    public void OnFailAnimationFinished()
-    {
-        uiManager.SetState(UIState.GameOver);
-    }
 }

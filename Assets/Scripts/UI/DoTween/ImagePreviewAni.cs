@@ -22,22 +22,27 @@ public class ImagePreviewAni : MonoBehaviour
 
     void Awake()
     {
-        if (characterImage == null) characterImage = GetComponent<Image>();
-        if (target == null) target = transform as RectTransform;
+        if (characterImage == null)
+            characterImage = GetComponent<Image>();
+        if (target == null)
+            target = transform as RectTransform;
 
-        if (target != null) basePos = target.anchoredPosition;
+        if (target != null)
+            basePos = target.anchoredPosition;
 
         SetAlpha(0f);
     }
 
     public void Show(Sprite nextSprite)
     {
-        if (characterImage == null || target == null) return;
+        if (characterImage == null || target == null)
+            return;
 
         // 이전 트윈 정리
         KillSeq();
 
-        if (floating != null) floating.StopFloating(true);
+        if (floating != null)
+            floating.StopFloating(true);
 
         Vector2 startPos = basePos + fadeInStartOffset;
 
@@ -58,17 +63,20 @@ public class ImagePreviewAni : MonoBehaviour
 
             .AppendCallback(() =>
             {
-                if (floating != null) floating.StartFloating();
+                if (floating != null)
+                    floating.StartFloating();
             });
     }
 
     public void Hide(bool stopFloating = true)
     {
-        if (characterImage == null) return;
+        if (characterImage == null)
+            return;
 
         KillSeq();
 
-        if (stopFloating && floating != null) floating.StopFloating(true);
+        if (stopFloating && floating != null)
+            floating.StopFloating(true);
 
         seq = DOTween.Sequence()
             .SetUpdate(true)

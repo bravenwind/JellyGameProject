@@ -21,8 +21,8 @@ public static class GameState
     public static event Action<Color> OnDisplayColorChanged;
 
     // ── Backing fields ──
-    private static float _playerCurrentScale = 2f;
-    private static Color _currentDisplayColor = Color.white;
+    private static float playerCurrentScale = 2f;
+    private static Color currentDisplayColor = Color.white;
 
     // ── Properties & Event invoking ──
     public static GamePhase Phase { get; set; } = GamePhase.None;
@@ -31,22 +31,23 @@ public static class GameState
 
     public static float PlayerCurrentScale
     {
-        get => _playerCurrentScale;
+        get => playerCurrentScale;
         set
         {
-            if (Mathf.Approximately(_playerCurrentScale, value)) return;
-            _playerCurrentScale = value;
-            OnScaleChanged?.Invoke(_playerCurrentScale);
+            if (Mathf.Approximately(playerCurrentScale, value))
+                return;
+            playerCurrentScale = value;
+            OnScaleChanged?.Invoke(playerCurrentScale);
         }
     }
 
     public static Color CurrentDisplayColor
     {
-        get => _currentDisplayColor;
+        get => currentDisplayColor;
         set
         {
-            _currentDisplayColor = value;
-            OnDisplayColorChanged?.Invoke(_currentDisplayColor);
+            currentDisplayColor = value;
+            OnDisplayColorChanged?.Invoke(currentDisplayColor);
         }
     }
 
@@ -57,8 +58,8 @@ public static class GameState
     {
         Phase = GamePhase.None;
         CurrentScore = 0;
-        _playerCurrentScale = 2f;
-        _currentDisplayColor = Color.white;
+        playerCurrentScale = 2f;
+        currentDisplayColor = Color.white;
         CurrentGameMode = GameModeType.Absorb;
 
         OnScaleChanged = null;
@@ -69,8 +70,8 @@ public static class GameState
     {
         Phase = GamePhase.None;
         CurrentScore = 0;
-        _playerCurrentScale = 2f;
-        _currentDisplayColor = Color.white;
+        playerCurrentScale = 2f;
+        currentDisplayColor = Color.white;
 
         // [H1] 여기서 이벤트를 null로 비우면 안 된다.
         // 씬 UI(CurrentStatusUI 등)는 OnEnable(씬 활성화)에서 구독하는데, 게임 시작이

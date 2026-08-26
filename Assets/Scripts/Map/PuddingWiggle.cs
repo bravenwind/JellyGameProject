@@ -5,7 +5,7 @@
 //원격 플레이어가 밟았을 때는 아무 화면에서도 안 흔들렸다
 public class PuddingWiggle : MonoBehaviour
 {
-    public Animator puddingAnimator;
+    [SerializeField] private Animator puddingAnimator;
 
     private void OnTriggerEnter(Collider other)
     {

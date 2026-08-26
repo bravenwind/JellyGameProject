@@ -60,10 +60,12 @@ public static class LanSceneSetup
         foreach (NetIdentity id in all)
         {
             // 프리팹 에셋이 아니라 씬에 실제로 존재하는 것만
-            if (id.gameObject.scene.rootCount == 0) continue;
+            if (id.gameObject.scene.rootCount == 0)
+                continue;
 
             int want = next++;
-            if (id.SceneNetId == want) continue;
+            if (id.SceneNetId == want)
+                continue;
 
             Undo.RecordObject(id, "Assign scene net id");
             id.SceneNetId = want;
@@ -93,7 +95,11 @@ public static class LanSceneSetup
     public static void RefillPrefabs()
     {
         GameObject net = Object.FindFirstObjectByType<NetManager>()?.gameObject;
-        if (net == null) { Debug.LogError("씬에 NetManager가 없습니다. ④를 먼저 실행하세요."); return; }
+        if (net == null)
+        {
+            Debug.LogError("씬에 NetManager가 없습니다. ④를 먼저 실행하세요.");
+            return;
+        }
 
         StringBuilder log = new StringBuilder("=== 프리팹 목록 다시 채우기 ===\n");
         forceRefillPrefabs = true;
@@ -139,15 +145,22 @@ public static class LanSceneSetup
         foreach (MonoBehaviour mb in Object.FindObjectsByType<MonoBehaviour>(
                      FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
-            if (mb == null) continue;
+            if (mb == null)
+                continue;
             string typeName = mb.GetType().Name;
 
             bool match = false;
             for (int i = 0; i < PhotonManagerTypes.Length; i++)
-                if (PhotonManagerTypes[i] == typeName) { match = true; break; }
+                if (PhotonManagerTypes[i] == typeName)
+                {
+                    match = true;
+                    break;
+                }
 
-            if (!match) continue;
-            if (!mb.gameObject.activeSelf) continue;
+            if (!match)
+                continue;
+            if (!mb.gameObject.activeSelf)
+                continue;
 
             Undo.RecordObject(mb.gameObject, "Disable Photon manager");
             mb.gameObject.SetActive(false);
@@ -155,7 +168,8 @@ public static class LanSceneSetup
             n++;
         }
 
-        if (n == 0) log.AppendLine("  (없음)");
+        if (n == 0)
+            log.AppendLine("  (없음)");
     }
 
     static GameObject CreateOrFindLanNet(StringBuilder log)
@@ -194,7 +208,8 @@ public static class LanSceneSetup
 
     static void Add<T>(GameObject go, StringBuilder log) where T : Component
     {
-        if (go.GetComponent<T>() != null) return;
+        if (go.GetComponent<T>() != null)
+            return;
         go.AddComponent<T>();
         log.AppendLine("  + " + typeof(T).Name);
     }
@@ -213,15 +228,20 @@ public static class LanSceneSetup
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             GameObject p = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-            if (p == null) continue;
-            if (p.GetComponent<NetIdentity>() == null) continue;
-            if (p.GetComponentInChildren<PlayerMovement>(true) == null) continue;
-            if (p.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>(true) != null) continue;  // 봇 제외
+            if (p == null)
+                continue;
+            if (p.GetComponent<NetIdentity>() == null)
+                continue;
+            if (p.GetComponentInChildren<PlayerMovement>(true) == null)
+                continue;
+            if (p.GetComponentInChildren<UnityEngine.AI.NavMeshAgent>(true) != null)
+                continue;  // 봇 제외
 
             candidates.Add(p);
         }
 
-        if (candidates.Count == 0) return null;
+        if (candidates.Count == 0)
+            return null;
 
         if (candidates.Count > 1)
         {
@@ -239,7 +259,8 @@ public static class LanSceneSetup
         log.AppendLine("[프리팹 등록표]");
 
         NetWorld world = net.GetComponent<NetWorld>();
-        if (world == null) return;
+        if (world == null)
+            return;
 
         if (world.prefabs != null && world.prefabs.Length > 0 && !forceRefillPrefabs)
         {
@@ -280,12 +301,19 @@ public static class LanSceneSetup
         {
             string path = AssetDatabase.GUIDToAssetPath(guid);
             GameObject p = AssetDatabase.LoadAssetAtPath<GameObject>(path);
-            if (p == null || p == player) continue;
-            if (p.GetComponent<NetIdentity>() == null) continue;
-            if (p.GetComponentInChildren<PlayerMovement>(true) != null) continue;   // 다른 플레이어 스킨
+            if (p == null || p == player)
+                continue;
+            if (p.GetComponent<NetIdentity>() == null)
+                continue;
+            if (p.GetComponentInChildren<PlayerMovement>(true) != null)
+                continue;   // 다른 플레이어 스킨
 
             // 봇은 따로 모아 뒤에 붙인다
-            if (p.GetComponentInChildren<AIDetector>(true) != null) { bots.Add(p); continue; }
+            if (p.GetComponentInChildren<AIDetector>(true) != null)
+            {
+                bots.Add(p);
+                continue;
+            }
 
             // ★ 런타임에 뿌리는 젤리는 '움직이는 젤리(Wandering/Patrol)'다.
             //   맵에 미리 깔린 NonAI 젤리는 씬 오브젝트라 여기 넣지 않는다

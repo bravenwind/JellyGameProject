@@ -1,4 +1,4 @@
-// ============================================================
+﻿// ============================================================
 // AIWanderState.cs
 // ============================================================
 // 랜덤 배회 상태.
@@ -10,11 +10,11 @@ using UnityEngine;
 
 public class AIWanderState : AIBaseState
 {
-    private Vector3 _wanderTarget;
-    private bool    _hasTarget    = false;
-    private float   _lastSetTime  = -10f;
+    private Vector3 wanderTarget;
+    private bool    hasTarget    = false;
+    private float   lastSetTime  = -10f;
 
-    private float _retryTimer = 0f; // 목적지 탐색 실패 시 쿨다운
+    private float retryTimer = 0f; // 목적지 탐색 실패 시 쿨다운
 
     //목적지에 완전히 도착하기 전에 다음 목적지를 잡는 거리.
     //도착까지 기다리면 감속 → 정지 → 재탐색이 되어 배회가 뚝뚝 끊긴다
@@ -29,34 +29,35 @@ public class AIWanderState : AIBaseState
 
     public override void Enter()
     {
-        _hasTarget = false;
-        _retryTimer = 0f;
+        hasTarget = false;
+        retryTimer = 0f;
         ResetStuck();
-        ai.Agent.speed = ai.moveSpeed * 0.9f;
+        ai.Agent.speed = ai.MoveSpeed * 0.9f;
         ai.Agent.stoppingDistance = 0.2f; // 배회 목적지에 약간의 여유를 줌 (Jitter 방지)
     }
 
     public override void Update()
     {
-        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh) return;
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return;
 
         //경로는 있는데 안 움직이면 버리고 다시 잡는다
         if (HandleStuck())
         {
-            _hasTarget = false;
+            hasTarget = false;
             return;
         }
 
         // 재시도 대기 중이면 리턴
-        if (_retryTimer > 0f)
+        if (retryTimer > 0f)
         {
-            _retryTimer -= Time.deltaTime;
+            retryTimer -= Time.deltaTime;
             return;
         }
 
         // ── 새 목적지 필요 여부 판단 ──
-        float distToTarget = _hasTarget ? Vector3.Distance(ai.transform.position, _wanderTarget) : -1f;
-        bool settled = _hasTarget && (Time.time - _lastSetTime) > PATH_SETTLE;
+        float distToTarget = hasTarget ? Vector3.Distance(ai.transform.position, wanderTarget) : -1f;
+        bool settled = hasTarget && (Time.time - lastSetTime) > PATH_SETTLE;
 
         //경로가 통째로 사라졌다
         bool pathFailed = settled && !ai.Agent.hasPath;
@@ -65,9 +66,10 @@ public class AIWanderState : AIBaseState
         bool pathInfinity = settled && ai.Agent.hasPath
                             && float.IsPositiveInfinity(ai.Agent.remainingDistance);
 
-        bool needNew = !_hasTarget || distToTarget < REPLAN_DISTANCE || pathFailed || pathInfinity;
+        bool needNew = !hasTarget || distToTarget < REPLAN_DISTANCE || pathFailed || pathInfinity;
 
-        if (!needNew) return;
+        if (!needNew)
+            return;
 
         // ── 새 목적지 설정 ──
         //TrySetSafePath가 완주 가능 + 위험 구간 회피까지 확인한다.
@@ -75,18 +77,18 @@ public class AIWanderState : AIBaseState
         //목적지만 안전하면 무너지는 링을 관통하는 경로도 그대로 탔다
         if (ai.TryGetWanderDestination(out Vector3 dest) && TrySetSafePath(dest))
         {
-            _wanderTarget = dest;
-            _hasTarget = true;
-            _lastSetTime = Time.time;
+            wanderTarget = dest;
+            hasTarget = true;
+            lastSetTime = Time.time;
             return;
         }
 
-        _hasTarget = false;
-        _retryTimer = RETRY_COOLDOWN; // 실패 시 쿨다운 (매 프레임 재시도로 인한 성능 하락 방지)
+        hasTarget = false;
+        retryTimer = RETRY_COOLDOWN; // 실패 시 쿨다운 (매 프레임 재시도로 인한 성능 하락 방지)
     }
 
     public override void Exit()
     {
-        _hasTarget = false;
+        hasTarget = false;
     }
 }
