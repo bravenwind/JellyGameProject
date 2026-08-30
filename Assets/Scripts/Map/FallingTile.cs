@@ -225,7 +225,7 @@ public class FallingTile : MonoBehaviour
         lastOverlapTime = Time.time;
         if (drawOverlapGizmo)
         {
-            DebugDrawOverlapBox(boxCenter, halfExtents, Quaternion.identity, Color.red, 5f);
+            DebugDrawOverlapBox(boxCenter, halfExtents, Color.red, 5f);
 #if UNITY_EDITOR
             // 로그는 에디터에서만. 빌드에선 컴파일 자체가 빠져 프레임 스파이크/오버헤드 없음. (G3)
             Debug.Log($"[FallingTile] {name} AwakePhysicsOnTile: {OverlappedCols.Length}개 콜라이더 감지");
@@ -414,19 +414,30 @@ public class FallingTile : MonoBehaviour
     // 디버그 시각화
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>OverlapBox 영역을 Debug.DrawLine으로 표시 (Scene 뷰, duration초 동안)</summary>
-    private static void DebugDrawOverlapBox(Vector3 center, Vector3 halfExtents, Quaternion rotation, Color color, float duration)
+    /// <summary>
+    /// OverlapBox 영역을 Debug.DrawLine으로 표시 (Scene 뷰, duration초 동안).
+    ///
+    /// 회전 인자는 없다. 이 상자의 출처는 콜라이더 bounds라 항상 월드 축에 정렬돼 있고,
+    /// 예전에 넘기던 값은 Quaternion.identity 하나뿐이었다.
+    /// </summary>
+    private static void DebugDrawOverlapBox(Vector3 center, Vector3 halfExtents, Color color, float duration)
     {
+        // i의 비트 3개를 축 3개의 부호로 읽는다. 0이면 -, 1이면 +.
+        //   비트0 → x, 비트1 → y, 비트2 → z
+        // 0~7을 세는 것만으로 ±의 모든 조합 2³ = 8가지, 즉 꼭짓점 8개가 한 번씩 나온다.
         Vector3[] corners = new Vector3[8];
         for (int i = 0; i < 8; i++)
         {
-            Vector3 local = new Vector3(
+            corners[i] = center + new Vector3(
                 (i & 1) == 0 ? -halfExtents.x : halfExtents.x,
                 (i & 2) == 0 ? -halfExtents.y : halfExtents.y,
                 (i & 4) == 0 ? -halfExtents.z : halfExtents.z);
-            corners[i] = center + rotation * local;
         }
-        // 12개 모서리
+        // 모서리 = 축 하나만 따라 이동 = 비트 하나만 뒤집기.
+        // 그래서 "비트가 정확히 하나만 다른 쌍"이 곧 모서리다. 2개 다르면 면의 대각선,
+        // 3개 다르면 상자를 관통하는 대각선이라 그리면 안 된다.
+        // 개수는 꼭짓점 8개 × 이웃 3개 ÷ 2(양 끝에서 두 번 셈) = 12개.
+        //   1행 = x비트만 다름(가로), 2행 = y비트(세로), 3행 = z비트(깊이)
         int[,] edges = new int[,] {
             {0,1},{2,3},{4,5},{6,7},
             {0,2},{1,3},{4,6},{5,7},
@@ -453,15 +464,25 @@ public class FallingTile : MonoBehaviour
         bool recentlyTriggered = Time.time - lastOverlapTime < 5f;
         Color baseColor = recentlyTriggered ? Color.red : Color.green;
 
-        Matrix4x4 prev = Gizmos.matrix;
-        Gizmos.matrix = Matrix4x4.TRS(center, Quaternion.identity, Vector3.one);
+        // ★ Gizmos.matrix를 갈아끼우지 않는다
+        //   Gizmos는 회전을 인자로 못 받아서, 돌아간 상자를 그리려면 좌표계 자체를
+        //   바꿔치기하고 원점에 그리는 수밖에 없다. 예전엔 transform.rotation을 넣느라
+        //   그렇게 했다. 지금 이 상자의 출처는 콜라이더 bounds — 이미 월드 축에
+        //   정렬돼 있어 회전이 없다. 회전이 항등이면 행렬이 하는 일은 평행이동뿐이고,
+        //   그건 DrawWireCube의 첫 인자가 이미 한다.
+        //
+        //   Gizmos.matrix는 정적 전역이라 되돌리는 코드까지 딸려온다. 없앨 수 있으면 없앤다.
 
+        // DrawWireCube는 halfExtents가 아니라 <b>전체 크기</b>를 받는다.
+        // OverlapBox와 단위가 달라서 * 2를 빠뜨리면 실제 검사 범위의 절반만 그려진다.
+        Vector3 size = halfExtents * 2f;
+
+        // 선만 그리면 이웃 타일들의 선과 엉켜 어느 상자 건지 구분이 안 된다.
+        // 옅게 속을 채워 부피로 보이게 하면 소품이 안에 잠겼는지 밖인지가 눈에 들어온다.
         Gizmos.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.8f);
-        Gizmos.DrawWireCube(Vector3.zero, halfExtents * 2f);
+        Gizmos.DrawWireCube(center, size);
 
         Gizmos.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.1f);
-        Gizmos.DrawCube(Vector3.zero, halfExtents * 2f);
-
-        Gizmos.matrix = prev;
+        Gizmos.DrawCube(center, size);
     }
 }
