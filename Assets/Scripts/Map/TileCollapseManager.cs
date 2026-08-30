@@ -223,8 +223,41 @@ public class TileCollapseManager : MonoBehaviour
         {
             Debug.LogError($"[타일] 타일 간격을 잴 수 없습니다 (stepX={stepX}, stepZ={stepZ}). "
                 + "Tile_1_0 · Tile_0_1이 제자리에 있는지 확인하세요 — 밟기 판정이 동작하지 않습니다.");
+            return;
         }
+
+        CacheMaxPathSamples();
     }
+
+    /// <summary>
+    /// 경로 한 구간을 최대 몇 등분까지 검사할지. 격자에서 유도한다.
+    ///
+    /// ★ 예전엔 상수 16이었는데, 그 값이 검사를 무력화하고 있었다
+    ///   구간 하나는 격자를 대각선으로 가로지르는 길이까지 나올 수 있다
+    ///   (평평한 격자라 장애물이 없으면 NavMesh가 코너 두 개짜리 직선을 준다).
+    ///   이 맵은 대각선이 약 308m인데 16등분이면 샘플 간격이 19m가 된다.
+    ///   칸이 14m니까 <b>칸 하나가 통째로 건너뛰어졌다</b> — 위험한 칸을 지나는 경로가
+    ///   안전 판정을 받고 통과했다는 뜻이다.
+    ///
+    ///   가장 긴 구간을 목표 간격으로 쪼갤 수 있는 수를 그대로 상한으로 쓴다.
+    ///   그러면 상한에 걸려도 간격 보장이 깨지지 않는다.
+    /// </summary>
+    private void CacheMaxPathSamples()
+    {
+        float spanX = (width - 1) * stepX;
+        float spanZ = (height - 1) * stepZ;
+        float gridDiagonal = Mathf.Sqrt(spanX * spanX + spanZ * spanZ);
+
+        maxSamplesPerSegment = Mathf.Max(1, Mathf.CeilToInt(gridDiagonal / PathSampleStep));
+    }
+
+    /// <summary>샘플 사이 목표 간격. 반 칸이면 칸을 건너뛸 일이 없다.</summary>
+    private float PathSampleStep
+    {
+        get { return Mathf.Min(stepX, stepZ) * 0.5f; }
+    }
+
+    private int maxSamplesPerSegment = 1;
 
     private bool TryParseTileName(string name, out int x, out int z)
     {
@@ -906,8 +939,6 @@ public class TileCollapseManager : MonoBehaviour
         return false;
     }
 
-    private const int MAX_SAMPLES_PER_SEGMENT = 16;
-
     /// <summary>
     /// 이 경로가 무너지거나 무너질 칸을 지나가는지.
     ///
@@ -925,8 +956,10 @@ public class TileCollapseManager : MonoBehaviour
         if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)
             return false;
 
-        float sampleStep = Mathf.Min(stepX, stepZ) * 0.5f;
+        float sampleStep = PathSampleStep;
 
+        // 첫 코너는 어느 구간의 끝점도 아니라서 여기서 따로 본다.
+        // 나머지 코너는 전부 어떤 구간의 to로 아래에서 검사된다.
         if (IsPositionDangerous(corners[0]))
             return true;
 
@@ -935,10 +968,17 @@ public class TileCollapseManager : MonoBehaviour
             Vector3 from = corners[i - 1];
             Vector3 to = corners[i];
 
+            // sampleStep은 '간격'(미터), steps는 '등분 수'(개). 간격을 목표 이하로
+            // 만들려면 몇 등분해야 하는지를 올림으로 구한다.
+            // 하한 1은 길이 0인 구간(코너가 겹쳐 나오는 경우)에서도 to를 한 번은
+            // 보게 한다 — 0등분이면 아래 루프가 안 돌아 그 코너가 검사에서 빠진다.
             int steps = Mathf.Clamp(
                 Mathf.CeilToInt(Vector3.Distance(from, to) / sampleStep),
-                1, MAX_SAMPLES_PER_SEGMENT);
+                1, maxSamplesPerSegment);
 
+            // j가 0이 아니라 1부터인 이유: t=0은 from인데, 그건 직전 구간의 to로
+            // 이미 봤다. t는 1/steps에서 시작해 정확히 1(=to)로 끝난다.
+            // (float) 캐스팅이 없으면 정수 나눗셈이라 t가 마지막만 1이고 전부 0이 된다.
             for (int j = 1; j <= steps; j++)
             {
                 if (IsPositionDangerous(Vector3.Lerp(from, to, (float)j / steps)))
