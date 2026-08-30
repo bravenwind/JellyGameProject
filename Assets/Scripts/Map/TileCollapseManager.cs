@@ -328,14 +328,6 @@ public class TileCollapseManager : MonoBehaviour
             }
         }
 
-        // "다음 고리의 붕괴 시각이 지났으면 무너뜨린다"를 그대로 옮긴 것.
-        // 랙으로 여러 간격이 한 프레임에 지나가면 그만큼 연달아 무너진다.
-        //
-        // ★ 예전엔 (elapsed - 첫 붕괴 시각) / ringInterval을 내림해서 목표 고리를 구했다
-        //   같은 답이 나오지만, CollapseTimeOfRing이 이미 알고 있는 +1 담장 계산을
-        //   호출부가 뺄셈과 나눗셈으로 <b>다시 유도</b>하는 꼴이었다. 시각의 출처가 둘이면
-        //   한쪽만 고쳐지는 일이 생긴다 — 실제로 이번 수정이 그럴 뻔했다.
-        //   나눗셈이 사라져 ringInterval이 0일 때 무한대가 나오던 자리도 같이 없어졌다.
         while (lastCollapsedRing < LastCollapsingRing
                && elapsed >= CollapseTimeOfRing(lastCollapsedRing + 1))
         {
@@ -523,7 +515,7 @@ public class TileCollapseManager : MonoBehaviour
                 continue;
 
             footprintChanged = true;
-            WearTile(CellKeyToX(cellKey), CellKeyToZ(cellKey), cellKey);
+            WearTile(CellKeyToX(cellKey), CellKeyToZ(cellKey));
         }
 
         if (!footprintChanged && previous.Count != current.Count)
@@ -562,7 +554,7 @@ public class TileCollapseManager : MonoBehaviour
             for (int i = 0; i < current.Count; i++)
             {
                 int cellKey = current[i];
-                WearTile(CellKeyToX(cellKey), CellKeyToZ(cellKey), cellKey);
+                WearTile(CellKeyToX(cellKey), CellKeyToZ(cellKey));
             }
         }
 
@@ -653,17 +645,26 @@ public class TileCollapseManager : MonoBehaviour
             int sweepX = Mathf.RoundToInt(Mathf.Lerp(fromX, toX, progress));
             int sweepZ = Mathf.RoundToInt(Mathf.Lerp(fromZ, toZ, progress));
 
-            if (!HasTile(sweepX, sweepZ))
-                continue;
-
-            WearTile(sweepX, sweepZ, CellKey(sweepX, sweepZ));
+            WearTile(sweepX, sweepZ);
         }
     }
 
-    private void WearTile(int x, int z, int tileKey)
+    /// <summary>
+    /// 이 칸을 한 걸음만큼 닳게 한다. 한계에 닿으면 무너뜨리고, 아니면 어둡게 칠한다.
+    ///
+    /// ★ cellKey를 인자로 받지 않는다
+    ///   예전엔 (x, z, tileKey) 셋을 받았는데 셋 중 하나면 나머지가 결정되니 하나가 남았다.
+    ///   남길 쪽을 (x, z)로 잡은 건 이 파일의 다른 창구가 전부 그렇게 말하기 때문이다 —
+    ///   tiles[,], HasTile, CollapseStepTile, DarkenStepTile, 네트워크의 BroadcastTileWear까지.
+    ///   cellKey는 Dictionary 키로 쓰려고 만든 <b>내부 인코딩</b>이라 시그니처에 나올 게 아니다.
+    ///   (바로 아래 DarkenStepTile이 이미 (x, z)를 받고 안에서 키를 만든다)
+    /// </summary>
+    private void WearTile(int x, int z)
     {
-        if (tiles[x, z] == null)
+        if (!HasTile(x, z))
             return;
+
+        int tileKey = CellKey(x, z);
 
         tileStepCounts.TryGetValue(tileKey, out int count);
         count++;
