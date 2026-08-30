@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.AI;
 using JellyNet;
 
 public class ChocolateFluid : MonoBehaviour
@@ -88,7 +87,25 @@ public class ChocolateFluid : MonoBehaviour
 
     private const float PurgeInterval = 5f;
 
-    /// <summary>수면보다 이만큼 위로 올라와야 '초콜릿을 벗어났다'로 본다. 물결 출렁임에 놓치지 않기 위한 여유.</summary>
+    /// <summary>
+    /// 수면보다 이만큼 위로 올라와야 '초콜릿을 벗어났다'로 본다.
+    ///
+    /// ★ 이 여유가 없으면 떠 있는 물체가 매 물결마다 방출된다
+    ///   물체는 restY(= 수면 − restDepth)에 머무는데, 그 높이가 하필 <b>트리거 박스
+    ///   윗면에서 5cm 아래</b>다. 그래서 출렁일 때마다 경계를 들락날락하고
+    ///   OnTriggerExit가 수시로 불린다. 딱 수면 높이로 자르면 그때마다 목록에서 빠져
+    ///   부력을 잃고 허공에 굳는다.
+    ///
+    /// ★ 그래서 실제로는 거의 안 불린다 (수치로 확인함)
+    ///   방출까지 필요한 상승: 박스 윗면 + 1.25 − (박스 윗면 − 0.05) = <b>1.30 m</b>
+    ///   물결만으로 뜰 수 있는 최대: 부력 스프링(35 m/s²)과 물결(최대 8 m/s²)이
+    ///   균형을 이루는 35h/1.2 = 8 → <b>0.27 m</b>
+    ///
+    ///   필요치의 5분의 1이다. 정상적으로 떠다니는 물체는 절대 이 선을 못 넘는다.
+    ///   넘는 건 충돌뿐이다 — 무너진 타일이 30m 낙하해 처박히거나, 탈락한 몸이
+    ///   떨어지며 소품을 걷어차는 경우. 그때 놓아주지 않으면 그 물체는 중력이 꺼진 채
+    ///   초콜릿 밖 허공에 굳는다. OnTriggerExit는 그 안전망으로만 남아 있다.
+    /// </summary>
     private const float ReleaseMargin = 1f;
 
     private float lastPurgeTime;
@@ -528,50 +545,17 @@ public class ChocolateFluid : MonoBehaviour
                 rb.useGravity = true;
         }
 
-        NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
-        WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
-
-        // ═════════════════════════════════════════════
-        //  [LAN 이식] NavMeshAgent를 되살릴 자격
-        // ═════════════════════════════════════════════
+        // ★ NavMeshAgent를 되살리는 경로가 여기 25줄쯤 더 있었는데 지웠다
+        //   도달할 수 있는 대상이 사실상 없다:
+        //     봇   — 초콜릿에 닿는 즉시 탈락한다. 위 IsSunkCharacter에서 이미 돌아간다.
+        //     사람 — agent 자체가 없다.
+        //     배회 젤리 — 유일하게 남는데, 초콜릿 위에는 NavMesh가 없어
+        //                SamplePosition(10m)이 대개 실패한다.
         //
-        // ★ 문제 두 가지가 여기서 나왔다
-        //   ① 원격에서도 agent를 켜버렸다 → 호스트가 보내주는 위치와 agent의
-        //      자체 이동이 서로를 밀어 젤리가 떨린다. 원격은 agent가 꺼져 있어야 한다.
-        //   ② SamplePosition이 실패했는데도 켰다 → "Failed to create agent because
-        //      it is not close enough to the NavMesh"가 프레임마다 쏟아진다.
-        //      NavMesh 위로 못 옮겼으면 켜지 않는 게 맞다(다음 Exit 때 다시 시도).
-        bool drives = NavDriverOf(rb);
-
-        if (navMeshAgent != null && drives)
-        {
-            NavMeshHit hit;
-            //agent 자신의 타입 + 걸어다닐 수 있는 영역만. int 마스크 오버로드는
-            //타입 0(PlayerJelly) 기준이라 젤리를 그 자리에 놓으면 다시 NavMesh 밖이 된다
-            bool onMesh = NavMesh.SamplePosition(
-                rb.transform.position, out hit, 10f, NavMeshUtil.WalkableFilter(navMeshAgent));
-
-            if (onMesh)
-            {
-                rb.transform.position = hit.position;
-                rb.useGravity = false;
-                navMeshAgent.enabled = true;
-            }
-        }
-
-        // AI 스크립트는 원격에서도 켠다 — 이동은 안 하고 걷는 애니메이션만 맞춘다.
-        if (wanderingAI != null)
-            wanderingAI.enabled = true;
+        //   주석에 적혀 있던 [LAN 이식] 사고들(원격에서 agent를 켜서 젤리가 떨림 등)은
+        //   탈락 처리가 지금처럼 확실해지기 전 이야기다. 도달하지 않는 코드는 검증되지
+        //   않은 채 남아 있다가, 나중에 조건이 바뀌면 아무도 모르게 되살아난다.
+        //   되살릴 일이 생기면 그때 필요한 조건을 다시 세워 쓰는 편이 낫다.
     }
 
-    /// <summary>이 기계가 그 오브젝트의 NavMeshAgent를 굴리는가(= 호스트이거나 오프라인).</summary>
-    private static bool NavDriverOf(Rigidbody rb)
-    {
-        NetIdentity id = rb.GetComponentInParent<NetIdentity>();
-        if (id != null)
-            return id.IsSimulatedHere;
-
-        var net = NetManager.Instance;
-        return NetManager.Offline || net.IsHost;
-    }
 }
