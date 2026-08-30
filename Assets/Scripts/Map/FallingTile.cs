@@ -244,13 +244,24 @@ public class FallingTile : MonoBehaviour
             if (col == tileCollider)
                 continue;
 
-            // ★ 건드릴 자격을 '무엇을 바꾸기 전에' 본다
+            // ★ 자격 검사는 '무엇을 바꾸기 전에' 한 번만 한다
             //
             //   예전엔 AI를 끄고 CharacterController를 끄고 Rigidbody까지 붙인 뒤에야
             //   아래에서 소유권을 봤다. 그래서 클라가 호스트 소유인 남의 봇에
             //   물리를 붙여놓고 continue로 빠져나갔고, 그 뒤로 NetTransform이 보내주는
             //   위치와 클라 쪽 중력이 서로를 밀어 봇이 화면마다 다르게 보였다.
-            //   (사람 플레이어를 걸러내는 이유는 아래 주석과 같다)
+            //
+            //   그걸 고치면서 같은 검사를 여기 위로 올렸는데, 아래에 있던 원본을 지우지 않아
+            //   한동안 같은 질문을 두 번 하고 있었다. 아래 것은 절대 다른 답을 낼 수 없다 —
+            //   rb는 col 자신이거나 col의 조상이므로, rb가 훑는 부모 사슬은 col이 훑는
+            //   사슬의 뒷부분이다. rb가 찾아낼 NetIdentity·LanPlayerState는 col도 반드시 찾는다.
+            //   (둘 사이에 또 다른 NetIdentity가 끼어 있으면 갈릴 수 있지만, 그런 중첩은
+            //    프리팹 어디에도 없다)
+            //
+            //   사람 플레이어를 여기서 걸러내는 이유는 따로 있다: 발판이 사람의
+            //   CharacterController를 꺼버리면 PlayerMovement는 계속 돌기 때문에
+            //   "CharacterController.Move called on inactive controller"가 쏟아진다.
+            //   사람의 낙하는 PlayerMovement/초콜릿 경로가 따로 처리한다.
             if (col.GetComponentInParent<LanPlayerState>() != null)
                 continue;
 
@@ -263,38 +274,17 @@ public class FallingTile : MonoBehaviour
             // 밀크가 통째로 걸러지는 코드였다. 특례 없이도 결과가 같으므로 지웠다.
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
 
+            // Rigidbody가 없는 건 NavMeshAgent가 직접 모는 봇뿐이다. 붙여만 주고
+            // 나머지(AI 끄기·CC 끄기·콜라이더 정리·중력)는 아래 공통 경로가 그대로 한다.
+            // 예전엔 여기서도 그 넷을 다 했는데, 바로 아래에서 같은 오브젝트에 또 걸고 있었다.
             if (rb == null)
             {
                 AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
-                if (aiBot != null && !aiBot.IsOutOfPlay)
-                {
-                    DisableAIOnObject(aiBot.gameObject);
-
-                    CharacterController cc = aiBot.GetComponent<CharacterController>();
-                    if (cc != null)
-                        cc.enabled = false;
-
-                    rb = aiBot.gameObject.AddComponent<Rigidbody>();
-                    MakeCollidersDynamicSafe(rb);
-                    rb.useGravity = true;
-                    rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-                }
-                else
+                if (aiBot == null || aiBot.IsOutOfPlay)
                     continue;
+
+                rb = aiBot.gameObject.AddComponent<Rigidbody>();
             }
-
-            // ★ 사람 플레이어는 발판이 건드리지 않는다.
-            //
-            //   걸러내지 않으면 발판이 CharacterController를 꺼버리고 Rigidbody를 붙이는데,
-            //   PlayerMovement는 계속 돌기 때문에
-            //   "CharacterController.Move called on inactive controller"가 쏟아진다.
-            //   (사람의 낙하는 PlayerMovement/초콜릿 경로가 따로 처리한다)
-            if (rb.GetComponentInParent<LanPlayerState>() != null)
-                continue;
-
-            // 원격 오브젝트는 소유자 쪽에서만 물리를 돌린다
-            if (IsDrivenElsewhere(rb))
-                continue;
 
             DisableAIOnObject(rb.gameObject);
 
@@ -407,7 +397,10 @@ public class FallingTile : MonoBehaviour
 
     // AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다
     // (WanderingAI가 구동 권한을 잡으면 agent를 켠다) → 발판이 사라진 자리를 계속 걸어다닌다.
-    // agent는 자식에 달린 프리팹도 있어 GetComponentsInChildren으로 훑는다.
+    //
+    // GetComponentsInChildren을 쓰는 건 '자식에 달린 프리팹이 있어서'가 아니다 —
+    // 확인해보니 NavMeshAgent 18개가 전부 루트에 있다. 인자 true 때문에 쓴다:
+    // <b>비활성 오브젝트까지</b> 훑어야 죽으면서 꺼둔 가지에 남은 agent도 확실히 꺼진다.
     private static void DisableAIOnObject(GameObject obj)
     {
         foreach (var wandering in obj.GetComponentsInChildren<WanderingAI>(true))
