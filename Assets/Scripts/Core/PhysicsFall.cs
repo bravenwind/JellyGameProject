@@ -68,25 +68,36 @@ public static class PhysicsFall
     }
 
     /// <summary>
-    /// 이 오브젝트를 몰고 있던 것들을 전부 끈다.
+    /// 이 오브젝트를 몰고 있던 것을 끈다. 하나도 없으면(소품) 아무 일도 일어나지 않는다.
     ///
-    /// 비활성 오브젝트까지 훑는(true) 이유는, 죽으면서 꺼둔 가지에 남은 agent가
-    /// 다시 켜지면 사라진 발판 위를 계속 걸어다니기 때문이다.
+    /// ★ 복수형(GetComponentsInChildren)이 아니라 단수형이다
+    ///   넷 다 <b>개체당 하나씩</b>이다 — 프리팹을 전수 확인했다:
+    ///     NavMeshAgent 18개, WanderingAI 16개, CharacterController 3개, PlayerMovement 1개.
+    ///     전부 루트에 하나씩이고, 자식에 달린 것도 둘 이상인 것도 없다.
+    ///   복수형은 호출마다 배열을 새로 할당하므로 낙하 한 번에 배열이 넷 생겼다.
+    ///
+    ///   그래도 GetComponent(루트만)가 아니라 InChildren인 건 인자 true 때문이다 —
+    ///   비활성 가지에 남은 agent도 확실히 끈다. 단수형은 첫 하나를 찾으면 멈추고
+    ///   배열도 만들지 않으므로 그 안전망이 공짜로 딸려온다.
     /// </summary>
     private static void ReleaseControllers(GameObject go)
     {
         //CharacterController는 Rigidbody 물리를 완전히 무시한다. 반드시 먼저 꺼야 한다.
-        foreach (var controller in go.GetComponentsInChildren<CharacterController>(true))
+        CharacterController controller = go.GetComponentInChildren<CharacterController>(true);
+        if (controller != null)
             controller.enabled = false;
 
-        foreach (var movement in go.GetComponentsInChildren<PlayerMovement>(true))
+        PlayerMovement movement = go.GetComponentInChildren<PlayerMovement>(true);
+        if (movement != null)
             movement.enabled = false;
 
         //AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다.
-        foreach (var wandering in go.GetComponentsInChildren<WanderingAI>(true))
+        WanderingAI wandering = go.GetComponentInChildren<WanderingAI>(true);
+        if (wandering != null)
             wandering.enabled = false;
 
-        foreach (var agent in go.GetComponentsInChildren<NavMeshAgent>(true))
+        NavMeshAgent agent = go.GetComponentInChildren<NavMeshAgent>(true);
+        if (agent != null)
             agent.enabled = false;
     }
 }
