@@ -265,7 +265,7 @@ public class FallingTile : MonoBehaviour
             if (col.GetComponentInParent<LanPlayerState>() != null)
                 continue;
 
-            if (IsDrivenElsewhere(col))
+            if (NetEntity.IsDrivenElsewhere(col))
                 continue;
 
             // Milk는 스크립트가 부모, 콜라이더가 자식이라 이 한 줄이 알아서 부모를 찾아간다.
@@ -274,9 +274,8 @@ public class FallingTile : MonoBehaviour
             // 밀크가 통째로 걸러지는 코드였다. 특례 없이도 결과가 같으므로 지웠다.
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
 
-            // Rigidbody가 없는 건 NavMeshAgent가 직접 모는 봇뿐이다. 붙여만 주고
-            // 나머지(AI 끄기·CC 끄기·콜라이더 정리·중력)는 아래 공통 경로가 그대로 한다.
-            // 예전엔 여기서도 그 넷을 다 했는데, 바로 아래에서 같은 오브젝트에 또 걸고 있었다.
+            // Rigidbody가 없는 건 NavMeshAgent가 직접 모는 봇뿐이다.
+            // 붙여만 주면 나머지는 아래 PhysicsFall.Begin이 전부 한다.
             if (rb == null)
             {
                 AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
@@ -286,56 +285,23 @@ public class FallingTile : MonoBehaviour
                 rb = aiBot.gameObject.AddComponent<Rigidbody>();
             }
 
-            DisableAIOnObject(rb.gameObject);
-
-            CharacterController ccOnRb = rb.GetComponent<CharacterController>();
-            if (ccOnRb != null)
-                ccOnRb.enabled = false;
-
+            // 오목한 MeshCollider는 dynamic Rigidbody에 못 붙는다. 물리를 켜기 전에 정리한다.
             MakeCollidersDynamicSafe(rb);
 
-            if (rb.isKinematic)
-            {
-                rb.isKinematic = false;
+            // ★ 여기서 손으로 물리를 켜지 않는다
+            //   예전엔 AI 끄기·CharacterController 끄기·isKinematic·useGravity·
+            //   collisionDetectionMode·WakeUp을 이 자리에 다 적어놨었다. 그런데 그건
+            //   PhysicsFall.Begin이 하는 일과 <b>글자까지 같았다.</b> 사람·봇의 탈락은
+            //   PhysicsFall을 쓰고 발판만 자기 사본을 쓰고 있었던 셈이다.
+            bool wasKinematic = rb.isKinematic;
+
+            PhysicsFall.Begin(rb.gameObject);
+
+            // 가만히 놓여 있던 소품은 그냥 떨어지면 뻣뻣하다. 살짝 돌려 준다.
+            // (원래 움직이고 있던 것은 이미 회전이 있으므로 건드리지 않는다)
+            if (wasKinematic)
                 rb.AddTorque(new Vector3(Random.Range(-2f, 2f), 0f, Random.Range(-2f, 2f)), ForceMode.Impulse);
-            }
-
-            // 이미 non-kinematic이던 물체(NavMeshAgent가 몰던 젤리 등)는 위 분기를 타지 않아
-            // 중력이 꺼진 채 남았다. 그리고 가만히 서 있던 Rigidbody는 잠들어 있는데,
-            // 바닥 콜라이더를 끄는 건 충돌 이벤트가 아니라서 저절로 깨어나지 않는다.
-            // → 발판이 사라져도 공중에 그대로 멈춰 있게 된다.
-            rb.useGravity = true;
-            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-            rb.WakeUp();
         }
-    }
-
-    /// <summary>
-    /// 이 물체의 움직임을 다른 기계가 책임지고 있는가.
-    ///
-    /// ★ 씬에 손으로 놓은 것은 여기서 걸러내면 안 된다 (클라 화면에서만 젤리가 떠 있던 원인)
-    ///   흡수 모드의 링 붕괴는 호스트 전용이 아니다. 모든 기계가 SyncedElapsed를 보고
-    ///   똑같이 타일을 무너뜨리므로 이 함수도 클라에서 돈다.
-    ///
-    ///   그런데 씬 젤리는 NetIdentity를 갖고 OwnerId가 0이라 클라에선 IsSimulatedHere가
-    ///   false다. 그래서 클라는 젤리 물리를 절대 켜지 않았고, 젤리 프리팹엔 위치 복제도
-    ///   없어서 호스트가 떨어뜨린 결과도 오지 않았다 → 클라 화면에만 젤리가 공중에 남았다.
-    ///   (NetIdentity가 없는 사탕·밀크는 이 필터를 안 타서 멀쩡히 떨어졌다. 그래서
-    ///    "젤리만" 뜨는 것처럼 보였다.)
-    ///
-    ///   씬 오브젝트(NetId >= SCENE_ID_BASE)는 위치를 주고받지 않으니 소유권을 물을 이유가
-    ///   없다. 각자 자기 화면에서 떨어뜨리면 되고, 흡수 판정은 어차피 호스트 권위다.
-    /// </summary>
-    private static bool IsDrivenElsewhere(Component c)
-    {
-        NetIdentity id = c.GetComponentInParent<NetIdentity>();
-        if (id == null)
-            return false;
-
-        if (id.NetId >= NetConfig.SCENE_ID_BASE)
-            return false;
-
-        return !id.IsSimulatedHere;
     }
 
     /// <summary>
@@ -393,21 +359,6 @@ public class FallingTile : MonoBehaviour
         // 한 판 동안 무한 누적되는 carve 오브젝트를 매니저가 소유해 라운드 종료 시 일괄 정리한다. (G7)
         if (TileCollapseManager.Instance != null)
             TileCollapseManager.Instance.RegisterCarveObject(carveObj);
-    }
-
-    // AI 스크립트를 먼저 끄지 않으면 다음 프레임에 스스로 agent를 다시 켠다
-    // (WanderingAI가 구동 권한을 잡으면 agent를 켠다) → 발판이 사라진 자리를 계속 걸어다닌다.
-    //
-    // GetComponentsInChildren을 쓰는 건 '자식에 달린 프리팹이 있어서'가 아니다 —
-    // 확인해보니 NavMeshAgent 18개가 전부 루트에 있다. 인자 true 때문에 쓴다:
-    // <b>비활성 오브젝트까지</b> 훑어야 죽으면서 꺼둔 가지에 남은 agent도 확실히 꺼진다.
-    private static void DisableAIOnObject(GameObject obj)
-    {
-        foreach (var wandering in obj.GetComponentsInChildren<WanderingAI>(true))
-            wandering.enabled = false;
-
-        foreach (var navAgent in obj.GetComponentsInChildren<NavMeshAgent>(true))
-            navAgent.enabled = false;
     }
 
     // ─────────────────────────────────────────────────────────

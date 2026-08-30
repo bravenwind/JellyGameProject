@@ -244,33 +244,22 @@ public class ChocolateFluid : MonoBehaviour
         //
         // ★ 이 갈래가 없으면 사람이 아래 Rigidbody 분기로 흘러
         //   '떠다니는 물체' 취급만 받고 죽지 않는다.
+        //
+        // ★ 여기는 "누가 어디에 빠졌다"까지만 안다
+        //   예전엔 IsMine·IsOutOfPlay·LanGameFlow null 검사와 신고 API, 물리 전환 순서까지
+        //   이 자리에 다 적혀 있었다. 같은 IsMine 판정이 LanPlayerState 안에도 있어서
+        //   규칙이 두 곳에 생겼고, 봇은 ReportEliminated 안에서 권한을 보는데 사람만
+        //   밖에서 보는 비대칭도 났다. 그 판단은 전부 주인에게 돌려줬다.
+        //
+        // ★ 예전엔 신고만 하고 return 했다
+        //   물리 설정을 건너뛰어서 사람은 부력·점성을 하나도 못 받고 <b>중력만으로
+        //   끝없이 떨어졌다.</b> 같은 초콜릿에서 봇은 둥둥 떠 있는데도.
         LanPlayerState lanPlayer = other.GetComponentInParent<LanPlayerState>();
 
         if (lanPlayer != null)
         {
-            // 신고는 본인만. 남의 캐릭터가 내 화면에서 스쳤다고 죽이면 안 된다.
-            if (lanPlayer.IsMine && !lanPlayer.IsOutOfPlay && LanGameFlow.Instance != null)
-            {
-                LanGameFlow.Instance.ReportSelfEliminated(
-                    lanPlayer.EntityId, "초콜릿에 빠졌습니다!");
-            }
-
-            // ★ 예전엔 여기서 return 했다
-            //   신고만 하고 물리 설정을 건너뛰어서, 사람은 부력·점성을 하나도 못 받고
-            //   <b>중력만으로 끝없이 떨어졌다.</b> 같은 초콜릿에서 봇은 둥둥 떠 있는데도.
-            //
-            // ★ 탈락 확정을 기다리면 늦는다
-            //   초콜릿 트리거는 두께 0.11짜리 얇은 판이다. 호스트 왕복을 기다리는 동안
-            //   CharacterController가 캐릭터를 그대로 몰아 <b>판을 통과해 버린다.</b>
-            //   빠져나가면 트리거 밖이라 아무 힘도 못 받고 허공에 멈춰 선다.
-            //   봇은 진입 순간 물리로 바뀌어 그 자리에서 제동이 걸린다 — 사람도 같게 한다.
-            //   (소유자가 아니면 NetTransform이 위치를 몰고 있으므로 물리를 켜지 않는다)
-            if (lanPlayer.IsMine)
-            {
-                lanPlayer.BeginPhysicsFallNow();
-                ApplyFloatPhysics(other.attachedRigidbody);
-            }
-
+            lanPlayer.ReportFellOutOfPlay("초콜릿에 빠졌습니다!");
+            ApplyFloatPhysics(other.attachedRigidbody);
             return;
         }
 
@@ -280,7 +269,6 @@ public class ChocolateFluid : MonoBehaviour
 
         AIPlayerMovement aiPlayer = rb.GetComponent<AIPlayerMovement>();
         WanderingAI wanderingAI = rb.GetComponent<WanderingAI>();
-        NavMeshAgent navMeshAgent = rb.GetComponent<NavMeshAgent>();
 
         bool isEdible = other.CompareTag(GameTags.Edible) || rb.gameObject.CompareTag(GameTags.Edible);
         bool isCandy = other.CompareTag(GameTags.Sphere) || rb.gameObject.CompareTag(GameTags.Sphere);
@@ -290,7 +278,7 @@ public class ChocolateFluid : MonoBehaviour
 
         //바로 위에서 이미 찾아둔 것을 쓴다. 예전엔 같은 GetComponent를 두 번 더 돌렸다.
         //여기서 묻는 건 신원이 아니라 '스스로 움직이는 두뇌가 있나'라서 INetEntity가 아니다 —
-        //배회 젤리(WanderingAI)도 포함해야 하고, 아래에서 그 두뇌를 실제로 끄기 때문이다.
+        //배회 젤리(WanderingAI)도 포함해야 한다. 두뇌를 실제로 끄는 건 PhysicsFall이 한다.
         bool isAI = aiPlayer != null || wanderingAI != null;
 
 #if UNITY_EDITOR
@@ -305,16 +293,14 @@ public class ChocolateFluid : MonoBehaviour
 
         if (isEdible || isAI || isBackgroundObject || isCandy)
         {
+            // 두뇌(WanderingAI·NavMeshAgent)를 끄는 것도 여기 안에서 PhysicsFall이 한다.
+            // 예전엔 이 아래에 루트만 훑는 별도 코드가 있었다 — FallingTile은 자식까지
+            // 훑고 있어서 같은 일을 하는 코드 두 벌의 범위가 서로 달랐다.
             ApplyFloatPhysics(rb);
 
             if (!isAI && floatingLifetime > 0f)
                 StartCoroutine(DeactivateAfterDelay(rb.gameObject, floatingLifetime));
         }
-
-        if (wanderingAI != null)
-            wanderingAI.enabled = false;
-        if (navMeshAgent != null)
-            navMeshAgent.enabled = false;
 
         if (aiPlayer != null)
         {
@@ -324,14 +310,27 @@ public class ChocolateFluid : MonoBehaviour
         }
     }
 
-    /// <summary>초콜릿에 빠진 물체를 '뜨는 상태'로 바꾼다. 사람·봇·소품이 같은 설정을 쓴다.</summary>
+    /// <summary>
+    /// 초콜릿에 빠진 물체를 '뜨는 상태'로 바꾼다. 사람·봇·소품이 같은 설정을 쓴다.
+    ///
+    /// 물리로 넘기는 것 자체(조종 장치 끄기·kinematic 해제·깨우기)는 PhysicsFall이 하고,
+    /// 여기서는 그 위에 <b>'액체 안'이라는 조건만 덧칠</b>한다.
+    /// </summary>
     private void ApplyFloatPhysics(Rigidbody rb)
     {
         if (rb == null)
             return;
 
-        rb.isKinematic = false;
-        rb.useGravity = false;               //부력이 대신한다. 중력을 켜두면 계속 가라앉는다
+        // 원격 사본은 NetTransform이 위치를 몰고 있다. 여기서 물리까지 켜면 서로를 민다.
+        // (씬에 손으로 놓은 것은 위치를 주고받지 않으므로 예외 — NetEntity 주석 참고)
+        if (NetEntity.IsDrivenElsewhere(rb))
+            return;
+
+        PhysicsFall.Begin(rb.gameObject);
+
+        //PhysicsFall은 '떨어져야 한다'는 뜻으로 중력을 켠다. 액체 안에서는 부력이 대신하므로
+        //여기서 다시 끈다. 중력을 켜둔 채로 두면 부력과 싸우다 계속 가라앉는다.
+        rb.useGravity = false;
         rb.linearDamping = chocolateViscosity;
         rb.angularDamping = chocolateViscosity;
 
@@ -412,19 +411,39 @@ public class ChocolateFluid : MonoBehaviour
         };
     }
 
+    /// <summary>
+    /// 초콜릿에 빠진 소품을 일정 시간 뒤 치운다.
+    ///
+    /// ★ 네트워크가 아는 오브젝트는 건드리지 않는다
+    ///   예전엔 NetIdentity가 있든 없든 SetActive(false)를 걸었다. 그런데 이 코루틴은
+    ///   <b>기계마다 따로</b> 돌고, 시작 시각은 그 화면에서 초콜릿에 닿은 순간이다.
+    ///   화면마다 닿는 시각이 다르면 사라지는 시각도 달라진다.
+    ///
+    ///   더 나쁜 건 NetWorld의 스폰 장부와 무관하게 꺼진다는 것이다. 장부에는 살아 있는데
+    ///   화면에서만 사라지고, 풀로 돌아가지도 않아 다시 쓸 수도 없다.
+    ///   네트워크가 아는 것을 없애는 권한은 NetWorld에 있다 — 여기서는 손대지 않는다.
+    ///
+    ///   NetIdentity가 없는 순수 장식(밀크·사탕 등)만 정리 대상이다.
+    /// </summary>
     private IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
     {
         yield return new WaitForSeconds(delay);
-        if (obj != null)
+
+        if (obj == null)
+            yield break;
+
+        if (obj.GetComponentInParent<NetIdentity>() != null)
+            yield break;
+
+        Rigidbody rb = obj.GetComponent<Rigidbody>();
+
+        if (rb != null)
         {
-            var rb = obj.GetComponent<Rigidbody>();
-            if (rb != null)
-            {
-                processedBodies.Remove(rb);
-                floatData.Remove(rb);
-            }
-            obj.SetActive(false);
+            processedBodies.Remove(rb);
+            floatData.Remove(rb);
         }
+
+        obj.SetActive(false);
     }
 
     private void PurgeDestroyedEntries()

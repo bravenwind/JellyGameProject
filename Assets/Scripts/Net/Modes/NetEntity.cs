@@ -13,6 +13,37 @@ namespace JellyNet
             get { return NetManager.Instance != null && NetManager.Instance.IsHost; }
         }
 
+        /// <summary>
+        /// 이 몸의 움직임을 <b>다른 기계가</b> 책임지고 있는가. true면 여기서 물리를 켜면 안 된다.
+        ///
+        /// ★ 켜면 무슨 일이 나나
+        ///   원격 사본은 NetTransform이 받은 좌표로 위치를 몰고 있다. 거기에 로컬 물리까지
+        ///   붙이면 둘이 서로를 밀어 캐릭터가 화면마다 다르게 떨린다.
+        ///
+        /// ★ 씬에 손으로 놓은 것은 예외다
+        ///   씬 젤리·소품은 OwnerId가 0이라 클라에서 IsSimulatedHere가 false인데,
+        ///   <b>위치를 주고받지도 않는다.</b> 그대로 걸러내면 클라 화면에서만 공중에 굳는다.
+        ///   (실제로 클라에서 젤리가 무너진 발판 위에 떠 있던 버그가 이거였다)
+        ///   주고받는 게 없으니 소유권을 물을 이유도 없다 — 각자 자기 화면에서 떨어뜨린다.
+        ///
+        /// 같은 판단이 FallingTile과 ChocolateFluid에 따로 있었다. 한쪽만 고쳐지는 걸 막으려고 모았다.
+        /// </summary>
+        public static bool IsDrivenElsewhere(Component c)
+        {
+            if (c == null)
+                return false;
+
+            NetIdentity id = c.GetComponentInParent<NetIdentity>();
+
+            if (id == null)
+                return false;
+
+            if (id.NetId >= NetConfig.SCENE_ID_BASE)
+                return false;
+
+            return !id.IsSimulatedHere;
+        }
+
         // ═══════════════════════════════════════════════════════
         //  기준 크기 — 플레이어 프리팹이 유일한 출처
         // ═══════════════════════════════════════════════════════

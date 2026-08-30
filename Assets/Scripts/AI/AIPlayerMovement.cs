@@ -841,15 +841,17 @@ public class AIPlayerMovement : MonoBehaviour
             Agent.ResetPath();
     }
 
-    /// <summary>길찾기를 끄고 물리로 떨어뜨린다. 발밑이 비었을 때의 유일한 출구.</summary>
+    /// <summary>
+    /// 길찾기를 끄고 물리로 떨어뜨린다. 발밑이 비었을 때의 유일한 출구.
+    ///
+    /// StopBrain은 FSM 상태를 닫는 일까지 한다 — 상태 객체는 이 클래스 안에만 있어서
+    /// PhysicsFall이 대신할 수 없는 유일한 조각이다.
+    /// NavMeshAgent·CharacterController를 끄고 Rigidbody를 깨우는 건 PhysicsFall이 한다.
+    /// (예전엔 여기서도 Agent.enabled = false를 한 번 더 했다)
+    /// </summary>
     private void AwakeFallPhysics()
     {
-        if (Agent != null)
-            Agent.enabled = false;
-
         StopBrain();
-
-        //Rigidbody를 깨우는 부분은 사람과 공용이다
         PhysicsFall.Begin(gameObject);
     }
 
