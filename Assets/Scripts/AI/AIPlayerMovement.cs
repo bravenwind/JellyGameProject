@@ -120,7 +120,14 @@ public class AIPlayerMovement : MonoBehaviour
 
     private float dashCooldownTimer;
     private float dashTimer;
-    private float preDashSpeed;
+
+    // ★ 대쉬 전 속도를 '절대값'으로 기억하면 안 된다
+    //   예전엔 preDashSpeed = Agent.speed로 찍어두고 대쉬가 끝나면 그 값을 되돌렸다.
+    //   그런데 대쉬 0.4초 사이에 방망이에 맞아 커지거나 밀크를 밟으면 moveSpeed가 바뀐다.
+    //   그때 옛날 절대값으로 되돌아가 <b>봇이 엉뚱한 속도로 굳었다.</b>
+    //   상태별 계수(예: Wander 0.9)만 기억하고 복귀할 때 moveSpeed에 곱해 다시 계산한다.
+    private float stateSpeedRatio = 1f;
+
     private float attackCooldownTimer;
     private Coroutine attackCoroutine;
     public bool IsDashing => dashTimer > 0f;
@@ -167,12 +174,12 @@ public class AIPlayerMovement : MonoBehaviour
     ///
     /// ★ 예전엔 transform.localScale.x를 그대로 돌려줬다
     ///   그건 '지금 화면에 보이는 크기'라, 커지는 연출이 도는 동안(약 0.3초)
-    ///   사람 쪽 판정값(currentScaleValue = 연출이 끝난 목표 크기)과 어긋났다.
+    ///   사람 쪽 판정값(CurrentScaleValue = 연출이 끝난 목표 크기)과 어긋났다.
     ///   그 사이 봇은 실제보다 작게 취급돼 흡수당하기 쉬웠다.
     /// </summary>
     public float GetMyAuthorityScale()
     {
-        return ScaleCtrl != null ? ScaleCtrl.currentScaleValue : transform.localScale.x;
+        return ScaleCtrl != null ? ScaleCtrl.CurrentScaleValue : transform.localScale.x;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -190,16 +197,23 @@ public class AIPlayerMovement : MonoBehaviour
         anim = GetComponentInChildren<Animator>();
         visual = GetComponentInParent<LanPlayerVisual>();
 
-        //에이전트가 authoring 값의 주인이다. 읽어서 캐시해두고 스케일 배율은 여기서 곱한다
-        BaseAgentRadius = Agent.radius;
-        BaseAgentHeight = Agent.height;
+        // ★ authoring 값의 주인은 컴포넌트가 아니라 <b>에이전트 타입 설정</b>이다
+        //   NavMesh는 타입 설정의 반지름·높이로 구워진다. 프리팹 컴포넌트에도 같은 값이
+        //   적혀 있어서 한쪽만 고치면 '구워진 길'과 '실제 에이전트'가 조용히 어긋난다.
+        //   지금은 둘이 같지만(0.65 / 1.51) 그걸 코드가 보장하지는 않았다.
+        //   타입에서 읽어와 컴포넌트에 그대로 밀어 넣어 어긋날 자리를 없앤다.
+        BaseAgentRadius = NavMeshUtil.AgentRadius(Agent.agentTypeID);
+        BaseAgentHeight = NavMeshUtil.AgentHeight(Agent.agentTypeID);
+
+        Agent.radius = BaseAgentRadius;
+        Agent.height = BaseAgentHeight;
 
         Detector.Configure(detectRadius, BaseAgentRadius);
 
         ApplyPlayerSpeed();
 
         // [수정] NavMeshAgent가 스스로 오브젝트를 이동/회전시키지 못하게 원천 차단
-        Agent.speed = moveSpeed;
+        ApplyStateSpeed();
         Agent.acceleration = 1000f; // 가속도를 극대화하여 즉시 최고속도 도달 (플레이어와 일치)
         Agent.angularSpeed = 0f;
         Agent.stoppingDistance = 0f;
@@ -232,10 +246,6 @@ public class AIPlayerMovement : MonoBehaviour
             PlayerAbsorber absorber = GetComponent<PlayerAbsorber>();
             if (absorber != null)
                 absorber.enabled = false;
-            PlayerAbsorbingManager absorbMgr = GetComponent<PlayerAbsorbingManager>();
-            if (absorbMgr != null)
-                absorbMgr.enabled = false;
-
             // Cloth 제거 (스케일 동기화와 충돌하여 모델 찌그러짐 방지)
             SoftBody3D softBody = GetComponentInChildren<SoftBody3D>();
             if (softBody != null)
@@ -360,14 +370,26 @@ public class AIPlayerMovement : MonoBehaviour
                 if (CheckGroundBelow(true))
                     continue;   //발밑이 비었다 → 물리 낙하
 
+                //① 안전 타일로 되돌린다(무너지지 않은 칸을 골라주므로 가장 좋다)
                 var c = TileCollapseManager.Instance;
                 if (c != null && c.FindNearestSafeTile(transform.position, out Vector3 offSafe)
-                    && (NavMesh.SamplePosition(offSafe, out NavMeshHit offHit, 10f, NavFilter)))
+                    && NavMesh.SamplePosition(offSafe, out NavMeshHit offHit, 10f, NavFilter))
                 {
-                    Agent.Warp(offHit.position);
-                    if (Agent.isOnNavMesh && Agent.hasPath)
-                        Agent.ResetPath();
+                    RecoverTo(offHit.position);
+                    continue;
                 }
+
+                // ② 안전 타일을 못 찾았을 때의 폴백 — 맵 외곽에서 실제로 걸린다.
+                //   여기까지 오면 예전엔 그냥 continue 라서, 발밑에 콜라이더는 있고
+                //   NavMesh만 없는 자리에 <b>영영 박제</b>됐다.
+                if (NavMesh.SamplePosition(transform.position, out NavMeshHit nearHit, 3f, NavFilter))
+                {
+                    RecoverTo(nearHit.position);
+                    continue;
+                }
+
+                //③ 어디로도 못 돌아간다 = 설 곳이 없는 자리다. 서 있지 말고 떨어뜨린다
+                AwakeFallPhysics();
                 continue;
             }
 
@@ -492,12 +514,31 @@ public class AIPlayerMovement : MonoBehaviour
     /// FSM 상태 Enter에서만 moveSpeed로부터 갱신된다. 따라서 moveSpeed만 바꾸면 상태 전환이
     /// 일어나기 전까지 이동에 반영되지 않고, 밀크에서 나와도 슬로우가 남는다. 여기서 moveSpeed와
     /// Agent.speed를 같은 비율로 함께 곱해, 상태별 속도 계수(예: Wander 0.9)는 보존하면서 즉시
-    /// 반영한다. (이후 상태 Enter가 Agent.speed = moveSpeed로 덮어써도 비율이 일관돼 안전)</summary>
+    /// 반영한다. (이후 ApplyStateSpeed가 moveSpeed × 계수로 다시 계산해도 비율이 일관돼 안전)</summary>
     public void ApplySpeedMultiplier(float multiplier)
     {
         moveSpeed *= multiplier;
         if (Agent != null)
             Agent.speed *= multiplier;
+    }
+
+    /// <summary>
+    /// 상태가 자기 이동 속도를 적용한다. FSM 상태의 Enter는 Agent.speed를 직접 쓰지 말고 이걸 부른다.
+    ///
+    /// ★ 왜 통로를 하나로 모으는가
+    ///   예전엔 상태마다 <c>ai.Agent.speed = ai.MoveSpeed</c>를 직접 썼다(9곳).
+    ///   대쉬 중에 상태가 바뀌면 그 한 줄이 대쉬 속도를 지워버리는데 dashTimer는 계속 돌아서,
+    ///   <b>"대쉬 중(IsDashing=true)인데 걷는 속도"</b>인 구간이 최대 dashDuration만큼 생겼다.
+    ///   AIPushSurviveState.Update는 첫 줄에서 IsDashing이면 돌아가므로 그동안 새 목적지도 못 받는다.
+    ///   여기서 대쉬 중이면 덮어쓰지 않고 계수만 기억해두었다가, 대쉬가 끝날 때 그 계수로 복귀한다.
+    /// </summary>
+    /// <param name="ratio">상태별 속도 계수. 예: 배회는 0.9.</param>
+    public void ApplyStateSpeed(float ratio = 1f)
+    {
+        stateSpeedRatio = ratio;
+
+        if (Agent != null && !IsDashing)
+            Agent.speed = moveSpeed * ratio;
     }
 
     // ─────────────────────────────────────────────────────────
@@ -522,7 +563,7 @@ public class AIPlayerMovement : MonoBehaviour
                 Agent.velocity = Vector3.zero;
             }
             if (anim != null)
-                anim.SetBool("IsMoving", false);
+                anim.SetBool(AnimParams.IsMoving, false);
             return;
         }
 
@@ -532,9 +573,13 @@ public class AIPlayerMovement : MonoBehaviour
         if (CheckGroundBelow())
             return;
 
-        if (!Agent.enabled || !Agent.isOnNavMesh)
-            return;
-
+        // ★ 시간 계산은 NavMesh 밖에 있어도 돌아야 한다
+        //   예전엔 이 블록이 아래 isOnNavMesh 가드 <b>뒤</b>에 있었다.
+        //   대쉬 도중 발판이 무너져 NavMesh를 벗어나면 dashTimer가 그 자리에서 멈추고,
+        //   IsDashing이 영원히 true가 된다. AIPushSurviveState.Update는 첫 줄에서
+        //   `if (ai.IsDashing) return;` 으로 돌아가므로 <b>새 목적지를 영영 못 받는다</b>
+        //   → NavMesh로 복귀시켜줘도 그 자리에 가만히 서 있다가 죽었다.
+        //   타이머는 위치와 무관한 순수 시간 계산이니 가드보다 먼저 돌린다.
         if (dashCooldownTimer > 0f)
             dashCooldownTimer -= Time.deltaTime;
         if (attackCooldownTimer > 0f)
@@ -542,9 +587,17 @@ public class AIPlayerMovement : MonoBehaviour
         if (dashTimer > 0f)
         {
             dashTimer -= Time.deltaTime;
-            if (dashTimer <= 0f)
-                Agent.speed = preDashSpeed;
+
+            //스냅샷이 아니라 재계산이다 — 대쉬 도중 커지거나 밀크를 밟아
+            //moveSpeed가 바뀌었어도 그 최신 값 위에 상태 계수만 얹는다
+            if (dashTimer <= 0f && Agent != null)
+                Agent.speed = moveSpeed * stateSpeedRatio;
         }
+
+        //NavMesh 이탈 복구는 StateEvalLoop이 한 곳에서 맡는다(0.15초마다).
+        //여기서 또 하면 같은 일을 두 곳에서 하게 된다
+        if (!Agent.enabled || !Agent.isOnNavMesh)
+            return;
 
         // 현재 상태 Update (목적지 설정 등)
         currentState?.Update();
@@ -581,7 +634,7 @@ public class AIPlayerMovement : MonoBehaviour
         // 애니메이터 처리
         bool isMoving = Agent.velocity.magnitude > 0.1f;
         if (anim != null)
-            anim.SetBool("IsMoving", isMoving);
+            anim.SetBool(AnimParams.IsMoving, isMoving);
     }
 
     /// <summary>
@@ -709,6 +762,41 @@ public class AIPlayerMovement : MonoBehaviour
     private int GroundCheckPhase => Mathf.Abs(GetInstanceID()) % GroundCheckInterval;
     private const int GroundCheckInterval = 15;
 
+    // ★ 왜 피벗이 아니라 '발밑'에서 쏘는가 (커진 봇이 멀쩡한 타일 밑으로 꺼지던 원인)
+    //
+    //   예전엔 이랬다:
+    //       Vector3 origin = transform.position + Vector3.up * 0.5f;
+    //       if (Physics.Raycast(origin, Vector3.down, 3f)) return false;
+    //
+    //   봇의 피벗은 캡슐 <b>중심</b>(center 0,0,0)이고, NavMeshAgent가 baseOffset(0.67)만큼
+    //   띄워서 세운다. 봇이 커지면 Agent.radius·height는 스케일을 따라 키우는데
+    //   (ApplyScaleToAgent) baseOffset은 그대로고, 여기 0.5m·3m도 상수였다.
+    //   그래서 피벗이 바닥에서 2.5m 넘게 올라가는 순간 레이가 타일에 닿지 못했고,
+    //   "발밑이 비었다"로 단정해 AwakeFallPhysics를 불렀다 —
+    //   <b>멀쩡한 타일 아래로 쑥 꺼져서 탈락.</b> 커진 봇에게만 갑자기 생기던 증상이다.
+    //
+    //   그래서 <b>출발점은 피벗, 길이는 몸 길이에 비례</b>로 잡는다.
+    //   피벗은 baseOffset 덕에 항상 지면 위에 있으니 레이가 바닥 안에서 시작할 일이 없고,
+    //   길이는 '피벗에서 발바닥까지' + 여유라서 봇이 커져도 늘 발밑까지 닿는다.
+    //   (발바닥의 출처는 콜라이더 bounds — TileCollapseManager의 접지 판정과 같은 기준이다)
+    //
+    //   마스크도 없었다. 그대로 두면 초콜릿 강의 트리거 콜라이더 같은 것도 '지면'으로
+    //   쳐서, 반대로 떨어져야 할 때 안 떨어지는 길이 열려 있었다.
+    private const float GroundRayLift = 0.5f;    // 피벗에서 이만큼 더 위에서 쏜다
+    private const float GroundRayReach = 2.5f;   // 발바닥 아래로 이만큼까지 지면을 찾는다
+
+    private Collider bodyCollider;
+
+    private Collider BodyCollider
+    {
+        get
+        {
+            if (bodyCollider == null)
+                bodyCollider = GetComponent<Collider>();
+            return bodyCollider;
+        }
+    }
+
     private bool CheckGroundBelow(bool immediate = false)
     {
         //★ 매 프레임 레이캐스트를 쏘지 않으려는 간격 조절이다.
@@ -723,23 +811,46 @@ public class AIPlayerMovement : MonoBehaviour
         if (IsEliminated || IsBeingAbsorbed)
             return false;
 
-        Vector3 origin = transform.position + Vector3.up * 0.5f;
-        if (Physics.Raycast(origin, Vector3.down, 3f))
+        Collider body = BodyCollider;
+        if (body == null)
             return false;
 
+        float pivotToFeet = Mathf.Max(0f, transform.position.y - body.bounds.min.y);
+
+        Vector3 origin = transform.position + Vector3.up * GroundRayLift;
+        float rayLength = GroundRayLift + pivotToFeet + GroundRayReach;
+
+        if (Physics.Raycast(origin, Vector3.down, rayLength,
+                            GameLayers.StandableMask, QueryTriggerInteraction.Ignore))
+            return false;
+
+        AwakeFallPhysics();
+        return true;
+    }
+
+    /// <summary>
+    /// NavMesh 위 한 지점으로 되돌린다.
+    /// 옮긴 뒤 기존 경로는 허공을 향하고 있으므로 반드시 비운다 —
+    /// 안 비우면 다음 평가까지 옛 경로를 그대로 따라가려 한다.
+    /// </summary>
+    private void RecoverTo(Vector3 pos)
+    {
+        Agent.Warp(pos);
+
+        if (Agent.isOnNavMesh && Agent.hasPath)
+            Agent.ResetPath();
+    }
+
+    /// <summary>길찾기를 끄고 물리로 떨어뜨린다. 발밑이 비었을 때의 유일한 출구.</summary>
+    private void AwakeFallPhysics()
+    {
         if (Agent != null)
             Agent.enabled = false;
-        currentState?.Exit();
-        currentState = null;
 
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb == null)
-            rb = gameObject.AddComponent<Rigidbody>();
-        rb.isKinematic = false;
-        rb.useGravity = true;
-        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        StopBrain();
 
-        return true;
+        //Rigidbody를 깨우는 부분은 사람과 공용이다
+        PhysicsFall.Begin(gameObject);
     }
 
     // ─────────────────────────────────────────────────────────
@@ -783,7 +894,7 @@ public class AIPlayerMovement : MonoBehaviour
     /// 크기를 바꾸는 게 아니라, 이미 바뀐 크기를 에이전트에 반영하는 쪽이다.
     /// (캡슐 크기 · 회피 우선순위 · NavMesh 재착지)
     /// </summary>
-    public void ChangeScale()
+    public void UpdateScaleOnAgent()
     {
         StartCoroutine(OnScaleChanged());
     }
@@ -824,6 +935,7 @@ public class AIPlayerMovement : MonoBehaviour
         if (GameState.CurrentGameMode != GameModeType.Absorb)
             return;
 
+
         // ═════════════════════════════════════════════
         //  [LAN 이식] 봇이 플레이어/봇을 먹는 경로
         // ═════════════════════════════════════════════
@@ -860,6 +972,12 @@ public class AIPlayerMovement : MonoBehaviour
         //젤리 스스로 AbsorbMode.RequestEat 을 보내는 별도 왕복으로 처리된다.
         //여기서 잡으면 젤리에 사람 탈락 경로(플래그·관전·킬 크레딧)가 돌고, 이중 흡수가 된다
         if (NetEntity.IsJelly(victim))
+            return;
+
+        // ★ 상대 캐릭터는 트리거 콜라이더를 둘 갖고 있다 — 대표 하나만 받는다
+        //   안 걸면 같은 상대에게 흡수 판정이 두 번 돈다. IsOutOfPlay 가드가 두 번째를
+        //   막아주긴 하지만 그건 사후 방어지 규칙이 아니다. 여기서 한 번으로 못 박는다.
+        if (!GameTags.IsCharacterProxy(other))
             return;
 
         float myScale = GetMyAuthorityScale();
@@ -914,7 +1032,7 @@ public class AIPlayerMovement : MonoBehaviour
         // 탈락 시 이동 애니메이션 정지 (Update가 멈춰 IsMoving이 true로 남는 것 방지).
         // 모든 클라이언트에서 실행되므로 각자 자기 애니메이터를 끈다.
         if (anim != null)
-            anim.SetBool("IsMoving", false);
+            anim.SetBool(AnimParams.IsMoving, false);
 
         if (nameTagBillboard != null)
             nameTagBillboard.gameObject.SetActive(false);
@@ -970,11 +1088,10 @@ public class AIPlayerMovement : MonoBehaviour
 
         dashCooldownTimer = dashCooldown;
         dashTimer = dashDuration;
-        preDashSpeed = Agent.speed;
         Agent.speed = dashSpeed;
 
         if (anim != null)
-            anim.SetTrigger("Dash");
+            anim.SetTrigger(AnimParams.Dash);
 
         // [LAN 이식] 트리거는 값이 남지 않아 폴링할 수 없다. 쏘는 쪽이 직접 알린다.
         //   플레이어 FSM(PlayerDashState)과 완전히 같은 통로.
@@ -1013,14 +1130,8 @@ public class AIPlayerMovement : MonoBehaviour
         attackCooldownTimer = dm.BatCooldown;
         attackCoroutine = StartCoroutine(AttackSwingRoutine());
 
-        if (anim != null)
-            anim.SetTrigger("Attack");
-
-        if (visual != null)
-        {
-            visual.PlayBatSwing();
-            visual.SendTrigger(LanPlayerVisual.ANIM_ATTACK);
-        }
+        //휘두르는 연출은 사람과 같은 코드를 쓴다
+        BatSwing.Play(transform, anim, visual, GetMyAuthorityScale());
     }
 
     //회전 연출은 LanPlayerVisual.PlayBatSwing이 돌린다(사람·원격과 같은 코드).
@@ -1050,68 +1161,42 @@ public class AIPlayerMovement : MonoBehaviour
         attackCoroutine = null;
     }
 
+    /// <summary>
+    /// 스윙 궤적 안의 상대를 찾아 호스트 판정을 확정한다. 호스트에서만 돈다.
+    ///
+    /// ★ 판정 자체는 BatArcQuery가 한다 — 사람과 같은 코드다
+    ///   예전엔 여기와 PlayerAttackState에 같은 판정이 두 벌 있었고,
+    ///   젤리 제외와 <b>판 밖 상대 제외가 사람 쪽에만</b> 있었다.
+    ///   그래서 봇은 초콜릿에 빠진 시체를 계속 때렸다.
+    /// </summary>
     private bool DetectBatHit()
     {
-        if (!IsDriver)
+        if (!IsDriver || netId == null)
             return false;
 
-        var dm = DataManager.Instance;
-        if (dm == null)
+        DataManager dm = DataManager.Instance;
+        PushMode push = PushMode.Instance;
+
+        if (dm == null || push == null)
             return false;
 
         float scale = GetMyAuthorityScale();
-        float range = dm.BatRange * scale;
-        Vector3 origin = transform.position + Vector3.up * (BaseAgentHeight * 0.5f * scale);
-        float halfArc = dm.BatArcAngle * 0.5f;
+        NetIdentity victim = BatArcQuery.Find(transform, netId, scale);
 
-        //젤리(Edible 레이어)는 뺀다 — 배트는 Push 전용인데 Push 씬엔 젤리가 없고,
-        //잡히더라도 아래 IsJelly에서 어차피 걸러진다. 마스크에서 빼는 편이 훑는 양이 준다
-        int mask = LayerMask.GetMask("Player");
-        Collider[] hits = Physics.OverlapSphere(origin, range, mask);
+        if (victim == null)
+            return false;
 
-        foreach (var hit in hits)
-        {
-            if (hit.transform.root == transform.root)
-                continue;
+        // ★ 넉백을 직접 보내지 않고 PushMode에 넘긴다
+        //   넉백은 맞는 쪽 소유자에게만 가야 한다. 전체에 뿌리면 남의 화면에서도
+        //   로컬로 밀려 수신 위치와 충돌해 지터가 난다.
+        //   그 규칙이 이미 PushMode.SendKnockback에 있다 —
+        //   플레이어가 때렸을 때와 완전히 같은 코드가 돈다.
+        push.HostBotBatHit(victim.NetId, netId.NetId);
 
-            Vector3 toTarget = hit.transform.position - transform.position;
-            toTarget.y = 0f;
-            if (toTarget.sqrMagnitude < 0.001f)
-                continue;
+        if (ScaleCtrl != null)
+            ScaleCtrl.GrowByBatHit(dm.BatHitGrowth / Mathf.Max(scale, 1f));
 
-            float angle = Vector3.Angle(transform.forward, toTarget);
-            if (angle > halfArc)
-                continue;
-
-            // ═════════════════════════════════════════════
-            //  [LAN 이식] 넉백 전달을 PushMode에 넘긴다
-            // ═════════════════════════════════════════════
-            //
-            // ★ 왜 직접 안 보내는가
-            //   넉백은 맞는 쪽 소유자에게만 가야 한다. 전체에 뿌리면 남의 화면에서도
-            //   로컬로 밀려 수신 위치와 충돌해 지터가 난다.
-            //   그 규칙이 이미 PushMode.SendKnockback에 있으므로 여기서 다시 만들 이유가 없다.
-            //   플레이어가 때렸을 때와 완전히 같은 코드가 돌게 된다.
-            if (netId != null)
-            {
-                NetIdentity victimId = hit.GetComponentInParent<NetIdentity>();
-                if (victimId == null || victimId == netId)
-                    continue;
-
-                var push = PushMode.Instance;
-                if (push == null)
-                    continue;
-
-                push.HostBotBatHit(victimId.NetId, netId.NetId);
-
-                float g = dm.BatHitGrowth / Mathf.Max(scale, 1f);
-                if (ScaleCtrl != null)
-                    ScaleCtrl.GrowByBatHit(g);
-                return true;
-            }
-        }
-
-        return false;
+        return true;
     }
 
     // ─────────────────────────────────────────────────────────

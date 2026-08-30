@@ -9,13 +9,21 @@ public class FallingTile : MonoBehaviour
     [Tooltip("AwakePhysicsOnTile이 사용하는 OverlapBox 범위를 Scene 뷰에 시각화")]
     [SerializeField] private bool drawOverlapGizmo = false;   // 빌드에서 붕괴 때마다 Debug.Log가 쏟아지지 않도록 기본 off (G3)
 
-    [Tooltip("OverlapBox 높이 (타일 위로 몇 미터까지 검사할지)")]
+    [Tooltip("타일 윗면 위로 몇 미터까지 검사할지")]
     [SerializeField] private float overlapBoxHeight = 20f;
 
-    // 경고 단계 색 변경용 셰이더 프로퍼티(URP=_BaseColor / 빌트인=_Color). MaterialPropertyBlock으로
+    // ★ 왜 아래쪽으로도 파야 하는가 (한 번 이걸로 소품 45개를 잃었다)
+    //   예전엔 박스를 transform.position에서 위로만 20m 세웠다. 그런데 타일 콜라이더는
+    //   피벗 기준 -0.35 ~ +0.35라, 박스 바닥이 하필 <b>타일 두께 한가운데</b>였다.
+    //   맵에는 타일에 파묻히거나 살짝 아래로 내려 배치한 소품이 45개 있었고
+    //   (pretzel·bread·caramel·씬 젤리 등, 최대 2.48m 아래) 전부 박스 밖이라
+    //   발판이 사라져도 영영 공중에 남았다.
+    //   이제 기준을 피벗이 아니라 <b>콜라이더 bounds</b>로 잡고, 아랫면에서 더 파고든다.
+    [Tooltip("타일 아랫면 아래로 몇 미터까지 검사할지 (타일에 파묻힌 소품용)")]
+    [SerializeField] private float overlapBoxDepth = 3f;
+
+    // 경고 단계 색 변경용. MaterialPropertyBlock으로
     // 칠하면 .material처럼 인스턴스를 복제하지 않아 배칭이 유지된다. (G3)
-    private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-    private static readonly int ColorId = Shader.PropertyToID("_Color");
 
     // TileCollapseManager가 붕괴 예약 시 채워주는 그리드 좌표. carve 시점에 '허공'으로 마킹할 때 사용.
     //격자 좌표. TileCollapseManager가 타일을 등록하면서 넣어준다
@@ -113,13 +121,11 @@ public class FallingTile : MonoBehaviour
         // 사본이 생겨 배칭이 깨지고 메모리가 늘던 문제를 막는다. 읽기도 sharedMaterial로 한다. (G3)
         Renderer rend = GetComponentInChildren<Renderer>();
         Color originalColor = Color.white;
-        int colorPropId = ColorId;
         MaterialPropertyBlock mpb = null;
-        if (rend != null && rend.sharedMaterial != null)
+
+        if (TileColorProps.HasColor(rend))
         {
-            colorPropId = rend.sharedMaterial.HasProperty(BaseColorId) ? BaseColorId : ColorId;
-            if (rend.sharedMaterial.HasProperty(colorPropId))
-                originalColor = rend.sharedMaterial.GetColor(colorPropId);
+            originalColor = rend.sharedMaterial.GetColor(TileColorProps.BaseColorId);
             mpb = new MaterialPropertyBlock();
         }
 
@@ -139,7 +145,7 @@ public class FallingTile : MonoBehaviour
             if (mpb != null)
             {
                 rend.GetPropertyBlock(mpb);
-                mpb.SetColor(colorPropId, Color.Lerp(originalColor, new Color(1f, 0.25f, 0.15f), t));
+                mpb.SetColor(TileColorProps.BaseColorId, Color.Lerp(originalColor, new Color(1f, 0.25f, 0.15f), t));
                 rend.SetPropertyBlock(mpb);
             }
 
@@ -153,7 +159,7 @@ public class FallingTile : MonoBehaviour
         if (tileCollider != null)
         {
             // 1. 위에 있는 오브젝트들 물리 켜기 (HalfExtents 공식 적용)
-            AwakePhysicsOnTile(tileCollider.bounds.size);
+            AwakePhysicsOnTile();
 
             // 2. NavMeshObstacle(Carving)을 켜서 이 타일 위치의 NavMesh에 구멍을 뚫는다.
             //    NavMesh는 게임 시작 시 한 번만 베이크되므로, 타일이 사라져도 NavMesh 표면은 그대로 남아
@@ -185,37 +191,41 @@ public class FallingTile : MonoBehaviour
         gameObject.SetActive(false);
     }
 
-    private void AwakePhysicsOnTile(Vector3 colliderSize)
+    /// <summary>이 타일이 훑을 공간. 콜라이더의 월드 AABB에서 위아래로 넓힌 상자.</summary>
+    private void GetOverlapBox(out Vector3 center, out Vector3 halfExtents)
     {
-        // halfExtents는 전체 크기의 절반
-        // Y축은 overlapBoxHeight 만큼 타일 위 공간을 검사 (반지름이므로 절반)
-        Vector3 halfExtents = new Vector3(colliderSize.x * 0.5f, overlapBoxHeight * 0.5f, colliderSize.z * 0.5f);
+        Bounds tileBounds = tileCollider.bounds;
 
-        // 박스 중심을 타일 표면 위쪽에 배치 (타일 위 공간만 스캔)
-        Vector3 boxCenter = transform.position + new Vector3(0f, halfExtents.y, 0f);
+        float bottomY = tileBounds.min.y - overlapBoxDepth;
+        float topY = tileBounds.max.y + overlapBoxHeight;
+
+        // bounds는 월드 축에 정렬된 상자라 extents를 그대로 쓰려면 회전도 항등이어야 한다.
+        halfExtents = new Vector3(tileBounds.extents.x, (topY - bottomY) * 0.5f, tileBounds.extents.z);
+        center = new Vector3(tileBounds.center.x, (bottomY + topY) * 0.5f, tileBounds.center.z);
+    }
+
+    private void AwakePhysicsOnTile()
+    {
+        GetOverlapBox(out Vector3 boxCenter, out Vector3 halfExtents);
 
         // 배경 오브젝트 + AI (Player/Edible 레이어) 모두 감지.
         // [X4/G8] 여기는 붕괴 코루틴(FallRoutine) 한복판이라 NRE가 나면 이 타일만
         // 조용히 좀비(흔들리다 멈춘 채 영구 잔존, carve/IsOverVoid 미반영)가 된다 —
-        // 싱글톤/레이어는 없으면 건너뛰는 식으로 방어한다.
-        // (NameToLayer가 -1이면 C# 시프트 마스킹으로 1<<-1 == 1<<31이 되어
-        //  엉뚱한 31번 레이어가 마스크에 섞이는 것도 함께 차단)
-        var dm = DataManager.Instance;
-        int mask = dm != null ? dm.ObjectLayerMask.value : 0;
-        int playerLayer = LayerMask.NameToLayer("Player");
-        if (playerLayer >= 0)
-            mask |= 1 << playerLayer;
-        int edibleLayer = LayerMask.NameToLayer("Edible");
-        if (edibleLayer >= 0)
-            mask |= 1 << edibleLayer;
+        //없는 레이어(-1)를 그대로 시프트하면 1<<31이 되어 엉뚱한 레이어가 섞인다.
+        //그 방어는 GameLayers.MaskOf 안에 들어 있다
+        //레이어 마스크의 출처는 GameLayers 하나다. 예전엔 DataManager가 같은 값을
+        //Awake에서 복사해 들고 있었는데, 거쳐 갈 이유가 없는 통과 지점이었다
+        int mask = GameLayers.BackGroundObjectMask;
+        mask |= GameLayers.PlayerMask;
+        mask |= GameLayers.EdibleMask;
 
-        Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, transform.rotation, mask);
+        Collider[] OverlappedCols = Physics.OverlapBox(boxCenter, halfExtents, Quaternion.identity, mask);
 
         // 디버그: 시각화용 기록 + Scene 뷰에 라인으로 5초간 그림
         lastOverlapTime = Time.time;
         if (drawOverlapGizmo)
         {
-            DebugDrawOverlapBox(boxCenter, halfExtents, transform.rotation, Color.red, 5f);
+            DebugDrawOverlapBox(boxCenter, halfExtents, Quaternion.identity, Color.red, 5f);
 #if UNITY_EDITOR
             // 로그는 에디터에서만. 빌드에선 컴파일 자체가 빠져 프레임 스파이크/오버헤드 없음. (G3)
             Debug.Log($"[FallingTile] {name} AwakePhysicsOnTile: {OverlappedCols.Length}개 콜라이더 감지");
@@ -244,14 +254,14 @@ public class FallingTile : MonoBehaviour
             if (col.GetComponentInParent<LanPlayerState>() != null)
                 continue;
 
-            NetIdentity idOnCol = col.GetComponentInParent<NetIdentity>();
-            if (idOnCol != null && !idOnCol.IsSimulatedHere)
+            if (IsDrivenElsewhere(col))
                 continue;
 
+            // Milk는 스크립트가 부모, 콜라이더가 자식이라 이 한 줄이 알아서 부모를 찾아간다.
+            // 예전엔 여기에 Milk 특례가 하나 더 있었는데 transform.root — 즉 <b>타일</b>의
+            // 루트에서 Rigidbody를 찾고 있었다. 격자 루트엔 Rigidbody가 없으니 rb가 null이 되어
+            // 밀크가 통째로 걸러지는 코드였다. 특례 없이도 결과가 같으므로 지웠다.
             Rigidbody rb = col.GetComponentInParent<Rigidbody>();
-
-            if (col.GetComponent<Milk>() != null)
-                rb = transform.root.GetComponent<Rigidbody>();
 
             if (rb == null)
             {
@@ -283,8 +293,7 @@ public class FallingTile : MonoBehaviour
                 continue;
 
             // 원격 오브젝트는 소유자 쪽에서만 물리를 돌린다
-            NetIdentity nid = rb.GetComponentInParent<NetIdentity>();
-            if (nid != null && !nid.IsSimulatedHere)
+            if (IsDrivenElsewhere(rb))
                 continue;
 
             DisableAIOnObject(rb.gameObject);
@@ -309,6 +318,34 @@ public class FallingTile : MonoBehaviour
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
             rb.WakeUp();
         }
+    }
+
+    /// <summary>
+    /// 이 물체의 움직임을 다른 기계가 책임지고 있는가.
+    ///
+    /// ★ 씬에 손으로 놓은 것은 여기서 걸러내면 안 된다 (클라 화면에서만 젤리가 떠 있던 원인)
+    ///   흡수 모드의 링 붕괴는 호스트 전용이 아니다. 모든 기계가 SyncedElapsed를 보고
+    ///   똑같이 타일을 무너뜨리므로 이 함수도 클라에서 돈다.
+    ///
+    ///   그런데 씬 젤리는 NetIdentity를 갖고 OwnerId가 0이라 클라에선 IsSimulatedHere가
+    ///   false다. 그래서 클라는 젤리 물리를 절대 켜지 않았고, 젤리 프리팹엔 위치 복제도
+    ///   없어서 호스트가 떨어뜨린 결과도 오지 않았다 → 클라 화면에만 젤리가 공중에 남았다.
+    ///   (NetIdentity가 없는 사탕·밀크는 이 필터를 안 타서 멀쩡히 떨어졌다. 그래서
+    ///    "젤리만" 뜨는 것처럼 보였다.)
+    ///
+    ///   씬 오브젝트(NetId >= SCENE_ID_BASE)는 위치를 주고받지 않으니 소유권을 물을 이유가
+    ///   없다. 각자 자기 화면에서 떨어뜨리면 되고, 흡수 판정은 어차피 호스트 권위다.
+    /// </summary>
+    private static bool IsDrivenElsewhere(Component c)
+    {
+        NetIdentity id = c.GetComponentInParent<NetIdentity>();
+        if (id == null)
+            return false;
+
+        if (id.NetId >= NetConfig.SCENE_ID_BASE)
+            return false;
+
+        return !id.IsSimulatedHere;
     }
 
     /// <summary>
@@ -412,20 +449,19 @@ public class FallingTile : MonoBehaviour
         if (!drawOverlapGizmo)
             return;
 
-        Collider col = tileCollider != null ? tileCollider : GetComponent<Collider>();
-        if (col == null)
+        if (tileCollider == null)
+            tileCollider = GetComponent<Collider>();
+        if (tileCollider == null)
             return;
 
-        Vector3 size = col.bounds.size;
-        Vector3 halfExtents = new Vector3(size.x * 0.5f, overlapBoxHeight * 0.5f, size.z * 0.5f);
-        Vector3 center = transform.position + new Vector3(0f, halfExtents.y, 0f);
+        GetOverlapBox(out Vector3 center, out Vector3 halfExtents);
 
         // 최근에 트리거된 박스는 빨강, 아니면 녹색
         bool recentlyTriggered = Time.time - lastOverlapTime < 5f;
         Color baseColor = recentlyTriggered ? Color.red : Color.green;
 
         Matrix4x4 prev = Gizmos.matrix;
-        Gizmos.matrix = Matrix4x4.TRS(center, transform.rotation, Vector3.one);
+        Gizmos.matrix = Matrix4x4.TRS(center, Quaternion.identity, Vector3.one);
 
         Gizmos.color = new Color(baseColor.r, baseColor.g, baseColor.b, 0.8f);
         Gizmos.DrawWireCube(Vector3.zero, halfExtents * 2f);
