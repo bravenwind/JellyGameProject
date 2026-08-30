@@ -1,7 +1,11 @@
-# 코드 파악 계획 — 8/25(화) ~ 8/29(토)
+# 코드 파악 계획 — 8/25(화) ~ 9/1(월)
 
 > 8/19~8/22 일정(전송·복제·흐름·모드·봇 前半)은 **완료**. 읽는 데 시간이 더 걸려
 > 원래 8/23~8/26이던 내용을 5일로 다시 폈다.
+>
+> 8/28(맵)까지 끝냈다. 남은 **8/29 일정(UI·보조)을 8/31~9/1 이틀로 다시 폈다** —
+> 하루에 2,188줄은 지금까지의 실제 속도와 안 맞았고, 마지막 '한 판 추적'은
+> 시간이 얼마나 걸릴지 모르는 작업이라 하루를 통째로 비워두는 게 낫다.
 >
 > **개선만 하는 날은 두지 않는다.** 미뤄두면 왜 고치려 했는지를 잊는다.
 > 밀린 개선 항목은 그 코드를 읽는 날에 하나씩 박아뒀다 — 읽다가 그 자리에서 고친다.
@@ -12,8 +16,12 @@
 "이건 왜 이렇지?"가 계속 나오고, 죽은 코드·중복·잔재가 튀어나와 그 자리에서 정리하게 된다.
 그게 곧 이해의 과정이라 억지로 줄이지 않는다.
 
-현재 규모: **123개 파일 / 18,615줄** (`Assets/Scripts`)
-읽으면서 죽은 코드·중복을 걷어낸 결과 시작 시점(137개 / 19,355줄)보다 줄었다.
+현재 규모: **125개 파일 / 20,892줄** (`Assets/Scripts`)
+
+> 줄 수가 다시 늘었는데 **코드가 아니라 주석이 늘었다.** 읽으면서 "왜 이렇게 생겼는지"를
+> 그 자리에 적어두는 게 이 계획의 목적이라 늘어나는 게 맞다.
+> 죽은 코드는 계속 줄고 있다 — 8/28에만 `OnTriggerStay` · `PurgeDestroyedEntries` ·
+> `DisableAIOnObject` · `NavDriverOf` · NavMeshAgent 부활 경로가 사라졌다.
 
 ---
 
@@ -53,10 +61,14 @@
 | ✅ | `Net/Flow/` 전부 | 발견·로비·씬전환·흐름·HUD·순위·관전·스폰지점 |
 | ✅ | `Net/Modes/` 전부 | `NetGameMode` `NetEntity` `HostJudgement` `PushMode` `AbsorbMode` |
 | ✅ | `Net/Bot/` + `AI/FSM/` | 봇 생성·상태 + 상태 4종 |
-| ⬜ | `AI/` 본체, `Player/`, `Absorbing/`, `Map/`, `UI/` | 아래 일정 |
+| ✅ | `AI/` 본체 (8/25) | `AIPlayerMovement` `AIDetector` `JellyAgentAI` `WanderingAI` |
+| ✅ | `Player/PlayerFSM/` (8/26) | `PlayerMovement` + 상태 6종. 봇/사람 중복 통합 완료 |
+| ✅ | `Player/` `Absorbing/` `Color/` `DataManagement/` (8/27) | 크기·색·흡수 |
+| ✅ | `Map/` (8/28) | `TileCollapseManager` `FallingTile` `ChocolateFluid` `Milk` `PuddingWiggle` |
+| ⬜ | `UI/`, `Net/UI/`, `Net/Debug/` | 8/31 ~ 9/1 |
 
-**남은 양: 약 8,240줄.** 5일이니 하루 1,650줄쯤이다. 네트워크와 무관한 코드라 앞의 절반보다
-빨리 읽히고, 8/26은 읽는 양을 줄이는 대신 밀린 통합 작업을 넣었다.
+**남은 양: 약 2,870줄** (`UI/DoTween/` 1,090줄과 `SoftBody3D` 181줄 제외).
+이틀이니 하루 1,400줄쯤인데, 9/1은 읽는 양을 줄이는 대신 **'한 판 추적'** 을 넣었다.
 
 ---
 
@@ -166,24 +178,77 @@
 
 ---
 
-## 8/29 (토) — UI·보조 (2,188줄, 훑기) + 전체 이어붙이기
+## 8/31 (월) — 게임 중 화면에 뜨는 것들 (1,656줄)
 
-| 범위 | 줄 | 깊이 |
+판이 도는 동안 화면 위에 얹히는 것들이다. **공통점은 "상태를 읽어 그리기만 한다"** —
+게임 로직을 바꾸지 않는다. 그 경계가 실제로 지켜지는지 보는 게 오늘의 목적이다.
+
+| 파일 | 줄 | |
 |---|---|---|
-| `Net/UI/` | 295 | 방 목록·순위표. 얕게 |
-| `Net/Debug/LanDiagnostics.cs` | 163 | F1 화면. 지금까지 읽은 게 다 나온다 |
-| `UI/LoadingSceneController.cs` | 349 | 커튼 전환. **얽혀 있으니 시간 잡을 것** |
-| `UI/Result/GameResultManager.cs` | 515 | 결과 씬 |
-| `UI/InGameUI/`, `UI/UIManagement/` | 866 | 훑기 |
+| `UI/OffScreenPlayerIndicator.cs` | 364 | 화면 밖 플레이어 화살표. 오늘 가장 큰 파일 |
+| `UI/MinimapArrowManager.cs` · `MinimapArrow.cs` | 257 | 미니맵. 위와 같은 문제를 다르게 푼다 — **비교하며 읽을 것** |
+| `UI/InGameUI/` | 285 | `CooldownRingUI` `CurrentStatusUI` `SoundSettings` + 버튼 3개 |
+| `UI/UIManagement/` | 257 | `UIManager` `UIPoolManager` |
+| `UI/EffectUI/LevelUpFloater.cs` · `LevelUpFloaterPool.cs` | 203 | 흡수할 때 뜨는 숫자 |
+| `Net/Debug/LanDiagnostics.cs` | 163 | **F1 화면. 지금까지 읽은 게 전부 여기 나온다 — 제일 먼저 읽을 것** |
+| `UI/NameTagBillboard.cs` | 127 | 머리 위 이름표 |
 
-> `UI/DoTween/`(1,090줄)과 `JellyMesh/SoftBody3D.cs`(181줄)는 **읽지 않는다.**
-> 연출과 Cloth 물리라 게임 로직과 무관하다.
+### 읽는 순서
+
+`LanDiagnostics`부터. 이건 **지금까지 읽은 모든 시스템의 요약본**이라, 여기 뜨는 항목 하나하나가
+어느 파일에서 오는지 짚어보면 8/19~8/28이 한 화면에 정리된다. 못 짚는 항목이 있으면 그 날 내용으로 돌아간다.
+
+### 붙잡을 것
+
+- **`OffScreenPlayerIndicator`와 `MinimapArrowManager`가 같은 일을 하나.**
+  둘 다 "어디 있는지 화면 밖 표시"인데 따로 있다. 합칠 수 있는지, 아니면 다른 문제인지 판단할 것.
+  (오늘까지 나온 중복은 전부 이 모양이었다 — 같은 질문에 답이 둘)
+- **`UIPoolManager`가 무엇을 푸는가.** `LevelUpFloaterPool`과 역할이 겹치는지
+- **`CurrentStatusUI.OnScaleChanged`의 `scale > 0f ? … : "-"`** — 스폰 전에 0이 뜨던 걸 막은 자리다.
+  왜 0이 뜰 수 있는지 다시 확인할 것 (`GameState.playerCurrentScale` 초기값)
+- **이름표·화살표가 탈락한 개체를 어떻게 지우나.** `IsOutOfPlay`를 보는지, 각자 판단하는지
 
 ### 오늘 고칠 것
 
-- **`MsgType.GameOver` 본문** — `WinnerNetId`·`WinnerScore`가 `AddLog` 한 줄에만 쓰인다.
+- `LoadingSceneController`의 `GetComponent<Canvas>()` 3회 (`312`행 근처) — **내일 읽을 파일이니 표시만.**
+  오늘은 어느 줄인지 적어만 둔다
+- 읽다 나온 죽은 코드·중복은 그 자리에서 정리
+
+---
+
+## 9/1 (화) — 판의 끝 (1,206줄) + 전체 이어붙이기
+
+한 판이 **끝나고 나서** 도는 것들이다. 순위표 → 종료 연출 → 커튼 → 결과 씬으로 이어지는
+한 줄기라, 그 순서대로 읽으면 그대로 오후의 '한 판 추적'으로 넘어간다.
+
+| 파일 | 줄 | |
+|---|---|---|
+| `Net/UI/` | 312 | `LanRoomListUI` `LanLeaderboardUI` + 행 2종. 방 목록은 얕게, 순위표는 결과 씬과 이어지니 제대로 |
+| `UI/LoadingSceneController.cs` | 367 | 커튼 전환. **`static` 필드가 5개다 — 시간 잡을 것** |
+| `UI/Result/GameResultManager.cs` | 527 | 결과 씬 |
+
+> `UI/DoTween/`(1,090줄)과 `JellyMesh/SoftBody3D.cs`(181줄)는 **읽지 않는다.**
+> 연출과 Cloth 물리라 게임 로직과 무관하다.
+> `MenuHoverPreview` `SceneLoader` `NextSceneManager` `EnableTargetButton` `DisableSelfButton`(149줄)도
+> 버튼 한두 줄짜리라 **파일 이름만 보고 넘긴다.**
+
+### 붙잡을 것
+
+- **`LoadingSceneController`의 `static` 다섯 개** — `NextSceneName` `IsPresenting` `IsTransitioning`
+  `instance` `pendingDepartureIntro`. 씬을 넘어 살아남는 값이라 **한 판이 끝나고 다음 판에 남아 있으면**
+  커튼이 안 열리거나 두 번 돈다. 누가 언제 지우는지 확인할 것
+- **`DontDestroyOnLoad`로 다음 씬 위에 겹쳐 있다**(312행 주석). 그래서 캔버스 `sortingOrder`를
+  손으로 올린다 — 그 코드가 왜 필요한지
+- **`GameResultManager`가 캐릭터를 어떻게 다시 세우나.** `HideBat` `GroundToFloor` `FindJellyRenderer` —
+  게임 씬의 프리팹을 결과 씬에 다시 쓰는 구조다. 무엇을 끄고 무엇을 살리는지
+- **결과 씬은 `LanScoreboard.FinalStandings`를 읽는다**(159행). 소켓이 이미 닫혀 있어도 되는 이유
+
+### 오늘 고칠 것
+
+- **`MsgType.GameOver` 본문** — `WinnerNetId`·`WinnerScore`가 `AddLog` 한 줄(`LanGameFlow` 668행)에만 쓰인다.
   결과 화면은 `FinalStandings`를 쓰므로 같은 사실을 두 번 보내는 셈이다.
   `GameResultManager`를 읽는 오늘 본문을 비울지 정한다
+- 어제 표시해둔 `LoadingSceneController`의 `GetComponent<Canvas>()` 3회
 
 ### 마무리 — 한 판을 끝까지 추적
 
@@ -268,6 +333,16 @@
 | `LanGameFlow.endingStarted` | 정상 종료와 사고가 소켓 입장에선 똑같이 보인다. 진행 단계로 구분한다 |
 | `LanFlowHud.StopCenterAnim` | `FlashRoutine`이 알파를 0으로 내린 채 살아 있으면 "게임 종료!"를 지워버린다 |
 | `NetManager.Offline` | 판이 끝나고 커튼이 도는 동안 게임 씬은 살아 있는데 소켓은 닫혀 있다 |
+| `ChocolateFluid`의 부력이 **스프링**인 것 | 켜짐/꺼짐이었을 때 수면 높이에 힘이 둘 다 0인 죽은 구간이 생겨, 빠진 캐릭터가 그 자리에 굳었다 |
+| `SurfaceY`를 **콜라이더에서** 읽는 것 | `transform.position.y`로 잡았더니 실제 윗면과 0.25m 어긋나, 부력이 꺼지는 높이가 물 밖 허공이 됐다 |
+| `ReleaseMargin = 1` | 물체가 쉬는 높이가 트리거 박스 윗면에서 5cm 아래라, 물결마다 경계를 들락날락한다. 딱 수면으로 자르면 매번 방출된다 |
+| `GameTags.IsCharacterMainCollider` | 캐릭터는 트리거 콜라이더가 둘이라 `OnTrigger*`가 개체당 두 번 불린다. 초콜릿 힘이 두 배로 들어갔다 |
+| `PhysicsFall`이 **조종 장치까지** 끄는 것 | "끄는 건 부르는 쪽이" 로 나눴더니 같은 코드가 세 벌로 갈라졌고 셋의 범위가 서로 달랐다 |
+| `PhysicsFall.Begin(go, useGravity)` | 무조건 켜고 `ChocolateFluid`가 다음 줄에서 다시 껐다. 중력의 주인이 두 곳이었다 |
+| `NetEntity.IsDrivenElsewhere`의 **씬 예외** | 씬 젤리는 `OwnerId 0`이라 클라에서 걸러졌는데 위치 복제도 없어서, 클라 화면에만 공중에 떠 있었다 |
+| `ComputeRingInterval`이 `LastCollapsingRing + 1`로 나누는 것 | 첫 고리 앞의 예고 간격 자리가 없어서 바깥 링만 경고 없이 무너졌다 (담장 문제) |
+| `FallingTile`의 감지 박스가 **아래로도** 파는 것 | 박스 바닥이 타일 두께 한가운데였다. 파묻힌 소품 45개가 발판이 사라져도 공중에 남았다 |
+| `CreateFloatData`의 `& 0x7FFFFFFF` | `GetInstanceID`가 음수일 수 있고 C#의 `%`는 피제수 부호를 따른다. 값의 구간이 통째로 갈라졌다 |
 
 `REVIEW_NOTES.md`에 구조 분석이 더 있다.
 
@@ -283,11 +358,13 @@
 
 ### 날을 못 정한 것
 
-- `Assets/_Recovery/0.unity` (2.9MB) — 유니티 크래시 복구 임시 씬. 빌드에 안 들어간다. 지울지
 - 인스펙터에 남은 고아 필드 14개 클래스 — 코드에 없는 키라 유니티가 무시한다.
   씬을 한 번 저장하면 자동으로 사라지므로 손댈 필요는 없다
-- CP949로 저장된 스크립트 10개 — 도구로 편집하면 한글 주석이 깨진다.
-  건드릴 일이 생기면 UTF-8로 먼저 변환할 것
+- `JellyObject` → `JellyColliderAbsorb` 합치기 — 프리팹 36개를 건드려야 한다. 가능은 하나 이득이 작다
+- `Tile_x_z`의 렌더러가 콜라이더와 **같은 오브젝트**라 `FallingTile.shakeTransform` 분리가 무효다.
+  타일 위에 선 캐릭터가 같이 흔들리지 않게 하려면 씬 타일 270개를 재구성해야 한다
+- `ChocolateFluid.entrySpeedKeep`이 `linearVelocity`에만 걸린다. 각속도는 그대로라
+  빠르게 회전하며 들어온 물체가 초콜릿 안에서 계속 돈다. 연출 취향 문제라 보류
 
 ### 하지 않기로 한 것
 
@@ -306,3 +383,8 @@
   넘어가지 않고 경고를 띄운다
 - `LanRoomListUI.emptyHint` 연결 / `statusText`는 불필요로 결정
 - `Rotator.cs`, `ResultStarsUI.cs` 삭제 (프리팹 컴포넌트도 제거)
+- `Assets/_Recovery/0.unity` 삭제 · CP949 스크립트 11개 UTF-8 변환 · Google Sheets 기록 제거
+- 축소(scale down) 경로 전면 제거 — 게임에 줄어드는 경우가 없어졌다. Min/Max 클램프도 삭제
+- 8/28 맵 정리: `PhysicsFall` 통합 · `NetEntity.IsDrivenElsewhere` 승격 ·
+  `LanPlayerState.ReportFellOutOfPlay` 신설 · `ChocolateFluid.OnTriggerStay` 삭제 ·
+  `IsCharacterProxy` → `IsCharacterMainCollider` 개명 후 `Milk`·`PuddingWiggle`까지 적용
