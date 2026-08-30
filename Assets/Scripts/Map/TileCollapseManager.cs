@@ -908,9 +908,21 @@ public class TileCollapseManager : MonoBehaviour
 
     private const int MAX_SAMPLES_PER_SEGMENT = 16;
 
-    public bool IsPathDangerous(Vector3[] corners, int count)
+    /// <summary>
+    /// 이 경로가 무너지거나 무너질 칸을 지나가는지.
+    ///
+    /// ★ 개수를 인자로 받지 않는다
+    ///   예전엔 (corners, count) 두 개를 받았고 호출부는 전부 corners.Length를 넘겼다.
+    ///   그런데 NavMeshPath.corners는 필드가 아니라 <b>접근할 때마다 배열을 새로 만드는
+    ///   프로퍼티</b>다. 그래서 호출 한 번에 배열이 두 개씩 생기고 있었다 —
+    ///   하나는 내용을 쓰려고, 하나는 Length 하나 읽자고.
+    ///
+    ///   개수를 따로 받는 게 옳은 경우는 GetCornersNonAlloc처럼 큰 버퍼의 앞부분만
+    ///   채우는 때다. 그때는 Length가 용량이지 유효 개수가 아니다. 여기는 그 경우가 아니다.
+    /// </summary>
+    public bool IsPathDangerous(Vector3[] corners)
     {
-        if (stepX == 0f || stepZ == 0f || count == 0)
+        if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)
             return false;
 
         float sampleStep = Mathf.Min(stepX, stepZ) * 0.5f;
@@ -918,7 +930,7 @@ public class TileCollapseManager : MonoBehaviour
         if (IsPositionDangerous(corners[0]))
             return true;
 
-        for (int i = 1; i < count; i++)
+        for (int i = 1; i < corners.Length; i++)
         {
             Vector3 from = corners[i - 1];
             Vector3 to = corners[i];

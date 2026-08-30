@@ -61,9 +61,9 @@ public abstract class AIBaseState
             || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
             return false;
 
+        //CachedPath.corners는 읽을 때마다 배열을 새로 만드는 프로퍼티다. 한 번만 읽는다.
         var collapse = TileCollapseManager.Instance;
-        if (collapse != null
-            && collapse.IsPathDangerous(ai.CachedPath.corners, ai.CachedPath.corners.Length))
+        if (collapse != null && collapse.IsPathDangerous(ai.CachedPath.corners))
             return false;
 
         ai.Agent.SetPath(ai.CachedPath);

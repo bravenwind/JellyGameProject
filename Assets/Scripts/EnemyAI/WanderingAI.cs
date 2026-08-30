@@ -165,7 +165,7 @@ public class WanderingAI : MonoBehaviour
     private void SetMoving(bool moving)
     {
         if (anim != null)
-            anim.SetBool("IsMoving", moving);
+            anim.SetBool(AnimParams.IsMoving, moving);
     }
 
     /// <summary>
@@ -262,8 +262,9 @@ public class WanderingAI : MonoBehaviour
 
         if (checkDanger)
         {
+            //pathBuffer.corners는 읽을 때마다 배열을 새로 만드는 프로퍼티다. 한 번만 읽는다.
             TileCollapseManager collapse = TileCollapseManager.Instance;
-            if (collapse != null && collapse.IsPathDangerous(pathBuffer.corners, pathBuffer.corners.Length))
+            if (collapse != null && collapse.IsPathDangerous(pathBuffer.corners))
                 return false;
         }
 
