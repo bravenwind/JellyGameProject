@@ -328,14 +328,16 @@ public class TileCollapseManager : MonoBehaviour
             }
         }
 
-        float firstCollapseTime = CollapseTimeOfRing(0);
-        if (elapsed < firstCollapseTime)
-            return;
-
-        int targetRing = Mathf.FloorToInt((elapsed - firstCollapseTime) / ringInterval);
-        targetRing = Mathf.Min(targetRing, LastCollapsingRing);
-
-        while (lastCollapsedRing < targetRing)
+        // "다음 고리의 붕괴 시각이 지났으면 무너뜨린다"를 그대로 옮긴 것.
+        // 랙으로 여러 간격이 한 프레임에 지나가면 그만큼 연달아 무너진다.
+        //
+        // ★ 예전엔 (elapsed - 첫 붕괴 시각) / ringInterval을 내림해서 목표 고리를 구했다
+        //   같은 답이 나오지만, CollapseTimeOfRing이 이미 알고 있는 +1 담장 계산을
+        //   호출부가 뺄셈과 나눗셈으로 <b>다시 유도</b>하는 꼴이었다. 시각의 출처가 둘이면
+        //   한쪽만 고쳐지는 일이 생긴다 — 실제로 이번 수정이 그럴 뻔했다.
+        //   나눗셈이 사라져 ringInterval이 0일 때 무한대가 나오던 자리도 같이 없어졌다.
+        while (lastCollapsedRing < LastCollapsingRing
+               && elapsed >= CollapseTimeOfRing(lastCollapsedRing + 1))
         {
             lastCollapsedRing++;
             CollapseRingAnimated(lastCollapsedRing);
