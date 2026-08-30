@@ -198,7 +198,16 @@ namespace JellyNet
             //   받은 좌표와 물리가 서로를 밀어 캐릭터가 떨린다.
             //   소유자 화면에서 계산한 낙하가 NetTransform을 타고 모두에게 전해진다 —
             //   봇이 호스트에서만 물리를 켜는 것과 같은 규칙이다.
-            BeginPhysicsFall();
+            //
+            // ★ 이미 물리로 넘어간 몸은 다시 건드리지 않는다
+            //   초콜릿은 닿는 프레임에 물리로 바꾸고 <b>중력을 끈다</b>(부력이 대신하므로).
+            //   그런데 탈락 확정은 호스트 왕복 뒤에 온다. 그때 아무 조건 없이 다시
+            //   Begin하면 중력이 되살아나 부력과 싸우고, 뜨는 높이가 조용히 달라진다.
+            //   kinematic이면 '아직 조종당하는 중', 아니면 '이미 물리가 맡았다'는 뜻이다.
+            Rigidbody body = GetComponent<Rigidbody>();
+
+            if (body == null || body.isKinematic)
+                BeginPhysicsFall();
 
             if (PlaySFXAudio.Instance != null)
                 PlaySFXAudio.Instance.StopWalking();
@@ -209,27 +218,20 @@ namespace JellyNet
         }
 
         /// <summary>
-        /// 지형에 빠져 판에서 나간다. 신고와 물리 전환을 <b>한 번에</b> 처리한다.
+        /// 지형에 빠져 판에서 나갔다고 신고한다. <b>신고만 한다</b> — 몸을 어떻게 할지는
+        /// 그 지형이 정한다(초콜릿은 뜨게, 낭떠러지는 떨어지게).
         ///
         /// ★ 왜 이 함수가 생겼나 (규칙이 밖으로 새고 있었다)
         ///   예전엔 ChocolateFluid가 이걸 다 알고 있었다:
         ///
         ///     if (lanPlayer.IsMine &amp;&amp; !lanPlayer.IsOutOfPlay &amp;&amp; LanGameFlow.Instance != null)
         ///         LanGameFlow.Instance.ReportSelfEliminated(lanPlayer.EntityId, "...");
-        ///     if (lanPlayer.IsMine)
-        ///         lanPlayer.BeginPhysicsFallNow();
         ///
-        ///   같은 IsMine 판정이 OnEliminated 안에도 있어서 규칙이 두 곳에 생겼고,
+        ///   같은 IsMine 판정이 OnBecameOutOfPlay 안에도 있어서 규칙이 두 곳에 생겼고,
         ///   봇 쪽은 ReportEliminated 안에서 권한을 보는데 사람만 밖에서 보는 비대칭도 났다.
-        ///   지형 스크립트는 "누가 어디에 빠졌다"만 알면 되고, 그걸로 무엇을 할지는 여기 몫이다.
-        ///
-        /// ★ 탈락 확정을 기다리지 않고 지금 물리로 넘기는 이유
-        ///   탈락은 호스트 왕복 뒤에 확정된다. 그 사이 CharacterController가 계속 캐릭터를
-        ///   몰기 때문에 <b>두께 0.11짜리 얇은 초콜릿 판을 그대로 통과</b>한다. 빠져나간 뒤엔
-        ///   트리거 밖이라 부력도 흐름도 못 받아 허공에 멈춰 선다.
-        ///   봇은 진입 순간 물리로 바뀌어 그 자리에서 제동이 걸린다 — 사람도 같아야 한다.
+        ///   지형 스크립트는 "누가 어디에 빠졌다"만 알면 된다.
         /// </summary>
-        /// <returns>이 기계가 실제로 처리했으면 true. 남의 캐릭터이거나 이미 나간 상태면 false.</returns>
+        /// <returns>실제로 신고했으면 true. 남의 캐릭터이거나 이미 나간 상태면 false.</returns>
         public bool ReportFellOutOfPlay(string reason)
         {
             // 신고는 본인만. 남의 캐릭터가 내 화면에서 스쳤다고 죽이면 안 된다.
@@ -239,7 +241,6 @@ namespace JellyNet
             if (LanGameFlow.Instance != null)
                 LanGameFlow.Instance.ReportSelfEliminated(EntityId, reason);
 
-            BeginPhysicsFall();
             return true;
         }
 

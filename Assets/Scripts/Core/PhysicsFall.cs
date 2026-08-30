@@ -36,11 +36,20 @@ using UnityEngine.AI;
 public static class PhysicsFall
 {
     /// <summary>
-    /// 이 오브젝트를 물리 낙하 상태로 바꾼다.
+    /// 이 오브젝트를 물리에 넘긴다.
     /// 조종 장치를 끄고, Rigidbody를 dynamic으로 돌리고, 잠들어 있으면 깨운다.
     /// </summary>
+    /// <param name="useGravity">
+    /// 중력을 켤지. 기본은 켠다(떨어져야 하니까).
+    ///
+    /// ★ 인자로 받는 이유
+    ///   초콜릿 안에서는 중력을 꺼야 한다 — 부력이 대신하기 때문이다. 예전엔 여기서
+    ///   무조건 켜고 ChocolateFluid가 <b>바로 다음 줄에서 다시 껐다.</b> 동작은 맞지만
+    ///   "중력을 누가 정하는가"가 두 곳이 되고, 읽는 사람은 켰다 끄는 이유를 찾게 된다.
+    ///   부르는 쪽이 한 번에 말하게 한다.
+    /// </param>
     /// <returns>물리를 맡게 된 Rigidbody. go가 null이면 null.</returns>
-    public static Rigidbody Begin(GameObject go)
+    public static Rigidbody Begin(GameObject go, bool useGravity = true)
     {
         if (go == null)
             return null;
@@ -53,7 +62,7 @@ public static class PhysicsFall
             rb = go.AddComponent<Rigidbody>();
 
         rb.isKinematic = false;
-        rb.useGravity = true;
+        rb.useGravity = useGravity;
 
         //빠르게 떨어지면 얇은 바닥을 통과할 수 있다. 스윕 판정으로 막는다
         rb.collisionDetectionMode = CollisionDetectionMode.Continuous;

@@ -245,15 +245,20 @@ public class ChocolateFluid : MonoBehaviour
         // ★ 이 갈래가 없으면 사람이 아래 Rigidbody 분기로 흘러
         //   '떠다니는 물체' 취급만 받고 죽지 않는다.
         //
-        // ★ 여기는 "누가 어디에 빠졌다"까지만 안다
-        //   예전엔 IsMine·IsOutOfPlay·LanGameFlow null 검사와 신고 API, 물리 전환 순서까지
-        //   이 자리에 다 적혀 있었다. 같은 IsMine 판정이 LanPlayerState 안에도 있어서
-        //   규칙이 두 곳에 생겼고, 봇은 ReportEliminated 안에서 권한을 보는데 사람만
-        //   밖에서 보는 비대칭도 났다. 그 판단은 전부 주인에게 돌려줬다.
+        // ★ 신고와 몸 처리는 서로 다른 일이다
+        //   신고 조건(IsMine·IsOutOfPlay·LanGameFlow null)은 LanPlayerState가 알고,
+        //   "초콜릿에 들어온 몸을 어떻게 할지"는 여기가 안다. 사람이든 봇이든 소품이든
+        //   똑같이 ApplyFloatPhysics 하나로 끝난다.
         //
         // ★ 예전엔 신고만 하고 return 했다
         //   물리 설정을 건너뛰어서 사람은 부력·점성을 하나도 못 받고 <b>중력만으로
         //   끝없이 떨어졌다.</b> 같은 초콜릿에서 봇은 둥둥 떠 있는데도.
+        //
+        // ★ 탈락 확정을 기다리지 않고 지금 물리로 넘긴다
+        //   탈락은 호스트 왕복 뒤에 확정된다. 그 사이 CharacterController가 계속 캐릭터를
+        //   몰기 때문에 <b>두께 0.11짜리 얇은 초콜릿 판을 그대로 통과</b>한다. 빠져나간 뒤엔
+        //   트리거 밖이라 부력도 흐름도 못 받아 허공에 멈춰 선다.
+        //   ApplyFloatPhysics가 진입 프레임에 물리로 바꿔 그 자리에서 제동을 건다.
         LanPlayerState lanPlayer = other.GetComponentInParent<LanPlayerState>();
 
         if (lanPlayer != null)
@@ -326,11 +331,10 @@ public class ChocolateFluid : MonoBehaviour
         if (NetEntity.IsDrivenElsewhere(rb))
             return;
 
-        PhysicsFall.Begin(rb.gameObject);
+        //중력은 켜지 않는다 — 액체 안에서는 부력이 그 자리를 대신한다.
+        //예전엔 Begin이 무조건 켜고 여기서 바로 다시 껐다.
+        PhysicsFall.Begin(rb.gameObject, useGravity: false);
 
-        //PhysicsFall은 '떨어져야 한다'는 뜻으로 중력을 켠다. 액체 안에서는 부력이 대신하므로
-        //여기서 다시 끈다. 중력을 켜둔 채로 두면 부력과 싸우다 계속 가라앉는다.
-        rb.useGravity = false;
         rb.linearDamping = chocolateViscosity;
         rb.angularDamping = chocolateViscosity;
 
