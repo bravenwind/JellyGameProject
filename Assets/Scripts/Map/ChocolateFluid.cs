@@ -418,25 +418,23 @@ public class ChocolateFluid : MonoBehaviour
     /// <summary>
     /// 초콜릿에 빠진 소품을 일정 시간 뒤 치운다.
     ///
-    /// ★ 네트워크가 아는 오브젝트는 건드리지 않는다
-    ///   예전엔 NetIdentity가 있든 없든 SetActive(false)를 걸었다. 그런데 이 코루틴은
-    ///   <b>기계마다 따로</b> 돌고, 시작 시각은 그 화면에서 초콜릿에 닿은 순간이다.
-    ///   화면마다 닿는 시각이 다르면 사라지는 시각도 달라진다.
+    /// ★ 네트워크가 아는 것과 모르는 것을 다르게 치운다
+    ///   예전엔 둘 다 SetActive(false)였다. 그런데 이 코루틴은 <b>기계마다 따로</b> 돌고
+    ///   시작 시각은 그 화면에서 초콜릿에 닿은 순간이라, 화면마다 사라지는 시각이 달랐다.
+    ///   더 나쁜 건 NetWorld의 스폰 장부와 무관하게 꺼진다는 것이다 — 장부에는 살아 있는데
+    ///   화면에서만 사라지고, 풀로 돌아가지 않아 다시 쓸 수도 없다.
     ///
-    ///   더 나쁜 건 NetWorld의 스폰 장부와 무관하게 꺼진다는 것이다. 장부에는 살아 있는데
-    ///   화면에서만 사라지고, 풀로 돌아가지도 않아 다시 쓸 수도 없다.
-    ///   네트워크가 아는 것을 없애는 권한은 NetWorld에 있다 — 여기서는 손대지 않는다.
+    ///   그래서 NetIdentity가 있으면 <b>호스트만</b> HostDespawn을 부른다. 그러면
+    ///   DespawnEntity가 전원에게 퍼져 동시에 사라지고, NetWorld가 풀 반납(스폰물)과
+    ///   removedSceneIds 기록(씬 배치물, 늦게 들어온 클라도 없는 걸로 본다)까지 해준다.
     ///
-    ///   NetIdentity가 없는 순수 장식(밀크·사탕 등)만 정리 대상이다.
+    ///   NetIdentity가 없는 순수 장식(밀크·사탕 등)은 아무도 모르는 물건이라 그냥 끈다.
     /// </summary>
     private IEnumerator DeactivateAfterDelay(GameObject obj, float delay)
     {
         yield return new WaitForSeconds(delay);
 
         if (obj == null)
-            yield break;
-
-        if (obj.GetComponentInParent<NetIdentity>() != null)
             yield break;
 
         Rigidbody rb = obj.GetComponent<Rigidbody>();
@@ -447,7 +445,17 @@ public class ChocolateFluid : MonoBehaviour
             floatData.Remove(rb);
         }
 
-        obj.SetActive(false);
+        NetIdentity id = obj.GetComponentInParent<NetIdentity>();
+
+        if (id == null)
+        {
+            obj.SetActive(false);
+            yield break;
+        }
+
+        //클라는 아무것도 하지 않는다. 호스트가 보내주는 DespawnEntity를 받아 따라간다.
+        if (NetWorld.Instance != null && NetManager.Instance != null && NetManager.Instance.IsHost)
+            NetWorld.Instance.HostDespawn(id.NetId);
     }
 
     private void PurgeDestroyedEntries()
