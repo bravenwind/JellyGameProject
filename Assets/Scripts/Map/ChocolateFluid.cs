@@ -371,17 +371,44 @@ public class ChocolateFluid : MonoBehaviour
         return entity != null && entity.IsOutOfPlay;
     }
 
+    private const float HashModulus = 1000f;
+
+    /// <summary>
+    /// 개체마다 다르지만 <b>항상 같은</b> 0~1 값. 곱하고 나머지만 남기는 싸구려 해시다.
+    /// (타일 흔들림의 12.9898 / 78.233과 같은 부류)
+    ///
+    /// Random.Range를 쓰지 않는 이유는 안정성이다 — 저장하지 않아도 같은 오브젝트가
+    /// 늘 같은 값을 받고, 초콜릿에서 나갔다 다시 들어와도 위상이 이어져 툭 튀지 않는다.
+    /// </summary>
+    private static float Hash01(int seed, float multiplier)
+    {
+        return ((seed * multiplier) % HashModulus) / HashModulus;
+    }
+
     private static FloatData CreateFloatData(Rigidbody rb)
     {
-        int id = rb.GetInstanceID();
+        // ★ 부호 비트를 떼어낸다 (한 번 이걸로 절반의 물체가 거의 안 움직였다)
+        //   GetInstanceID는 음수가 나올 수 있고, C#의 %는 <b>피제수의 부호를 따른다.</b>
+        //   그래서 음수 ID면 해시가 -1~0이 되어 구간이 통째로 갈라졌다.
+        //     speedMul  [0.7, 1.3) 이어야 하는데 → (0.1, 0.7]   (최대 7배 느림)
+        //     forceMul  [1.2, 2.0) 이어야 하는데 → (0.4, 1.2]   (최대 3배 약함)
+        //     flowOffset ±0.3 대칭이어야 하는데 → [-0.9, -0.3)  (한쪽으로만 쏠림)
+        //   flowForce가 6이라 마지막 것은 흐름 방향 자체를 뒤집을 수 있는 크기다.
+        //
+        //   Mathf.Abs가 아니라 마스크인 건 int.MinValue 때문이다 —
+        //   그 값은 부호를 뒤집어도 자기 자신(음수)이라 Abs로는 안 걸러진다.
+        int seed = rb.GetInstanceID() & 0x7FFFFFFF;
+
+        // 계수를 넷 다 다르게 쓰는 건 값끼리 연동되지 않게 하려는 것이다.
+        // 같은 계수면 "빠르게 출렁이는 놈은 항상 세게도 출렁인다"가 되어 규칙이 눈에 보인다.
         return new FloatData
         {
-            phase = (id * 2.3f) % (Mathf.PI * 2f),
-            speedMul = 0.7f + ((id * 7.9f) % 1000f) / 1000f * 0.6f,
-            forceMul = 1.2f + ((id * 3.1f) % 1000f) / 1000f * 0.8f,
+            phase = Hash01(seed, 2.3f) * (Mathf.PI * 2f),
+            speedMul = Mathf.Lerp(0.7f, 1.3f, Hash01(seed, 7.9f)),
+            forceMul = Mathf.Lerp(1.2f, 2.0f, Hash01(seed, 3.1f)),
             flowOffset = new Vector2(
-                ((id * 5.7f) % 1000f) / 1000f * 0.6f - 0.3f,
-                ((id * 11.3f) % 1000f) / 1000f * 0.6f - 0.3f)
+                Mathf.Lerp(-0.3f, 0.3f, Hash01(seed, 5.7f)),
+                Mathf.Lerp(-0.3f, 0.3f, Hash01(seed, 11.3f)))
         };
     }
 
