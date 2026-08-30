@@ -106,7 +106,6 @@ GameObject:
   - component: {fileID: 7988438608829161243}
   - component: {fileID: 8595505257964326733}
   - component: {fileID: 5188048034053325992}
-  - component: {fileID: 3536485665450355811}
   - component: {fileID: 5309223496067073866}
   - component: {fileID: 8452815471202114268}
   - component: {fileID: 6975552852123859224}
@@ -177,7 +176,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 18
   rotateSpeed: 10
-  jumpForce: 7.5
   originalJumpForce: 10
   gravity: -20
   terminalVelocity: -53
@@ -187,21 +185,6 @@ MonoBehaviour:
   animator: {fileID: 365858056229833277}
   batPivot: {fileID: 6098355761757895932}
   hideBatWhenIdle: 1
---- !u!114 &3536485665450355811
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 94f9f240707b4e64299b6e21bfd718e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  absorber: {fileID: 5309223496067073866}
-  colorVisual: {fileID: 8452815471202114268}
-  scaleController: {fileID: 6975552852123859224}
 --- !u!114 &5309223496067073866
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -227,13 +210,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rend: {fileID: 4241201823037191511}
-  originalFresnelColor: {r: 0, g: 0, b: 0, a: 0}
-  currentFresnelColor: {r: 0, g: 0, b: 0, a: 0}
   baseColor02Lightness: 0.6
   blendTime: 0.5
-  BaseColor_01Property: _BaseColor_01
-  BaseColor_02Property: _BaseColor_02
-  FresnelProperty: _FresnelColor
 --- !u!114 &6975552852123859224
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -247,7 +225,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   softBody3D: {fileID: 7308258846642602756}
-  originalScale: {x: 1, y: 1, z: 1}
 --- !u!114 &4114611337571506407
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -362,8 +339,8 @@ CapsuleCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 2
-  m_Radius: 0.43
-  m_Height: 1.34
+  m_Radius: 0.5
+  m_Height: 1.45
   m_Direction: 1
   m_Center: {x: 0, y: 0, z: 0}
 --- !u!114 &5855782841606973248
@@ -837,7 +814,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7e3c1a9b8d2f4e6a9c5b1d0f3a8e2c4d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  floaterPrefab: {fileID: 3632223435700898828, guid: be6958170ea79b8478fa5616a4eae6d4, type: 3}
   prewarm: 3
 --- !u!1 &2865217169571521878
 GameObject:

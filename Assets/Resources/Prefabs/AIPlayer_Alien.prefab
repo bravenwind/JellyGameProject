@@ -189,13 +189,13 @@ MeshCollider:
     serializedVersion: 2
     m_Bits: 0
   m_LayerOverridePriority: 0
-  m_IsTrigger: 1
+  m_IsTrigger: 0
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 5
-  m_Convex: 1
+  m_Convex: 0
   m_CookingOptions: 30
-  m_Mesh: {fileID: -3292925553009838691, guid: 4ba7122cc6f32a24fa245a6d76e4dd12, type: 3}
+  m_Mesh: {fileID: -3292925553009838691, guid: 4fec3f2dc3f5e654692e4c08673acd02, type: 3}
 --- !u!114 &8761763701411013942
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6721,7 +6721,6 @@ GameObject:
   - component: {fileID: 6441700852342495856}
   - component: {fileID: 731515323225669220}
   - component: {fileID: 5491828984144486241}
-  - component: {fileID: 987702381777170038}
   - component: {fileID: 3622501665991240812}
   - component: {fileID: 2453079861099940875}
   - component: {fileID: 7056015745900775666}
@@ -6788,23 +6787,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 997f8668bfccd2240ad5ac3133c7caac, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectRadius: 15
-  baseAgentRadius: 0.5
---- !u!114 &987702381777170038
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8325633981715944675}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 94f9f240707b4e64299b6e21bfd718e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  absorber: {fileID: 3622501665991240812}
-  colorVisual: {fileID: 2453079861099940875}
-  scaleController: {fileID: 7056015745900775666}
 --- !u!114 &3622501665991240812
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6817,8 +6799,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 324dafed17445474ba56949c0adf3fb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  detectTransform: {fileID: 7090643037879073236}
-  playerBaseHeight: 1.5
 --- !u!114 &2453079861099940875
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6852,7 +6832,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   softBody3D: {fileID: 8761763701411013942}
-  rigidbodies: []
   originalScale: {x: 1, y: 1, z: 1}
 --- !u!95 &1065950695206174422
 Animator:
@@ -6972,10 +6951,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  NetId: 0
   sceneNetId: 0
-  OwnerId: 0
-  PrefabId: 0
 --- !u!114 &7849707261919531368
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6990,17 +6966,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   moveSpeed: 6
   rotateSpeed: 10
+  matchPlayerSpeed: 1
+  speedRatio: 1
   detectRadius: 15
   stateEvalRate: 0.4
-  baseAgentRadius: 0.5
-  baseAgentHeight: 2
   batPivot: {fileID: 0}
   hideBatWhenIdle: 1
   dashSpeed: 80
   dashDuration: 0.2
   dashCooldown: 3
   nameTagBillboard: {fileID: 4303488058618368933}
-  _dbg_currentState: '-'
 --- !u!114 &1704482663070147996
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7031,7 +7006,6 @@ MonoBehaviour:
   colorVisual: {fileID: 0}
   animator: {fileID: 0}
   animSendRate: 10
-  crossFade: 0.1
 --- !u!1 &8733297121611419987
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,4 +1,4 @@
-using UnityEngine;
+Ôªøusing UnityEngine;
 using UnityEditor;
 
 public class ComponentCopier : EditorWindow
@@ -21,7 +21,7 @@ public class ComponentCopier : EditorWindow
         foreach (var comp in copiedComponents)
         {
             if (comp is Transform)
-                continue; // Transform¿∫ ¡¶ø‹
+                continue; // TransformÏùÄ Ï†úÏô∏
             UnityEditorInternal.ComponentUtility.CopyComponent(comp);
             UnityEditorInternal.ComponentUtility.PasteComponentAsNew(Selection.activeGameObject);
         }

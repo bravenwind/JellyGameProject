@@ -21,8 +21,6 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다.
-        //(왜 그래야 하는지는 GameTags.IsCharacterMainCollider 주석 참고)
         if (!GameTags.IsCharacterMainCollider(other))
             return;
 

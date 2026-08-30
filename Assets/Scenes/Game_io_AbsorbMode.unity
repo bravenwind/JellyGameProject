@@ -39658,14 +39658,6 @@ MonoBehaviour:
     prefab: {fileID: 1367865866900820358, guid: 7141636ecb631f944ae692fc6c7e802b, type: 3}
     parentTransform: {fileID: 123955668}
     initialSize: 10
-  - uiType: 1
-    prefab: {fileID: 7730721494351151585, guid: c8ce3894efd83f340bc736c607dc16b1, type: 3}
-    parentTransform: {fileID: 1282220247}
-    initialSize: 2
-  - uiType: 2
-    prefab: {fileID: 107358291780688017, guid: ea4e6260c04d38f4b89c655460decb84, type: 3}
-    parentTransform: {fileID: 1716658924}
-    initialSize: 3
 --- !u!4 &521023268
 Transform:
   m_ObjectHideFlags: 0
@@ -88811,51 +88803,6 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 198013271191715618, guid: 8244fa57ca5f83b4b983951d65dbcf4c, type: 3}
   m_PrefabInstance: {fileID: 1083365498}
   m_PrefabAsset: {fileID: 0}
---- !u!1 &1085073996
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1085073998}
-  - component: {fileID: 1085073997}
-  m_Layer: 0
-  m_Name: DebugManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1085073997
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1085073996}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6c6823eb481cd8541ab2a43f77ae871f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  changeToResultSceneKey: 282
---- !u!4 &1085073998
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1085073996}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 81.24579, y: -85.4, z: -231.42535}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1085400520 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 8029643587192955488, guid: e3074d6d97305654b87c38ef01045645, type: 3}
@@ -97850,79 +97797,53 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d1bab5c33063988438b72d73249288f5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  spawnCoolTime: 10
   jellyScaleIncrease: 0.5
   absorbScalePercent: 0.5
-  minScale: 1
-  maxScale: 100
   jumpScaleThreshold: 2
-  scaleIncreaseTime: 1.5
-  scaleDecreaseTime: 2
-  IncreaseJumpForceValue: 5
+  growAnimTime: 1.5
+  increaseJumpForceValue: 5
   batCooldown: 1.2
   batSwingDuration: 0.35
   batRange: 2
   batPushForce: 18
   batHitGrowth: 0.08
   batArcAngle: 120
-  fallOffThreshold: -10
   stepTileCollapseDelay: 2
   stepTileWarningDuration: 1.5
   stepTileStepsToCollapse: 3
   stepTileIdleWearSeconds: 2
-  scaleIncreaseDuration: 1.5
-  scaleDecreaseDuration: 2
+  cameraZoomDuration: 1.5
   scaleChangedPlusSize: 7
   cameraZoomFirstThreshold: 6
   cameraZoomThresholdStep: 4
-  targetScore: 1000
   scorePerJelly: 100
-  startingScale: 2
-  originalDetectRadius: 4
-  detectPlusRadiusPerLevel: 2
-  objectLayerMask:
-    serializedVersion: 2
-    m_Bits: 4096
-  missions:
-  - missionName: "\uD30C\uB780\uC0C9 \uC824\uB9AC \uD761\uC218\uD558\uAE30"
-    missionCleared: 0
-  - missionName: "1000\uC810 \uC774\uC0C1 \uB3C4\uB2EC\uD558\uAE30"
-    missionCleared: 0
-  - missionName: "\uC2A4\uD14C\uC774\uC9C0 \uD074\uB9AC\uC5B4\uD558\uAE30"
-    missionCleared: 0
   jellyEffects:
-  - colorName: Red
-    type: 0
+  - type: 0
     rybChange:
       r: 0.3
       y: 0
       b: 0
-  - colorName: Yellow
-    type: 1
+  - type: 1
     rybChange:
       r: 0
       y: 0.3
       b: 0
-  - colorName: Blue
-    type: 2
+  - type: 2
     rybChange:
       r: 0
       y: 0
       b: 0.3
-  - colorName: Orange
-    type: 3
+  - type: 3
     rybChange:
       r: 0.2
       y: 0.2
       b: 0
-  - colorName: Green
-    type: 4
+  - type: 4
     rybChange:
       r: 0
       y: 0.2
       b: 0.2
-  - colorName: Purple
-    type: 5
+  - type: 5
     rybChange:
       r: 0.2
       y: 0
@@ -153566,7 +153487,6 @@ MonoBehaviour:
   autoRingInterval: 1
   endMargin: 5
   groundCheckDistance: 0.6
-  standGapDrift: 0.15
   tileDelay: 0.05
   warningDuration: 3
   fallDuration: 2
@@ -159992,14 +159912,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d48a1fd08f2a7ef4f8571d1ce57187bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  buoyancyForce: 3.5
-  chocolateViscosity: 6
-  flowForce: 10
-  waveSpeed: 2
-  waveForce: 6
-  changeDirectionInterval: 1
+  buoyancyForce: 35
+  fullSubmergeDepth: 1.2
+  restDepth: 0.3
+  surfaceOffset: 0.25
+  chocolateViscosity: 3
+  flowForce: 6
+  flowTurnSpeed: 0.15
+  waveSpeed: 1.6
+  waveForce: 4
+  rockTorque: 1.5
+  entrySpeedKeep: 0.2
   floatingLifetime: 5
-  debugLogTriggers: 1
+  debugLogTriggers: 0
 --- !u!23 &1948921031
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -177929,7 +177854,6 @@ SceneRoots:
   - {fileID: 1185959243}
   - {fileID: 1634229698}
   - {fileID: 1885010865}
-  - {fileID: 1085073998}
   - {fileID: 563542956}
   - {fileID: 336275305}
   - {fileID: 287982190}
