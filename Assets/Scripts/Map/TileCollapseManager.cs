@@ -146,11 +146,36 @@ public class TileCollapseManager : MonoBehaviour
             return;
         }
 
-        ringInterval = usable / LastCollapsingRing;
+        // ★ 링 수가 아니라 '링 수 + 1'로 나눈다 (담장 문제)
+        //   고리 하나가 무너지려면 간격이 하나 필요하고, 거기에 <b>첫 고리 앞의 예고 간격</b>이
+        //   하나 더 붙는다. 고리 0도 나머지 고리와 똑같이 한 간격 동안 떨다가 무너져야 하니까.
+        //   예전엔 LastCollapsingRing으로 나눠서 그 예고 간격 자리가 없었고,
+        //   결과적으로 바깥 고리만 예고 없이 시작하자마자 무너졌다.
+        ringInterval = usable / (LastCollapsingRing + 1);
 
         Debug.Log($"[타일] 링 0~{HighestRing} 중 0~{LastCollapsingRing}이 무너짐"
             + $"(가운데 {keepCenterRings}겹은 남김) · 게임 {duration}s → 간격 {ringInterval:F2}s "
-            + $"(마지막 링 완료 {duration - endMargin:F1}s 지점)");
+            + $"(첫 링 붕괴 {collapseStartTime + ringInterval:F1}s · "
+            + $"마지막 링 완료 {duration - endMargin:F1}s 지점)");
+    }
+
+    /// <summary>
+    /// 고리 r이 무너지기 시작하는 시각. 고리 r이 떨기 시작하는 시각은 그 한 간격 전이다.
+    ///
+    /// ★ collapseStartTime이 곧 '첫 붕괴'가 아니다
+    ///   collapseStartTime은 <b>고리 0이 떨기 시작하는</b> 시각이고, 실제로 무너지는 건
+    ///   한 간격 뒤다. 예전엔 이 둘이 같아서, 고리 0만 예고 흔들림 없이 무너졌다
+    ///   (예고 시각이 collapseStartTime - ringInterval, 즉 존재하지 않는 시점이 됐다).
+    /// </summary>
+    private float CollapseTimeOfRing(int ring)
+    {
+        return collapseStartTime + (ring + 1) * ringInterval;
+    }
+
+    /// <summary>고리 r이 떨기 시작하는 시각. 자기 붕괴보다 한 간격 앞선다.</summary>
+    private float ShakeTimeOfRing(int ring)
+    {
+        return collapseStartTime + ring * ringInterval;
     }
 
     private bool IsRunning()
@@ -296,18 +321,18 @@ public class TileCollapseManager : MonoBehaviour
         int nextShakeRing = lastCollapsedRing + 1;
         if (nextShakeRing <= LastCollapsingRing && nextShakeRing > lastShakenRing)
         {
-            float shakeStartTime = collapseStartTime + (nextShakeRing - 1) * ringInterval;
-            if (elapsed >= shakeStartTime)
+            if (elapsed >= ShakeTimeOfRing(nextShakeRing))
             {
                 lastShakenRing = nextShakeRing;
                 StartIdleShakeOnRing(nextShakeRing);
             }
         }
 
-        if (elapsed < collapseStartTime)
+        float firstCollapseTime = CollapseTimeOfRing(0);
+        if (elapsed < firstCollapseTime)
             return;
 
-        int targetRing = Mathf.FloorToInt((elapsed - collapseStartTime) / ringInterval);
+        int targetRing = Mathf.FloorToInt((elapsed - firstCollapseTime) / ringInterval);
         targetRing = Mathf.Min(targetRing, LastCollapsingRing);
 
         while (lastCollapsedRing < targetRing)
