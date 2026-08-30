@@ -977,7 +977,7 @@ public class AIPlayerMovement : MonoBehaviour
         // ★ 상대 캐릭터는 트리거 콜라이더를 둘 갖고 있다 — 대표 하나만 받는다
         //   안 걸면 같은 상대에게 흡수 판정이 두 번 돈다. IsOutOfPlay 가드가 두 번째를
         //   막아주긴 하지만 그건 사후 방어지 규칙이 아니다. 여기서 한 번으로 못 박는다.
-        if (!GameTags.IsCharacterProxy(other))
+        if (!GameTags.IsCharacterMainCollider(other))
             return;
 
         float myScale = GetMyAuthorityScale();

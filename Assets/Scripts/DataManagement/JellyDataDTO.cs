@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using UnityEngine;
 
 [Serializable]
@@ -9,7 +9,7 @@ public class JellyDataDTO
     public JellyColorType ColorType;
     public int ColorIntensity;
 
-    // [º¯°æµÊ] RGB °ªÀ» ÀúÀåÇÒ º¯¼ö (0~255)
+    // [ë³€ê²½ë¨] RGB ê°’ì„ ì €ì¥í•  ë³€ìˆ˜ (0~255)
     public int R;
     public int G;
     public int B;
@@ -21,20 +21,20 @@ public class JellyDataDTO
 
     public JellyDataDTO(string csvLine)
     {
-        // ½°Ç¥·Î CSV µ¥ÀÌÅÍ ºĞ¸®
+        // ì‰¼í‘œë¡œ CSV ë°ì´í„° ë¶„ë¦¬
         string[] values = csvLine.Split(',');
 
         try
         {
-            // ÄÃ·³ ¼ø¼­: ID, Name, ColorType, ColorIntensity, RGB, BaseMap, NormalMap, MaskMap, Material
+            // ì»¬ëŸ¼ ìˆœì„œ: ID, Name, ColorType, ColorIntensity, RGB, BaseMap, NormalMap, MaskMap, Material
             ID = int.Parse(values[0]);
             Name = values[1];
             ColorType = (JellyColorType)Enum.Parse(typeof(JellyColorType), values[2]);
             ColorIntensity = int.Parse(values[3]);
 
-            // [ÇÙ½É º¯°æ] RGB ¹®ÀÚ¿­ ÆÄ½Ì ("255/255/255" -> R, G, B)
+            // [í•µì‹¬ ë³€ê²½] RGB ë¬¸ìì—´ íŒŒì‹± ("255/255/255" -> R, G, B)
             string rgbString = values[4];
-            string[] rgbValues = rgbString.Split('/'); // ½½·¡½Ã·Î ºĞ¸®
+            string[] rgbValues = rgbString.Split('/'); // ìŠ¬ë˜ì‹œë¡œ ë¶„ë¦¬
 
             if (rgbValues.Length == 3)
             {
@@ -44,8 +44,8 @@ public class JellyDataDTO
             }
             else
             {
-                Debug.LogWarning($"RGB Æ÷¸Ë ¿À·ù (ID: {ID}): {rgbString}");
-                // ¿À·ù ½Ã ±âº»°ª (Èò»ö µî) ¼³Á¤
+                Debug.LogWarning($"RGB í¬ë§· ì˜¤ë¥˜ (ID: {ID}): {rgbString}");
+                // ì˜¤ë¥˜ ì‹œ ê¸°ë³¸ê°’ (í°ìƒ‰ ë“±) ì„¤ì •
                 R = 255; G = 255; B = 255;
             }
 
@@ -56,12 +56,12 @@ public class JellyDataDTO
         }
         catch (Exception e)
         {
-            Debug.LogError($"CSV ÆÄ½Ì ¿À·ù (Line: {csvLine}) : {e.Message}");
+            Debug.LogError($"CSV íŒŒì‹± ì˜¤ë¥˜ (Line: {csvLine}) : {e.Message}");
         }
     }
 
     /// <summary>
-    /// DTOÀÇ RGB °ª(0~255)À» Unity Color(0.0~1.0)·Î º¯È¯ÇÏ¿© ¹İÈ¯
+    /// DTOì˜ RGB ê°’(0~255)ì„ Unity Color(0.0~1.0)ë¡œ ë³€í™˜í•˜ì—¬ ë°˜í™˜
     /// </summary>
     public Color GetColor()
     {

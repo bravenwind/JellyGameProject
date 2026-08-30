@@ -27,8 +27,10 @@ namespace JellyNet
         public float GameDuration { get { return gameDuration; } }
         [Tooltip("시작 전 카운트다운(초)")]
         [SerializeField] private float countdownSeconds = 3f;
-        [Tooltip("이 인원이 모이면 호스트가 게임을 시작한다")]
-        [SerializeField] private int minPlayersToStart = 2;
+        // ★ 인스펙터에 내보내지 않는다 — Awake에서 LanRoomConfig.HumanCount로 무조건 덮어쓴다
+        //   "모드와 인원은 로비에서만 온다"는 규칙이 있는데 인스펙터 칸이 남아 있으면
+        //   거기서 고칠 수 있다고 오해하게 된다
+        private int minPlayersToStart = 2;
         public int MinPlayersToStart { get { return minPlayersToStart; } set { minPlayersToStart = value; } }
 
         [Header("HUD")]
@@ -118,6 +120,14 @@ namespace JellyNet
                 return;
             }
             Instance = this;
+
+            // ★ 판을 여는 쪽이 내 화면 상태를 초기화한다
+            //   예전엔 DataManager.Awake가 이걸 불렀다. 설정 통이 전역 상태를 리셋하는 것도
+            //   어색하지만, 더 나쁜 건 <b>순서를 보장할 수 없다</b>는 점이었다.
+            //   DataManager.Awake가 이 Awake보다 뒤에 돌면 아래에서 세운 Phase를
+            //   ResetValues가 None으로 되돌려버린다. 같은 함수 안에 두면 그 창이 닫힌다.
+            GameState.ResetValues();
+
             Phase = GamePhase.Loading;
 
             hud.Bind(gameTimerText, centerCountdownText, gameResultPanel, resultTitleText,
@@ -260,7 +270,14 @@ namespace JellyNet
             }
 
             endingStarted = false;
-            Time.timeScale = 1f;
+
+            // ★ 여기서 Time.timeScale을 되돌리면 안 된다
+            //   ResetAll은 OnDisconnected로 들어온다. 그런데 결과 씬으로 넘어가는 길이
+            //   LanSceneFlow.ToResult → Disconnect() → Begin() 순서라,
+            //   <b>커튼을 띄우기 전에</b> 이 함수가 먼저 돌아 종료 연출의 정지를 풀어버렸다.
+            //   그래서 멈춰 있던 화면이 커튼 밖에서 정상 속도로 튀는 게 그대로 보였다.
+            //   해제는 커튼이 화면을 다 덮은 뒤 LoadingSceneController가 한다.
+            //   (연결이 끊겨 로비로 돌아가는 경우도 LanSceneFlow.Begin의 폴백이 처리한다)
         }
 
         private void HandleHostStarted()
@@ -345,6 +362,23 @@ namespace JellyNet
                     return -1f;
                 return Mathf.Max(0f, gameDuration - Remaining);
             }
+        }
+
+        /// <summary>
+        /// 모든 기계에서 같아야 하는 판 경과 시간. 아직 판이 안 시작했으면 -1.
+        ///
+        /// ★ 왜 여기 있나
+        ///   각자의 Time.time을 쓰면 기계마다 답이 달라 링 붕괴 시점이나 초콜릿 흐름
+        ///   방향이 화면마다 엇갈린다. 호스트가 맞춰주는 이 값을 봐야 한다.
+        ///
+        ///   그런데 <c>Instance != null ? Instance.Elapsed : ...</c> 라는 같은 껍데기가
+        ///   TileCollapseManager와 ChocolateFluid에 <b>따로</b> 있었다. 폴백만 서로 달랐고,
+        ///   그래서 '아직 안 셌다'의 의미가 두 곳에서 갈렸다. 껍데기를 여기 하나로 모은다.
+        ///   폴백을 어떻게 쓸지는 -1을 받은 쪽이 정한다.
+        /// </summary>
+        public static float SyncedElapsed
+        {
+            get { return Instance != null ? Instance.Elapsed : -1f; }
         }
 
         private Coroutine countdownRoutine;
@@ -432,6 +466,47 @@ namespace JellyNet
             hud.ShowCenter(false);
 
             countdownRoutine = null;
+        }
+
+        /// <summary>
+        /// 탈락이 확정된 직후 호출한다. 0.5초 주기를 기다리지 않고 즉시 승패를 본다.
+        /// 이렇게 해야 남은 한 명이 그 사이에 또 떨어지는 일이 없다.
+        /// </summary>
+        public void HostCheckEndNow()
+        {
+            NetManager net = NetManager.Instance;
+
+            if (net == null || !net.IsHost)
+                return;
+            if (Phase != GamePhase.Playing)
+                return;
+
+            List<LanScoreboard.Entry> alive = LanScoreboard.Collect();
+
+            if (alive.Count > 1)
+                return;
+
+            HostEndGame(alive.Count == 1 ? FindById(alive[0].netId) : null);
+        }
+
+        /// <summary>
+        /// 마지막 한 명이 탈락하려는 순간 호출된다. 탈락시키지 않고 그대로 우승 처리한다.
+        ///
+        /// ★ 왜 살려두나
+        ///   승리 조건이 '최후의 1인'이라 생존자가 0이 되면 우승자도 순위표도 없어진다.
+        ///   같은 발판에서 둘이 함께 떨어질 때 실제로 그렇게 됐다.
+        ///   마지막 한 명은 떨어지는 중이라도 이긴 것으로 본다.
+        /// </summary>
+        public void HostDeclareLastSurvivor(NetIdentity lastFaller)
+        {
+            NetManager net = NetManager.Instance;
+
+            if (net == null || !net.IsHost)
+                return;
+            if (Phase != GamePhase.Playing)
+                return;
+
+            HostEndGame(lastFaller);
         }
 
         private void CheckEndCondition()
@@ -565,7 +640,7 @@ namespace JellyNet
                     continue;
 
                 foreach (Animator anim in id.GetComponentsInChildren<Animator>(true))
-                    anim.SetBool("IsMoving", false);
+                    anim.SetBool(AnimParams.IsMoving, false);
             }
         }
 

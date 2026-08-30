@@ -1,29 +1,29 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
-public class PushObject : MonoBehaviour // º»ÀÎÀÇ Å¬·¡½º ÀÌ¸§°ú µ¿ÀÏÇÏ°Ô À¯ÁöÇÏ¼¼¿ä.
+public class PushObject : MonoBehaviour // ë³¸ì¸ì˜ í´ë˜ìŠ¤ ì´ë¦„ê³¼ ë™ì¼í•˜ê²Œ ìœ ì§€í•˜ì„¸ìš”.
 {
-    // ¹Ğ¾î³»´Â ÈûÀÇ ¼¼±â (À¯´ÏÆ¼ ÀÎ½ºÆåÅÍ Ã¢¿¡¼­ Á¶Àı °¡´É)
+    // ë°€ì–´ë‚´ëŠ” í˜ì˜ ì„¸ê¸° (ìœ ë‹ˆí‹° ì¸ìŠ¤í™í„° ì°½ì—ì„œ ì¡°ì ˆ ê°€ëŠ¥)
     public float pushPower = 2.0f;
 
-    // Ä³¸¯ÅÍ ÄÁÆ®·Ñ·¯°¡ ´Ù¸¥ Äİ¶óÀÌ´õ¿Í ºÎµúÈú ¶§¸¶´Ù ÀÚµ¿À¸·Î ½ÇÇàµÇ´Â ÇÔ¼ö
+    // ìºë¦­í„° ì»¨íŠ¸ë¡¤ëŸ¬ê°€ ë‹¤ë¥¸ ì½œë¼ì´ë”ì™€ ë¶€ë”ªí ë•Œë§ˆë‹¤ ìë™ìœ¼ë¡œ ì‹¤í–‰ë˜ëŠ” í•¨ìˆ˜
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        if (hit.gameObject.CompareTag("Sphere"))
+        if (hit.gameObject.CompareTag(GameTags.Sphere))
         {
             Rigidbody body = hit.collider.attachedRigidbody;
 
-            // 1. ºÎµúÈù ¿ÀºêÁ§Æ®¿¡ ¸®Áöµå¹Ùµğ°¡ ¾ø°Å³ª, Kinematic(¹°¸®¹«½Ã) »óÅÂ¶ó¸é ¹«½Ã
+            // 1. ë¶€ë”ªíŒ ì˜¤ë¸Œì íŠ¸ì— ë¦¬ì§€ë“œë°”ë””ê°€ ì—†ê±°ë‚˜, Kinematic(ë¬¼ë¦¬ë¬´ì‹œ) ìƒíƒœë¼ë©´ ë¬´ì‹œ
             if (body == null || body.isKinematic)
                 return;
 
-            // 2. Ä³¸¯ÅÍ°¡ °ø À§¿¡ ¿Ã¶óÅ¸¼­ ¹â¾ÒÀ» ¶§ °øÀÌ ¶¥ ¹ØÀ¸·Î ²¨Áö´Â °Í ¹æÁö
+            // 2. ìºë¦­í„°ê°€ ê³µ ìœ„ì— ì˜¬ë¼íƒ€ì„œ ë°Ÿì•˜ì„ ë•Œ ê³µì´ ë•… ë°‘ìœ¼ë¡œ êº¼ì§€ëŠ” ê²ƒ ë°©ì§€
             if (hit.moveDirection.y < -0.3f)
                 return;
 
-            // 3. ¹Ğ¾î³¾ ¹æÇâ °è»ê (YÃàÀº Á¦¿ÜÇÏ°í ¼öÆòÀ¸·Î¸¸ ¹Ğ±â À§ÇÔ)
+            // 3. ë°€ì–´ë‚¼ ë°©í–¥ ê³„ì‚° (Yì¶•ì€ ì œì™¸í•˜ê³  ìˆ˜í‰ìœ¼ë¡œë§Œ ë°€ê¸° ìœ„í•¨)
             Vector3 pushDir = new Vector3(hit.moveDirection.x, 0, hit.moveDirection.z);
 
-            // 4. °ø¿¡ ÈûÀ» °¡ÇØ¼­ ¹Ğ¾î³¿ (¼ø°£ÀûÀÎ ÈûÀ» °¡ÇÔ)
+            // 4. ê³µì— í˜ì„ ê°€í•´ì„œ ë°€ì–´ëƒ„ (ìˆœê°„ì ì¸ í˜ì„ ê°€í•¨)
             body.AddForce(pushDir * pushPower, ForceMode.Impulse);
         }
     }

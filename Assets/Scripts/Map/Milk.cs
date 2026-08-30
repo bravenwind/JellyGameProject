@@ -21,7 +21,7 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("PlayerMesh"))
+        if (!other.CompareTag(GameTags.PlayerMesh))
             return;
 
         // 소유자만 처리한다 — 사람은 본인 클라에서, 봇은 호스트에서만 IsMine == true.
@@ -56,7 +56,7 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag("PlayerMesh"))
+        if (!other.CompareTag(GameTags.PlayerMesh))
             return;
 
         NetIdentity id = other.GetComponentInParent<NetIdentity>();

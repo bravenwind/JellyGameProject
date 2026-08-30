@@ -9,19 +9,29 @@ public enum GamePhase { None, Loading, Countdown, Playing, GameOver, Result }
 
 public enum GameModeType { Absorb, Push }
 
-//내 화면 하나에만 해당하는 전역 상태. 네트워크로 오가는 값은 여기 두지 않는다
-//(그건 LanPlayerState·LanGameFlow가 들고, 호스트가 권위를 가진다)
+// ═══════════════════════════════════════════════════════════════
+//  내 화면 하나에만 해당하는 전역 상태
+// ═══════════════════════════════════════════════════════════════
+//
+// ★ 여기 있는 값은 전부 <b>표시용</b>이다. 판정에 쓰면 안 된다
+//   PlayerCurrentScale·CurrentScore는 내 HUD가 즉시 반응하려고 두는 <b>예측치</b>다.
+//   실제 판정(누가 누구를 먹을 수 있나, 최종 순위)은 호스트가 확정한
+//   LanPlayerState·NetEntity의 값으로만 한다.
+//
+//   경계가 흐려지면 "내 화면에선 먹었는데 서버는 아니라더라"가 생긴다.
+//   판정용 크기를 찾는다면 NetEntity.ScaleOf가 유일한 창구다.
+//
+// ★ 여기 있는 값은 전부 <b>내 캐릭터 것</b>이다
+//   원격 아바타의 값이 새어 들어오지 않게, PlayerBridge가 IsLocalOwner로 거른 뒤에만
+//   쓴다. 이 클래스에는 소유권 개념이 없으므로 거르는 책임은 전적으로 부르는 쪽에 있다.
 public static class GameState
 {
-    // ── Events ──
-    //구독자가 있는 것만 남긴다. OnPhaseChanged·OnScoreChanged는 구독자가 하나도 없어
-    //Invoke 비용만 내고 있었다 — 단계 변화는 LanGameFlow.SetPhaseLocal이,
-    //점수 표시는 PlayerEvents.OnScaleUIUpdate가 이미 담당한다
+
     public static event Action<float> OnScaleChanged;
     public static event Action<Color> OnDisplayColorChanged;
+    public static Action OnCameraScaleIncreased;
 
-    // ── Backing fields ──
-    private static float playerCurrentScale = 2f;
+    private static float playerCurrentScale;
     private static Color currentDisplayColor = Color.white;
 
     // ── Properties & Event invoking ──
@@ -58,19 +68,20 @@ public static class GameState
     {
         Phase = GamePhase.None;
         CurrentScore = 0;
-        playerCurrentScale = 2f;
+        playerCurrentScale = 0f;   //스폰된 캐릭터의 OnScaleSettled가 채운다
         currentDisplayColor = Color.white;
         CurrentGameMode = GameModeType.Absorb;
 
         OnScaleChanged = null;
         OnDisplayColorChanged = null;
+        OnCameraScaleIncreased = null;
     }
 
     public static void ResetValues()
     {
         Phase = GamePhase.None;
         CurrentScore = 0;
-        playerCurrentScale = 2f;
+        playerCurrentScale = 0f;   //스폰된 캐릭터의 OnScaleSettled가 채운다
         currentDisplayColor = Color.white;
 
         // [H1] 여기서 이벤트를 null로 비우면 안 된다.

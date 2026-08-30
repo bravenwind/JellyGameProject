@@ -57,7 +57,9 @@ namespace JellyNet
 
         public float ScaleValue
         {
-            get { return scale != null ? scale.currentScaleValue : 1f; }
+            //컨트롤러가 없으면 프리팹 크기로 떨어진다 — NetEntity.ScaleOf·AIDetector와 같은 규칙.
+            //예전엔 여기만 1f였다. 같은 상황에서 답이 달라 '누가 더 크냐'가 보는 쪽마다 갈렸다
+            get { return scale != null ? scale.CurrentScaleValue : transform.localScale.x; }
         }
 
         public Transform Transform { get { return transform; } }
@@ -186,16 +188,57 @@ namespace JellyNet
             if (anim == null)
                 anim = GetComponentInChildren<Animator>(true);
             if (anim != null)
-                anim.SetBool("IsMoving", false);
+                anim.SetBool(AnimParams.IsMoving, false);
 
-            if (IsMine)
-            {
-                if (PlaySFXAudio.Instance != null)
-                    PlaySFXAudio.Instance.StopWalking();
-                if (LanGameFlow.Instance != null)
-                    LanGameFlow.Instance.ShowLocalGameOver(
-                        LanGameFlow.EliminationReason + "\n관전 중...");
-            }
+            if (!IsMine)
+                return;
+
+            // ★ 내 캐릭터만 물리로 넘긴다
+            //   원격 사본은 NetTransform이 위치를 몰고 있다. 거기서 물리까지 켜면
+            //   받은 좌표와 물리가 서로를 밀어 캐릭터가 떨린다.
+            //   소유자 화면에서 계산한 낙하가 NetTransform을 타고 모두에게 전해진다 —
+            //   봇이 호스트에서만 물리를 켜는 것과 같은 규칙이다.
+            BeginPhysicsFall(pm);
+
+            if (PlaySFXAudio.Instance != null)
+                PlaySFXAudio.Instance.StopWalking();
+
+            if (LanGameFlow.Instance != null)
+                LanGameFlow.Instance.ShowLocalGameOver(
+                    LanGameFlow.EliminationReason + "\n관전 중...");
+        }
+
+        /// <summary>
+        /// 탈락 확정을 기다리지 않고 지금 바로 물리로 넘긴다.
+        ///
+        /// ★ 왜 기다리면 안 되나
+        ///   초콜릿에 닿아도 탈락은 호스트 왕복 뒤에 확정된다. 그 사이 CharacterController가
+        ///   계속 캐릭터를 몰기 때문에, <b>두께 0.11짜리 얇은 초콜릿 판을 그대로 통과</b>한다.
+        ///   빠져나간 뒤에는 트리거 밖이라 부력도 흐름도 못 받아 허공에 멈춰 선다.
+        ///   봇은 진입 순간 물리로 바뀌어 그 자리에서 제동이 걸린다 — 사람도 같아야 한다.
+        /// </summary>
+        public void BeginPhysicsFallNow()
+        {
+            BeginPhysicsFall(GetComponentInChildren<PlayerMovement>(true));
+        }
+
+        /// <summary>
+        /// 탈락한 내 캐릭터를 물리 낙하로 전환한다.
+        ///
+        /// CharacterController는 Rigidbody 물리를 무시하므로 <b>반드시 먼저 꺼야</b> 한다.
+        /// 이걸 안 하면 초콜릿의 부력·점성을 못 받아 봇과 다르게 그냥 가라앉는다.
+        /// </summary>
+        private void BeginPhysicsFall(PlayerMovement pm)
+        {
+            if (pm != null)
+                pm.enabled = false;
+
+            CharacterController cc = pm != null ? pm.Controller : GetComponentInChildren<CharacterController>(true);
+
+            if (cc != null)
+                cc.enabled = false;
+
+            PhysicsFall.Begin(gameObject);
         }
 
         public void HostSetName(string name)

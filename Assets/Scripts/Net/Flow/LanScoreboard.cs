@@ -67,6 +67,24 @@ namespace JellyNet
 
         public static string WinnerName { get; private set; }
 
+        /// <summary>살아 있는 참가자 수. 목록이 필요 없을 때 List 생성을 피한다.</summary>
+        public static int CountAlive()
+        {
+            IReadOnlyList<INetEntity> entities = EntityRegistry.Entities;
+            int n = 0;
+
+            for (int i = 0; i < entities.Count; i++)
+            {
+                INetEntity e = entities[i];
+
+                if (e == null || e.Identity == null || e.IsOutOfPlay)
+                    continue;
+                n++;
+            }
+
+            return n;
+        }
+
         public static void SetFinal(List<Entry> entries, string winner)
         {
             FinalStandings = entries;

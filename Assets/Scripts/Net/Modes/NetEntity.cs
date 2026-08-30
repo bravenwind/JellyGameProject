@@ -13,6 +13,64 @@ namespace JellyNet
             get { return NetManager.Instance != null && NetManager.Instance.IsHost; }
         }
 
+        // ═══════════════════════════════════════════════════════
+        //  기준 크기 — 플레이어 프리팹이 유일한 출처
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 예전엔 DataManager.startingScale이라는 사본이 따로 있었다
+        //   '2'라는 값이 프리팹 localScale과 인스펙터 양쪽에 적혀 있었고,
+        //   같은 값이라는 보장이 어디에도 없었다. 프리팹만 키우면 스폰하자마자
+        //   점수가 붙는데 에러가 안 나서 찾기도 어렵다.
+        //
+        //   기준 크기의 뜻은 두 곳에서 같다 — '캐릭터가 태어나는 크기'다.
+        //     · 점수: 이 크기일 때 0점  (아래 ScoreFromScale)
+        //     · 밀치기: 이 크기일 때 힘 1배 (PushMode)
+        //   그러니 프리팹에서 한 번 읽어 쓰는 게 맞다.
+        //
+        //   prefabs[0]이 플레이어다(그 뒤가 봇, JELLY_PREFAB_START부터 젤리).
+        private static float baselineScale = -1f;
+
+        /// <summary>캐릭터가 태어나는 크기. 점수 0의 기준이자 밀치기 힘 1배의 기준.</summary>
+        public static float BaselineScale
+        {
+            get
+            {
+                if (baselineScale > 0f)
+                    return baselineScale;
+
+                NetWorld world = NetWorld.Instance;
+
+                if (world == null || world.prefabs == null || world.prefabs.Length == 0 || world.prefabs[0] == null)
+                    return 1f;   //캐시하지 않는다 — 다음에 제대로 읽을 기회를 남긴다
+
+                baselineScale = world.prefabs[0].transform.localScale.x;
+                return baselineScale;
+            }
+        }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ResetBaseline() => baselineScale = -1f;
+
+        /// <summary>
+        /// 크기를 점수로 바꾼다. 기준 크기(=태어나는 크기)일 때 0점이다.
+        ///
+        /// ★ 예전엔 DataManager에 있었다
+        ///   그런데 이 계산은 기준 크기를 알아야 하고, 기준 크기의 출처는 플레이어
+        ///   프리팹이다. 그래서 <b>설정 통이 네트워크를 참조하는</b> 거꾸로 된 의존이 생겼다.
+        ///   DataManager는 숫자만 내주고, 규칙은 판정 창구인 여기가 갖는 게 맞다.
+        /// </summary>
+        public static int ScoreFromScale(float scale)
+        {
+            DataManager rules = DataManager.Instance;
+
+            if (rules == null || rules.JellyScaleIncrease <= 0f)
+                return 0;
+
+            //기준 크기보다 얼마나 컸는지를 '젤리 몇 개분'으로 환산해 점수를 매긴다
+            float grown = scale - BaselineScale;
+            return Mathf.Max(0, Mathf.RoundToInt(grown * rules.ScorePerJelly / rules.JellyScaleIncrease));
+        }
+
         public static bool IsJelly(NetIdentity id)
         {
             if (id == null)
@@ -56,8 +114,8 @@ namespace JellyNet
         // ★ 크기를 묻는 유일한 창구
         //   예전엔 네 곳이 각자 답을 만들었다.
         //     NetEntity.ScaleOf            → LanPlayerVisual.ScaleValue
-        //     LanPlayerState.ScaleValue    → PlayerScaleController.currentScaleValue
-        //     LanPlayerVisual.ScaleValue   → PlayerScaleController.currentScaleValue
+        //     LanPlayerState.ScaleValue    → PlayerScaleController.CurrentScaleValue
+        //     LanPlayerVisual.ScaleValue   → PlayerScaleController.CurrentScaleValue
         //     AIPlayerMovement.GetMyAuthorityScale → transform.localScale.x
         //   앞의 셋은 '논리적 크기'(연출이 끝난 목표값)이고 마지막 하나만
         //   '지금 화면에 보이는 크기'였다. 커지는 연출이 도는 0.3초 동안 봇만
@@ -127,7 +185,7 @@ namespace JellyNet
             if (id == null || DataManager.Instance == null)
                 return;
 
-            SetScore(id, DataManager.Instance.ScoreFromScale(ScaleOf(id)));
+            SetScore(id, ScoreFromScale(ScaleOf(id)));
         }
 
         // ═══════════════════════════════════════════════════════
@@ -158,6 +216,21 @@ namespace JellyNet
             if (LanGameFlow.Instance != null && LanGameFlow.Instance.Phase != GamePhase.Playing)
                 return;
 
+            // ★ 마지막 한 명은 탈락시키지 않는다
+            //   밀치기의 승리 조건은 '최후의 1인'인데, 판정이 0.5초 주기였던 탓에
+            //   둘이 같은 창 안에서 떨어지면 2 → 0 이 되어 <b>생존자가 사라졌다</b>.
+            //   그러면 우승자도 순위표도 비어 결과 화면에 아무도 안 나온다.
+            //
+            //   탈락은 한 번에 하나씩 이 관문을 지나므로, 여기서 "지금 이 개체를 빼면
+            //   아무도 안 남는가"를 보면 동시 낙하도 순차로 갈라진다.
+            //   먼저 들어온 쪽이 탈락하며 남은 한 명으로 게임이 끝나고,
+            //   뒤이어 들어온 쪽은 위 Phase 검사(Playing이 아님)에 걸려 되돌아간다.
+            if (LanScoreboard.CountAlive() <= 1)
+            {
+                LanGameFlow.Instance?.HostDeclareLastSurvivor(id);
+                return;
+            }
+
             //모드 전용 정산은 그 모드가 씬에 있을 때만 돈다.
             //탈락 표시보다 먼저 해야 피해자의 점수가 남아 있다
             if (PushMode.Instance != null)
@@ -175,6 +248,10 @@ namespace JellyNet
 
             if (bot != null)
                 bot.HostEliminate();
+
+            //탈락이 확정된 즉시 승패를 본다. 0.5초 주기를 기다리면 그 사이에
+            //또 한 명이 떨어져 생존자가 0이 될 수 있다
+            LanGameFlow.Instance?.HostCheckEndNow();
         }
 
         public static int ScoreOf(NetIdentity id)

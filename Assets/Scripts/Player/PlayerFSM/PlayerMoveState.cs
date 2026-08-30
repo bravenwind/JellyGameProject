@@ -10,7 +10,7 @@ public class PlayerMoveState : PlayerBaseState
     public override void Enter()
     {
         if (player.Anim != null)
-            player.Anim.SetBool("IsMoving", true);
+            player.Anim.SetBool(AnimParams.IsMoving, true);
         if (PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.StartWalking();
     }
@@ -50,7 +50,7 @@ public class PlayerMoveState : PlayerBaseState
     public override void Exit()
     {
         if (player.Anim != null)
-            player.Anim.SetBool("IsMoving", false);
+            player.Anim.SetBool(AnimParams.IsMoving, false);
         if (PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.StopWalking();
     }

@@ -140,11 +140,11 @@ public class ChocolateFluid : MonoBehaviour
             bool isBackgroundObject = (bgLayer >= 0) &&
                 (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
 
-            //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다(GameTags.IsCharacterProxy 주석 참고).
+            //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다(GameTags.IsCharacterMainCollider 주석 참고).
             //소품·젤리는 콜라이더가 하나뿐이라 그대로 통과한다
             bool isCharacter = IsCharacter(rb);
 
-            if (isCharacter && !GameTags.IsCharacterProxy(other))
+            if (isCharacter && !GameTags.IsCharacterMainCollider(other))
                 return;
 
             if (isEdible || isBackgroundObject || isCharacter)
@@ -233,9 +233,9 @@ public class ChocolateFluid : MonoBehaviour
     {
         // ★ 캐릭터는 트리거 콜라이더가 둘이다 — 대표 하나만 받는다
         //   안 걸면 탈락 신고와 ApplyFloatPhysics가 개체당 두 번 돈다.
-        //   (GameTags.IsCharacterProxy 주석에 이 이중 호출이 만든 사고들을 적어뒀다)
+        //   (GameTags.IsCharacterMainCollider 주석에 이 이중 호출이 만든 사고들을 적어뒀다)
         if (other.attachedRigidbody != null && IsCharacter(other.attachedRigidbody)
-            && !GameTags.IsCharacterProxy(other))
+            && !GameTags.IsCharacterMainCollider(other))
             return;
 
         // ═════════════════════════════════════════════

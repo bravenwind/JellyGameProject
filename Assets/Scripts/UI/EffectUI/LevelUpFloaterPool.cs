@@ -9,9 +9,14 @@ using System.Collections.Generic;
 /// </summary>
 public class LevelUpFloaterPool : MonoBehaviour
 {
-    [Header("팝업 프리팹 (LevelUpFloater 부착). 비우면 런타임 생성")]
-    [SerializeField] private LevelUpFloater floaterPrefab;
-
+    // ★ 프리팹 필드를 없앴다 — 배선할 방법이 없었다
+    //   이 컴포넌트는 PlayerBridge.Awake가 <b>런타임에 AddComponent로</b> 만든다.
+    //   플레이어 프리팹에 붙어 있지 않으니 인스펙터에서 프리팹을 꽂을 자리가 없고,
+    //   따라서 [SerializeField] floaterPrefab은 <b>항상 null</b>이었다.
+    //   "비우면 런타임 생성"이라는 폴백만 언제나 도는 구조였던 셈이다.
+    //
+    //   같은 이유로 공용 ComponentPool<T>를 쓰지 못한다 — 그건 복제할 프리팹을 받는다.
+    //   프리팹 에셋을 만들어 플레이어 프리팹에 붙이면 그때 ComponentPool로 갈아탈 수 있다.
     [Tooltip("미리 생성해둘 인스턴스 개수")]
     [SerializeField] private int prewarm = 3;
 
@@ -51,16 +56,11 @@ public class LevelUpFloaterPool : MonoBehaviour
 
     private LevelUpFloater Create()
     {
-        LevelUpFloater f;
-        if (floaterPrefab != null)
-            f = Instantiate(floaterPrefab, transform);
-        else
-        {
-            // 프리팹 미지정 시 런타임 생성(폰트 에셋 의존 없이 동작)
-            var go = new GameObject("LevelUpFloater");
-            go.transform.SetParent(transform, false);
-            f = go.AddComponent<LevelUpFloater>();
-        }
+        //폰트 에셋 의존 없이 런타임에 만든다. LevelUpFloater가 자기 표시를 스스로 꾸민다
+        var go = new GameObject("LevelUpFloater");
+        go.transform.SetParent(transform, false);
+
+        LevelUpFloater f = go.AddComponent<LevelUpFloater>();
         f.gameObject.SetActive(false);
         return f;
     }

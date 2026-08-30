@@ -1,3 +1,4 @@
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 
@@ -34,7 +35,52 @@ public static class NavMeshUtil
     }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetWalkableMask() => walkableMask = 0;
+    private static void ResetCaches()
+    {
+        walkableMask = 0;
+        settingsCache.Clear();
+    }
+
+    // ─────────────────────────────────────────────────────────
+    //  에이전트 타입의 authoring 값
+    // ─────────────────────────────────────────────────────────
+    //
+    // ★ 왜 컴포넌트가 아니라 타입에서 읽나
+    //   NavMesh는 <b>에이전트 타입 설정</b>(Navigation 창)의 반지름·높이로 굽는다.
+    //   프리팹의 NavMeshAgent 컴포넌트에도 같은 값이 따로 적혀 있어서, 한쪽만 고치면
+    //   '구워진 길'과 '실제 에이전트'가 조용히 어긋난다.
+    //   구운 쪽이 진짜이므로 타입 설정을 유일한 출처로 삼고, 컴포넌트는 거기 맞춘다.
+    //
+    //   이 값은 발판 밟기 판정(TileCollapseManager)에도 쓰인다 —
+    //   길찾기가 보는 몸 크기와 발판이 보는 몸 크기가 다르면 안 된다.
+    private static readonly Dictionary<int, NavMeshBuildSettings> settingsCache =
+        new Dictionary<int, NavMeshBuildSettings>();
+
+    private static NavMeshBuildSettings SettingsOf(int agentTypeID)
+    {
+        if (settingsCache.TryGetValue(agentTypeID, out NavMeshBuildSettings s))
+            return s;
+
+        s = NavMesh.GetSettingsByID(agentTypeID);
+        settingsCache[agentTypeID] = s;
+        return s;
+    }
+
+    public static float AgentRadius(int agentTypeID)
+    {
+        return SettingsOf(agentTypeID).agentRadius;
+    }
+
+    public static float AgentHeight(int agentTypeID)
+    {
+        return SettingsOf(agentTypeID).agentHeight;
+    }
+
+    /// <summary>사람·봇이 쓰는 타입(PlayerJelly = 0)의 몸 반지름. 크기 1일 때의 값이다.</summary>
+    public static float PlayerJellyRadius
+    {
+        get { return AgentRadius(0); }
+    }
 
     /// <summary>이 agent가 걸어다닐 수 있는 영역만 보는 질의 필터.</summary>
     public static NavMeshQueryFilter WalkableFilter(NavMeshAgent agent)

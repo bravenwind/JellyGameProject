@@ -1,60 +1,60 @@
-using TMPro;
+ï»¿using TMPro;
 using UnityEngine;
 using UnityEngine.Audio;
 using UnityEngine.UI;
 
 public class SoundSettings : MonoBehaviour
 {
-    [Header("¼³Á¤")]
+    [Header("ì„¤ì •")]
     public AudioMixer audioMixer;
     public string parameter_BGM = "BGMVolume";
     public string parameter_SFX = "SFXVolume";
 
-    [Header("UI ÄÄÆ÷³ÍÆ®")]
+    [Header("UI ì»´í¬ë„ŒíŠ¸")]
     public Slider volumeSlider_BGM;
     public Slider volumeSlider_SFX;
     public TMP_Text volumeText_BGM;
     public TMP_Text volumeText_SFX;
 
-    [Header("º¼·ı ¹üÀ§ (dB)")]
-    [SerializeField] private float minVolume_BGM = -40f; // -20Àº ³Ê¹« Å¬ ¼ö ÀÖ¾î º¸Åë -40~-60 ÃßÃµ
-    [SerializeField] private float maxVolume_BGM = 0f;   // 5´Â ¼Ò¸®°¡ ±úÁú ¼ö ÀÖ¾î 0 ÃßÃµ
+    [Header("ë³¼ë¥¨ ë²”ìœ„ (dB)")]
+    [SerializeField] private float minVolume_BGM = -40f; // -20ì€ ë„ˆë¬´ í´ ìˆ˜ ìˆì–´ ë³´í†µ -40~-60 ì¶”ì²œ
+    [SerializeField] private float maxVolume_BGM = 0f;   // 5ëŠ” ì†Œë¦¬ê°€ ê¹¨ì§ˆ ìˆ˜ ìˆì–´ 0 ì¶”ì²œ
 
     public float minVolume_SFX = -40f;
     public float maxVolume_SFX = 0f;
 
     private void Start()
     {
-        // 1. BGM ½½¶óÀÌ´õ ÃÊ±âÈ­
+        // 1. BGM ìŠ¬ë¼ì´ë” ì´ˆê¸°í™”
         if (volumeSlider_BGM != null)
         {
             if (audioMixer.GetFloat(parameter_BGM, out float currentBGMDb))
             {
-                // -80dB ÀÌÇÏ¶ó¸é À½¼Ò°Å·Î °£ÁÖÇÏ¿© ½½¶óÀÌ´õ 0
+                // -80dB ì´í•˜ë¼ë©´ ìŒì†Œê±°ë¡œ ê°„ì£¼í•˜ì—¬ ìŠ¬ë¼ì´ë” 0
                 volumeSlider_BGM.value = (currentBGMDb <= -80f)
                     ? 0
                     : Mathf.InverseLerp(minVolume_BGM, maxVolume_BGM, currentBGMDb);
             }
-            // ÃÊ±â ÅØ½ºÆ® °»½Å
+            // ì´ˆê¸° í…ìŠ¤íŠ¸ ê°±ì‹ 
             UpdateVolumeText(volumeText_BGM, volumeSlider_BGM.value);
         }
 
-        // 2. SFX ½½¶óÀÌ´õ ÃÊ±âÈ­ (ÀÌÀü ÄÚµåÀÇ ¹ö±× ¼öÁ¤: µ¶¸³ÀûÀ¸·Î ½ÇÇàµÇ°Ô º¯°æ)
+        // 2. SFX ìŠ¬ë¼ì´ë” ì´ˆê¸°í™” (ì´ì „ ì½”ë“œì˜ ë²„ê·¸ ìˆ˜ì •: ë…ë¦½ì ìœ¼ë¡œ ì‹¤í–‰ë˜ê²Œ ë³€ê²½)
         if (volumeSlider_SFX != null)
         {
             if (audioMixer.GetFloat(parameter_SFX, out float currentSFXDb))
             {
-                // [¹ö±× ¼öÁ¤] ÀÌÀü ÄÚµå¿¡¼­ currentBGMDb¸¦ Ã¼Å©ÇÏ´ø ¿À·ù ¼öÁ¤ -> currentSFXDb Ã¼Å©
+                // [ë²„ê·¸ ìˆ˜ì •] ì´ì „ ì½”ë“œì—ì„œ currentBGMDbë¥¼ ì²´í¬í•˜ë˜ ì˜¤ë¥˜ ìˆ˜ì • -> currentSFXDb ì²´í¬
                 volumeSlider_SFX.value = (currentSFXDb <= -80f)
                     ? 0
                     : Mathf.InverseLerp(minVolume_SFX, maxVolume_SFX, currentSFXDb);
             }
-            // ÃÊ±â ÅØ½ºÆ® °»½Å
+            // ì´ˆê¸° í…ìŠ¤íŠ¸ ê°±ì‹ 
             UpdateVolumeText(volumeText_SFX, volumeSlider_SFX.value);
         }
     }
 
-    // [Áß¿ä º¯°æ] BGM Àü¿ë ÇÔ¼ö
+    // [ì¤‘ìš” ë³€ê²½] BGM ì „ìš© í•¨ìˆ˜
     public void SetBGMVolume(float value)
     {
         float targetVolume = (value <= 0.001f) ? -80f : Mathf.Lerp(minVolume_BGM, maxVolume_BGM, value);
@@ -63,7 +63,7 @@ public class SoundSettings : MonoBehaviour
         UpdateVolumeText(volumeText_BGM, value);
     }
 
-    // [Áß¿ä º¯°æ] SFX Àü¿ë ÇÔ¼ö
+    // [ì¤‘ìš” ë³€ê²½] SFX ì „ìš© í•¨ìˆ˜
     public void SetSFXVolume(float value)
     {
         float targetVolume = (value <= 0.001f) ? -80f : Mathf.Lerp(minVolume_SFX, maxVolume_SFX, value);
@@ -72,7 +72,7 @@ public class SoundSettings : MonoBehaviour
         UpdateVolumeText(volumeText_SFX, value);
     }
 
-    // ÅØ½ºÆ® ¾÷µ¥ÀÌÆ®¿ë ÇïÆÛ ÇÔ¼ö
+    // í…ìŠ¤íŠ¸ ì—…ë°ì´íŠ¸ìš© í—¬í¼ í•¨ìˆ˜
     private void UpdateVolumeText(TMP_Text textComponent, float value)
     {
         if (textComponent != null)
@@ -81,7 +81,7 @@ public class SoundSettings : MonoBehaviour
 
     public void OnSettingsBtnClicked()
     {
-        // ½Ì±ÛÅæ ÀÎ½ºÅÏ½º null Ã¼Å© ±ÇÀå
+        // ì‹±ê¸€í†¤ ì¸ìŠ¤í„´ìŠ¤ null ì²´í¬ ê¶Œì¥
         if (PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.PlayButtonClickSound();
 

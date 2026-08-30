@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+ï»¿using System.Collections.Generic;
 using UnityEngine;
 
 public class MultiRandomMaterialApplier : MonoBehaviour
 {
     [Header("Material Settings")]
-    [Tooltip("¿©±â¿¡ µî·ÏµÈ ¸ÓÅÍ¸®¾óµéÀÌ °¢ ÆÄÃ÷¸¶´Ù ·£´ıÇÏ°Ô ¹ß¶óÁı´Ï´Ù.")]
+    [Tooltip("ì—¬ê¸°ì— ë“±ë¡ëœ ë¨¸í„°ë¦¬ì–¼ë“¤ì´ ê° íŒŒì¸ ë§ˆë‹¤ ëœë¤í•˜ê²Œ ë°œë¼ì§‘ë‹ˆë‹¤.")]
     public List<Material> materialList;
 
     private Renderer[] allRenderers;
@@ -21,16 +21,16 @@ public class MultiRandomMaterialApplier : MonoBehaviour
 
     public void ApplyIndividualRandomMaterials()
     {
-        // ¸ğµç ·»´õ·¯¸¦ ÇÏ³ª¾¿ ¼øÈ¸ÇÕ´Ï´Ù.
+        // ëª¨ë“  ë Œë”ëŸ¬ë¥¼ í•˜ë‚˜ì”© ìˆœíšŒí•©ë‹ˆë‹¤.
         foreach (Renderer rend in allRenderers)
         {
-            // ¡Ú ÇÙ½É º¯°æÁ¡: °¢°¢ÀÇ ·»´õ·¯¸¶´Ù ÁÖ»çÀ§¸¦ »õ·Î ±¼¸³´Ï´Ù.
+            // â˜… í•µì‹¬ ë³€ê²½ì : ê°ê°ì˜ ë Œë”ëŸ¬ë§ˆë‹¤ ì£¼ì‚¬ìœ„ë¥¼ ìƒˆë¡œ êµ´ë¦½ë‹ˆë‹¤.
             int randomIndex = Random.Range(0, materialList.Count);
 
-            // »ÌÈù ·£´ı ¸ÓÅÍ¸®¾óÀ» ÇØ´ç ÆÄÃ÷¿¡ Àû¿ëÇÕ´Ï´Ù.
+            // ë½‘íŒ ëœë¤ ë¨¸í„°ë¦¬ì–¼ì„ í•´ë‹¹ íŒŒì¸ ì— ì ìš©í•©ë‹ˆë‹¤.
             rend.sharedMaterial = materialList[randomIndex];
         }
 
-        Debug.Log($"[°³º° ·£´ı Àû¿ë] {allRenderers.Length}°³ÀÇ ÆÄÃ÷¿¡ °¢°¢ ·£´ıÇÑ »ö»óÀÌ Àû¿ëµÇ¾ú½À´Ï´Ù!");
+        Debug.Log($"[ê°œë³„ ëœë¤ ì ìš©] {allRenderers.Length}ê°œì˜ íŒŒì¸ ì— ê°ê° ëœë¤í•œ ìƒ‰ìƒì´ ì ìš©ë˜ì—ˆìŠµë‹ˆë‹¤!");
     }
 }

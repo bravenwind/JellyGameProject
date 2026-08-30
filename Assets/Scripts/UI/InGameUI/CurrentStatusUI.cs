@@ -11,10 +11,11 @@ public class CurrentStatusUI : MonoBehaviour
         GameState.OnScaleChanged += OnScaleChanged;
         GameState.OnDisplayColorChanged += OnDisplayColorChanged;
 
-        // [W5] 현재값 시딩 — 스폰 스케일(2f)이 GameState 기본값과 같으면 setter의
-        // Approximately 가드에 걸려 이벤트가 발화하지 않고, 색은 첫 흡수 전까지
-        // 이벤트가 아예 없다. 구독 직후 현재값으로 한 번 그려 디자인타임
-        // 플레이스홀더가 그대로 보이는 문제를 막는다. (ScoreUI의 OnEnable 패턴과 동일)
+        // ★ 구독만 하고 끝내면 안 된다 — 현재값을 한 번 당겨와야 한다
+        //   GameState를 채우는 쪽(PlayerScaleController → PlayerBridge)은 내 캐릭터가
+        //   스폰될 때 발화하는데, 이 HUD는 씬에 처음부터 있다. 그 사이 순서에 기대면
+        //   디자인타임 플레이스홀더가 그대로 화면에 남는다.
+        //   "구독 + 초기값 당기기"는 언제나 짝으로 간다.
         OnScaleChanged(GameState.PlayerCurrentScale);
         OnDisplayColorChanged(GameState.CurrentDisplayColor);
     }
@@ -27,9 +28,17 @@ public class CurrentStatusUI : MonoBehaviour
 
     private void OnScaleChanged(float scale)
     {
-        if (currentScaleText != null)
-            currentScaleText.text = scale.ToString("F2");
+        if (currentScaleText == null)
+            return;
+
+        // ★ 아직 모르는 값은 그리지 않는다
+        //   GameState.PlayerCurrentScale은 내 캐릭터가 스폰돼 OnScaleSettled가
+        //   발화해야 채워진다. 그전까지는 0인데, 그걸 "0.00"으로 그리면
+        //   <b>크기가 0인 것처럼</b> 보인다. 로비→카운트다운 동안 계속 그렇다.
+        currentScaleText.text = scale > 0f ? scale.ToString("F2") : Placeholder;
     }
+
+    private const string Placeholder = "-";
 
     private void OnDisplayColorChanged(Color color)
     {

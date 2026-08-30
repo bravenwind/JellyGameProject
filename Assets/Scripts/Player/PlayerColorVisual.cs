@@ -4,24 +4,26 @@ using UnityEngine;
 
 public class PlayerColorVisual : MonoBehaviour
 {
-    public Renderer rend;
+    [SerializeField] private Renderer rend;
 
     private Color originalBaseColor;
     private Color originalBaseColor_02;
-    public Color originalFresnelColor;
+    private Color originalFresnelColor;
 
     private Color currentBaseColor;
     private Color currentBaseColor_02;
-    public Color currentFresnelColor;
+    private Color currentFresnelColor;
 
     [Header("Color Settings")]
-    [Range(0f, 1f)] public float baseColor02Lightness = 0.6f;
-    public float blendTime = 0.5f;
+    [Range(0f, 1f)]
+    [SerializeField] private float baseColor02Lightness = 0.6f;
 
-    [Header("Material_Property")]
-    public string BaseColor_01Property = "_BaseColor_01";
-    public string BaseColor_02Property = "_BaseColor_02";
-    public string FresnelProperty = "_FresnelColor";
+    [SerializeField] private float blendTime = 0.5f;
+
+    // ★ 머티리얼 인스턴스를 한 번만 잡아둔다
+    //   Renderer.material은 접근할 때마다 프로퍼티를 타고, 첫 접근에서 복제본을 만든다.
+    //   BlendColor 루프에서 매 프레임 세 번씩 부르던 것을 참조 하나로 줄인다.
+    private Material mat;
 
     private Coroutine currentCoroutine;
 
@@ -36,6 +38,14 @@ public class PlayerColorVisual : MonoBehaviour
         if (rend == null)
             rend = GetComponentInChildren<Renderer>();
 
+        if (rend == null)
+        {
+            Debug.LogError("[색] " + name + " 에 Renderer가 없습니다 — 색이 하나도 반영되지 않습니다.");
+            return;
+        }
+
+        mat = rend.material;
+
         originalBaseColor    = Color.white;
         originalFresnelColor = Color.white;
         originalBaseColor_02 = GetLighterColor(originalBaseColor, baseColor02Lightness);
@@ -44,11 +54,20 @@ public class PlayerColorVisual : MonoBehaviour
         currentFresnelColor = originalFresnelColor;
         currentBaseColor_02 = originalBaseColor_02;
 
-        rend.material.SetColor(BaseColor_01Property, currentBaseColor);
-        rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
-        rend.material.SetColor(FresnelProperty,       currentFresnelColor);
+        PushToMaterial();
 
         CurrentRYB = RYBColor.white;
+    }
+
+    /// <summary>현재 세 색을 머티리얼에 꽂는다. 프로퍼티 이름은 JellyShaderProps가 유일한 출처다.</summary>
+    private void PushToMaterial()
+    {
+        if (mat == null)
+            return;
+
+        mat.SetColor(JellyShaderProps.BaseColor01Id, currentBaseColor);
+        mat.SetColor(JellyShaderProps.BaseColor02Id, currentBaseColor_02);
+        mat.SetColor(JellyShaderProps.FresnelColorId, currentFresnelColor);
     }
 
     public void HandleJellyAbsorbed(JellyColorType type)
@@ -107,9 +126,7 @@ public class PlayerColorVisual : MonoBehaviour
             currentBaseColor_02 = Color.Lerp(startBase_02, targetBase_02, progress);
             currentFresnelColor = Color.Lerp(startFresnel, targetFresnel, progress);
 
-            rend.material.SetColor(BaseColor_01Property, currentBaseColor);
-            rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
-            rend.material.SetColor(FresnelProperty, currentFresnelColor);
+            PushToMaterial();
 
             yield return null;
         }
@@ -118,9 +135,7 @@ public class PlayerColorVisual : MonoBehaviour
         currentBaseColor_02 = targetBase_02;
         currentFresnelColor = targetFresnel;
 
-        rend.material.SetColor(BaseColor_01Property, currentBaseColor);
-        rend.material.SetColor(BaseColor_02Property, currentBaseColor_02);
-        rend.material.SetColor(FresnelProperty, currentFresnelColor);
+        PushToMaterial();
     }
 
     /// <summary>

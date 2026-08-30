@@ -28,7 +28,7 @@ public class AIPushSurviveState : AIBaseState
         checkTimer = 0f;
         fleeing = false;
         attackScanTimer = 0f;
-        ai.Agent.speed = ai.MoveSpeed;
+        ai.ApplyStateSpeed();
         ai.Agent.stoppingDistance = 0.3f;
         ai.Agent.ResetPath();
         ai.Agent.velocity = Vector3.zero;
@@ -99,7 +99,7 @@ public class AIPushSurviveState : AIBaseState
         {
             ai.Agent.ResetPath();
             ai.Agent.velocity = Vector3.zero;
-            ai.Agent.speed = ai.MoveSpeed;
+            ai.ApplyStateSpeed();
             fleeing = false;
         }
         else
@@ -125,6 +125,25 @@ public class AIPushSurviveState : AIBaseState
         Wander();
     }
 
+    // ─────────────────────────────────────────────────────────
+    //  조준 유예 — 사람이 반응할 틈
+    // ─────────────────────────────────────────────────────────
+    //
+    // ★ 예전엔 사거리에 들어오는 <b>즉시</b> 휘둘렀다
+    //   봇은 매 판단마다 거리를 재고 조건이 맞으면 바로 TryAttack을 부른다.
+    //   사람은 상대가 다가오는 걸 보고 반응해야 하는데, 봇에겐 그 지연이 없다.
+    //   결과적으로 <b>먼저 붙는 쪽이 무조건 이기는 싸움</b>이 됐다.
+    //
+    //   사거리에 들어오면 바로 치지 않고 그 자리에서 상대를 바라보며 잠깐 겨눈다.
+    //   그동안 사람은 물러나거나 먼저 칠 수 있다.
+    //   겨누는 동안 상대가 사거리 밖으로 나가면 유예는 초기화된다 —
+    //   붙었다 떨어졌다 하는 것만으로 봇을 계속 헛치게 만들 수 있다.
+    [Tooltip("사거리에 들어온 뒤 실제로 휘두르기까지의 시간(초). 사람이 반응할 틈이다.")]
+    private const float AIM_DELAY = 0.45f;
+
+    //겨누기 시작한 시각. 사거리 밖으로 나가면 -1로 되돌린다
+    private float aimStartTime = -1f;
+
     /// <summary>타겟을 추격하거나 사거리 안이면 공격. 무언가 행동했으면 true.</summary>
     private bool TryEngageTarget(Transform target)
     {
@@ -148,10 +167,23 @@ public class AIPushSurviveState : AIBaseState
                 ai.Agent.ResetPath();
             ai.Agent.velocity = Vector3.zero;
 
+            //겨누는 동안에도 상대를 계속 본다. 사람 눈에는 '노리고 있다'로 읽힌다
             FaceTarget(dirToTarget);
-            ai.TryAttack();
+
+            if (aimStartTime < 0f)
+                aimStartTime = Time.time;
+
+            if (Time.time - aimStartTime >= AIM_DELAY)
+            {
+                ai.TryAttack();
+                aimStartTime = -1f;      //다음 스윙은 처음부터 다시 겨눈다
+            }
+
             return true;
         }
+
+        //사거리를 벗어났다 → 겨누던 것을 접는다
+        aimStartTime = -1f;
 
         // ── 추격 ──
         //
@@ -169,7 +201,7 @@ public class AIPushSurviveState : AIBaseState
             if (NavMesh.SamplePosition(aim, out NavMeshHit hit, 5f, ai.NavFilter)
                 || NavMesh.SamplePosition(target.position, out hit, 5f, ai.NavFilter))
             {
-                ai.Agent.speed = ai.MoveSpeed;
+                ai.ApplyStateSpeed();
 
                 if (TrySetSafePath(hit.position))
                 {
@@ -255,11 +287,25 @@ public class AIPushSurviveState : AIBaseState
 
         Vector3 d = target.position - ai.transform.position;
         d.y = 0f;
+
         if (d.magnitude > range * 1.2f)
+        {
+            aimStartTime = -1f;
             return;
+        }
 
         FaceTarget(d);
+
+        //도망치면서 치는 것도 같은 유예를 지킨다. 여기만 즉발이면 사람은
+        //'도망가는 봇에게 스치기만 해도 맞는' 상황을 겪는다
+        if (aimStartTime < 0f)
+            aimStartTime = Time.time;
+
+        if (Time.time - aimStartTime < AIM_DELAY)
+            return;
+
         ai.TryAttack();
+        aimStartTime = -1f;
     }
 
     /// <summary>위험 타일을 피해 무작위 안전 지점으로 배회한다.</summary>
@@ -271,7 +317,7 @@ public class AIPushSurviveState : AIBaseState
         if (ai.Agent.hasPath && ai.Agent.remainingDistance > ai.Agent.stoppingDistance + 0.5f)
             return;
 
-        ai.Agent.speed = ai.MoveSpeed;
+        ai.ApplyStateSpeed();
 
         if (ai.TryGetWanderDestination(out Vector3 dest)
             && NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
@@ -333,7 +379,7 @@ public class AIPushSurviveState : AIBaseState
 
     public override void Exit()
     {
-        ai.Agent.speed = ai.MoveSpeed;
+        ai.ApplyStateSpeed();
         ai.Agent.stoppingDistance = 0f;
     }
 }

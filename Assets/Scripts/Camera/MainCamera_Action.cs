@@ -28,14 +28,12 @@ public class MainCamera_Action : MonoBehaviour
 
     private void OnEnable()
     {
-        PlayerEvents.OnCameraScaleIncreased += ScaleIncreased;
-        PlayerEvents.OnCameraScaleDecreased += ScaleDecreased;
+        GameState.OnCameraScaleIncreased += ScaleIncreased;
     }
 
     private void OnDisable()
     {
-        PlayerEvents.OnCameraScaleIncreased -= ScaleIncreased;
-        PlayerEvents.OnCameraScaleDecreased -= ScaleDecreased;
+        GameState.OnCameraScaleIncreased -= ScaleIncreased;
     }
 
     public void SetTarget(Transform newTarget)
@@ -73,14 +71,7 @@ public class MainCamera_Action : MonoBehaviour
     {
         cameraSizeQueue.Enqueue(DataManager.Instance.ScaleChangedPlusSize);
         if (!isCameraScaling)
-            StartCoroutine(ProcessCameraQueue(DataManager.Instance.ScaleIncreaseDuration));
-    }
-
-    public void ScaleDecreased()
-    {
-        cameraSizeQueue.Enqueue(-DataManager.Instance.ScaleChangedPlusSize);
-        if (!isCameraScaling)
-            StartCoroutine(ProcessCameraQueue(DataManager.Instance.ScaleDecreaseDuration));
+            StartCoroutine(ProcessCameraQueue(DataManager.Instance.CameraZoomDuration));
     }
 
     // 큐 처리 코루틴

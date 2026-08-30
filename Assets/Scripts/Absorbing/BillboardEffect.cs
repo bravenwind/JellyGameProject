@@ -1,14 +1,14 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
-[RequireComponent(typeof(SpriteRenderer))] // ½ºÇÁ¶óÀÌÆ® ·»´õ·¯ ÇÊ¼ö
+[RequireComponent(typeof(SpriteRenderer))] // ìŠ¤í”„ë¼ì´íŠ¸ ë Œë”ëŸ¬ í•„ìˆ˜
 public class BillboardEffect : MonoBehaviour
 {
     [Header("Billboard Settings")]
-    [SerializeField] private bool freezeXZAxis = false; // YÃà °íÁ¤ ¿©ºÎ
+    [SerializeField] private bool freezeXZAxis = false; // Yì¶• ê³ ì • ì—¬ë¶€
 
     [Header("Animation Settings")]
-    [SerializeField] private float lifeTime = 2.0f;     // È¿°ú°¡ Áö¼ÓµÇ´Â ÃÑ ½Ã°£
-    [SerializeField] private float maxScale = 1.0f;     // °¡Àå Ä¿Á³À» ¶§ÀÇ Å©±â
+    [SerializeField] private float lifeTime = 2.0f;     // íš¨ê³¼ê°€ ì§€ì†ë˜ëŠ” ì´ ì‹œê°„
+    [SerializeField] private float maxScale = 1.0f;     // ê°€ì¥ ì»¤ì¡Œì„ ë•Œì˜ í¬ê¸°
 
     private SpriteRenderer spriteRenderer;
     private Color originalColor;
@@ -19,46 +19,46 @@ public class BillboardEffect : MonoBehaviour
         spriteRenderer = GetComponent<SpriteRenderer>();
         originalColor = spriteRenderer.color;
 
-        // ½ÃÀÛÇÒ ¶§ Å©±â¿Í Åõ¸íµµ¸¦ 0À¸·Î ÃÊ±âÈ­
+        // ì‹œì‘í•  ë•Œ í¬ê¸°ì™€ íˆ¬ëª…ë„ë¥¼ 0ìœ¼ë¡œ ì´ˆê¸°í™”
         transform.localScale = Vector3.zero;
         SetAlpha(0f);
     }
 
     void Update()
     {
-        // 1. ¾Ö´Ï¸ŞÀÌ¼Ç Ã³¸® (»ı¼º -> Ä¿Áü -> ÀÛ¾ÆÁü -> ÆÄ±«)
+        // 1. ì• ë‹ˆë©”ì´ì…˜ ì²˜ë¦¬ (ìƒì„± -> ì»¤ì§ -> ì‘ì•„ì§ -> íŒŒê´´)
         HandleAnimation();
     }
 
     void LateUpdate()
     {
-        // 2. ºôº¸µå Ã³¸® (Ä«¸Ş¶ó ¹Ù¶óº¸±â)
+        // 2. ë¹Œë³´ë“œ ì²˜ë¦¬ (ì¹´ë©”ë¼ ë°”ë¼ë³´ê¸°)
         HandleBillboard();
     }
 
-    // --- ±â´É ±¸ÇöºÎ ---
+    // --- ê¸°ëŠ¥ êµ¬í˜„ë¶€ ---
 
     void HandleAnimation()
     {
         timer += Time.deltaTime;
 
-        // ÁøÇà·ü (0 ~ 1 »çÀÌÀÇ °ª)
+        // ì§„í–‰ë¥  (0 ~ 1 ì‚¬ì´ì˜ ê°’)
         float progress = timer / lifeTime;
 
         if (progress >= 1.0f)
         {
-            Destroy(gameObject); // ¼ö¸íÀÌ ´ÙÇÏ¸é ÆÄ±«
+            Destroy(gameObject); // ìˆ˜ëª…ì´ ë‹¤í•˜ë©´ íŒŒê´´
             return;
         }
 
-        // Mathf.Sin(progress * PI)´Â 0¿¡¼­ ½ÃÀÛÇØ 1±îÁö ºÎµå·´°Ô ¿Ã¶ó°¬´Ù°¡ 0À¸·Î ³»·Á¿É´Ï´Ù.
-        // ±×·¡ÇÁ ¸ğ¾ç: ¡û (»ê ¸ğ¾ç)
+        // Mathf.Sin(progress * PI)ëŠ” 0ì—ì„œ ì‹œì‘í•´ 1ê¹Œì§€ ë¶€ë“œëŸ½ê²Œ ì˜¬ë¼ê°”ë‹¤ê°€ 0ìœ¼ë¡œ ë‚´ë ¤ì˜µë‹ˆë‹¤.
+        // ê·¸ë˜í”„ ëª¨ì–‘: âˆ© (ì‚° ëª¨ì–‘)
         float curveValue = Mathf.Sin(progress * Mathf.PI);
 
-        // Å©±â Àû¿ë (ºÎµå·´°Ô Ä¿Á³´Ù ÀÛ¾ÆÁü)
+        // í¬ê¸° ì ìš© (ë¶€ë“œëŸ½ê²Œ ì»¤ì¡Œë‹¤ ì‘ì•„ì§)
         transform.localScale = Vector3.one * (maxScale * curveValue);
 
-        // ¾ËÆÄ°ª Àû¿ë (Á¡Á¡ ºÒÅõ¸íÇØÁ³´Ù Åõ¸íÇØÁü)
+        // ì•ŒíŒŒê°’ ì ìš© (ì ì  ë¶ˆíˆ¬ëª…í•´ì¡Œë‹¤ íˆ¬ëª…í•´ì§)
         SetAlpha(curveValue);
     }
 

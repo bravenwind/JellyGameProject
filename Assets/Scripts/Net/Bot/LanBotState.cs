@@ -87,7 +87,7 @@ namespace JellyNet
             get
             {
                 if (IsDriver && scaleCtrl != null)
-                    return scaleCtrl.currentScaleValue;
+                    return scaleCtrl.CurrentScaleValue;
 
                 return transform.localScale.x;
             }
@@ -291,7 +291,7 @@ namespace JellyNet
             get
             {
                 if (scaleCtrl != null)
-                    return scaleCtrl.currentScaleValue;
+                    return scaleCtrl.CurrentScaleValue;
                 return transform.localScale.x;
             }
         }

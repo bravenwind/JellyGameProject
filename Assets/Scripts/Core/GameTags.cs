@@ -49,8 +49,19 @@ public static class GameTags
     //   ※ 콜라이더를 지워서 해결하지 않는 이유: 메시 쪽이 몸 모양을 따라가 지형 효과의
     //     체감이 낫고, 프리팹을 건드리면 되돌리기가 어렵다. 규칙만 세우면 코드로 끝난다.
 
-    /// <summary>이 콜라이더가 캐릭터의 대표 콜라이더인가. 캐릭터 판정은 반드시 이걸로 한 번만 받는다.</summary>
-    public static bool IsCharacterProxy(Collider c)
+    /// <summary>
+    /// 이 콜라이더가 캐릭터의 대표(주) 콜라이더인가. 캐릭터 판정은 반드시 이걸로 한 번만 받는다.
+    ///
+    /// ★ 이름이 IsCharacterProxy였다가 바뀌었다
+    ///   proxy는 '대리 객체'고, 네트워크 코드가 있는 프로젝트에서는 거의 항상
+    ///   <b>원격 복제본</b>을 뜻한다. 이 프로젝트엔 실제로 그 개념이 있어서
+    ///   (IsSimulatedHere · SetupRemote) 호출부의 `if (!IsCharacterProxy(other)) return;`가
+    ///   "원격 캐릭터면 무시한다"로 읽혔다. 여기서 말하는 건 대리가 아니라 <b>대표</b>다.
+    ///
+    /// ※ 이 함수는 태그만 본다 — 상대가 캐릭터인지는 보증하지 않는다.
+    ///   캐릭터가 아닌 것도 섞여 들어오는 자리(ChocolateFluid)에서는 캐릭터 판정을 따로 붙인다.
+    /// </summary>
+    public static bool IsCharacterMainCollider(Collider c)
     {
         return c != null && c.CompareTag(PlayerMesh);
     }

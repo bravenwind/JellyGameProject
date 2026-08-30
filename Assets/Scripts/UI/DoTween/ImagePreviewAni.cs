@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
 public class ImagePreviewAni : MonoBehaviour
@@ -38,7 +38,7 @@ public class ImagePreviewAni : MonoBehaviour
         if (characterImage == null || target == null)
             return;
 
-        // ÀÌÀü Æ®À© Á¤¸®
+        // ì´ì „ íŠ¸ìœˆ ì •ë¦¬
         KillSeq();
 
         if (floating != null)
@@ -47,17 +47,17 @@ public class ImagePreviewAni : MonoBehaviour
         Vector2 startPos = basePos + fadeInStartOffset;
 
         seq = DOTween.Sequence()
-            .SetUpdate(true) // UI ¸Ş´º TimeScale 0ÀÏ °¡´É¼º °í·Á
+            .SetUpdate(true) // UI ë©”ë‰´ TimeScale 0ì¼ ê°€ëŠ¥ì„± ê³ ë ¤
 
             .Append(characterImage.DOFade(0f, fadeOutDuration))
-            // ½ºÇÁ¶óÀÌÆ® ±³Ã¼ + ½ÃÀÛ À§Ä¡·Î ÀÌµ¿ + ¾ËÆÄ 0
+            // ìŠ¤í”„ë¼ì´íŠ¸ êµì²´ + ì‹œì‘ ìœ„ì¹˜ë¡œ ì´ë™ + ì•ŒíŒŒ 0
             .AppendCallback(() =>
             {
                 characterImage.sprite = nextSprite;
                 target.anchoredPosition = startPos;
                 SetAlpha(0f);
             })
-            // ÆäÀÌµå ÀÎ + ¿ø·¡ À§Ä¡·Î ÀÌµ¿ µ¿½Ã
+            // í˜ì´ë“œ ì¸ + ì›ë˜ ìœ„ì¹˜ë¡œ ì´ë™ ë™ì‹œ
             .Append(characterImage.DOFade(1f, fadeInDuration))
             .Join(target.DOAnchorPos(basePos, moveInDuration).SetEase(Ease.OutSine))
 

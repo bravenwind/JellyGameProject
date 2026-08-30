@@ -11,7 +11,7 @@ public class PlayerJumpState : PlayerBaseState
     public override void Enter()
     {
         if (player.Anim != null)
-            player.Anim.SetTrigger("Jump");
+            player.Anim.SetTrigger(AnimParams.Jump);
 
         // [LAN] 트리거는 값이 남지 않아 폴링할 수 없다 — 여기서 직접 알린다(소유자만 전송)
         if (player.Visual != null)
@@ -35,6 +35,6 @@ public class PlayerJumpState : PlayerBaseState
     public override void Exit()
     {
         if (player.Anim != null)
-            player.Anim.ResetTrigger("Jump");
+            player.Anim.ResetTrigger(AnimParams.Jump);
     }
 }

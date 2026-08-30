@@ -14,11 +14,16 @@ namespace JellyNet
         [Tooltip("호스트 재검증 시 사거리에 곱하는 여유. 지연을 감안해 넉넉히.")]
         public float rangeTolerance = 1.6f;
 
-        //배트 수치는 DataManager 하나에서만 온다. 예전엔 인스펙터 사본이 따로 있어
-        //둘이 벌어지면서 밀치기 힘이 의도의 절반만 나오는 일이 있었다
-        private static float BatRange   => DataManager.Instance != null ? DataManager.Instance.BatRange : 1.6f;
-        private static float BatPushForce => DataManager.Instance != null ? DataManager.Instance.BatPushForce : 8f;
-        private static float BatHitGrowth => DataManager.Instance != null ? DataManager.Instance.BatHitGrowth : 0.06f;
+        // ★ 폴백 리터럴을 두지 않는다 — 그게 두 번째 출처였다
+        //   "DataManager 하나에서만 온다"고 적어둔 바로 아래에 이런 게 있었다:
+        //       BatRange      : 1.6f   (DataManager의 실제 기본값 2.0)
+        //       BatPushForce  : 8f     (실제 18)
+        //       BatHitGrowth  : 0.06f  (실제 0.08)
+        //   값이 <b>서로 달랐다.</b> DataManager가 없는 판에서는 아무도 모르게
+        //   절반 가까운 힘으로 게임이 굴러갔을 것이다.
+        //
+        //   DataManager는 두 게임 씬에 모두 배치돼 있다. 없다면 배선 사고이므로,
+        //   엉뚱한 숫자로 진행하기보다 판정을 접고 로그를 남기는 게 맞다.
 
         [Header("점수")]
         [Tooltip("밀치기에 성공할 때마다 얻는 점수.")]
@@ -110,18 +115,26 @@ namespace JellyNet
             if (NetEntity.IsJelly(victim))
                 return;
 
+            DataManager rules = DataManager.Instance;
+
+            if (rules == null)
+            {
+                Debug.LogError("[밀치기] DataManager가 없어 판정을 접습니다 — 씬 배선을 확인하세요.");
+                return;
+            }
+
             float aScale = NetEntity.ScaleOf(attacker);
             float vScale = NetEntity.ScaleOf(victim);
 
-            if (!judgement.WithinReach((BatRange * aScale + vScale) * rangeTolerance))
+            if (!judgement.WithinReach((rules.BatRange * aScale + vScale) * rangeTolerance))
                 return;
 
-            float startScale = DataManager.Instance != null ? DataManager.Instance.StartingScale : 1f;
-            float force = BatPushForce * (aScale / Mathf.Max(0.01f, startScale));
+            //밀치기 힘은 '기준 크기의 몇 배인가'로 정한다. 기준은 플레이어 프리팹의 크기다
+            float force = rules.BatPushForce * (aScale / Mathf.Max(0.01f, NetEntity.BaselineScale));
 
             SendKnockback(victim, judgement.DirectionToTarget(), force);
 
-            float growth = BatHitGrowth / Mathf.Max(aScale, 1f);
+            float growth = rules.BatHitGrowth / Mathf.Max(aScale, 1f);
 
             NetWorld.Instance.BroadcastGrow(attackerNetId, GrowKind.BatHit, growth);
 

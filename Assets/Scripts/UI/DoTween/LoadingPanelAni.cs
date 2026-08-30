@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using UnityEngine;
 
 public class LoadingPanelAni : MonoBehaviour
@@ -9,11 +9,11 @@ public class LoadingPanelAni : MonoBehaviour
     [SerializeField] private GameObject mainMenuPanel;   // MainMenuPanel
 
     [Header("Timing")]
-    [SerializeField] private float loadingSeconds = 2.5f; // 2~3ÃÊ
+    [SerializeField] private float loadingSeconds = 2.5f; // 2~3ì´ˆ
 
     [Header("Options")]
     [SerializeField] private bool playOnStart = true;
-    [SerializeField] private bool allowMouseClick = true; // false¸é Å°º¸µå¸¸
+    [SerializeField] private bool allowMouseClick = true; // falseë©´ í‚¤ë³´ë“œë§Œ
 
     private bool fired;
     private Coroutine routine;
@@ -53,17 +53,17 @@ public class LoadingPanelAni : MonoBehaviour
 
     private IEnumerator CoSwitchFlow()
     {
-        // 1) ·Îµù ÆĞ³Î ÄÑ±â
+        // 1) ë¡œë”© íŒ¨ë„ ì¼œê¸°
         if (loadingPanel != null)
             loadingPanel.SetActive(true);
 
-        // 2) È¦µå ±¸°£ µ¿¾È(=·Îµù Áß) AnyKey´Â ²ô°í MainMenu´Â ÄÑ±â
+        // 2) í™€ë“œ êµ¬ê°„ ë™ì•ˆ(=ë¡œë”© ì¤‘) AnyKeyëŠ” ë„ê³  MainMenuëŠ” ì¼œê¸°
         if (anyKeyPanel != null)
             anyKeyPanel.SetActive(false);
         if (mainMenuPanel != null)
             mainMenuPanel.SetActive(true);
 
-        // 3) ÁöÁ¤ ½Ã°£ ´ë±â (Å¸ÀÓ½ºÄÉÀÏ ¹«½Ã)
+        // 3) ì§€ì • ì‹œê°„ ëŒ€ê¸° (íƒ€ì„ìŠ¤ì¼€ì¼ ë¬´ì‹œ)
         float t = 0f;
         while (t < loadingSeconds)
         {
@@ -71,7 +71,7 @@ public class LoadingPanelAni : MonoBehaviour
             yield return null;
         }
 
-        // 4) ·Îµù ÆĞ³Î ²ô±â (¸ŞÀÎ¸Ş´º´Â ±×´ë·Î)
+        // 4) ë¡œë”© íŒ¨ë„ ë„ê¸° (ë©”ì¸ë©”ë‰´ëŠ” ê·¸ëŒ€ë¡œ)
         if (loadingPanel != null)
             loadingPanel.SetActive(false);
 

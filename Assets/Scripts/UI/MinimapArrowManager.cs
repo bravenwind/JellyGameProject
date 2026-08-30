@@ -105,7 +105,7 @@ public class MinimapArrowManager : MonoBehaviour
     //예전엔 한 줄로 이어 붙여서 태그가 없으면 여기서 NullReference가 났다
     private void BindMinimapCamera(Transform target)
     {
-        GameObject cam = GameObject.FindGameObjectWithTag("MinimapCamera");
+        GameObject cam = GameObject.FindGameObjectWithTag(GameTags.MinimapCamera);
         if (cam == null)
             return;
 

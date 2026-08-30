@@ -119,7 +119,7 @@ namespace JellyNet
                     PlayerScaleController psc = id.GetComponentInChildren<PlayerScaleController>(true);
                     PlayerColorVisual pcv = id.GetComponentInChildren<PlayerColorVisual>(true);
                     Animator anim = vis.Anim;
-                    s.AppendLine("      LanPlayerVisual 있음  ScaleCtrl:" + (psc == null ? "★없음" : psc.currentScaleValue.ToString("F2"))
+                    s.AppendLine("      LanPlayerVisual 있음  ScaleCtrl:" + (psc == null ? "★없음" : psc.CurrentScaleValue.ToString("F2"))
                                  + "  ColorVisual:" + (pcv == null ? "★없음" : "ok")
                                  + "  Animator:" + (anim == null ? "★없음" : "ok"));
                 }

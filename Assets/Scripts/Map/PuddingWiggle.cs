@@ -9,10 +9,10 @@ public class PuddingWiggle : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag("PlayerMesh"))
+        if (!other.CompareTag(GameTags.PlayerMesh))
             return;
 
         if (puddingAnimator != null)
-            puddingAnimator.SetTrigger("Wiggle");
+            puddingAnimator.SetTrigger(AnimParams.Wiggle);
     }
 }

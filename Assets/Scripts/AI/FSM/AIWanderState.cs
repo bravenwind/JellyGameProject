@@ -32,7 +32,7 @@ public class AIWanderState : AIBaseState
         hasTarget = false;
         retryTimer = 0f;
         ResetStuck();
-        ai.Agent.speed = ai.MoveSpeed * 0.9f;
+        ai.ApplyStateSpeed(0.9f);
         ai.Agent.stoppingDistance = 0.2f; // 배회 목적지에 약간의 여유를 줌 (Jitter 방지)
     }
 

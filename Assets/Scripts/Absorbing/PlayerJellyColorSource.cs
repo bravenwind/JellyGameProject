@@ -1,32 +1,20 @@
 using UnityEngine;
-using DG.Tweening;
 
 public class PlayerJellyColorSource : JellyColorSource
 {
+    // â˜… ì—¬ê¸°ì„œ ìƒ‰ì„ ì •í•˜ì§€ ì•ŠëŠ”ë‹¤
+    //   í°ìƒ‰ìœ¼ë¡œ ì‹œìž‘í•´ë‘ê¸°ë§Œ í•˜ê³ , ì‹¤ì œ ìƒ‰ì€ ì ¤ë¦¬ë¥¼ ë¨¹ì„ ë•Œ
+    //   PlayerColorVisualì´ RYB ëˆ„ì ì¹˜ë¡œ ì¹ í•œë‹¤.
+    //
+    //   ì˜ˆì „ì—” DataManager.initialColorSetì—ì„œ ë¨¸í‹°ë¦¬ì–¼ê³¼ ìƒ‰ì„ ê°€ì ¸ì˜¤ëŠ” ì½”ë“œê°€
+    //   ì£¼ì„ìœ¼ë¡œ ë‚¨ì•„ ìžˆì—ˆë‹¤. ê·¸ í•„ë“œëŠ” ì´ë¯¸ ì—†ì–´ì§„ ì§€ ì˜¤ëž˜ë‹¤.
     protected override void Start()
     {
         base.Start();
-        //rend.material = DataManager.Instance.initialColorSet.colorMaterial;
-        //jellyColor = DataManager.Instance.initialColorSet.normal;
+
         jellyColor = Color.white;
-        rend.material.SetColor("_Emission", jellyColor);
+        rend.material.SetColor(EmissionId, jellyColor);
     }
 
-    //private void Update()
-    //{
-    //    if (Input.GetKeyDown(KeyCode.P))
-    //    {
-    //        // Ä«¸Þ¶ó°¡ 0.5ÃÊ µ¿¾È, °­µµ 1·Î, ¸¶±¸ Èçµé¸³´Ï´Ù (ÁöÁø/Ãæµ¹ È¿°ú)
-    //        //Camera.main.transform.DOShakePosition(1.0f, 1f);
-
-    //        //È¸Àü±îÁö °°ÀÌ Èçµé¸é ´õ ¾îÁö·¯¿î ´À³¦(Æø¹ß/ È¥¶õ)
-    //        Camera.main.transform.DOShakeRotation(0.5f, 30f);
-
-    //        //Camera.main.DOFieldOfView(100f, 0.3f).OnComplete(() =>
-    //        //{
-    //        //    // ´Ù »¡·Á µé¾î°¡¸é ´Ù½Ã ¿ø·¡´ë·Î(60) º¹±¸
-    //        //    Camera.main.DOFieldOfView(60f, 0.1f);
-    //        //});
-    //    }
-    //}
+    private static readonly int EmissionId = Shader.PropertyToID("_Emission");
 }

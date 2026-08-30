@@ -1,7 +1,17 @@
 ﻿using UnityEngine;
 using JellyNet;
 
+// ★ 이 캐릭터의 Rigidbody는 물리로 움직이기 위한 것이 아니다
+//   CharacterController는 Rigidbody 물리를 <b>완전히 무시한다.</b> 그런데도 프리팹에
+//   kinematic Rigidbody가 붙어 있는 이유는 두 가지다.
+//     ① 트리거 콜백 — 두 콜라이더가 다 Rigidbody 없이 정적이면 유니티가 OnTrigger를 안 보낸다
+//     ② ChocolateFluid 등이 other.attachedRigidbody 로 대상을 잡는다
+//   즉 '움직이는 물체'라는 표시이자 수신 장치다. 지우면 흡수·초콜릿·밀크가 조용히 죽는다.
+//
+//   탈락해서 떨어질 때만 이 Rigidbody가 실제로 물리에 참여한다
+//   (LanPlayerState.BeginPhysicsFall → PhysicsFall.Begin).
 [RequireComponent(typeof(CharacterController))]
+[RequireComponent(typeof(Rigidbody))]
 public class PlayerMovement : MonoBehaviour
 {   
     [Header("Player Settings")]
@@ -10,7 +20,9 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float rotateSpeed = 10.0f;
 
     [Header("Physics")]
-    [SerializeField] private float jumpForce = 7.5f;
+    // ★ 인스펙터에 내보내지 않는다 — Start에서 originalJumpForce로 무조건 덮어쓴다
+    //   조절할 값은 아래 originalJumpForce 하나뿐이고, 이건 그로부터 파생되는 현재값이다
+    private float jumpForce;
     public float JumpForce { get { return jumpForce; } set { jumpForce = value; } }
     [SerializeField] private float originalJumpForce = 10.0f;
     public float OriginalJumpForce { get { return originalJumpForce; } }

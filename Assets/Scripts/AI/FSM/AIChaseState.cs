@@ -18,7 +18,7 @@ public class AIChaseState : AIBaseState
         pathTimer = CHASE_PATH_RATE;   //진입 즉시 경로 계산
         reassessTimer = 0f;
         ResetStuck();
-        ai.Agent.speed = ai.MoveSpeed;
+        ai.ApplyStateSpeed();
         ai.Agent.stoppingDistance = 0f;
     }
 

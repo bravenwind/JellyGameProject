@@ -137,7 +137,7 @@ public class GameResultManager : MonoBehaviour
         {
             var camGO = new GameObject("ResultCamera");
             resultCamera = camGO.AddComponent<Camera>();
-            resultCamera.tag = "MainCamera";
+            resultCamera.tag = GameTags.MainCamera;
         }
 
         brain = resultCamera.GetComponent<CinemachineBrain>();
@@ -270,7 +270,6 @@ public class GameResultManager : MonoBehaviour
         DestroyAll<WanderingAI>(root);
         DestroyAll<PlayerMovement>(root);
         DestroyAll<PlayerAbsorber>(root);
-        DestroyAll<PlayerAbsorbingManager>(root);
         DestroyAll<PlayerBridge>(root);
         DestroyAll<BotBridge>(root);
         DestroyAll<NavMeshAgent>(root);
@@ -441,7 +440,7 @@ public class GameResultManager : MonoBehaviour
                 yield return new WaitForSeconds(0.5f);
                 Animator playerAnimator = jellies[i].GetComponentInChildren<Animator>();
                 if (playerAnimator != null)
-                    playerAnimator.SetTrigger("Jump");
+                    playerAnimator.SetTrigger(AnimParams.Jump);
             }
 
             // 블렌드 시간 + 머무는 시간

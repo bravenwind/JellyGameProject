@@ -1,4 +1,4 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,7 +7,7 @@ public class GameQuit : MonoBehaviour
     public void QuitGame()
     {
         PlaySFXAudio.Instance.PlayButtonClickSound();
-        Debug.Log("°ÔÀÓ Á¾·á");
+        Debug.Log("ê²Œìž„ ì¢…ë£Œ");
         Application.Quit();
     }
 }

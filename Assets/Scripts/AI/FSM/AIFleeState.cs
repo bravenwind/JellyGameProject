@@ -20,7 +20,7 @@ public class AIFleeState : AIBaseState
     public override void Enter()
     {
         // 속도는 플레이어와 동일(moveSpeed) 유지(부스트 제거). 급한 회피는 대쉬로 처리한다.
-        ai.Agent.speed = ai.MoveSpeed;
+        ai.ApplyStateSpeed();
         ai.Agent.stoppingDistance = 0f;
         pathTimer = FLEE_PATH_RATE; // 진입 즉시 경로 계산
         ResetStuck();
@@ -104,7 +104,7 @@ public class AIFleeState : AIBaseState
 
     public override void Exit()
     {
-        ai.Agent.speed = ai.MoveSpeed; // 속도 복원
+        ai.ApplyStateSpeed(); // 속도 복원
         ai.Agent.stoppingDistance = 0f; // 기본값 복원
         pathTimer = 0f;
     }

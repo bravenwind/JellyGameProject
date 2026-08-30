@@ -19,7 +19,18 @@ namespace JellyNet
 
         public static Result Build(NetIdentity winner)
         {
+            //순위표는 살아남은 쪽만 세운다 — 밀치기는 마지막 한 명이 우승자다
             List<LanScoreboard.Entry> entries = LanScoreboard.Collect();
+
+            // ★ 안전망: 생존자가 0명이면 탈락자까지 넣는다
+            //   원칙은 '마지막 한 명은 탈락시키지 않는다'(LanGameFlow가 보장)이므로
+            //   여기 걸릴 일이 없어야 한다. 그래도 걸리면 결과 화면이 통째로 비므로,
+            //   빈 화면 대신 탈락자 순위라도 보여준다.
+            if (entries.Count == 0)
+            {
+                Debug.LogWarning("[LanStandings] 생존자가 없습니다 — 탈락자 순위로 대체합니다.");
+                entries = LanScoreboard.Collect(includeDead: true);
+            }
 
             if (winner == null && entries.Count > 0)
                 winner = Find(entries[0].netId);

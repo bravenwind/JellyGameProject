@@ -53,7 +53,15 @@ namespace JellyNet
         public const byte ANIM_ATTACK = 3;
         public const byte ANIM_HIT = 4;
 
-        private static readonly string[] TriggerNames = { "", "Jump", "Dash", "Attack", "Hit" };
+        //ANIM_* 코드 순서와 짝이다. 이름은 GameTags 쪽 상수를 쓴다
+        private static readonly int[] TriggerHashes =
+        {
+            0,
+            AnimParams.Jump,
+            AnimParams.Dash,
+            AnimParams.Attack,
+            AnimParams.Hit
+        };
 
         private bool lastMoving;
 
@@ -67,7 +75,7 @@ namespace JellyNet
                 return;
             animTimer = 0f;
 
-            bool moving = animator.GetBool("IsMoving");
+            bool moving = animator.GetBool(AnimParams.IsMoving);
             if (moving == lastMoving)
                 return;
             lastMoving = moving;
@@ -113,12 +121,12 @@ namespace JellyNet
 
             if (kind == ANIM_IS_MOVING)
             {
-                animator.SetBool("IsMoving", value != 0);
+                animator.SetBool(AnimParams.IsMoving, value != 0);
                 return;
             }
 
-            if (kind < TriggerNames.Length)
-                animator.SetTrigger(TriggerNames[kind]);
+            if (kind > 0 && kind < TriggerHashes.Length)
+                animator.SetTrigger(TriggerHashes[kind]);
 
             if (kind == ANIM_ATTACK)
                 PlayBatSwing();
@@ -219,7 +227,8 @@ namespace JellyNet
 
         public float ScaleValue
         {
-            get { return scaleController != null ? scaleController.currentScaleValue : 1f; }
+            //폴백은 프리팹 크기다(1f가 아니다) — 자세한 이유는 LanPlayerState.ScaleValue 참고
+            get { return scaleController != null ? scaleController.CurrentScaleValue : transform.localScale.x; }
         }
 
         private bool absorbedPlaying;

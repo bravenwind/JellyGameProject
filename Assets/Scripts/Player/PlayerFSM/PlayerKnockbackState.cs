@@ -17,7 +17,7 @@ public class PlayerKnockbackState : PlayerBaseState
     {
         elapsed = 0f;
         if (player.Anim != null)
-            player.Anim.SetTrigger("Hit");
+            player.Anim.SetTrigger(AnimParams.Hit);
 
         // [LAN] 원격 화면에도 피격 애니메이션이 보이도록 알린다
         if (player.Visual != null)
@@ -48,6 +48,6 @@ public class PlayerKnockbackState : PlayerBaseState
     {
         knockVelocity = Vector3.zero;
         if (player.Anim != null)
-            player.Anim.ResetTrigger("Hit");
+            player.Anim.ResetTrigger(AnimParams.Hit);
     }
 }

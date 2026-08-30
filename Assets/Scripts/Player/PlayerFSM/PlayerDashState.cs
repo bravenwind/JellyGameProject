@@ -19,7 +19,7 @@ public class PlayerDashState : PlayerBaseState
         player.StartDashCooldown();
 
         if (player.Anim != null)
-            player.Anim.SetTrigger("Dash");
+            player.Anim.SetTrigger(AnimParams.Dash);
 
         // [LAN] 원격 화면에도 대쉬 애니메이션이 보이도록 알린다
         if (player.Visual != null)
@@ -49,6 +49,6 @@ public class PlayerDashState : PlayerBaseState
     public override void Exit()
     {
         if (player.Anim != null)
-            player.Anim.ResetTrigger("Dash");
+            player.Anim.ResetTrigger(AnimParams.Dash);
     }
 }

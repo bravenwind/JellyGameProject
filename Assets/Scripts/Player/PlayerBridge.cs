@@ -3,14 +3,14 @@ using JellyNet;
 
 public class PlayerBridge : MonoBehaviour
 {
-    private PlayerScaleController scaleCtrl;
+    private PlayerScaleController scaleController;
     private PlayerColorVisual colorVisual;
     private PlayerAbsorber absorber;
-    private PlayerMovement playerController;
-    private LevelUpFloaterPool levelUpPool;
+    private PlayerMovement movement;
+    private LevelUpFloaterPool levelUpFloaterPool;
 
     // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
-    // PlayerScaleController.Start는 소유 무관하게 OnScaleInit을 발화한다. 아래 핸들러들이 전역 정적
+    // PlayerScaleController.Start는 소유 무관하게 OnScaleSettled를 발화한다. 아래 핸들러들이 전역 정적
     // GameState(PlayerCurrentScale/색 — 클라당 1개)를 쓰므로, 원격 플레이어 스폰마다
     // 로컬 HUD/동기화 색이 남의 값으로 오염됐다. 소유자일 때만 전역 상태를 쓰도록 가드한다.
     // 소유자 판정은 NetIdentity 기준이다.
@@ -43,31 +43,28 @@ public class PlayerBridge : MonoBehaviour
     private void Awake()
     {
         netId = GetComponentInParent<NetIdentity>();
-        scaleCtrl = GetComponentInChildren<PlayerScaleController>();
+        scaleController = GetComponentInChildren<PlayerScaleController>();
         colorVisual = GetComponentInChildren<PlayerColorVisual>();
         absorber = GetComponentInChildren<PlayerAbsorber>();
-        playerController = GetComponentInChildren<PlayerMovement>();
+        movement = GetComponentInChildren<PlayerMovement>();
 
         // 풀(컨테이너)이 프리팹에 있으면 사용, 없으면 동적 생성
-        levelUpPool = GetComponentInChildren<LevelUpFloaterPool>();
-        if (levelUpPool == null)
+        levelUpFloaterPool = GetComponentInChildren<LevelUpFloaterPool>();
+        if (levelUpFloaterPool == null)
         {
             var go = new GameObject("LevelUpFloaterPool");
             go.transform.SetParent(transform, false);
-            levelUpPool = go.AddComponent<LevelUpFloaterPool>();
+            levelUpFloaterPool = go.AddComponent<LevelUpFloaterPool>();
         }
     }
 
     private void OnEnable()
     {
-        if (scaleCtrl != null)
+        if (scaleController != null)
         {
-            scaleCtrl.OnScaleInit += HandleScaleInit;
-            scaleCtrl.OnGrowStarted += HandleGrowStarted;
-            scaleCtrl.OnShrinkStarted += HandleShrinkStarted;
-            scaleCtrl.OnScaleThresholdUp += HandleScaleThresholdUp;
-            scaleCtrl.OnScaleThresholdDown += HandleScaleThresholdDown;
-            scaleCtrl.OnScaleCompleted += HandleScaleCompleted;
+            scaleController.OnGrowStarted += HandleGrowStarted;
+            scaleController.OnScaleThresholdUp += HandleScaleThresholdUp;
+            scaleController.OnScaleSettled += HandleScaleSettled;
         }
 
         if (colorVisual != null)
@@ -79,14 +76,11 @@ public class PlayerBridge : MonoBehaviour
 
     private void OnDisable()
     {
-        if (scaleCtrl != null)
+        if (scaleController != null)
         {
-            scaleCtrl.OnScaleInit -= HandleScaleInit;
-            scaleCtrl.OnGrowStarted -= HandleGrowStarted;
-            scaleCtrl.OnShrinkStarted -= HandleShrinkStarted;
-            scaleCtrl.OnScaleThresholdUp -= HandleScaleThresholdUp;
-            scaleCtrl.OnScaleThresholdDown -= HandleScaleThresholdDown;
-            scaleCtrl.OnScaleCompleted -= HandleScaleCompleted;
+            scaleController.OnGrowStarted -= HandleGrowStarted;
+            scaleController.OnScaleThresholdUp -= HandleScaleThresholdUp;
+            scaleController.OnScaleSettled -= HandleScaleSettled;
         }
 
         if (colorVisual != null)
@@ -98,65 +92,58 @@ public class PlayerBridge : MonoBehaviour
 
     // ── Scale ──
 
-    private void HandleScaleInit(float scaleValue)
-    {
-        if (!IsLocalOwner)
-            return; // [W6] 원격 아바타는 전역 GameState/HUD를 건드리지 않는다
-        GameState.PlayerCurrentScale = scaleValue;
-    }
-
     private void HandleGrowStarted(bool playEffect)
     {
-        if (playEffect)
-        {
-            if (PlaySFXAudio.Instance != null)
-            {
-                PlaySFXAudio.Instance.PlayScaleUpSound();
-                if (GameState.CurrentGameMode == GameModeType.Absorb)
-                    PlaySFXAudio.Instance.PlayColorMixSound();
-            }
-            if (levelUpPool != null)
-                levelUpPool.Play();
-        }
-    }
+        if (!playEffect)
+            return;
 
-    private void HandleShrinkStarted()
-    {
-        if (UIPoolManager.Instance != null)
-            UIPoolManager.Instance.SpawnUI(UIType.MilkScaleDecrease);
+        //'Level Up!' 팝업은 그 캐릭터 머리 위에 뜨는 월드 연출이라 남의 것도 보여준다
+        if (levelUpFloaterPool != null)
+            levelUpFloaterPool.Play();
+
+        // ★ 효과음은 내 캐릭터일 때만
+        //   [W6] 가드가 다른 핸들러에는 다 있는데 여기만 빠져 있었다.
+        //   PlayerBridge는 원격 아바타에도 붙으므로, 남이 커질 때마다 내 스피커에서
+        //   소리가 났다. 봇을 흡수하면 흡수자가 크게 자라(GrowByAbsorbing) 그 소리가
+        //   양쪽 화면에서 겹쳐 들렸다.
+        //   젤리는 GrowByJelly가 playEffect: false 로 묶어 보내서 티가 안 났을 뿐이다.
+        if (!IsLocalOwner)
+            return;
+
+        if (PlaySFXAudio.Instance == null)
+            return;
+
+        PlaySFXAudio.Instance.PlayScaleUpSound();
+
+        if (GameState.CurrentGameMode == GameModeType.Absorb)
+            PlaySFXAudio.Instance.PlayColorMixSound();
     }
 
     // [LAN 이식] IsLocalOwner 가드 추가.
-    //   PlayerEvents.OnCameraScale*는 static이라, 원격 캐릭터가 커져도
-    //   내 카메라가 함께 줌되는 문제가 있었다. HandleScaleCompleted에는 이미
-    //   같은 가드가 있었는데(W6) 이 둘만 빠져 있었다.
+    //   GameState.OnCameraScaleIncreased는 static이라, 원격 캐릭터가 커져도
+    //   내 카메라가 함께 줌되는 문제가 있었다. HandleScaleSettled에는 이미
+    //   같은 가드가 있었는데(W6) 여기만 빠져 있었다.
     private void HandleScaleThresholdUp()
     {
         if (!IsLocalOwner)
             return;
-        PlayerEvents.OnCameraScaleIncreased?.Invoke();
+        GameState.OnCameraScaleIncreased?.Invoke();
     }
 
-    private void HandleScaleThresholdDown()
+    /// <summary>크기가 확정됐다 — 스폰 직후든 성장이 끝난 뒤든 같은 처리를 한다.</summary>
+    private void HandleScaleSettled(float scaleValue)
     {
         if (!IsLocalOwner)
-            return;
-        PlayerEvents.OnCameraScaleDecreased?.Invoke();
-    }
-
-    private void HandleScaleCompleted(float scaleValue)
-    {
-        if (!IsLocalOwner)
-            return; // [W6] 원격 아바타의 성장 완료가 로컬 전역 상태를 오염시키지 않게
-        if (playerController != null)
+            return; // [W6] 원격 아바타가 로컬 전역 상태를 오염시키지 않게
+        if (movement != null)
         {
-            playerController.JumpForce = scaleValue >= DataManager.Instance.JumpScaleThreshold
-                ? playerController.OriginalJumpForce + DataManager.Instance.IncreaseJumpForceValue
-                : playerController.OriginalJumpForce;
+            movement.JumpForce = scaleValue >= DataManager.Instance.JumpScaleThreshold
+                ? movement.OriginalJumpForce + DataManager.Instance.IncreaseJumpForceValue
+                : movement.OriginalJumpForce;
         }
         GameState.PlayerCurrentScale = scaleValue;
 
-        GameState.CurrentScore = DataManager.Instance.ScoreFromScale(scaleValue);
+        GameState.CurrentScore = NetEntity.ScoreFromScale(scaleValue);
     }
 
     // ── Color ──
@@ -179,15 +166,19 @@ public class PlayerBridge : MonoBehaviour
             return;
 
         var dm = DataManager.Instance;
-        float predictedScale = scaleCtrl != null
-            ? scaleCtrl.PendingScale
+        float predictedScale = scaleController != null
+            ? scaleController.PendingScale
             : GameState.PlayerCurrentScale + dm.JellyScaleIncrease;
-        GameState.CurrentScore = dm.ScoreFromScale(predictedScale);
+        
+        GameState.CurrentScore = NetEntity.ScoreFromScale(predictedScale);
+
         if (UIPoolManager.Instance != null)
             UIPoolManager.Instance.SpawnUI(UIType.JellyEat);
+        
         if (PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.PlayColorMixSound();
-        if (levelUpPool != null)
-            levelUpPool.Play();
+        
+        if (levelUpFloaterPool != null)
+            levelUpFloaterPool.Play();
     }
 }

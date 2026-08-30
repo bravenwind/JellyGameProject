@@ -1,38 +1,38 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class TopDownCameraFollow : MonoBehaviour
 {
-    [Header("ÃßÀû ´ë»ó ¼³Á¤")]
-    [Tooltip("µû¶ó´Ù´Ò ÇÃ·¹ÀÌ¾î °´Ã¼¸¦ ¿¬°áÇÏ¼¼¿ä.")]
+    [Header("ì¶”ì  ëŒ€ìƒ ì„¤ì •")]
+    [Tooltip("ë”°ë¼ë‹¤ë‹ í”Œë ˆì´ì–´ ê°ì²´ë¥¼ ì—°ê²°í•˜ì„¸ìš”.")]
     [SerializeField] private Transform target;
     public Transform Target { get { return target; } set { target = value; } }
 
-    [Header("Ä«¸Ş¶ó À§Ä¡ ¼³Á¤")]
-    [Tooltip("ÇÃ·¹ÀÌ¾î¿Í Ä«¸Ş¶ó »çÀÌÀÇ °Å¸® (Y°ªÀ» ³ôÀÏ¼ö·Ï ´õ À§¿¡¼­ º¸°Ô µË´Ï´Ù)")]
-    [SerializeField] private Vector3 offset = new Vector3(0f, 25f, -10f); // Y: 25(³ôÀÌ), Z: -10(µÚÂÊ)
+    [Header("ì¹´ë©”ë¼ ìœ„ì¹˜ ì„¤ì •")]
+    [Tooltip("í”Œë ˆì´ì–´ì™€ ì¹´ë©”ë¼ ì‚¬ì´ì˜ ê±°ë¦¬ (Yê°’ì„ ë†’ì¼ìˆ˜ë¡ ë” ìœ„ì—ì„œ ë³´ê²Œ ë©ë‹ˆë‹¤)")]
+    [SerializeField] private Vector3 offset = new Vector3(0f, 25f, -10f); // Y: 25(ë†’ì´), Z: -10(ë’¤ìª½)
 
-    [Header("Ä«¸Ş¶ó ÀÌµ¿ ¼³Á¤")]
-    [Tooltip("Ä«¸Ş¶ó°¡ µû¶ó°¡´Â ¼Óµµ (°ªÀÌ ³·À»¼ö·Ï ¹«°Ì°í ºÎµå·´°Ô µû¶ó°¨)")]
+    [Header("ì¹´ë©”ë¼ ì´ë™ ì„¤ì •")]
+    [Tooltip("ì¹´ë©”ë¼ê°€ ë”°ë¼ê°€ëŠ” ì†ë„ (ê°’ì´ ë‚®ì„ìˆ˜ë¡ ë¬´ê²ê³  ë¶€ë“œëŸ½ê²Œ ë”°ë¼ê°)")]
     [Range(1f, 10f)]
     public float smoothSpeed = 5f;
 
     private void LateUpdate()
     {
-        // Å¸°ÙÀÌ ¾øÀ¸¸é ½ÇÇàÇÏÁö ¾ÊÀ½
+        // íƒ€ê²Ÿì´ ì—†ìœ¼ë©´ ì‹¤í–‰í•˜ì§€ ì•ŠìŒ
         if (target == null)
             return;
 
-        // 1. Ä«¸Ş¶ó°¡ ÀÌµ¿ÇØ¾ß ÇÒ ¸ñÇ¥ À§Ä¡ °è»ê
+        // 1. ì¹´ë©”ë¼ê°€ ì´ë™í•´ì•¼ í•  ëª©í‘œ ìœ„ì¹˜ ê³„ì‚°
         Vector3 desiredPosition = target.position + offset;
 
-        // 2. ÇöÀç À§Ä¡¿¡¼­ ¸ñÇ¥ À§Ä¡·Î ºÎµå·´°Ô º¸°£(Lerp)
+        // 2. í˜„ì¬ ìœ„ì¹˜ì—ì„œ ëª©í‘œ ìœ„ì¹˜ë¡œ ë¶€ë“œëŸ½ê²Œ ë³´ê°„(Lerp)
         Vector3 smoothedPosition = Vector3.Lerp(
             transform.position, desiredPosition, SmoothDamping.Factor(smoothSpeed, Time.deltaTime));
 
-        // 3. Ä«¸Ş¶ó À§Ä¡ Àû¿ë
+        // 3. ì¹´ë©”ë¼ ìœ„ì¹˜ ì ìš©
         transform.position = smoothedPosition;
 
-        // 4. (Áß¿ä) ¾ÆÁÖ À§¿¡¼­ ³»·Á´Ùº¸¹Ç·Î, Ç×»ó ÇÃ·¹ÀÌ¾î¸¦ ÇâÇØ È¸ÀüÇÏµµ·Ï ¼³Á¤
+        // 4. (ì¤‘ìš”) ì•„ì£¼ ìœ„ì—ì„œ ë‚´ë ¤ë‹¤ë³´ë¯€ë¡œ, í•­ìƒ í”Œë ˆì´ì–´ë¥¼ í–¥í•´ íšŒì „í•˜ë„ë¡ ì„¤ì •
         //
         //transform.LookAt(target);
     }
