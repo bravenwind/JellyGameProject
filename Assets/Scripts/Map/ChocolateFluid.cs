@@ -46,7 +46,7 @@ public class ChocolateFluid : MonoBehaviour
     [SerializeField] private float floatingLifetime = 5f;
 
     [Header("디버그")]
-    [SerializeField] private bool debugLogTriggers = true;
+    [SerializeField] private bool debugLogTriggers = false;
 
     // ═══════════════════════════════════════════════════════════
     //  수면 높이 — transform.position.y가 아니다
@@ -73,9 +73,6 @@ public class ChocolateFluid : MonoBehaviour
         waterBox = GetComponent<BoxCollider>();
     }
 
-    // OnTriggerEnter에서 이미 물리 설정 완료된 Rigidbody 캐싱 (Stay에서 중복 GetComponent 방지)
-    private readonly HashSet<Rigidbody> processedBodies = new HashSet<Rigidbody>();
-
     private struct FloatData
     {
         public float phase;
@@ -83,9 +80,17 @@ public class ChocolateFluid : MonoBehaviour
         public float forceMul;
         public Vector2 flowOffset;
     }
-    private readonly Dictionary<Rigidbody, FloatData> floatData = new Dictionary<Rigidbody, FloatData>();
 
-    private const float PurgeInterval = 5f;
+    /// <summary>
+    /// 초콜릿에 들어온 몸과 그 몸의 출렁임 개성. <b>'초콜릿에 든 목록'이기도 하다.</b>
+    ///
+    /// ★ 예전엔 컬렉션이 둘이었다
+    ///   HashSet processedBodies가 '누가 들어와 있나'를, 이 Dictionary가 '어떻게 출렁이나'를
+    ///   따로 들고 있었다. 그런데 넣는 것도 빼는 것도 <b>항상 쌍으로</b> 일어나서
+    ///   내용이 언제나 같았다 — 같은 목록을 두 자료구조로 관리하고 있었던 셈이다.
+    ///   하나면 제거를 한 곳에서 하고, 짝이 어긋날 자리도 없어진다.
+    /// </summary>
+    private readonly Dictionary<Rigidbody, FloatData> floatData = new Dictionary<Rigidbody, FloatData>();
 
     /// <summary>
     /// 수면보다 이만큼 위로 올라와야 '초콜릿을 벗어났다'로 본다.
@@ -107,8 +112,6 @@ public class ChocolateFluid : MonoBehaviour
     ///   초콜릿 밖 허공에 굳는다. OnTriggerExit는 그 안전망으로만 남아 있다.
     /// </summary>
     private const float ReleaseMargin = 1f;
-
-    private float lastPurgeTime;
 
     /// <summary>
     /// 흐름·물결에 쓸 시간. 판이 돌고 있으면 호스트가 맞춰주는 경과 시간을,
@@ -133,65 +136,45 @@ public class ChocolateFluid : MonoBehaviour
         return new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
     }
 
-    private void OnTriggerStay(Collider other)
-    {
-        if (Time.time - lastPurgeTime >= PurgeInterval)
-        {
-            PurgeDestroyedEntries();
-            lastPurgeTime = Time.time;
-        }
-
-        Rigidbody rb = other.attachedRigidbody;
-        if (rb == null)
-            return;
-
-        // ★ 매 프레임 다시 확인한다 — 한 번 설정하고 끝내면 안 된다
-        //   사람은 초콜릿에 닿은 <b>뒤에</b> 탈락이 확정되고, 그때 PhysicsFall이
-        //   useGravity를 다시 켠다. 진입 시점에만 설정하면 그 한 번에 덮여
-        //   중력이 되살아나고 그대로 무한히 떨어진다.
-        //   여기서 계속 눌러주면 어느 순서로 와도 결국 물에 뜬다.
-        if (rb.useGravity || rb.isKinematic)
-        {
-            bool isEdible = other.CompareTag(GameTags.Edible);
-            int bgLayer = GameLayers.BackGroundObject;
-            bool isBackgroundObject = (bgLayer >= 0) &&
-                (rb.gameObject.layer == bgLayer || other.gameObject.layer == bgLayer);
-
-            //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다(GameTags.IsCharacterMainCollider 주석 참고).
-            //소품·젤리는 콜라이더가 하나뿐이라 그대로 통과한다
-            bool isCharacter = IsCharacter(rb);
-
-            if (isCharacter && !GameTags.IsCharacterMainCollider(other))
-                return;
-
-            if (isEdible || isBackgroundObject || isCharacter)
-                ApplyFloatPhysics(rb);
-        }
-
-        //힘은 여기서 주지 않는다 — 아래 FixedUpdate가 '초콜릿에 든 목록'을 보고 준다.
-        //이유는 FixedUpdate 주석 참고
-    }
+    // ★ OnTriggerStay는 없다 — 하던 일 둘 다 FixedUpdate로 옮겼다
+    //
+    //   ① 파괴된 항목 청소
+    //      특정 콜라이더와 아무 상관 없는 자기 장부 청소인데 콜라이더별 콜백에 있었다.
+    //      "뭔가 닿아 있어야만" 돌고, 캐릭터는 콜라이더가 둘이라 5초 타이머 검사가
+    //      프레임당 여러 번 돌았다. FixedUpdate는 이미 파괴된 항목을 만나는 자리
+    //      (rb == null)가 있어서 거기서 지우면 타이머 없이 즉시·정확해진다.
+    //
+    //   ② 물리 설정 재확인
+    //      다른 경로가 되돌려 놓을 수 있어 필요하긴 하다(JellyColliderAbsorb의
+    //      흡수 거부 복구가 중력을 켜고 클라에서 kinematic으로 되돌린다).
+    //      하지만 목록에 있다는 게 이미 자격이므로, 카테고리를 다시 판정할 이유도
+    //      대표 콜라이더를 가릴 이유도 없다. FixedUpdate에서 두 줄이면 끝이고,
+    //      트리거 밖으로 밀려난 몸까지 잡는다.
 
     // ─────────────────────────────────────────────────────────
     //  부력·흐름 — 트리거 체류가 아니라 '목록'을 기준으로
     // ─────────────────────────────────────────────────────────
     //
-    // ★ 예전엔 OnTriggerStay에서 힘을 줬다. 그런데 거의 안 불렸다
-    //   초콜릿 트리거는 <b>두께 0.11짜리 얇은 판</b>이다. 빠지는 물체는 한두 프레임 만에
-    //   판을 통과해 아래로 빠져나가고, 그 뒤로는 Stay가 오지 않는다.
+    // ★ 예전엔 OnTriggerStay에서 힘을 줬다. 그런데 필요한 순간에 안 불렸다
+    //   빠르게 떨어진 물체는 트리거를 뚫고 아래로 빠져나가고, 그 뒤로는 Stay가 오지 않는다.
     //   진입 순간 중력이 꺼져 있으니 감쇠로 속도만 죽고 <b>그 자리에 멈춰 선다.</b>
     //   "빠지긴 하는데 둥둥 떠다니지 않는다"의 정체였다.
     //
     //   그래서 '지금 트리거 안에 있는가'가 아니라 '초콜릿에 들어온 적이 있는가'로
-    //   기준을 바꿨다. 목록(processedBodies)에 든 동안은 계속 힘을 준다.
+    //   기준을 바꿨다. 목록(floatData)에 든 동안은 계속 힘을 준다.
     //   부력은 수면 아래일 때만 걸리므로, 통과해 내려간 물체도 수면까지 밀려 올라와
     //   거기서 출렁인다.
+    //
+    //   ※ 이 자리에 "트리거는 두께 0.11짜리 얇은 판"이라고 적혀 있었는데 사실이 아니다.
+    //     0.11은 스케일 적용 전 값이고, 실제 월드 크기는 510 × <b>5.5</b> × 322 m다.
+    //     (BoxCollider size 10.2 × 0.11 × 6.45 에 localScale 50이 곱해진다)
+    //     결론은 그대로지만 근거가 틀려 있으면 다음 사람이 잘못된 그림을 갖게 된다.
     //순회 중 목록이 바뀌어도(파괴·탈출) 터지지 않게 스냅샷을 재사용한다
     private readonly List<Rigidbody> floatingSnapshot = new List<Rigidbody>();
 
     private void FixedUpdate()
     {
-        if (processedBodies.Count == 0)
+        if (floatData.Count == 0)
             return;
 
         //떠 있을 때 원점이 머무는 높이. 여기를 기준으로 위아래 양쪽에서 되돌린다
@@ -201,20 +184,34 @@ public class ChocolateFluid : MonoBehaviour
         float t = SyncedTime;
 
         floatingSnapshot.Clear();
-        floatingSnapshot.AddRange(processedBodies);
+        floatingSnapshot.AddRange(floatData.Keys);
 
         for (int i = 0; i < floatingSnapshot.Count; i++)
         {
             Rigidbody rb = floatingSnapshot[i];
 
+            // ★ 파괴된 항목은 여기서 지운다 (예전엔 OnTriggerStay가 5초마다 훑었다)
+            //   유니티는 Destroy된 오브젝트를 '가짜 null'로 만든다 — ==는 null을 돌려주지만
+            //   C# 참조는 살아 있어서 이 키로 Remove하면 정상적으로 찾아 지운다.
+            //   스냅샷을 돌고 있으므로 원본을 건드려도 순회가 깨지지 않는다.
             if (rb == null)
-                continue;
-
-            if (!floatData.TryGetValue(rb, out FloatData fd))
             {
-                fd = CreateFloatData(rb);
-                floatData[rb] = fd;
+                floatData.Remove(rb);
+                continue;
             }
+
+            FloatData fd = floatData[rb];
+
+            // ★ 목록에 있는 동안은 물리 설정을 지킨다
+            //   진입 때 한 번만 설정하면 다른 경로가 되돌려 놓을 수 있다 —
+            //   흡수가 거부된 젤리는 JellyColliderAbsorb.RestoreToEdible이 중력을 켜고
+            //   (에이전트 없는 젤리) 클라에서는 kinematic으로 되돌린다. 그러면 초콜릿
+            //   속에서 가라앉거나 굳는다. 목록에 있다는 게 곧 자격이므로 조건은 필요 없다.
+            if (rb.isKinematic)
+                rb.isKinematic = false;
+
+            if (rb.useGravity)
+                rb.useGravity = false;
 
             // ═════════════════════════════════════════════
             //  부력은 스위치가 아니라 스프링이다
@@ -359,7 +356,10 @@ public class ChocolateFluid : MonoBehaviour
         //0.58m/s로 6초에 걸쳐 올라온다 — 그동안은 '가라앉아 안 보이는' 상태다
         rb.linearVelocity *= entrySpeedKeep;
 
-        processedBodies.Add(rb);
+        //목록에 넣으면서 출렁임 개성도 이때 정한다. 예전엔 첫 FixedUpdate에서 만들었는데,
+        //컬렉션이 하나가 되면서 '들어왔지만 개성이 아직 없는' 중간 상태가 사라졌다.
+        if (!floatData.ContainsKey(rb))
+            floatData[rb] = CreateFloatData(rb);
     }
 
     /// <summary>
@@ -458,7 +458,6 @@ public class ChocolateFluid : MonoBehaviour
 
         if (rb != null)
         {
-            processedBodies.Remove(rb);
             floatData.Remove(rb);
         }
 
@@ -475,27 +474,8 @@ public class ChocolateFluid : MonoBehaviour
             NetWorld.Instance.HostDespawn(id.NetId);
     }
 
-    private void PurgeDestroyedEntries()
-    {
-        processedBodies.RemoveWhere(rb => rb == null);
-
-        List<Rigidbody> staleKeys = null;
-        foreach (var kvp in floatData)
-        {
-            if (kvp.Key == null)
-            {
-                staleKeys ??= new List<Rigidbody>();
-                staleKeys.Add(kvp.Key);
-            }
-        }
-        if (staleKeys != null)
-            foreach (var key in staleKeys)
-                floatData.Remove(key);
-    }
-
     private void OnDisable()
     {
-        processedBodies.Clear();
         floatData.Clear();
     }
 
@@ -524,7 +504,6 @@ public class ChocolateFluid : MonoBehaviour
         if (rb.position.y < SurfaceY + ReleaseMargin)
             return;
 
-        processedBodies.Remove(rb);
         floatData.Remove(rb);
 
         int bgLayer = GameLayers.BackGroundObject;
