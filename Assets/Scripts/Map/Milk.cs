@@ -21,7 +21,9 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag(GameTags.PlayerMesh))
+        //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다.
+        //(왜 그래야 하는지는 GameTags.IsCharacterMainCollider 주석 참고)
+        if (!GameTags.IsCharacterMainCollider(other))
             return;
 
         // 소유자만 처리한다 — 사람은 본인 클라에서, 봇은 호스트에서만 IsMine == true.
@@ -56,7 +58,9 @@ public class Milk : MonoBehaviour
 
     private void OnTriggerExit(Collider other)
     {
-        if (!other.CompareTag(GameTags.PlayerMesh))
+        //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다.
+        //(왜 그래야 하는지는 GameTags.IsCharacterMainCollider 주석 참고)
+        if (!GameTags.IsCharacterMainCollider(other))
             return;
 
         NetIdentity id = other.GetComponentInParent<NetIdentity>();

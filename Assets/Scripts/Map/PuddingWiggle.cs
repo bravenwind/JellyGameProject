@@ -9,7 +9,10 @@ public class PuddingWiggle : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (!other.CompareTag(GameTags.PlayerMesh))
+        //캐릭터는 트리거 콜라이더가 둘이라 대표 하나만 받는다.
+        //안 걸면 한 번 밟을 때 SetTrigger가 두 번 들어간다.
+        //(GameTags.IsCharacterMainCollider 주석 참고)
+        if (!GameTags.IsCharacterMainCollider(other))
             return;
 
         if (puddingAnimator != null)
