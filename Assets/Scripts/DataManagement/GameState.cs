@@ -27,12 +27,16 @@ public enum GameModeType { Absorb, Push }
 public static class GameState
 {
 
-    public static event Action<float> OnScaleChanged;
-    public static event Action<Color> OnDisplayColorChanged;
+    // ★ OnScaleChanged · OnDisplayColorChanged · CurrentDisplayColor를 지웠다
+    //   유일한 구독자가 CurrentStatusUI였는데, 그 HUD는 두 게임 씬 모두
+    //   비활성 오브젝트(CurrentJelly)에 붙어 있었고 켜는 코드가 어디에도 없었다.
+    //   OnEnable이 돌지 않으니 구독조차 하지 않았고, 결국 두 이벤트는
+    //   <b>아무도 듣지 않는데 계속 발화</b>하고 CurrentDisplayColor는 쓰기 전용이었다.
+    //
+    //   PlayerCurrentScale은 남는다 — PlayerBridge가 예측 점수를 계산할 때 읽는다.
     public static Action OnCameraScaleIncreased;
 
     private static float playerCurrentScale;
-    private static Color currentDisplayColor = Color.white;
 
     // ── Properties & Event invoking ──
     public static GamePhase Phase { get; set; } = GamePhase.None;
@@ -42,23 +46,7 @@ public static class GameState
     public static float PlayerCurrentScale
     {
         get => playerCurrentScale;
-        set
-        {
-            if (Mathf.Approximately(playerCurrentScale, value))
-                return;
-            playerCurrentScale = value;
-            OnScaleChanged?.Invoke(playerCurrentScale);
-        }
-    }
-
-    public static Color CurrentDisplayColor
-    {
-        get => currentDisplayColor;
-        set
-        {
-            currentDisplayColor = value;
-            OnDisplayColorChanged?.Invoke(currentDisplayColor);
-        }
+        set => playerCurrentScale = value;
     }
 
     public static GameModeType CurrentGameMode { get; set; } = GameModeType.Absorb;
@@ -69,11 +57,8 @@ public static class GameState
         Phase = GamePhase.None;
         CurrentScore = 0;
         playerCurrentScale = 0f;   //스폰된 캐릭터의 OnScaleSettled가 채운다
-        currentDisplayColor = Color.white;
         CurrentGameMode = GameModeType.Absorb;
 
-        OnScaleChanged = null;
-        OnDisplayColorChanged = null;
         OnCameraScaleIncreased = null;
     }
 
@@ -82,11 +67,10 @@ public static class GameState
         Phase = GamePhase.None;
         CurrentScore = 0;
         playerCurrentScale = 0f;   //스폰된 캐릭터의 OnScaleSettled가 채운다
-        currentDisplayColor = Color.white;
 
         // [H1] 여기서 이벤트를 null로 비우면 안 된다.
-        // 씬 UI(CurrentStatusUI 등)는 OnEnable(씬 활성화)에서 구독하는데, 게임 시작이
-        // 이 함수를 그 뒤에 호출하므로 구독이 통째로 끊겨 UI 갱신이 멈춘다.
+        // 씬 UI는 OnEnable(씬 활성화)에서 구독하는데, 게임 시작이 이 함수를 그 뒤에
+        // 호출하므로 구독이 통째로 끊겨 갱신이 멈춘다.
         // 구독 해제는 각 구독자의 OnDisable 책임이고, 전체 정리는 도메인 리로드 대비용인
         // Reset()(SubsystemRegistration)에서만 수행한다.
     }

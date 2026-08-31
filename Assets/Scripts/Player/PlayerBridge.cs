@@ -4,7 +4,6 @@ using JellyNet;
 public class PlayerBridge : MonoBehaviour
 {
     private PlayerScaleController scaleController;
-    private PlayerColorVisual colorVisual;
     private PlayerAbsorber absorber;
     private PlayerMovement movement;
     private LevelUpFloaterPool levelUpFloaterPool;
@@ -44,7 +43,6 @@ public class PlayerBridge : MonoBehaviour
     {
         netId = GetComponentInParent<NetIdentity>();
         scaleController = GetComponentInChildren<PlayerScaleController>();
-        colorVisual = GetComponentInChildren<PlayerColorVisual>();
         absorber = GetComponentInChildren<PlayerAbsorber>();
         movement = GetComponentInChildren<PlayerMovement>();
 
@@ -67,9 +65,6 @@ public class PlayerBridge : MonoBehaviour
             scaleController.OnScaleSettled += HandleScaleSettled;
         }
 
-        if (colorVisual != null)
-            colorVisual.OnColorApplied += HandleColorApplied;
-
         if (absorber != null)
             absorber.OnJellyScored += HandleJellyScored;
     }
@@ -82,9 +77,6 @@ public class PlayerBridge : MonoBehaviour
             scaleController.OnScaleThresholdUp -= HandleScaleThresholdUp;
             scaleController.OnScaleSettled -= HandleScaleSettled;
         }
-
-        if (colorVisual != null)
-            colorVisual.OnColorApplied -= HandleColorApplied;
 
         if (absorber != null)
             absorber.OnJellyScored -= HandleJellyScored;
@@ -146,16 +138,12 @@ public class PlayerBridge : MonoBehaviour
         GameState.CurrentScore = NetEntity.ScoreFromScale(scaleValue);
     }
 
-    // ── Color ──
-
-    private void HandleColorApplied(JellyColorType dominantType, RYBColor ryb, Color displayColor)
-    {
-        // [W6] 원격 아바타의 색은 색 스트림(networkColor)이 담당한다. 여기서 전역
-        // GameState.CurrentDisplayColor(로컬 플레이어 색·SyncColor 소스)를 덮으면 내 색이 남의 색으로 샌다.
-        if (!IsLocalOwner)
-            return;
-        GameState.CurrentDisplayColor = displayColor;
-    }
+    // ★ 색 구독을 걷어냈다
+    //   HandleColorApplied가 하던 일은 GameState.CurrentDisplayColor에 색을 적는 것
+    //   하나뿐이었는데, 그 값을 읽는 곳이 CurrentStatusUI(죽은 HUD)뿐이었다.
+    //   HUD가 사라지면서 '아무도 안 읽는 값에 쓰기 위한 구독'만 남아 함께 지웠다.
+    //   화면에 보이는 색은 PlayerColorVisual이 직접 칠하고, 원격 아바타는 색 스트림이
+    //   담당한다 — 이 경유지는 처음부터 없어도 되는 자리였다.
 
     // ── Absorb ──
 

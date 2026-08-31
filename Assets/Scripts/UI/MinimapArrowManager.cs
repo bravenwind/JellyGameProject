@@ -158,7 +158,6 @@ public class MinimapArrowManager : MonoBehaviour
 
         foreach (var kvp in arrows)
         {
-            // Transform이 null이면 오브젝트가 파괴된 것
             if (kvp.Key == null)
             {
                 if (kvp.Value != null)
