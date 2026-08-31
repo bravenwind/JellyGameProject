@@ -3489,7 +3489,7 @@ GameObject:
   - component: {fileID: 75823372}
   - component: {fileID: 75823371}
   m_Layer: 5
-  m_Name: Button_Yes
+  m_Name: Button_No
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3512,7 +3512,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 214.2, y: -106.5}
+  m_AnchoredPosition: {x: -214.2, y: -106.5}
   m_SizeDelta: {x: 322.66, y: 109.6}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &75823371
@@ -3559,9 +3559,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 336275300}
-        m_TargetAssemblyTypeName: JellyNet.LanGameFlow, Assembly-CSharp
-        m_MethodName: OnClick_ReturnToMain
+      - m_Target: {fileID: 570428328}
+        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
+        m_MethodName: DisableSelf
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -35271,15 +35271,15 @@ RectTransform:
   m_GameObject: {fileID: 481341237}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
+  m_LocalScale: {x: 0.26, y: 0.26, z: 0.26}
+  m_ConstrainProportionsScale: 1
   m_Children: []
-  m_Father: {fileID: 523338915}
+  m_Father: {fileID: 2135508085}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 881.1, y: 461.08002}
-  m_SizeDelta: {x: 100, y: 100}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 256, y: 256}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &481341239
 MonoBehaviour:
@@ -35326,8 +35326,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 481341242}
-        m_TargetAssemblyTypeName: TopRightButtonUI, Assembly-CSharp
-        m_MethodName: 
+        m_TargetAssemblyTypeName: EnableTargetButton, Assembly-CSharp
+        m_MethodName: EnableTarget
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -35357,7 +35357,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -1401162461, guid: 5f4ec41d3a313f84fba3f3068ff45b8b, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 5b9e2f47a8c3416d92e07b1cd4f8a635, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -40225,7 +40225,7 @@ RectTransform:
   m_Children:
   - {fileID: 835465460}
   - {fileID: 1444476062}
-  - {fileID: 481341238}
+  - {fileID: 2135508085}
   - {fileID: 1982792078}
   - {fileID: 924901716}
   - {fileID: 83833908}
@@ -123207,7 +123207,7 @@ GameObject:
   - component: {fileID: 1536085060}
   - component: {fileID: 1536085059}
   m_Layer: 5
-  m_Name: Button_No
+  m_Name: Button_Yes
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -123230,7 +123230,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -214.2, y: -106.5}
+  m_AnchoredPosition: {x: 214.2, y: -106.5}
   m_SizeDelta: {x: 322.66, y: 109.6}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1536085059
@@ -123277,9 +123277,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 570428328}
-        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
-        m_MethodName: DisableSelf
+      - m_Target: {fileID: 336275300}
+        m_TargetAssemblyTypeName: JellyNet.LanGameFlow, Assembly-CSharp
+        m_MethodName: OnClick_ReturnToMain
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -176327,6 +176327,82 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 14.000001, y: 0.6999999, z: 14}
   m_Center: {x: 0, y: -0.0000007599592, z: 0}
+--- !u!1 &2135508084
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2135508085}
+  - component: {fileID: 2135508087}
+  - component: {fileID: 2135508086}
+  m_Layer: 5
+  m_Name: BackToMainButton
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &2135508085
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135508084}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 481341238}
+  m_Father: {fileID: 523338915}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 877.82, y: 461.08002}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &2135508086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135508084}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 0.37254906, b: 0.569838, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: -2413806693520163455, guid: a86470a33a6bf42c4b3595704624658b, type: 3}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &2135508087
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2135508084}
+  m_CullTransparentMesh: 1
 --- !u!1 &2135742439
 GameObject:
   m_ObjectHideFlags: 0
@@ -178107,6 +178183,7 @@ SceneRoots:
   m_Roots:
   - {fileID: 1673433815}
   - {fileID: 1315158675}
+  - {fileID: 563542956}
   - {fileID: 1432361341}
   - {fileID: 1697665733}
   - {fileID: 619703256}
@@ -178116,6 +178193,5 @@ SceneRoots:
   - {fileID: 1185959243}
   - {fileID: 1634229698}
   - {fileID: 1885010865}
-  - {fileID: 563542956}
   - {fileID: 336275305}
   - {fileID: 287982190}
