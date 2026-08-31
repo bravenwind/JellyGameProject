@@ -16,27 +16,41 @@ using JellyNet;
 /// 이 컴포넌트가 직접 하는 일은 없다 — 위치·회전·색은 OffScreenPlayerIndicator가 정한다.
 /// 여기 있는 건 <b>그 관리자가 매 프레임 GetComponent를 하지 않게 하는 손잡이</b>다.
 /// </summary>
-[RequireComponent(typeof(RectTransform))]
+// ★ [RequireComponent(typeof(RectTransform))]를 붙이지 않는다
+//   유니티는 일반 Transform을 가진 오브젝트에 RectTransform을 <b>추가할 수 없다.</b>
+//   그래서 이 어트리뷰트가 붙어 있으면 UI가 아닌 오브젝트에 이 스크립트를 드래그할 때
+//   유니티가 조용히 거부한다 — "컴포넌트가 안 붙는" 증상의 정체다.
+//   방어가 목적이었는데 오히려 손을 묶었다. 아래 Rect가 안전하게 처리한다.
 public class PlayerIndicator : MonoBehaviour
 {
-    [Tooltip("삼각형 이미지. 색은 대상 플레이어의 색으로 매 프레임 덮어쓴다.")]
+    [Tooltip("삼각형 이미지. 비워두면 자기 자신과 자식에서 찾는다.")]
     [SerializeField] private Image image;
 
     private RectTransform rect;
 
-    /// <summary>화면 좌표를 직접 쓰기 위해 RectTransform을 그대로 내준다.</summary>
+    /// <summary>
+    /// 화면 좌표를 직접 쓰기 위해 RectTransform을 그대로 내준다.
+    /// UI가 아닌 곳에 붙었으면 null — 그래도 예외로 죽지는 않는다.
+    /// </summary>
     public RectTransform Rect
     {
         get
         {
             if (rect == null)
-                rect = (RectTransform)transform;
+                rect = transform as RectTransform;
             return rect;
         }
     }
 
     /// <summary>이 삼각형이 가리키는 개체. 사람이든 봇이든 INetEntity 하나로 들어온다.</summary>
     public INetEntity Entity { get; set; }
+
+    //인스펙터 연결을 잊어도 동작하게 한다. 프리팹에는 이미 연결돼 있으므로 보통 그냥 지나간다.
+    private void Awake()
+    {
+        if (image == null)
+            image = GetComponentInChildren<Image>(true);
+    }
 
     /// <summary>대상의 현재 색. 개체가 없으면 흰색.</summary>
     public void ApplyColor()
