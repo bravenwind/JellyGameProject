@@ -7,8 +7,7 @@
 //   - 삼각형 색은 해당 플레이어의 현재 색(DisplayColor / 봇 머티리얼 색)과 연동된다.
 //
 // [특징]
-//   - 씬 배치/에디터 와이어링이 필요 없도록 런타임에 캔버스와 삼각형 스프라이트를
-//     스스로 생성하고, RuntimeInitializeOnLoadMethod로 자동 부트스트랩한다.
+//   - 캔버스는 런타임에 만들고, 삼각형은 프로젝트의 스프라이트 에셋을 쓴다.
 //   - 인디케이터는 풀링(딕셔너리 재사용)되며 대상이 사라지면 정리된다.
 //
 // ★ 한때 삭제됐다가 되살린 파일
@@ -16,6 +15,19 @@
 //   실제로 Photon API를 쓰는 곳은 하나도 없었다(이미 LAN으로 이식돼 있었다).
 //   증상은 "화면 테두리의 다른 플레이어 표시가 사라짐"이었다.
 //   using 하나로 파일의 생사를 판단하면 안 된다는 기록으로 남긴다.
+//
+// ★ 예전엔 RuntimeInitializeOnLoadMethod + DontDestroyOnLoad로 스스로 태어났다
+//   "씬 배치가 필요 없게"가 목적이었는데, 대가가 컸다:
+//     · 타이틀·로비·로딩·결과 씬에서도 캔버스와 LateUpdate를 계속 들고 있었다
+//       (실제로 그리는 건 GamePhase.Playing일 때뿐인데도)
+//     · 그걸 지탱하려고 static instance · 중복 가드 · OnDestroy 정리가 딸려왔다
+//     · [SerializeField] 여섯 개가 <b>인스펙터에서 만질 수 없었다</b> —
+//       AddComponent로 생기는 오브젝트라 직렬화된 값이 들어올 자리가 없다
+//
+//   같은 일을 하는 MinimapArrowManager는 처음부터 두 게임 씬에 배치된 평범한
+//   컴포넌트였다. 이 파일만 예외였던 셈이라 그쪽에 맞췄다.
+//   (프로젝트의 다른 RuntimeInitializeOnLoadMethod 7곳은 전부 SubsystemRegistration —
+//    도메인 리로드 때 static을 되돌리는 용도지 오브젝트를 만드는 용도가 아니다)
 // ============================================================
 
 using System.Collections.Generic;
@@ -48,15 +60,14 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     [Tooltip("인디케이터 캔버스 정렬 순서(클수록 위에 그려짐)")]
     [SerializeField] private int sortingOrder = 50;
 
+    [Tooltip("꼭짓점이 위를 향하는 삼각형. Sprites/UI/IndicatorTriangle")]
+    [SerializeField] private Sprite triangleSprite;
+
     // ─────────────────────────────────────────────────────────
     // 내부 상태
     // ─────────────────────────────────────────────────────────
-    private static OffScreenPlayerIndicator instance;
-
     private Camera cam;
-    private Canvas canvas;
     private RectTransform canvasRect;
-    private Sprite triangleSprite;
 
     private class Indicator
     {
@@ -72,30 +83,20 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     private readonly List<Transform> staleKeys = new List<Transform>();
     private readonly HashSet<Transform> seenThisFrame = new HashSet<Transform>();
 
-    // ─────────────────────────────────────────────────────────
-    // 자동 부트스트랩 (씬 배치 불필요)
-    // ─────────────────────────────────────────────────────────
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-    private static void Bootstrap()
+    // MinimapArrowManager와 같은 시점에 준비한다 — 둘 다 게임 씬 컴포넌트고
+    // 첫 LateUpdate보다 Start가 먼저 돌아서 canvasRect가 비어 있을 일이 없다.
+    private void Start()
     {
-        if (instance != null)
-            return;
-        var go = new GameObject("OffScreenPlayerIndicator");
-        instance = go.AddComponent<OffScreenPlayerIndicator>();
-        DontDestroyOnLoad(go);
-    }
-
-    private void Awake()
-    {
-        if (instance != null && instance != this)
+        if (triangleSprite == null)
         {
-            Destroy(gameObject);
+            //조용히 안 그리는 것보다 낫다. 이 파일은 예전에 소리 없이 사라진 전력이 있다.
+            Debug.LogError("[화면밖표시] 삼각형 스프라이트가 비어 있습니다 — "
+                + "인스펙터에 Sprites/UI/IndicatorTriangle을 연결하세요. 표시를 끕니다.", this);
+            enabled = false;
             return;
         }
-        instance = this;
 
         BuildCanvas();
-        triangleSprite = CreateTriangleSprite();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -306,13 +307,16 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     // 런타임 캔버스 / 삼각형 스프라이트 생성
     // ─────────────────────────────────────────────────────────
+    // ★ GraphicRaycaster는 붙이지 않는다
+    //   삼각형은 raycastTarget = false고 누를 것도 없는데, 레이캐스터가 있으면
+    //   포인터 이벤트마다 이 캔버스를 훑는다. 예전엔 습관처럼 셋을 같이 붙였다.
     private void BuildCanvas()
     {
         var go = new GameObject("OffScreenIndicatorCanvas",
-            typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            typeof(Canvas), typeof(CanvasScaler));
         go.transform.SetParent(transform, false);
 
-        canvas = go.GetComponent<Canvas>();
+        Canvas canvas = go.GetComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         canvas.sortingOrder = sortingOrder;
 
@@ -322,43 +326,5 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         scaler.scaleFactor = 1f;
 
         canvasRect = go.GetComponent<RectTransform>();
-    }
-
-    /// <summary>꼭짓점이 위를 향하는 꽉 찬 삼각형 스프라이트를 런타임 생성(흰색, 색은 tint로 입힘).</summary>
-    private static Sprite CreateTriangleSprite()
-    {
-        const int s = 64;
-        var tex = new Texture2D(s, s, TextureFormat.RGBA32, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear
-        };
-
-        var pixels = new Color32[s * s];
-        Color32 clear = new Color32(255, 255, 255, 0);
-        Color32 white = new Color32(255, 255, 255, 255);
-
-        for (int y = 0; y < s; y++)
-        {
-            // y=0(바닥)에서 폭 최대, y=s-1(위 꼭짓점)에서 폭 0
-            float fromTop = (float)(s - 1 - y) / (s - 1); // 0(위)~1(아래)
-            float halfWidth = fromTop * (s * 0.5f);
-            float cx = s * 0.5f;
-            for (int x = 0; x < s; x++)
-            {
-                pixels[y * s + x] = (Mathf.Abs(x + 0.5f - cx) <= halfWidth) ? white : clear;
-            }
-        }
-
-        tex.SetPixels32(pixels);
-        tex.Apply();
-
-        return Sprite.Create(tex, new Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f);
-    }
-
-    private void OnDestroy()
-    {
-        if (instance == this)
-            instance = null;
     }
 }

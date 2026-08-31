@@ -42752,6 +42752,7 @@ GameObject:
   m_Component:
   - component: {fileID: 563542956}
   - component: {fileID: 563542955}
+  - component: {fileID: 1847388796}
   m_Layer: 0
   m_Name: MinimapArrowManager
   m_TagString: Untagged
@@ -177838,6 +177839,25 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 117311414681150118, guid: b1c916de8cef12848abc305b555d1528, type: 3}
   m_PrefabInstance: {fileID: 4389443364637058998}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1847388796
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 563542954}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 09e1afebf26a9e0489b5fbcd5876b951, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  includeBots: 1
+  edgeMargin: 60
+  onScreenHeadOffset: 42
+  indicatorSize: 46
+  worldHeadHeight: 1.2
+  sortingOrder: 50
+  triangleSprite: {fileID: 21300000, guid: 7c1d4a9e35b04f2b8e6a1d0c93f7e214, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
