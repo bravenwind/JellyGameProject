@@ -160,9 +160,10 @@ public class PlayerBridge : MonoBehaviour
         
         GameState.CurrentScore = NetEntity.ScoreFromScale(predictedScale);
 
-        if (UIPoolManager.Instance != null)
-            UIPoolManager.Instance.SpawnUI(UIType.JellyEat);
-        
+        //먹었다는 피드백은 LevelUpFloaterPool이 담당한다(위 HandleGrowStarted).
+        //예전엔 여기서 UIPoolManager.SpawnUI(JellyEat)도 불렀는데, 그 팝업은
+        //프리팹이 프로젝트에 없어서(guid 7141636e… 미해석) 풀 자체가 만들어지지 않았고
+        //PoolManager 오브젝트도 비활성이라 한 번도 뜬 적이 없다.
         if (PlaySFXAudio.Instance != null)
             PlaySFXAudio.Instance.PlayColorMixSound();
         

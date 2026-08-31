@@ -19,12 +19,25 @@ public class LevelUpFloater : MonoBehaviour
     [SerializeField] private Color textColor = new Color(1f, 0.9f, 0.15f);
     [SerializeField] private Color outlineColor = new Color(0.55f, 0.25f, 0f);
 
+    // ★ 예전엔 위로 떠오르며 페이드아웃했다
+    //   지금은 <b>팝 하고 나타났다가 작아지며 사라진다.</b> 위로 흘러가지 않으니
+    //   시선이 따라갈 필요가 없고, 여러 개가 동시에 떠도 서로 밀려나지 않는다.
     [Header("애니메이션")]
-    [SerializeField] private float duration = 1.2f;
-    [SerializeField] private float floatHeight = 2.0f;
-    [SerializeField] private float startHeight = 2.0f;
-    [Tooltip("등장 위치 좌우 흩뿌림(부모 로컬 기준). 동시에 여러 개 뜰 때 겹침 방지.")]
-    [SerializeField] private float spreadX = 0.6f;
+    [Tooltip("한 번 뜨고 사라지기까지의 시간")]
+    [SerializeField] private float duration = 0.55f;
+
+    [Tooltip("등장할 때 부풀어 오르는 최대 배율")]
+    [SerializeField] private float popScale = 1.3f;
+
+    [Tooltip("사라질 때 줄어드는 최소 배율. 0이면 완전히 사라진다.")]
+    [SerializeField] private float endScale = 0.15f;
+
+    [Header("등장 위치 (플레이어 기준)")]
+    [Tooltip("플레이어 중심에서 이만큼 떨어진 곳에 무작위로 뜬다")]
+    [SerializeField] private float spreadRadius = 1.1f;
+
+    [Tooltip("플레이어 중심에서 위로 올린 높이")]
+    [SerializeField] private float height = 1.6f;
 
     private Transform scaleRef;   // 텍스트 크기 상쇄 기준(플레이어 루트)
     private Camera cam;
@@ -73,8 +86,16 @@ public class LevelUpFloater : MonoBehaviour
 
     private IEnumerator AnimateRoutine()
     {
-        // 동시에 여러 개가 뜰 때 겹치지 않도록 좌우로 약간 흩뿌린다.
-        float offsetX = UnityEngine.Random.Range(-spreadX, spreadX);
+        // ★ 자리를 <b>한 번만</b> 정하고 그대로 둔다
+        //   원 위의 임의 각도 × 임의 거리. 각도만 무작위로 뽑으면 전부 반지름 끝에
+        //   붙어 고리 모양이 되므로 거리도 함께 흩뿌린다.
+        //   (제곱근을 씌우면 원 안에 고르게 퍼지는데, 여기선 바깥쪽이 조금 더 잦은
+        //    편이 캐릭터를 덜 가려서 그냥 선형으로 둔다)
+        float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+        float radius = UnityEngine.Random.Range(spreadRadius * 0.35f, spreadRadius);
+        Vector3 spot = new Vector3(Mathf.Cos(angle) * radius,
+                                   height + Mathf.Sin(angle) * radius * 0.45f,
+                                   0f);
 
         float elapsed = 0f;
         while (elapsed < duration)
@@ -83,39 +104,40 @@ public class LevelUpFloater : MonoBehaviour
                 break;
 
             elapsed += Time.deltaTime;
-            float t = elapsed / duration;
+            float t = Mathf.Clamp01(elapsed / duration);
 
             if (cam == null)
                 cam = Camera.main;
 
+            // 부모(플레이어)가 커져도 글자 크기는 그대로여야 한다
             float parentScale = scaleRef != null
                 ? Mathf.Max(scaleRef.localScale.x, 0.01f) : 1f;
 
-            // 위치: 부모 로컬 기준 원시 오프셋(스케일 곱 X). NameTagBillboard와 동일 패턴.
-            float localY = startHeight + floatHeight * EaseOutCubic(t);
-            transform.localPosition = new Vector3(offsetX, localY, 0f);
+            //위치는 고정. 부모 로컬 기준 원시 오프셋(스케일 곱 X) — NameTagBillboard와 같은 패턴.
+            transform.localPosition = spot;
 
             // 빌보드: 카메라 정면
             if (cam != null)
                 transform.rotation = Quaternion.LookRotation(
                     transform.position - cam.transform.position);
 
-            // 크기: 부모 스케일 상쇄 → 항상 일정 + 등장 팝 연출
-            float pop;
-            if (t < 0.12f)
-                pop = Mathf.Lerp(0f, 1.35f, t / 0.12f);
-            else if (t < 0.25f)
-                pop = Mathf.Lerp(1.35f, 1f, (t - 0.12f) / 0.13f);
-            else pop = 1f;
-            transform.localScale = Vector3.one / parentScale * pop;
+            // ── 팝 하고 나타났다가 작아지며 사라진다 ──
+            //   0 ~ 25%   : 0 → popScale   (튀어나옴)
+            //   25 ~ 40%  : popScale → 1   (되튐)
+            //   40 ~ 100% : 1 → endScale   (줄어들며 퇴장)
+            float scale;
+            if (t < 0.25f)
+                scale = Mathf.Lerp(0f, popScale, EaseOutCubic(t / 0.25f));
+            else if (t < 0.40f)
+                scale = Mathf.Lerp(popScale, 1f, (t - 0.25f) / 0.15f);
+            else
+                scale = Mathf.Lerp(1f, endScale, EaseInCubic((t - 0.40f) / 0.60f));
 
-            // 알파: 페이드 인 → 유지 → 페이드 아웃
+            transform.localScale = Vector3.one / parentScale * scale;
+
+            //알파는 끝에서만 뺀다. 크기가 줄어드는 게 주연이라 일찍 흐려지면 둘 다 약해진다.
             Color c = textColor;
-            if (t < 0.1f)
-                c.a = t / 0.1f;
-            else if (t < 0.55f)
-                c.a = 1f;
-            else c.a = Mathf.Lerp(1f, 0f, (t - 0.55f) / 0.45f);
+            c.a = t < 0.7f ? 1f : Mathf.Lerp(1f, 0f, (t - 0.7f) / 0.3f);
             tmp.color = c;
 
             yield return null;
@@ -127,4 +149,5 @@ public class LevelUpFloater : MonoBehaviour
     }
 
     private static float EaseOutCubic(float x) => 1f - (1f - x) * (1f - x) * (1f - x);
+    private static float EaseInCubic(float x) => x * x * x;
 }
