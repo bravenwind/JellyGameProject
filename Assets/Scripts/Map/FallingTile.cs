@@ -191,6 +191,17 @@ public class FallingTile : MonoBehaviour
         gameObject.SetActive(false);
     }
 
+    /// <summary>
+    /// 이 점이 이 타일의 XZ 범위 안에 있는가. 높이는 보지 않는다 —
+    /// "이 칸 위에 서 있나"만 묻는 것이고, 높이는 이미 OverlapBox가 걸렀다.
+    /// </summary>
+    private bool IsAboveThisTile(Vector3 worldPos)
+    {
+        Bounds b = tileCollider.bounds;
+        return worldPos.x >= b.min.x && worldPos.x <= b.max.x
+            && worldPos.z >= b.min.z && worldPos.z <= b.max.z;
+    }
+
     /// <summary>이 타일이 훑을 공간. 콜라이더의 월드 AABB에서 위아래로 넓힌 상자.</summary>
     private void GetOverlapBox(out Vector3 center, out Vector3 halfExtents)
     {
@@ -268,6 +279,24 @@ public class FallingTile : MonoBehaviour
             if (NetEntity.IsDrivenElsewhere(col))
                 continue;
 
+            // ★ 캐릭터는 '이 타일 위에 선' 것만 깨운다 (봇이 전원 꺼진 듯 굳던 원인)
+            //
+            //   OverlapBox는 콜라이더가 <b>조금이라도 겹치면</b> 잡는다. 그런데 봇은
+            //   커지면서 캡슐 반지름이 0.5 × 스케일까지 자란다 — 4배면 2m다.
+            //   타일이 14m니까, 큰 봇이 경계에서 2m 안쪽에 서 있기만 해도
+            //   <b>옆 칸의 상자에 함께 걸린다.</b>
+            //
+            //   그러면 멀쩡한 발판 위에 서 있는데 옆 칸이 무너졌다는 이유로 물리로 넘어가
+            //   PhysicsFall이 NavMeshAgent를 끄고, 봇은 그 자리에 굳는다.
+            //   그 뒤엔 스스로 못 움직이니 제자리 마모로 자기 발판까지 무너져 탈락한다.
+            //
+            //   소품은 이 검사를 하지 않는다 — 작고, 옆 칸에 걸쳐 있으면 같이 떨어지는 게 맞다.
+            //기준은 콜라이더가 아니라 봇의 루트다 — 메시 콜라이더는 자식이라 자리가 다르다.
+            AIPlayerMovement standingBot = col.GetComponentInParent<AIPlayerMovement>();
+
+            if (standingBot != null && !IsAboveThisTile(standingBot.transform.position))
+                continue;
+
             // Milk는 스크립트가 부모, 콜라이더가 자식이라 이 한 줄이 알아서 부모를 찾아간다.
             // 예전엔 여기에 Milk 특례가 하나 더 있었는데 transform.root — 즉 <b>타일</b>의
             // 루트에서 Rigidbody를 찾고 있었다. 격자 루트엔 Rigidbody가 없으니 rb가 null이 되어
@@ -278,11 +307,10 @@ public class FallingTile : MonoBehaviour
             // 붙여만 주면 나머지는 아래 PhysicsFall.Begin이 전부 한다.
             if (rb == null)
             {
-                AIPlayerMovement aiBot = col.GetComponentInParent<AIPlayerMovement>();
-                if (aiBot == null || aiBot.IsOutOfPlay)
+                if (standingBot == null || standingBot.IsOutOfPlay)
                     continue;
 
-                rb = aiBot.gameObject.AddComponent<Rigidbody>();
+                rb = standingBot.gameObject.AddComponent<Rigidbody>();
             }
 
             // 오목한 MeshCollider는 dynamic Rigidbody에 못 붙는다. 물리를 켜기 전에 정리한다.

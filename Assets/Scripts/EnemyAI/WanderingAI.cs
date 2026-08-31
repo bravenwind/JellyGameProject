@@ -135,7 +135,19 @@ public class WanderingAI : MonoBehaviour
     //   서 있다가 순간적으로 방향을 바꾸는 그림이 오히려 더 눈에 띄었다.
     //   agent.updateRotation을 끄고 진행 방향으로 천천히 감아 돌게 하면
     //   멈출 이유 자체가 없어진다 — 젤리는 계속 흘러다닌다.
-    private const float TURN_SPEED = 3.5f;
+    // ★ 급하게 꺾을 때는 빨리 돈다 — 안 그러면 문워크가 나온다
+    //
+    //   RotateTowards는 지수 감쇠라 k가 시간상수의 역수다. k = 3.5면 0.29초.
+    //   배회하다 방향이 조금씩 바뀔 땐 그 느긋함이 좋지만, 쫓겨서 <b>180° 뒤집을 때</b>는
+    //   0.2초 동안 완전히 뒤를 보고 0.5초 가까이 어긋난 채로 달린다.
+    //   젤리 속도가 7m/s니 3.5m를 옆을 보며 미끄러지는 셈 — 그게 문워크였다.
+    //
+    //   각도 오차에 따라 속도를 올린다. 살살 도는 느낌은 그대로 두고
+    //   크게 꺾을 때만 빨라지므로 배회 연출을 잃지 않는다.
+    private const float TURN_SPEED_MIN = 3.5f;    // 완만한 방향 전환
+    private const float TURN_SPEED_MAX = 14f;     // 되돌아 뛰는 순간
+    private const float TURN_ANGLE_SOFT = 30f;    // 이 아래는 느긋하게
+    private const float TURN_ANGLE_HARD = 150f;   // 이 위는 최대 속도
 
     private void SteerSmoothly()
     {
@@ -145,8 +157,13 @@ public class WanderingAI : MonoBehaviour
         if (dir.sqrMagnitude < 0.01f)
             return;
 
+        Quaternion want = Quaternion.LookRotation(dir);
+        float offBy = Quaternion.Angle(transform.rotation, want);
+        float speed = Mathf.Lerp(TURN_SPEED_MIN, TURN_SPEED_MAX,
+                                 Mathf.InverseLerp(TURN_ANGLE_SOFT, TURN_ANGLE_HARD, offBy));
+
         transform.rotation = SmoothDamping.RotateTowards(
-            transform.rotation, dir, TURN_SPEED, Time.deltaTime);
+            transform.rotation, dir, speed, Time.deltaTime);
     }
 
     private void HoldStill()
