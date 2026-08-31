@@ -34,9 +34,11 @@ public class MinimapArrowManager : MonoBehaviour
     [SerializeField] private Color remotePlayerColor = Color.red;
     [SerializeField] private Color botColor          = Color.red;
 
-    [Header("화살표 높이 오프셋 (미니맵 카메라 아래에 위치)")]
-    [Tooltip("미니맵 카메라보다 조금 낮게 두면 화살표가 카메라에 잘 잡힙니다.")]
-    [SerializeField] private Vector3 arrowOffset = new Vector3(0f, 1f, 0f);
+    // ★ 높이 오프셋은 프리팹의 MinimapArrow.offset이 정한다
+    //   예전엔 여기 arrowOffset을 두고 스폰할 때 minimapArrow.Offset에 덮어썼다.
+    //   그래서 프리팹에 적힌 68.32가 죽고 씬의 60이 이겼는데, 어느 쪽이 진짜인지
+    //   프리팹만 보는 사람은 알 수가 없었다. 게다가 씬이 둘이라 두 값이 어긋날 자리였다.
+    //   화살표의 생김새와 높이는 화살표 프리팹이 갖는 게 맞다.
 
     // ★ 레이어는 코드가 정하지 않는다 — 프리팹에 이미 박혀 있다
     //   예전엔 minimapLayerName("Minimap") 문자열을 받아 스폰할 때마다
@@ -132,7 +134,9 @@ public class MinimapArrowManager : MonoBehaviour
             return;
         }
 
-        GameObject arrow = Instantiate(arrowPrefab, target.position + arrowOffset, Quaternion.identity);
+        //첫 프레임에 원점에서 번쩍이지 않도록 대상 자리에 낳는다.
+        //정확한 높이는 MinimapArrow.LateUpdate가 프리팹의 offset으로 매 프레임 잡는다.
+        GameObject arrow = Instantiate(arrowPrefab, target.position, Quaternion.identity);
         arrow.name = $"MinimapArrow_{target.name}";
 
         // MinimapArrow 컴포넌트 설정
@@ -140,7 +144,6 @@ public class MinimapArrowManager : MonoBehaviour
         if (minimapArrow != null)
         {
             minimapArrow.Target = target;
-            minimapArrow.Offset = arrowOffset;
             minimapArrow.SetColor(color);
         }
         else

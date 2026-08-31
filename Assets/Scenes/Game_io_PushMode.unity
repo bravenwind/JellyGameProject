@@ -23650,7 +23650,6 @@ MonoBehaviour:
   localPlayerColor: {r: 0, g: 1, b: 0, a: 1}
   remotePlayerColor: {r: 1, g: 0, b: 0, a: 1}
   botColor: {r: 1, g: 0, b: 0, a: 1}
-  arrowOffset: {x: 0, y: 60, z: 0}
 --- !u!4 &563542956
 Transform:
   m_ObjectHideFlags: 0

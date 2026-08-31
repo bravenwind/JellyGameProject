@@ -586,10 +586,16 @@ namespace JellyNet
                     + (PlayerMovement.InputLocked ? "  (입력 잠금)" : "  (입력 해제)"));
         }
 
-        //탈락은 판이 아직 도는 중이다. 나가는 버튼 없이 관전만 남긴다
+        //탈락은 판이 아직 도는 중이다. 관전할 수도, 나갈 수도 있게 둘 다 띄운다
+        //
+        // ★ 버튼 위치는 코드가 정하지 않는다
+        //   연결이 끊겼을 때는 관전 버튼이 꺼져 하나만 남는데, 그때 남은 버튼의 x를
+        //   손으로 가운데로 옮기면 <b>되돌리는 코드까지</b> 필요해진다.
+        //   두 버튼을 감싼 컨테이너의 HorizontalLayoutGroup이 알아서 정렬하므로
+        //   여기서는 켤지 말지만 정한다.
         public void ShowLocalGameOver(string message)
         {
-            hud.ShowGameOver(message, true, false);
+            hud.ShowGameOver(message, true, true);
 
             if (PlayerMovement.Local != null)
                 PlayerMovement.Local.enabled = false;
