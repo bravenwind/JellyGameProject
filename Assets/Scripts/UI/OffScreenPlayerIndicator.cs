@@ -57,8 +57,8 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     [SerializeField] private float worldHeadHeight = 1.2f;
 
     [Header("렌더")]
-    [Tooltip("인디케이터 캔버스 정렬 순서(클수록 위에 그려짐)")]
-    [SerializeField] private int sortingOrder = 50;
+    [Tooltip("삼각형을 담을 캔버스. 자식 OffScreenIndicatorCanvas")]
+    [SerializeField] private RectTransform canvasRect;
 
     [Tooltip("꼭짓점이 위를 향하는 삼각형. Sprites/UI/IndicatorTriangle")]
     [SerializeField] private Sprite triangleSprite;
@@ -67,7 +67,6 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     // 내부 상태
     // ─────────────────────────────────────────────────────────
     private Camera cam;
-    private RectTransform canvasRect;
 
     private class Indicator
     {
@@ -78,25 +77,32 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         public INetEntity entity;
     }
 
+    // ★ 풀(Queue)이 있었는데 한 번도 안 꺼내졌다
+    //   방출 조건이 넷인데 <b>넷 다 되돌아오지 않는다</b>:
+    //     · 봇의 IsOutOfPlay — IsBeingAbsorbed를 false로 되돌리는 코드가 없다
+    //     · 사람의 IsOutOfPlay — Flags를 None으로 되돌리는 코드가 없다
+    //     · cam == null — 카메라는 씬에 하나뿐이고 파괴되지 않는다.
+    //       LanSpectator는 TopDownCameraFollow의 <b>타겟만</b> 바꾼다
+    //     · Phase != Playing — 종료 후 Playing으로 돌아가려면 씬 재로드가 필요하고,
+    //       시작 전에는 목록이 비어 있다
+    //   그래서 Dequeue는 늘 Count == 0이었고 매번 새로 만들고 있었다. 지금은 그냥 없앤다.
     private readonly Dictionary<Transform, Indicator> active = new Dictionary<Transform, Indicator>();
-    private readonly Queue<Indicator> pool = new Queue<Indicator>();
     private readonly List<Transform> staleKeys = new List<Transform>();
     private readonly HashSet<Transform> seenThisFrame = new HashSet<Transform>();
 
     // MinimapArrowManager와 같은 시점에 준비한다 — 둘 다 게임 씬 컴포넌트고
     // 첫 LateUpdate보다 Start가 먼저 돌아서 canvasRect가 비어 있을 일이 없다.
+    // 연결이 비어 있으면 조용히 안 그리는 대신 소리를 낸다 —
+    // 이 파일은 예전에 소리 없이 사라진 전력이 있다.
     private void Start()
     {
-        if (triangleSprite == null)
+        if (triangleSprite == null || canvasRect == null)
         {
-            //조용히 안 그리는 것보다 낫다. 이 파일은 예전에 소리 없이 사라진 전력이 있다.
-            Debug.LogError("[화면밖표시] 삼각형 스프라이트가 비어 있습니다 — "
-                + "인스펙터에 Sprites/UI/IndicatorTriangle을 연결하세요. 표시를 끕니다.", this);
+            Debug.LogError("[화면밖표시] 인스펙터 연결이 비어 있습니다 — "
+                + "Canvas는 자식 OffScreenIndicatorCanvas, 스프라이트는 "
+                + "Sprites/UI/IndicatorTriangle. 표시를 끕니다.", this);
             enabled = false;
-            return;
         }
-
-        BuildCanvas();
     }
 
     // ─────────────────────────────────────────────────────────
@@ -220,8 +226,8 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         // 기본 스프라이트는 꼭짓점이 위(+y)를 향함 → 방향에 맞춰 회전
         float angle = Mathf.Atan2(pointDir.y, pointDir.x) * Mathf.Rad2Deg - 90f;
 
-        if (!ind.rect.gameObject.activeSelf)
-            ind.rect.gameObject.SetActive(true);
+        //예전엔 여기서 SetActive(true)를 확인했다. 풀에서 꺼낸 것이 꺼져 있을 수 있어서였는데,
+        //이제는 만들자마자 쓰고 놓을 때 없애므로 꺼진 인디케이터가 존재하지 않는다.
         ind.rect.position = new Vector3(pos.x, pos.y, 0f);
         ind.rect.localRotation = Quaternion.Euler(0f, 0f, angle);
 
@@ -244,7 +250,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         if (active.TryGetValue(key, out var existing))
             return existing;
 
-        Indicator ind = pool.Count > 0 ? pool.Dequeue() : CreateIndicator();
+        Indicator ind = CreateIndicator();
         active[key] = ind;
         return ind;
     }
@@ -282,17 +288,17 @@ public class OffScreenPlayerIndicator : MonoBehaviour
             Release(staleKeys[i]);
     }
 
+    //풀이 없어졌으므로 숨기지 않고 없앤다. 다시 쓸 일이 없다는 게 위 주석의 결론이다.
     private void Release(Transform key)
     {
         if (!active.TryGetValue(key, out var ind))
             return;
+
         active.Remove(key);
         ind.entity = null;
 
         if (ind.rect != null)
-            ind.rect.gameObject.SetActive(false);
-
-        pool.Enqueue(ind);
+            Destroy(ind.rect.gameObject);
     }
 
     private void HideAll()
@@ -307,24 +313,14 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     // 런타임 캔버스 / 삼각형 스프라이트 생성
     // ─────────────────────────────────────────────────────────
-    // ★ GraphicRaycaster는 붙이지 않는다
-    //   삼각형은 raycastTarget = false고 누를 것도 없는데, 레이캐스터가 있으면
-    //   포인터 이벤트마다 이 캔버스를 훑는다. 예전엔 습관처럼 셋을 같이 붙였다.
-    private void BuildCanvas()
-    {
-        var go = new GameObject("OffScreenIndicatorCanvas",
-            typeof(Canvas), typeof(CanvasScaler));
-        go.transform.SetParent(transform, false);
-
-        Canvas canvas = go.GetComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = sortingOrder;
-
-        // 픽셀 단위 위치/크기를 그대로 쓰기 위해 상수 픽셀 모드
-        var scaler = go.GetComponent<CanvasScaler>();
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ConstantPixelSize;
-        scaler.scaleFactor = 1f;
-
-        canvasRect = go.GetComponent<RectTransform>();
-    }
+    // ★ 캔버스는 코드가 만들지 않는다 — 씬의 자식 OffScreenIndicatorCanvas다
+    //
+    //   예전엔 Start에서 GameObject를 만들고 Canvas·CanvasScaler·GraphicRaycaster를
+    //   붙였다. 그러면 sortingOrder 같은 값이 [SerializeField]로 있어도 실제로는
+    //   코드가 정하는 셈이라 인스펙터에서 만져도 소용이 없었다.
+    //
+    //   씬에 두면 정렬 순서·스케일 모드가 눈에 보이고, 이 스크립트는
+    //   "어디에 그릴지"만 받아서 삼각형을 얹는 일에 집중한다.
+    //   (GraphicRaycaster는 아예 안 붙였다 — 삼각형은 raycastTarget = false고
+    //    누를 것도 없는데, 있으면 포인터 이벤트마다 이 캔버스를 훑는다)
 }
