@@ -34211,7 +34211,7 @@ RectTransform:
   m_GameObject: {fileID: 924715698}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 563542956}
@@ -42806,8 +42806,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uiList: []
   startState: 3
-  fadeCanvasGroup: {fileID: 1834091249}
-  fadeDuration: 1
 --- !u!4 &559282404
 Transform:
   m_ObjectHideFlags: 0
@@ -147454,6 +147452,7 @@ GameObject:
   - component: {fileID: 1834091251}
   - component: {fileID: 1834091250}
   - component: {fileID: 1834091249}
+  - component: {fileID: 1834091260}
   m_Layer: 5
   m_Name: FadeImage
   m_TagString: Untagged
@@ -147492,6 +147491,19 @@ CanvasGroup:
   m_Interactable: 1
   m_BlocksRaycasts: 1
   m_IgnoreParentGroups: 0
+--- !u!114 &1834091260
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1834091247}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c4f1e2b7a83465d8b16d0f395a2c748, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  fadeDuration: 1
 --- !u!114 &1834091250
 MonoBehaviour:
   m_ObjectHideFlags: 0

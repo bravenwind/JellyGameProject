@@ -35491,9 +35491,9 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 1905502188}
-        m_TargetAssemblyTypeName: UIManager, Assembly-CSharp
-        m_MethodName: OnClick_MainMenuButton
+      - m_Target: {fileID: 1905502187}
+        m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
+        m_MethodName: ReturnToMain
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -71847,8 +71847,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   uiList: []
   startState: 3
-  fadeCanvasGroup: {fileID: 0}
-  fadeDuration: 1
 --- !u!4 &1905502189
 Transform:
   m_ObjectHideFlags: 0

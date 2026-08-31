@@ -226,7 +226,18 @@ public class OffScreenPlayerIndicator : MonoBehaviour
             return existing;
 
         //위치·회전은 바로 아래 UpdateIndicator가 정하므로 여기서는 부모만 잡아준다.
-        PlayerIndicator indicator = Instantiate(indicatorPrefab, canvasRect);
+        //
+        // ★ 세 번째 인자 false(worldPositionStays)를 반드시 넘긴다 —
+        //   빼먹으면 플레이어마다 삼각형 크기가 달라진다.
+        //   Instantiate(원본, 부모)는 worldPositionStays가 true다. 그러면 유니티는
+        //   "월드 스케일을 프리팹 그대로 유지"하려고 자식의 localScale에
+        //   프리팹스케일 / 부모의 lossyScale 을 넣는다.
+        //   그런데 이 부모는 Screen Space - Overlay 캔버스라 스케일을 캔버스 시스템이
+        //   매 프레임 다시 써 넣는다. 그 값이 아직 안 들어온 첫 프레임에는 lossyScale이
+        //   씬에 적힌 값(0)이라, 그때 태어난 인디케이터만 엉뚱한 크기를 갖고 굳었다.
+        //   나중에 접속·부활한 상대의 삼각형은 정상 크기 → "쟤만 크다"가 된다.
+        //   false를 주면 프리팹의 localScale(1,1,1)이 그대로 들어와 시점과 무관해진다.
+        PlayerIndicator indicator = Instantiate(indicatorPrefab, canvasRect, false);
         active[key] = indicator;
         return indicator;
     }

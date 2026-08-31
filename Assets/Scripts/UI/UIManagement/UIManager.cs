@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
-using System.Collections;
 using System;
-using JellyNet;
 
 /// <summary>
 /// 화면에 어떤 UI 묶음을 띄울지 정하는 상태.
@@ -30,6 +28,17 @@ public enum UIState
 ///   - 게임 진행(카운트다운·종료 연출)은 LanGameFlow가 한다
 ///   - 씬 전환과 소켓 정리는 LanSceneFlow가 한다
 ///   예전엔 여기가 Time.timeScale과 씬 전환까지 건드려서 그 둘과 소유권을 다퉜다.
+///
+/// ★ 곧 사라질 클래스다 — 새 코드가 여기에 기대지 말 것
+///   씬 네 곳(Game_io×2, GameResult×2)에 붙어 있지만 <b>uiList가 전부 비어 있다.</b>
+///   즉 SetState는 아무 오브젝트도 켜고 끄지 않고, Pause 상태로 들어가는 곳이 없어
+///   ApplyPause도 늘 timeScale=1을 쓸 뿐이며, ESC 토글도 보이는 변화가 없다.
+///   실제로 일을 하던 둘은 각자의 자리로 옮겼다:
+///     · 페이드 인      → ScreenFader (FadeImage 오브젝트가 직접 갖는다)
+///     · "메인으로" 버튼 → SceneLoader (같은 오브젝트에 이미 있던 버튼 핸들러)
+///   남은 SetState/UIState를 부르는 곳은 인게임 설정 UI 세 개뿐이고,
+///   그 UI는 걷어내기로 했다. 씬에서 설정 오브젝트가 빠지면 이 파일과
+///   SettingsUI·SoundSettings·TopRightButtonUI를 함께 지운다.
 /// </summary>
 public class UIManager : MonoBehaviour
 {
@@ -48,13 +57,6 @@ public class UIManager : MonoBehaviour
 
     [Header("시작 상태")]
     [SerializeField] private UIState startState = UIState.InGame;
-
-    [Header("화면 페이드")]
-    [Tooltip("화면을 덮는 이미지의 CanvasGroup. 비우면 페이드를 건너뛴다.")]
-    [SerializeField] private CanvasGroup fadeCanvasGroup;
-
-    [Tooltip("페이드 인에 걸리는 시간 (초)")]
-    [SerializeField] private float fadeDuration = 1.0f;
 
     public UIState CurrentState { get; private set; }
 
@@ -77,7 +79,6 @@ public class UIManager : MonoBehaviour
     private void Start()
     {
         SetState(startState);
-        StartCoroutine(FadeIn());
     }
 
     // ─────────────────────────────────────────────────────────
@@ -128,41 +129,4 @@ public class UIManager : MonoBehaviour
             SetState(UIState.InGame);
     }
 
-    // ─────────────────────────────────────────────────────────
-    //  페이드
-    // ─────────────────────────────────────────────────────────
-    //
-    // ★ 예전엔 SceneFade(string fadeInOut) 하나로 인/아웃을 갈랐다
-    //   문자열 비교("FadeIn" / "FadeOut")라 오타가 컴파일에 걸리지 않고 조용히
-    //   아무 일도 안 하는 구조였다. 게다가 FadeOut 분기는 부르는 곳이 하나도 없었고,
-    //   그 안에서 LanSceneFlow.ToMain()까지 호출해 UI 연출과 씬 전환이 엉켜 있었다.
-    //   실제로 쓰이는 것은 '씬 진입 시 어두운 화면을 걷어내기' 하나뿐이라 그것만 남긴다.
-
-    private IEnumerator FadeIn()
-    {
-        if (fadeCanvasGroup == null)
-            yield break;
-
-        fadeCanvasGroup.alpha = 1f;
-        fadeCanvasGroup.blocksRaycasts = true;   // 걷히는 동안 입력을 막는다
-
-        float timer = 0f;
-
-        while (timer < fadeDuration)
-        {
-            //정지 중에도 페이드는 진행돼야 하므로 unscaled를 쓴다
-            timer += Time.unscaledDeltaTime;
-            fadeCanvasGroup.alpha = 1f - Mathf.Clamp01(timer / fadeDuration);
-            yield return null;
-        }
-
-        fadeCanvasGroup.alpha = 0f;
-        fadeCanvasGroup.blocksRaycasts = false;  // 걷힌 뒤에는 반드시 입력을 돌려준다
-    }
-
-    /// <summary>"메인으로" 버튼. 게임 씬·결과 씬 어디서 눌러도 안전하다.</summary>
-    public void OnClick_MainMenuButton()
-    {
-        LanSceneFlow.ToMain();
-    }
 }
