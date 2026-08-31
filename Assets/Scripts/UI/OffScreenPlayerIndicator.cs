@@ -7,8 +7,9 @@
 //   - 삼각형 색은 해당 플레이어의 현재 색(DisplayColor / 봇 머티리얼 색)과 연동된다.
 //
 // [특징]
-//   - 캔버스는 런타임에 만들고, 삼각형은 프로젝트의 스프라이트 에셋을 쓴다.
-//   - 인디케이터는 풀링(딕셔너리 재사용)되며 대상이 사라지면 정리된다.
+//   - 이 스크립트가 정하는 건 <b>어디에 놓을지</b>뿐이다. 삼각형의 생김새는 프리팹이,
+//     담을 자리는 씬의 캔버스가 갖고 있다.
+//   - 대상 하나당 삼각형 하나를 Instantiate하고, 대상이 사라지면 Destroy한다.
 //
 // ★ 한때 삭제됐다가 되살린 파일
 //   Photon을 걷어낼 때 `using Photon.Pun;` 한 줄만 보고 통째로 지웠는데,
@@ -32,7 +33,6 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using JellyNet;
 
 public class OffScreenPlayerIndicator : MonoBehaviour
@@ -49,8 +49,6 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     [SerializeField] private float edgeMargin = 60f;
     [Tooltip("화면 안에 있을 때 머리 위로 띄울 높이")]
     [SerializeField] private float onScreenHeadOffset = 42f;
-    [Tooltip("삼각형 한 변 길이")]
-    [SerializeField] private float indicatorSize = 46f;
 
     [Header("월드")]
     [Tooltip("대상 머리 기준 높이(스케일에 비례해 가감)")]
@@ -60,33 +58,20 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     [Tooltip("삼각형을 담을 캔버스. 자식 OffScreenIndicatorCanvas")]
     [SerializeField] private RectTransform canvasRect;
 
-    [Tooltip("꼭짓점이 위를 향하는 삼각형. Sprites/UI/IndicatorTriangle")]
-    [SerializeField] private Sprite triangleSprite;
+    // ★ 삼각형은 프리팹이다 — 코드가 조립하지 않는다
+    //   예전엔 CreateIndicator()가 GameObject를 만들고 Image·Outline을 붙이고
+    //   스프라이트·크기·외곽선 색까지 코드로 정했다. 그래서 삼각형 하나의 생김새를
+    //   바꾸려면 스크립트를 고쳐야 했고, indicatorSize 같은 값이 관리자에 섞여 있었다.
+    //   MinimapArrowManager가 이미 arrowPrefab + MinimapArrow 구조다 — 거기 맞췄다.
+    [Tooltip("삼각형 프리팹. Prefabs/UI/PlayerIndicator")]
+    [SerializeField] private PlayerIndicator indicatorPrefab;
 
     // ─────────────────────────────────────────────────────────
     // 내부 상태
     // ─────────────────────────────────────────────────────────
     private Camera cam;
 
-    private class Indicator
-    {
-        public RectTransform rect;
-        public Image image;
-
-        //사람이든 봇이든 여기 하나로 들어온다. 색·판밖 여부를 INetEntity가 답해준다
-        public INetEntity entity;
-    }
-
-    // ★ 풀(Queue)이 있었는데 한 번도 안 꺼내졌다
-    //   방출 조건이 넷인데 <b>넷 다 되돌아오지 않는다</b>:
-    //     · 봇의 IsOutOfPlay — IsBeingAbsorbed를 false로 되돌리는 코드가 없다
-    //     · 사람의 IsOutOfPlay — Flags를 None으로 되돌리는 코드가 없다
-    //     · cam == null — 카메라는 씬에 하나뿐이고 파괴되지 않는다.
-    //       LanSpectator는 TopDownCameraFollow의 <b>타겟만</b> 바꾼다
-    //     · Phase != Playing — 종료 후 Playing으로 돌아가려면 씬 재로드가 필요하고,
-    //       시작 전에는 목록이 비어 있다
-    //   그래서 Dequeue는 늘 Count == 0이었고 매번 새로 만들고 있었다. 지금은 그냥 없앤다.
-    private readonly Dictionary<Transform, Indicator> active = new Dictionary<Transform, Indicator>();
+    private readonly Dictionary<Transform, PlayerIndicator> active = new Dictionary<Transform, PlayerIndicator>();
     private readonly List<Transform> staleKeys = new List<Transform>();
     private readonly HashSet<Transform> seenThisFrame = new HashSet<Transform>();
 
@@ -96,11 +81,11 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     // 이 파일은 예전에 소리 없이 사라진 전력이 있다.
     private void Start()
     {
-        if (triangleSprite == null || canvasRect == null)
+        if (indicatorPrefab == null || canvasRect == null)
         {
             Debug.LogError("[화면밖표시] 인스펙터 연결이 비어 있습니다 — "
-                + "Canvas는 자식 OffScreenIndicatorCanvas, 스프라이트는 "
-                + "Sprites/UI/IndicatorTriangle. 표시를 끕니다.", this);
+                + "Canvas Rect는 자식 OffScreenIndicatorCanvas, "
+                + "Indicator Prefab은 Prefabs/UI/PlayerIndicator. 표시를 끕니다.", this);
             enabled = false;
         }
     }
@@ -129,10 +114,6 @@ public class OffScreenPlayerIndicator : MonoBehaviour
 
         seenThisFrame.Clear();
 
-        // ★ 예전엔 사람 목록·봇 목록을 따로 돌았다
-        //   본문이 '화면 밖이면 테두리에 삼각형을 띄운다'로 똑같은데 색을 읽는 줄만
-        //   갈라져 있었다(LanPlayerState.VisualColor / 봇 렌더러 직접 조회).
-        //   INetEntity가 그 차이를 안으로 삼켰으므로 한 벌이면 된다.
         IReadOnlyList<INetEntity> entities = EntityRegistry.Entities;
 
         for (int i = 0; i < entities.Count; i++)
@@ -150,8 +131,8 @@ public class OffScreenPlayerIndicator : MonoBehaviour
             if (!e.IsBot && e.Identity != null && e.Identity.IsMine)
                 continue;
 
-            Indicator ind = GetOrCreate(e.Transform);
-            ind.entity = e;
+            PlayerIndicator ind = GetOrCreate(e.Transform);
+            ind.Entity = e;
             UpdateIndicator(ind, e.Transform);
             seenThisFrame.Add(e.Transform);
         }
@@ -162,7 +143,7 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     // ─────────────────────────────────────────────────────────
     // 개별 인디케이터 위치/회전/색 갱신
     // ─────────────────────────────────────────────────────────
-    private void UpdateIndicator(Indicator ind, Transform target)
+    private void UpdateIndicator(PlayerIndicator ind, Transform target)
     {
         float scale = target.localScale.y;
         Vector3 headWorld = target.position + Vector3.up * (worldHeadHeight * scale);
@@ -228,52 +209,26 @@ public class OffScreenPlayerIndicator : MonoBehaviour
 
         //예전엔 여기서 SetActive(true)를 확인했다. 풀에서 꺼낸 것이 꺼져 있을 수 있어서였는데,
         //이제는 만들자마자 쓰고 놓을 때 없애므로 꺼진 인디케이터가 존재하지 않는다.
-        ind.rect.position = new Vector3(pos.x, pos.y, 0f);
-        ind.rect.localRotation = Quaternion.Euler(0f, 0f, angle);
+        ind.Rect.position = new Vector3(pos.x, pos.y, 0f);
+        ind.Rect.localRotation = Quaternion.Euler(0f, 0f, angle);
 
-        Color c = GetColor(ind);
-        c.a = 1f;
-        ind.image.color = c;
-    }
-
-    //사람·봇 모두 INetEntity.VisualColor 하나로 답한다
-    private static Color GetColor(Indicator ind)
-    {
-        return ind.entity != null ? ind.entity.VisualColor : Color.white;
+        //색은 프리팹이 자기 Image를 알고 있으므로 거기에 맡긴다.
+        //예전엔 여기서 ind.image.color를 직접 건드렸다 — 관리자가 삼각형의 내부 구조까지 알았다.
+        ind.ApplyColor();
     }
 
     // ─────────────────────────────────────────────────────────
-    // 풀링 / 정리
+    // 생성 / 정리
     // ─────────────────────────────────────────────────────────
-    private Indicator GetOrCreate(Transform key)
+    private PlayerIndicator GetOrCreate(Transform key)
     {
         if (active.TryGetValue(key, out var existing))
             return existing;
 
-        Indicator ind = CreateIndicator();
-        active[key] = ind;
-        return ind;
-    }
-
-    private Indicator CreateIndicator()
-    {
-        var go = new GameObject("PlayerIndicator", typeof(RectTransform));
-        var rect = go.GetComponent<RectTransform>();
-        rect.SetParent(canvasRect, false);
-        rect.sizeDelta = new Vector2(indicatorSize, indicatorSize);
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-
-        var img = go.AddComponent<Image>();
-        img.sprite = triangleSprite;
-        img.raycastTarget = false;
-
-        // 어두운 배경에서도 잘 보이도록 외곽선
-        var outline = go.AddComponent<Outline>();
-        outline.effectColor = new Color(0f, 0f, 0f, 0.6f);
-        outline.effectDistance = new Vector2(2f, -2f);
-
-        return new Indicator { rect = rect, image = img };
+        //위치·회전은 바로 아래 UpdateIndicator가 정하므로 여기서는 부모만 잡아준다.
+        PlayerIndicator indicator = Instantiate(indicatorPrefab, canvasRect);
+        active[key] = indicator;
+        return indicator;
     }
 
     private void CleanupStale()
@@ -285,20 +240,19 @@ public class OffScreenPlayerIndicator : MonoBehaviour
                 staleKeys.Add(kvp.Key);
         }
         for (int i = 0; i < staleKeys.Count; i++)
-            Release(staleKeys[i]);
+            CleanupActive(staleKeys[i]);
     }
 
     //풀이 없어졌으므로 숨기지 않고 없앤다. 다시 쓸 일이 없다는 게 위 주석의 결론이다.
-    private void Release(Transform key)
+    private void CleanupActive(Transform key)
     {
         if (!active.TryGetValue(key, out var ind))
             return;
 
         active.Remove(key);
-        ind.entity = null;
 
-        if (ind.rect != null)
-            Destroy(ind.rect.gameObject);
+        if (ind != null)
+            Destroy(ind.gameObject);
     }
 
     private void HideAll()
@@ -307,20 +261,6 @@ public class OffScreenPlayerIndicator : MonoBehaviour
         foreach (var kvp in active)
             staleKeys.Add(kvp.Key);
         for (int i = 0; i < staleKeys.Count; i++)
-            Release(staleKeys[i]);
+            CleanupActive(staleKeys[i]);
     }
-
-    // ─────────────────────────────────────────────────────────
-    // 런타임 캔버스 / 삼각형 스프라이트 생성
-    // ─────────────────────────────────────────────────────────
-    // ★ 캔버스는 코드가 만들지 않는다 — 씬의 자식 OffScreenIndicatorCanvas다
-    //
-    //   예전엔 Start에서 GameObject를 만들고 Canvas·CanvasScaler·GraphicRaycaster를
-    //   붙였다. 그러면 sortingOrder 같은 값이 [SerializeField]로 있어도 실제로는
-    //   코드가 정하는 셈이라 인스펙터에서 만져도 소용이 없었다.
-    //
-    //   씬에 두면 정렬 순서·스케일 모드가 눈에 보이고, 이 스크립트는
-    //   "어디에 그릴지"만 받아서 삼각형을 얹는 일에 집중한다.
-    //   (GraphicRaycaster는 아예 안 붙였다 — 삼각형은 raycastTarget = false고
-    //    누를 것도 없는데, 있으면 포인터 이벤트마다 이 캔버스를 훑는다)
 }

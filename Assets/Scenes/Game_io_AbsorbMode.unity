@@ -177855,10 +177855,9 @@ MonoBehaviour:
   includeBots: 1
   edgeMargin: 60
   onScreenHeadOffset: 42
-  indicatorSize: 46
   worldHeadHeight: 1.2
   canvasRect: {fileID: 464783475}
-  triangleSprite: {fileID: 21300000, guid: 7c1d4a9e35b04f2b8e6a1d0c93f7e214, type: 3}
+  indicatorPrefab: {fileID: 4318207641095302118, guid: 6e0b83f24c5d417ab29e5a7c1d80f3b6, type: 3}
 --- !u!1 &924715698
 GameObject:
   m_ObjectHideFlags: 0
