@@ -243,7 +243,6 @@ public class OffScreenPlayerIndicator : MonoBehaviour
             CleanupActive(staleKeys[i]);
     }
 
-    //풀이 없어졌으므로 숨기지 않고 없앤다. 다시 쓸 일이 없다는 게 위 주석의 결론이다.
     private void CleanupActive(Transform key)
     {
         if (!active.TryGetValue(key, out var ind))

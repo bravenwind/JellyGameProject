@@ -45,6 +45,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1dffcc7e8a7db9d4fa6f80abc01a5f5a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  icon: {fileID: 2250621618710277795}
   target: {fileID: 0}
   offset: {x: 0, y: 68.32, z: 0}
   syncOnlyYRotation: 1
