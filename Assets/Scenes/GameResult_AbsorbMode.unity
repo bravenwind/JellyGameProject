@@ -70085,7 +70085,6 @@ GameObject:
   - component: {fileID: 1891791346}
   - component: {fileID: 1891791349}
   - component: {fileID: 1891791348}
-  - component: {fileID: 1891791350}
   - component: {fileID: 1891791351}
   m_Layer: 0
   m_Name: MapGenerator
@@ -71091,29 +71090,10 @@ MonoBehaviour:
   m_OverrideTileSize: 0
   m_TileSize: 256
   m_OverrideVoxelSize: 0
-  m_VoxelSize: 0.25666666
+  m_VoxelSize: 0.21666665
   m_MinRegionArea: 2
   m_NavMeshData: {fileID: 0}
   m_BuildHeightMesh: 0
---- !u!114 &1891791350
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1891791345}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5e4639ce1d434b2459e90d25161882bd, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  gridParent: {fileID: 1891791347}
-  collapseStartTime: 0
-  ringInterval: 15
-  tileDelay: 0.05
-  warningDuration: 3
-  fallDuration: 2
-  fallDistance: 30
 --- !u!65 &1891791351
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -74669,6 +74649,7 @@ MonoBehaviour:
   overviewDistance: 100
   overviewHeight: 4
   virtualCameraFov: 40
+  curtainWaitTimeout: 6
   fallbackColor: {r: 1, g: 1, b: 1, a: 1}
   baseColor02Lightness: 0.6
   baseColor01Property: _BaseColor_01
