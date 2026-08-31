@@ -12,8 +12,9 @@
 // [사용 방법]
 //   1. 빈 GameObject에 이 스크립트를 붙인다.
 //   2. arrowPrefab에 MinimapArrow 컴포넌트가 있는 화살표 프리팹 할당.
-//   3. 프리팹의 오브젝트(및 자식들)의 레이어를 Minimap 전용 레이어로 설정.
-//   4. 미니맵 카메라의 Culling Mask에서 해당 레이어만(또는 포함하여) 보이게 설정.
+//   3. 프리팹의 오브젝트(및 자식들)의 레이어를 Minimap으로 설정. <b>코드는 손대지 않는다.</b>
+//   4. 미니맵 카메라의 Culling Mask에서 해당 레이어가 보이게, 메인 카메라에서는 안 보이게 설정.
+//      (현재 씬: MinimapCamera는 레이어 10 포함, 메인 Camera는 9·10 제외)
 // ============================================================
 
 using System.Collections.Generic;
@@ -37,9 +38,15 @@ public class MinimapArrowManager : MonoBehaviour
     [Tooltip("미니맵 카메라보다 조금 낮게 두면 화살표가 카메라에 잘 잡힙니다.")]
     [SerializeField] private Vector3 arrowOffset = new Vector3(0f, 1f, 0f);
 
-    [Header("미니맵 레이어 이름")]
-    [Tooltip("화살표를 배치할 레이어 이름. 미니맵 카메라의 Culling Mask와 맞춰야 합니다.")]
-    [SerializeField] private string minimapLayerName = "Minimap";
+    // ★ 레이어는 코드가 정하지 않는다 — 프리팹에 이미 박혀 있다
+    //   예전엔 minimapLayerName("Minimap") 문자열을 받아 스폰할 때마다
+    //   SetLayerRecursively로 화살표와 자식을 훑으며 레이어를 칠했다.
+    //   그런데 프리팹의 루트도 자식(MiniMapIcon)도 <b>이미 Minimap 레이어</b>였다.
+    //   같은 값을 다시 칠하는 코드였다.
+    //
+    //   인스펙터에서 한 번 정해두면 되는 것을 코드로 다시 정하면 출처가 둘이 된다 —
+    //   프리팹을 고쳐도 코드가 덮어써서 "왜 안 바뀌지"가 되고, 반대로 코드만 고치면
+    //   프리팹을 보는 사람이 속는다. 세팅은 세팅이 있는 곳에 둔다.
 
     // ─────────────────────────────────────────────────────────
     // 내부 상태
@@ -128,13 +135,6 @@ public class MinimapArrowManager : MonoBehaviour
         GameObject arrow = Instantiate(arrowPrefab, target.position + arrowOffset, Quaternion.identity);
         arrow.name = $"MinimapArrow_{target.name}";
 
-        // 레이어 설정
-        int layer = LayerMask.NameToLayer(minimapLayerName);
-        if (layer >= 0)
-            SetLayerRecursively(arrow, layer);
-        else
-            Debug.LogWarning($"[MinimapArrowManager] '{minimapLayerName}' 레이어를 찾을 수 없습니다. Project Settings > Tags and Layers에서 추가하세요.");
-
         // MinimapArrow 컴포넌트 설정
         MinimapArrow minimapArrow = arrow.GetComponent<MinimapArrow>();
         if (minimapArrow != null)
@@ -176,17 +176,4 @@ public class MinimapArrowManager : MonoBehaviour
         }
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 유틸: 레이어 재귀 설정
-    // ─────────────────────────────────────────────────────────
-    private static void SetLayerRecursively(GameObject obj, int layer)
-    {
-        obj.layer = layer;
-        foreach (Transform child in obj.transform)
-            SetLayerRecursively(child.gameObject, layer);
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // 외부 API: 특정 대상의 화살표 색상 변경 (선택 사항)
-    // ─────────────────────────────────────────────────────────
 }
