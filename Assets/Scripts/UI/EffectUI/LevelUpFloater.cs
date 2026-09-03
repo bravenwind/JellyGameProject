@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.UI;
 using System;
 using System.Collections;
 
@@ -13,9 +12,11 @@ using System.Collections;
 ///   코드로 칠했다. 그래서 팝업이 한 종류밖에 될 수 없었고, 문구를 바꾸려면 스크립트를
 ///   고쳐야 했다. 지금 이 스크립트에 남은 건 "어디에 놓고 어떻게 움직일지"뿐이다.
 ///
-/// ★ 무엇을 흐리게 할지도 프리팹을 보고 정한다
-///   이미지 팝업(UI Image)이든 글자 팝업(TextMeshPro)이든 스프라이트든 색을 가진 것을
-///   Awake에서 한 번 찾아둔다. TMP도 Graphic을 상속하므로 Graphic 하나로 둘 다 잡힌다.
+/// ★ 팝업은 월드 스프라이트다 — UI(Graphic) 갈래는 지웠다
+///   한때 Image·TextMeshPro도 받으려고 Graphic을 함께 찾았다. 그런데 팝업 프리팹
+///   셋(jellyEatPopup_Grow/Squishy/Yum)은 전부 SpriteRenderer 하나만 들고 있어
+///   그 갈래는 한 번도 돌지 않았다. UI 팝업은 캔버스가 있어야 하는데 이 컴포넌트는
+///   캐릭터의 자식으로 붙으므로 애초에 성립하지도 않았다.
 ///
 /// ★ 크기도 프리팹의 값을 <b>배율로</b> 쓴다
 ///   예전엔 매 프레임 localScale에 1을 통째로 써넣어서, 프리팹이 정해둔 크기를 덮어썼다.
@@ -50,8 +51,7 @@ public class LevelUpFloater : MonoBehaviour
     private Action<LevelUpFloater> onComplete;
     private Coroutine routine;
 
-    private Graphic graphic;         // Image · RawImage · TextMeshPro 전부 여기에 해당
-    private SpriteRenderer sprite;   // 월드 스프라이트를 쓸 때
+    private SpriteRenderer sprite;   // 색·알파를 여기에 쓴다
     private Color baseColor = Color.white;
     private Vector3 baseScale = Vector3.one;
 
@@ -59,15 +59,9 @@ public class LevelUpFloater : MonoBehaviour
     {
         baseScale = transform.localScale;
 
-        graphic = GetComponentInChildren<Graphic>(true);
-        if (graphic != null)
-            baseColor = graphic.color;
-        else
-        {
-            sprite = GetComponentInChildren<SpriteRenderer>(true);
-            if (sprite != null)
-                baseColor = sprite.color;
-        }
+        sprite = GetComponentInChildren<SpriteRenderer>(true);
+        if (sprite != null)
+            baseColor = sprite.color;
     }
 
     // ★ 켜고 끄는 건 풀이 한다 — 여기서는 건드리지 않는다
@@ -114,10 +108,20 @@ public class LevelUpFloater : MonoBehaviour
             //위치는 고정. 부모 로컬 기준 원시 오프셋(스케일 곱 X) — NameTagBillboard와 같은 패턴.
             transform.localPosition = spot;
 
-            // 빌보드: 카메라 정면
+            // ★ 빌보드는 '카메라를 바라보기'가 아니라 '화면과 나란히 세우기'다
+            //   예전엔 LookRotation(카메라 → 나)이었다. 그러면 팝업마다 카메라가 있는
+            //   <b>한 점</b>을 향하는 서로 다른 회전이 나오고, 그 회전은 화면 중앙에서
+            //   벗어날수록 화면 평면에서 더 많이 기운다. 이 게임의 메인 카메라는
+            //   직교(orthographic size 25)라 더 나쁘다 — 직교에서는 시선이 전부
+            //   평행한데 팝업만 한 점을 향해 돌아가므로, 기운 만큼 그대로
+            //   찌그러져 보인다. 화면 가장자리로 갈수록 심해진다.
+            //
+            //   카메라 회전을 그대로 복사하면 모든 팝업이 근평면과 나란해져
+            //   화면 어디에 있든 똑같이 반듯하게 보인다.
+            //   NameTagBillboard가 같은 증상("가장자리로 갈수록 이름표가 기울어
+            //   보였다")을 겪고 이미 이 방식으로 고쳤다 — 여기만 옛 방식이 남아 있었다.
             if (cam != null)
-                transform.rotation = Quaternion.LookRotation(
-                    transform.position - cam.transform.position);
+                transform.rotation = cam.transform.rotation;
 
             float k;
             if (t < 0.25f)
@@ -147,9 +151,7 @@ public class LevelUpFloater : MonoBehaviour
         Color c = baseColor;
         c.a = alpha;
 
-        if (graphic != null)
-            graphic.color = c;
-        else if (sprite != null)
+        if (sprite != null)
             sprite.color = c;
     }
 
