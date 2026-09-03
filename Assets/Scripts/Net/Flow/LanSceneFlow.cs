@@ -53,8 +53,7 @@ namespace JellyNet
             //  ★ 예전엔 여기에 '커튼 없는 폴백'이 있었다
             //    TryBeginDepartureIntro가 false를 주면 timeScale을 풀고 곧장 Loading 씬으로
             //    넘어갔다. 그런데 false가 되는 조건이 둘 다 성립하지 않는다 — 중복 호출은
-            //    바로 위 IsTransitioning이 막고, 커튼 프리팹은 항상 있다. Loading 씬에는
-            //    커튼이 없으므로 그 갈래로 갔다면 화면이 그냥 끊겼을 것이다.
+            //    바로 위 IsTransitioning이 막고, 커튼 프리팹은 항상 있다.
             LoadingSceneController.BeginDepartureIntro();
         }
 

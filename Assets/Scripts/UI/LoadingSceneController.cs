@@ -76,14 +76,18 @@ public class LoadingSceneController : MonoBehaviour
     //
     // ★ 'Loading 씬에 놓인 커튼' 경로를 걷어냈다
     //   예전엔 갈래가 둘이었다. (a) 출발 씬에서 프리팹을 띄워 슬라이드인부터 하는 완전판,
-    //   (b) 프리팹이 없을 때 Loading 씬에 미리 배치된 커튼이 제자리에서 시작하는 폴백.
-    //   그런데 <b>Loading 씬에는 커튼이 없다</b> — 오브젝트가 Directional Light·EventSystem·
-    //   Main Camera 셋뿐이다. 커튼은 Assets/Resources/LoadingCurtain.prefab 하나가 전부다.
-    //   즉 (b)는 처음부터 도달할 수 없었는데 departureIntro 삼항 연산자, inLoadingScene 가드,
-    //   FALLBACK_HOLD_SECONDS, ExitRoutine이 전부 그 없는 갈래를 위해 남아 있었다.
+    //   (b) 프리팹이 없을 때 Loading 씬에 배치된 커튼이 제자리에서 시작하는 폴백.
+    //   Loading 씬에는 실제로 LoadingCurtain 프리팹 인스턴스가 놓여 있었지만,
+    //   <b>그것이 주도권을 잡는 일은 한 번도 없었다.</b> (a)가 항상 성공해서
+    //   커튼이 이미 DontDestroyOnLoad로 넘어와 있고, 씬의 인스턴스는 나중에 깨어나
+    //   아래 Awake의 `instance != null` 가드에 걸려 그 프레임에 스스로를 파괴했다.
+    //   전환할 때마다 커튼 계층 전체를 만들었다가 버린 셈이다.
+    //   그래서 씬의 인스턴스를 지우고 갈래도 하나로 줄였다 —
+    //   departureIntro 삼항 연산자, FALLBACK_HOLD_SECONDS, ExitRoutine이
+    //   전부 도달하지 않는 (b)를 위해 남아 있던 것들이다.
     //
-    //   지금은 갈래가 하나다. Loading 씬은 무거운 출발 씬을 커튼 뒤에서 내려놓기 위한
-    //   가벼운 경유지일 뿐이고, 커튼은 그 위를 DontDestroyOnLoad로 건너간다.
+    //   지금 Loading 씬은 무거운 출발 씬을 커튼 뒤에서 내려놓기 위한 가벼운 경유지일
+    //   뿐이고(Directional Light·EventSystem·Main Camera 셋), 커튼은 그 위를 건너간다.
     private const string CURTAIN_RESOURCE_PATH = "LoadingCurtain";
     private bool inLoadingScene;               // 커튼이 센터 상태로 Loading 씬에 도착했는지
 
