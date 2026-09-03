@@ -891,10 +891,10 @@ MonoBehaviour:
       - m_Target: {fileID: 559890853}
         m_TargetAssemblyTypeName: EnableTargetButton, Assembly-CSharp
         m_MethodName: EnableTarget
-        m_Mode: 1
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 1605538589}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -2255,10 +2255,10 @@ MonoBehaviour:
       - m_Target: {fileID: 1973089976}
         m_TargetAssemblyTypeName: EnableTargetButton, Assembly-CSharp
         m_MethodName: EnableTarget
-        m_Mode: 1
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 317200171}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -4730,12 +4730,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1605538593}
-        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
-        m_MethodName: DisableSelf
-        m_Mode: 1
+        m_TargetAssemblyTypeName: DisableTargetButton, Assembly-CSharp
+        m_MethodName: DisableTarget
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 1605538589}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -5639,7 +5639,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00f2a9cedf0f5b74d82a3c2fb4ff0f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 1605538589}
 --- !u!1 &573812077
 GameObject:
   m_ObjectHideFlags: 0
@@ -6305,12 +6304,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 1528527922}
-        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
-        m_MethodName: DisableSelf
-        m_Mode: 1
+        m_TargetAssemblyTypeName: DisableTargetButton, Assembly-CSharp
+        m_MethodName: DisableTarget
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 1528527918}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -10491,10 +10490,10 @@ MonoBehaviour:
       - m_Target: {fileID: 2025463711}
         m_TargetAssemblyTypeName: EnableTargetButton, Assembly-CSharp
         m_MethodName: EnableTarget
-        m_Mode: 1
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 1528527918}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -15355,7 +15354,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00f2a9cedf0f5b74d82a3c2fb4ff0f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 317200171}
 --- !u!1 &1994375566
 GameObject:
   m_ObjectHideFlags: 0
@@ -15807,7 +15805,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00f2a9cedf0f5b74d82a3c2fb4ff0f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 1528527918}
 --- !u!1 &2074633552
 GameObject:
   m_ObjectHideFlags: 0
@@ -15892,12 +15889,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 419462146}
-        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
-        m_MethodName: DisableSelf
-        m_Mode: 1
+        m_TargetAssemblyTypeName: DisableTargetButton, Assembly-CSharp
+        m_MethodName: DisableTarget
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 419462142}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -16318,12 +16315,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 317200175}
-        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
-        m_MethodName: DisableSelf
-        m_Mode: 1
+        m_TargetAssemblyTypeName: DisableTargetButton, Assembly-CSharp
+        m_MethodName: DisableTarget
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 317200171}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 

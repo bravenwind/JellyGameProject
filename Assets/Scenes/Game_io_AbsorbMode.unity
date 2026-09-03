@@ -3560,12 +3560,12 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 570428328}
-        m_TargetAssemblyTypeName: DisableSelfButton, Assembly-CSharp
-        m_MethodName: DisableSelf
-        m_Mode: 1
+        m_TargetAssemblyTypeName: DisableTargetButton, Assembly-CSharp
+        m_MethodName: DisableTarget
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 570428324}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -35328,10 +35328,10 @@ MonoBehaviour:
       - m_Target: {fileID: 481341242}
         m_TargetAssemblyTypeName: EnableTargetButton, Assembly-CSharp
         m_MethodName: EnableTarget
-        m_Mode: 1
+        m_Mode: 2
         m_Arguments:
-          m_ObjectArgument: {fileID: 0}
-          m_ObjectArgumentAssemblyTypeName: UnityEngine.Object, UnityEngine
+          m_ObjectArgument: {fileID: 570428324}
+          m_ObjectArgumentAssemblyTypeName: UnityEngine.GameObject, UnityEngine
           m_IntArgument: 0
           m_FloatArgument: 0
           m_StringArgument: 
@@ -35387,7 +35387,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00f2a9cedf0f5b74d82a3c2fb4ff0f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  target: {fileID: 570428324}
 --- !u!1 &483611832
 GameObject:
   m_ObjectHideFlags: 0
@@ -42783,7 +42782,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 559282404}
-  - component: {fileID: 559282403}
   - component: {fileID: 559282405}
   m_Layer: 0
   m_Name: 'UIManager '
@@ -42792,20 +42790,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &559282403
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 559282402}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d33ed917b8b1d544ba7c08588d205bb0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  uiList: []
-  startState: 3
 --- !u!4 &559282404
 Transform:
   m_ObjectHideFlags: 0

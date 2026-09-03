@@ -1431,7 +1431,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1905502189}
-  - component: {fileID: 1905502188}
   - component: {fileID: 1905502187}
   m_Layer: 0
   m_Name: 'UIManager '
@@ -1452,20 +1451,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c2ca4eab7f96a9846a992d0c7ffdb282, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
---- !u!114 &1905502188
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1905502186}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d33ed917b8b1d544ba7c08588d205bb0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  uiList: []
-  startState: 3
 --- !u!4 &1905502189
 Transform:
   m_ObjectHideFlags: 0

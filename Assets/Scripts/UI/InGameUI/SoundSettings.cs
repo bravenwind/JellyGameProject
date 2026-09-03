@@ -79,13 +79,9 @@ public class SoundSettings : MonoBehaviour
             textComponent.text = ((int)(value * 100)).ToString();
     }
 
-    public void OnSettingsBtnClicked()
-    {
-        // 싱글톤 인스턴스 null 체크 권장
-        if (PlaySFXAudio.Instance != null)
-            PlaySFXAudio.Instance.PlayButtonClickSound();
-
-        if (UIManager.Instance != null)
-            UIManager.Instance.SetState(UIState.Settings);
-    }
+    // ★ OnSettingsBtnClicked()는 삭제했다
+    //   UIManager.SetState(UIState.Settings)를 부르던 메서드인데, 어느 씬·프리팹에서도
+    //   이 메서드에 연결된 버튼이 없었다. 인게임 설정 UI가 사라지면서 UIManager도
+    //   지워졌으므로 컴파일도 되지 않는 코드가 됐다.
+    //   메인 씬에서 옵션 창을 여는 건 EnableTargetButton이 맡는다.
 }
