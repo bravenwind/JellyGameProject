@@ -1,23 +1,27 @@
-﻿using UnityEngine;
+using UnityEngine;
 using TMPro;
 using System;
 using System.Collections;
 
 /// <summary>
-/// 성장(젤리 흡수 / 배트 적중) 시 떠오르는 "Level Up!" 팝업 1개.
-/// 이 스크립트는 '팝업 프리팹'에 부착해 사용한다(인스턴스 = 프리팹 1개).
-/// 인스턴스 관리는 LevelUpFloaterPool(컨테이너)이 담당하며,
-/// Play() 호출 시 활성화 → 애니메이션 → 비활성화하고 onComplete로 풀에 반환된다.
+/// 성장(젤리 흡수 / 배트 적중) 시 캐릭터 주위에 팝 하고 떴다가 사라지는 팝업 하나.
+/// <b>팝업 프리팹에 부착해 쓴다</b> — 인스턴스 하나가 프리팹 하나다.
+/// 꺼내고 넣는 일은 LevelUpFloaterPool이 하고, Play()가 끝나면 onComplete로 풀에 돌아간다.
+///
+/// ★ 글자의 생김새는 이 코드가 정하지 않는다 — 프리팹이 정한다
+///   예전엔 EnsureText()가 TMP 컴포넌트를 <b>런타임에 AddComponent로 만들고</b>
+///   글자·크기·색·외곽선까지 코드로 칠했다. 그래서
+///     · 문구 하나 바꾸려면 스크립트를 고쳐야 했고
+///     · 팝업이 한 종류밖에 될 수 없었다(코드가 한 벌의 값만 갖고 있으니까)
+///     · [SerializeField]로 뚫어놓은 스타일 값들은 프리팹이 없으니 만질 자리도 없었다
+///   지금은 프리팹마다 다른 문구·색·폰트를 넣고 풀이 그중 하나를 무작위로 고른다.
+///   이 스크립트에 남은 건 "어디에 놓고 어떻게 움직일지"뿐이다.
 /// </summary>
 [DisallowMultipleComponent]
 public class LevelUpFloater : MonoBehaviour
 {
-    [Header("텍스트 (프리팹에 TMP를 미리 붙여두면 그걸 사용)")]
+    [Tooltip("이 팝업의 글자. 비워두면 자식에서 찾는다.")]
     [SerializeField] private TextMeshPro tmp;
-    [SerializeField] private string displayText = "Level Up!";
-    [SerializeField] private float fontSize = 6f;
-    [SerializeField] private Color textColor = new Color(1f, 0.9f, 0.15f);
-    [SerializeField] private Color outlineColor = new Color(0.55f, 0.25f, 0f);
 
     // ★ 예전엔 위로 떠오르며 페이드아웃했다
     //   지금은 <b>팝 하고 나타났다가 작아지며 사라진다.</b> 위로 흘러가지 않으니
@@ -43,31 +47,18 @@ public class LevelUpFloater : MonoBehaviour
     private Camera cam;
     private Action<LevelUpFloater> onComplete;
     private Coroutine routine;
+    private Color baseColor = Color.white;   // 프리팹이 정한 색. 알파만 이 스크립트가 건드린다.
 
     private void Awake()
     {
-        EnsureText();
-        gameObject.SetActive(false);   // 풀에서 꺼낼 때 활성화된다
-    }
-
-    /// <summary>프리팹에 TMP가 없으면 런타임에 생성하고 스타일을 적용한다.</summary>
-    private void EnsureText()
-    {
+        //프리팹 루트에 TMP가 있는 게 보통이지만 자식에 두는 구성도 허용한다.
         if (tmp == null)
             tmp = GetComponentInChildren<TextMeshPro>(true);
-        if (tmp == null)
-            tmp = gameObject.AddComponent<TextMeshPro>();
 
-        tmp.text = displayText;
-        tmp.fontSize = fontSize;
-        tmp.alignment = TextAlignmentOptions.Center;
-        tmp.fontStyle = FontStyles.Bold;
-        tmp.color = textColor;
-        tmp.outlineWidth = 0.3f;
-        tmp.outlineColor = outlineColor;
-        tmp.sortingOrder = 100;
-        if (tmp.rectTransform != null)
-            tmp.rectTransform.sizeDelta = new Vector2(5f, 2f);
+        if (tmp != null)
+            baseColor = tmp.color;
+
+        gameObject.SetActive(false);   // 풀에서 꺼낼 때 활성화된다
     }
 
     /// <summary>풀에서 호출. scaleRef는 크기 상쇄 기준(플레이어 루트), onComplete는 반환 콜백.</summary>
@@ -76,7 +67,6 @@ public class LevelUpFloater : MonoBehaviour
         this.scaleRef = scaleRef;
         this.onComplete = onComplete;
         cam = Camera.main;
-        EnsureText();
 
         gameObject.SetActive(true);
         if (routine != null)
@@ -136,8 +126,9 @@ public class LevelUpFloater : MonoBehaviour
             transform.localScale = Vector3.one / parentScale * scale;
 
             //알파는 끝에서만 뺀다. 크기가 줄어드는 게 주연이라 일찍 흐려지면 둘 다 약해진다.
-            Color c = textColor;
-            c.a = t < 0.7f ? 1f : Mathf.Lerp(1f, 0f, (t - 0.7f) / 0.3f);
+            //색 자체는 프리팹이 정한 것을 그대로 쓴다.
+            Color c = baseColor;
+            c.a = t < 0.7f ? baseColor.a : Mathf.Lerp(baseColor.a, 0f, (t - 0.7f) / 0.3f);
             tmp.color = c;
 
             yield return null;

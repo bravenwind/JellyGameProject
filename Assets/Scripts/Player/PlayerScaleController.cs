@@ -91,11 +91,18 @@ public class PlayerScaleController : MonoBehaviour
             jellyBatchCoroutine = StartCoroutine(BatchedJellyGrow());
     }
 
+    // ★ playEffect를 false에서 true로 바꿨다
+    //   젤리를 먹었을 때만 연출을 끄고 있었다. 원래 이유는 소리가 두 번 나서였는데,
+    //   진짜 원인은 PlayerBridge.HandleGrowStarted에 <b>소유자 가드가 빠져 있던 것</b>이었고
+    //   그건 따로 고쳤다. false로 막아두는 바람에 생긴 부작용이 더 컸다:
+    //   원격 화면은 ApplyGrow(GrowKind.Jelly)로 젤리 흡수를 <b>이미 알고 있는데도</b>
+    //   팝업을 띄우지 않아, 봇을 흡수했을 때(모두에게 보임)와 젤리를 먹었을 때
+    //   (먹은 사람에게만 보임)의 연출이 서로 달랐다.
     private IEnumerator BatchedJellyGrow()
     {
         yield return null;
         jellyBatchCoroutine = null;
-        QueueScaleChange(ScaleTo(pendingScale, DataManager.Instance.GrowAnimTime, playEffect: false));
+        QueueScaleChange(ScaleTo(pendingScale, DataManager.Instance.GrowAnimTime, playEffect: true));
     }
 
     public void GrowByAbsorbing(float absorbedScaleValue)

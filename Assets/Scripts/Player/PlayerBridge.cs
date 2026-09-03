@@ -46,14 +46,14 @@ public class PlayerBridge : MonoBehaviour
         absorber = GetComponentInChildren<PlayerAbsorber>();
         movement = GetComponentInChildren<PlayerMovement>();
 
-        // 풀(컨테이너)이 프리팹에 있으면 사용, 없으면 동적 생성
+        // ★ 없으면 만들어주지 않는다
+        //   예전엔 못 찾으면 AddComponent로 만들었는데, 그렇게 태어난 풀은
+        //   인스펙터에서 팝업 프리팹을 꽂을 자리가 없어 <b>영원히 빈 풀</b>이었다.
+        //   폴백이 있으니 에러도 안 났고, 그래서 "왜 안 뜨지"만 남았다.
+        //   풀은 플레이어 프리팹의 자식으로 들어 있다 — 없으면 배선 사고다.
         levelUpFloaterPool = GetComponentInChildren<LevelUpFloaterPool>();
         if (levelUpFloaterPool == null)
-        {
-            var go = new GameObject("LevelUpFloaterPool");
-            go.transform.SetParent(transform, false);
-            levelUpFloaterPool = go.AddComponent<LevelUpFloaterPool>();
-        }
+            Debug.LogError("[성장팝업] 플레이어 프리팹에 LevelUpFloaterPool 자식이 없습니다.", this);
     }
 
     private void OnEnable()
@@ -89,7 +89,9 @@ public class PlayerBridge : MonoBehaviour
         if (!playEffect)
             return;
 
-        //'Level Up!' 팝업은 그 캐릭터 머리 위에 뜨는 월드 연출이라 남의 것도 보여준다
+        //팝업은 그 캐릭터 주위에 뜨는 월드 연출이라 남의 것도 보여준다.
+        //젤리든 봇 흡수든 배트 적중이든 여기 한 곳으로만 뜬다 —
+        //예전엔 HandleJellyScored에서도 따로 불러서 같은 일이 두 군데 있었다.
         if (levelUpFloaterPool != null)
             levelUpFloaterPool.Play();
 
@@ -160,14 +162,12 @@ public class PlayerBridge : MonoBehaviour
         
         GameState.CurrentScore = NetEntity.ScoreFromScale(predictedScale);
 
-        //먹었다는 피드백은 LevelUpFloaterPool이 담당한다(위 HandleGrowStarted).
-        //예전엔 여기서 UIPoolManager.SpawnUI(JellyEat)도 불렀는데, 그 팝업은
-        //프리팹이 프로젝트에 없어서(guid 7141636e… 미해석) 풀 자체가 만들어지지 않았고
-        //PoolManager 오브젝트도 비활성이라 한 번도 뜬 적이 없다.
-        if (PlaySFXAudio.Instance != null)
-            PlaySFXAudio.Instance.PlayColorMixSound();
-        
-        if (levelUpFloaterPool != null)
-            levelUpFloaterPool.Play();
+        // ★ 여기서는 연출을 하지 않는다 — 점수 예측만 한다
+        //   예전엔 팝업과 효과음을 여기서도 냈다. 그런데 젤리를 먹으면
+        //   GrowByJelly → OnGrowStarted 를 타고 HandleGrowStarted가 <b>어차피 불린다.</b>
+        //   두 곳이 같은 일을 하니 먹은 사람만 소리가 겹쳐 들렸고, 팝업이 뜨는 규칙도
+        //   "젤리는 여기서, 나머지는 저기서"로 갈라져 있었다.
+        //   연출은 HandleGrowStarted 한 곳이 갖는다. 이 함수에 남는 일은
+        //   내 화면 HUD 점수 예측뿐이다.
     }
 }

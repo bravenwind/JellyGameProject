@@ -3560,8 +3560,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 570428328}
-        m_TargetAssemblyTypeName: DisableTargetButton, Assembly-CSharp
-        m_MethodName: DisableTarget
+        m_TargetAssemblyTypeName: SetActiveButton, Assembly-CSharp
+        m_MethodName: Hide
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 570428324}
@@ -35326,8 +35326,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 481341242}
-        m_TargetAssemblyTypeName: EnableTargetButton, Assembly-CSharp
-        m_MethodName: EnableTarget
+        m_TargetAssemblyTypeName: SetActiveButton, Assembly-CSharp
+        m_MethodName: Show
         m_Mode: 2
         m_Arguments:
           m_ObjectArgument: {fileID: 570428324}
@@ -42782,7 +42782,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 559282404}
-  - component: {fileID: 559282405}
   m_Layer: 0
   m_Name: 'UIManager '
   m_TagString: Untagged
@@ -42805,18 +42804,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &559282405
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 559282402}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c2ca4eab7f96a9846a992d0c7ffdb282, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1001 &559608222
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -43539,7 +43526,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 570428324}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c6e04886f4027da45bf328d570f277e3, type: 3}
+  m_Script: {fileID: 11500000, guid: 00f2a9cedf0f5b74d82a3c2fb4ff0f96, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &570792217
