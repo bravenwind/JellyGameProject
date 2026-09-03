@@ -6,7 +6,6 @@ public class PlayerBridge : MonoBehaviour
     private PlayerScaleController scaleController;
     private PlayerAbsorber absorber;
     private PlayerMovement movement;
-    private LevelUpFloaterPool levelUpFloaterPool;
 
     // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
     // PlayerScaleController.Start는 소유 무관하게 OnScaleSettled를 발화한다. 아래 핸들러들이 전역 정적
@@ -46,14 +45,11 @@ public class PlayerBridge : MonoBehaviour
         absorber = GetComponentInChildren<PlayerAbsorber>();
         movement = GetComponentInChildren<PlayerMovement>();
 
-        // ★ 없으면 만들어주지 않는다
-        //   예전엔 못 찾으면 AddComponent로 만들었는데, 그렇게 태어난 풀은
-        //   인스펙터에서 팝업 프리팹을 꽂을 자리가 없어 <b>영원히 빈 풀</b>이었다.
-        //   폴백이 있으니 에러도 안 났고, 그래서 "왜 안 뜨지"만 남았다.
-        //   풀은 플레이어 프리팹의 자식으로 들어 있다 — 없으면 배선 사고다.
-        levelUpFloaterPool = GetComponentInChildren<LevelUpFloaterPool>();
-        if (levelUpFloaterPool == null)
-            Debug.LogError("[성장팝업] 플레이어 프리팹에 LevelUpFloaterPool 자식이 없습니다.", this);
+        // ★ 팝업은 여기서 다루지 않는다
+        //   예전엔 이 클래스가 LevelUpFloaterPool을 찾아 들고 Play()를 시켰다.
+        //   그런데 이 클래스는 <b>사람 전용</b>이라 봇에는 팝업이 아예 없었고,
+        //   BotBridge에 같은 코드를 복사하면 같은 일이 두 군데가 된다.
+        //   지금은 풀이 스스로 PlayerScaleController.OnGrowStarted를 구독한다.
     }
 
     private void OnEnable()
@@ -89,11 +85,7 @@ public class PlayerBridge : MonoBehaviour
         if (!playEffect)
             return;
 
-        //팝업은 그 캐릭터 주위에 뜨는 월드 연출이라 남의 것도 보여준다.
-        //젤리든 봇 흡수든 배트 적중이든 여기 한 곳으로만 뜬다 —
-        //예전엔 HandleJellyScored에서도 따로 불러서 같은 일이 두 군데 있었다.
-        if (levelUpFloaterPool != null)
-            levelUpFloaterPool.Play();
+        //팝업은 LevelUpFloaterPool이 같은 이벤트를 직접 듣는다. 여기는 소리만 맡는다.
 
         // ★ 효과음은 내 캐릭터일 때만
         //   [W6] 가드가 다른 핸들러에는 다 있는데 여기만 빠져 있었다.

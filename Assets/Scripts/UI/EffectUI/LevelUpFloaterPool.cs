@@ -2,43 +2,46 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>
-/// 성장 팝업 프리팹들을 풀링하는 컨테이너. 플레이어 프리팹의 자식(LevelUpFloaterPool)에 있다.
-/// Play()를 부를 때마다 <b>등록된 프리팹 중 하나를 무작위로 골라</b> 그 종류의 풀에서 꺼내 재생한다.
+/// 성장 팝업 프리팹들을 풀링하고 띄우는 컨테이너.
+/// 사람·봇 프리팹 <b>둘 다</b>의 자식(LevelUpFloaterPool)에 있다.
+/// 캐릭터가 자랄 때마다 등록된 프리팹 중 하나를 무작위로 골라 그 종류의 풀에서 꺼내 재생한다.
+///
+/// ★ 언제 뜰지는 이 컴포넌트가 직접 듣는다
+///   예전엔 PlayerBridge가 OnGrowStarted를 받아 풀에게 Play()를 시켰다. 그래서
+///   <b>봇에는 팝업이 없었다</b> — 봇에 붙는 건 BotBridge이고 거기엔 그 구독이 없었다.
+///   같은 코드를 BotBridge에도 복사하는 대신, 풀이 스스로 부모의 PlayerScaleController를
+///   구독한다. 이제 "풀 자식이 있는 캐릭터는 팝업이 뜬다"가 전부라 사람·봇이 같다.
+///
+/// ★ 네트워크: 팝업은 모든 화면에서, 그 캐릭터 옆에 뜬다
+///   젤리 흡수는 호스트가 EatJellyConfirm을 전원에게 방송하고, 각 기계의
+///   AbsorbMode.OnEatConfirmed가 <b>먹은 개체를 NetId로 찾아</b> PlayerAbsorber.AbsorbColor를
+///   부른다 → GrowByJelly → OnGrowStarted. 풀은 그 캐릭터의 자식이고 팝업도 자식으로
+///   낳으므로, 원격 화면에서도 먹은 그 캐릭터 옆에 뜬다.
+///   봇 흡수·배트 적중은 GrowEvent 방송이 같은 자리로 이어진다.
 ///
 /// ★ 종류별로 줄을 따로 세운다
-///   프리팹이 여러 개인데 큐가 하나면, 반납된 "냠!"을 다음 "+1" 자리에 꺼내 쓰게 된다.
+///   프리팹이 여러 개인데 큐가 하나면, 반납된 A를 다음 B 자리에 꺼내 쓰게 된다.
 ///   그래서 free[i]가 popupPrefabs[i]의 인스턴스만 담는다.
-///
-/// ★ 예전엔 프리팹 없이 코드가 GameObject를 만들었다
-///   [SerializeField] floaterPrefab이 있긴 했는데 <b>항상 null</b>이었다 —
-///   이 컴포넌트를 PlayerBridge.Awake가 런타임에 AddComponent로 만들었기 때문에
-///   인스펙터에서 프리팹을 꽂을 자리 자체가 없었다. 그래서 "비우면 런타임 생성"이라는
-///   폴백만 언제나 도는 구조였고, 팝업은 한 종류로 고정이었다.
-///   지금은 플레이어 프리팹에 이 컨테이너가 들어 있어 프리팹 목록을 인스펙터에서 정한다.
 /// </summary>
 public class LevelUpFloaterPool : MonoBehaviour
 {
-    [Tooltip("띄울 팝업 프리팹들. 이 중 하나가 무작위로 뜬다. Prefabs/UI/Popups")]
-    [SerializeField] private LevelUpFloater[] popupPrefabs;
+    [Tooltip("띄울 팝업 프리팹들. 이 중 하나가 무작위로 뜬다.")]
+    [SerializeField] private LevelUpFloater[] popupPrefabs = new LevelUpFloater[3];
 
     [Tooltip("종류마다 미리 만들어둘 개수")]
     [SerializeField] private int prewarmPerPrefab = 2;
 
-    private Transform scaleRef;   // 크기 상쇄 기준 = 플레이어 루트(이 컨테이너의 부모)
+    private Transform scaleRef;   // 크기 상쇄 기준 = 캐릭터 루트(이 컨테이너의 부모)
+    private PlayerScaleController scaleController;
     private Queue<LevelUpFloater>[] free;
 
     private void Awake()
     {
         scaleRef = transform.parent;
+        scaleController = GetComponentInParent<PlayerScaleController>();
 
-        if (popupPrefabs == null || popupPrefabs.Length == 0)
-        {
-            //조용히 안 뜨면 "왜 안 나오지"로 한참 헤맨다. 배선 사고는 소리를 낸다.
-            Debug.LogError("[성장팝업] popupPrefabs가 비어 있습니다 — "
-                + "플레이어 프리팹의 LevelUpFloaterPool에 팝업 프리팹을 넣어주세요.", this);
-            enabled = false;
-            return;
-        }
+        if (popupPrefabs == null)
+            popupPrefabs = new LevelUpFloater[0];
 
         free = new Queue<LevelUpFloater>[popupPrefabs.Length];
 
@@ -52,10 +55,29 @@ public class LevelUpFloaterPool : MonoBehaviour
         }
     }
 
-    /// <summary>성장 이펙트 1회 표시. 동시에 여러 번 불려도 각 인스턴스가 독립적으로 뜬다.</summary>
+    private void OnEnable()
+    {
+        if (scaleController != null)
+            scaleController.OnGrowStarted += HandleGrowStarted;
+    }
+
+    private void OnDisable()
+    {
+        if (scaleController != null)
+            scaleController.OnGrowStarted -= HandleGrowStarted;
+    }
+
+    //playEffect가 false인 성장(연출 없이 값만 맞추는 보정)에는 뜨지 않는다.
+    private void HandleGrowStarted(bool playEffect)
+    {
+        if (playEffect)
+            Play();
+    }
+
+    /// <summary>팝업 1회 표시. 동시에 여러 번 불려도 각 인스턴스가 독립적으로 뜬다.</summary>
     public void Play()
     {
-        if (!enabled || free == null)
+        if (free == null)
             return;
 
         if (scaleRef == null)
@@ -63,7 +85,7 @@ public class LevelUpFloaterPool : MonoBehaviour
 
         int kind = PickKind();
         if (kind < 0)
-            return;
+            return;   //칸이 전부 비어 있으면 조용히 넘어간다 — 아직 프리팹을 안 꽂은 상태다
 
         LevelUpFloater floater = Get(kind);
         if (floater == null)
@@ -78,7 +100,7 @@ public class LevelUpFloaterPool : MonoBehaviour
     private int PickKind()
     {
         int count = popupPrefabs.Length;
-        int start = Random.Range(0, count);
+        int start = Random.Range(0, Mathf.Max(count, 1));
 
         for (int step = 0; step < count; step++)
         {
@@ -101,7 +123,7 @@ public class LevelUpFloaterPool : MonoBehaviour
         return Create(kind);
     }
 
-    //자식으로 낳는다 — 플레이어가 움직이면 팝업도 따라가고, 캐릭터가 사라질 때 같이 사라진다.
+    //자식으로 낳는다 — 캐릭터가 움직이면 팝업도 따라가고, 캐릭터가 사라질 때 같이 사라진다.
     private LevelUpFloater Create(int kind)
     {
         LevelUpFloater f = Instantiate(popupPrefabs[kind], transform, false);

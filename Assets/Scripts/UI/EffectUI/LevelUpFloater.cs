@@ -1,28 +1,30 @@
 using UnityEngine;
-using TMPro;
+using UnityEngine.UI;
 using System;
 using System.Collections;
 
 /// <summary>
-/// 성장(젤리 흡수 / 배트 적중) 시 캐릭터 주위에 팝 하고 떴다가 사라지는 팝업 하나.
+/// 성장(젤리 흡수 / 봇 흡수 / 배트 적중) 시 캐릭터 주위에 팝 하고 떴다가 사라지는 팝업 하나.
 /// <b>팝업 프리팹에 부착해 쓴다</b> — 인스턴스 하나가 프리팹 하나다.
 /// 꺼내고 넣는 일은 LevelUpFloaterPool이 하고, Play()가 끝나면 onComplete로 풀에 돌아간다.
 ///
-/// ★ 글자의 생김새는 이 코드가 정하지 않는다 — 프리팹이 정한다
-///   예전엔 EnsureText()가 TMP 컴포넌트를 <b>런타임에 AddComponent로 만들고</b>
-///   글자·크기·색·외곽선까지 코드로 칠했다. 그래서
-///     · 문구 하나 바꾸려면 스크립트를 고쳐야 했고
-///     · 팝업이 한 종류밖에 될 수 없었다(코드가 한 벌의 값만 갖고 있으니까)
-///     · [SerializeField]로 뚫어놓은 스타일 값들은 프리팹이 없으니 만질 자리도 없었다
-///   지금은 프리팹마다 다른 문구·색·폰트를 넣고 풀이 그중 하나를 무작위로 고른다.
-///   이 스크립트에 남은 건 "어디에 놓고 어떻게 움직일지"뿐이다.
+/// ★ 생김새는 이 코드가 정하지 않는다 — 프리팹이 정한다
+///   예전엔 TMP 컴포넌트를 <b>런타임에 AddComponent로 만들고</b> 글자·크기·색·외곽선까지
+///   코드로 칠했다. 그래서 팝업이 한 종류밖에 될 수 없었고, 문구를 바꾸려면 스크립트를
+///   고쳐야 했다. 지금 이 스크립트에 남은 건 "어디에 놓고 어떻게 움직일지"뿐이다.
+///
+/// ★ 무엇을 흐리게 할지도 프리팹을 보고 정한다
+///   이미지 팝업(UI Image)이든 글자 팝업(TextMeshPro)이든 스프라이트든 색을 가진 것을
+///   Awake에서 한 번 찾아둔다. TMP도 Graphic을 상속하므로 Graphic 하나로 둘 다 잡힌다.
+///
+/// ★ 크기도 프리팹의 값을 <b>배율로</b> 쓴다
+///   예전엔 매 프레임 localScale에 1을 통째로 써넣어서, 프리팹이 정해둔 크기를 덮어썼다.
+///   이미지 팝업은 원본이 수백 픽셀이라 그렇게 하면 화면을 다 덮는다.
+///   지금은 Awake에서 프리팹의 스케일을 기억해두고 거기에 애니메이션 배율만 곱한다.
 /// </summary>
 [DisallowMultipleComponent]
 public class LevelUpFloater : MonoBehaviour
 {
-    [Tooltip("이 팝업의 글자. 비워두면 자식에서 찾는다.")]
-    [SerializeField] private TextMeshPro tmp;
-
     // ★ 예전엔 위로 떠오르며 페이드아웃했다
     //   지금은 <b>팝 하고 나타났다가 작아지며 사라진다.</b> 위로 흘러가지 않으니
     //   시선이 따라갈 필요가 없고, 여러 개가 동시에 떠도 서로 밀려나지 않는다.
@@ -36,32 +38,41 @@ public class LevelUpFloater : MonoBehaviour
     [Tooltip("사라질 때 줄어드는 최소 배율. 0이면 완전히 사라진다.")]
     [SerializeField] private float endScale = 0.15f;
 
-    [Header("등장 위치 (플레이어 기준)")]
-    [Tooltip("플레이어 중심에서 이만큼 떨어진 곳에 무작위로 뜬다")]
+    [Header("등장 위치 (캐릭터 기준)")]
+    [Tooltip("캐릭터 중심에서 이만큼 떨어진 곳에 무작위로 뜬다")]
     [SerializeField] private float spreadRadius = 1.1f;
 
-    [Tooltip("플레이어 중심에서 위로 올린 높이")]
+    [Tooltip("캐릭터 중심에서 위로 올린 높이")]
     [SerializeField] private float height = 1.6f;
 
-    private Transform scaleRef;   // 텍스트 크기 상쇄 기준(플레이어 루트)
+    private Transform scaleRef;      // 크기 상쇄 기준(캐릭터 루트)
     private Camera cam;
     private Action<LevelUpFloater> onComplete;
     private Coroutine routine;
-    private Color baseColor = Color.white;   // 프리팹이 정한 색. 알파만 이 스크립트가 건드린다.
+
+    private Graphic graphic;         // Image · RawImage · TextMeshPro 전부 여기에 해당
+    private SpriteRenderer sprite;   // 월드 스프라이트를 쓸 때
+    private Color baseColor = Color.white;
+    private Vector3 baseScale = Vector3.one;
 
     private void Awake()
     {
-        //프리팹 루트에 TMP가 있는 게 보통이지만 자식에 두는 구성도 허용한다.
-        if (tmp == null)
-            tmp = GetComponentInChildren<TextMeshPro>(true);
+        baseScale = transform.localScale;
 
-        if (tmp != null)
-            baseColor = tmp.color;
+        graphic = GetComponentInChildren<Graphic>(true);
+        if (graphic != null)
+            baseColor = graphic.color;
+        else
+        {
+            sprite = GetComponentInChildren<SpriteRenderer>(true);
+            if (sprite != null)
+                baseColor = sprite.color;
+        }
 
         gameObject.SetActive(false);   // 풀에서 꺼낼 때 활성화된다
     }
 
-    /// <summary>풀에서 호출. scaleRef는 크기 상쇄 기준(플레이어 루트), onComplete는 반환 콜백.</summary>
+    /// <summary>풀에서 호출. scaleRef는 크기 상쇄 기준(캐릭터 루트), onComplete는 반환 콜백.</summary>
     public void Play(Transform scaleRef, Action<LevelUpFloater> onComplete)
     {
         this.scaleRef = scaleRef;
@@ -79,8 +90,6 @@ public class LevelUpFloater : MonoBehaviour
         // ★ 자리를 <b>한 번만</b> 정하고 그대로 둔다
         //   원 위의 임의 각도 × 임의 거리. 각도만 무작위로 뽑으면 전부 반지름 끝에
         //   붙어 고리 모양이 되므로 거리도 함께 흩뿌린다.
-        //   (제곱근을 씌우면 원 안에 고르게 퍼지는데, 여기선 바깥쪽이 조금 더 잦은
-        //    편이 캐릭터를 덜 가려서 그냥 선형으로 둔다)
         float angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
         float radius = UnityEngine.Random.Range(spreadRadius * 0.35f, spreadRadius);
         Vector3 spot = new Vector3(Mathf.Cos(angle) * radius,
@@ -90,16 +99,13 @@ public class LevelUpFloater : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < duration)
         {
-            if (tmp == null)
-                break;
-
             elapsed += Time.deltaTime;
             float t = Mathf.Clamp01(elapsed / duration);
 
             if (cam == null)
                 cam = Camera.main;
 
-            // 부모(플레이어)가 커져도 글자 크기는 그대로여야 한다
+            // 캐릭터가 커져도 팝업 크기는 그대로여야 한다
             float parentScale = scaleRef != null
                 ? Mathf.Max(scaleRef.localScale.x, 0.01f) : 1f;
 
@@ -115,21 +121,21 @@ public class LevelUpFloater : MonoBehaviour
             //   0 ~ 25%   : 0 → popScale   (튀어나옴)
             //   25 ~ 40%  : popScale → 1   (되튐)
             //   40 ~ 100% : 1 → endScale   (줄어들며 퇴장)
-            float scale;
+            float k;
             if (t < 0.25f)
-                scale = Mathf.Lerp(0f, popScale, EaseOutCubic(t / 0.25f));
+                k = Mathf.Lerp(0f, popScale, EaseOutCubic(t / 0.25f));
             else if (t < 0.40f)
-                scale = Mathf.Lerp(popScale, 1f, (t - 0.25f) / 0.15f);
+                k = Mathf.Lerp(popScale, 1f, (t - 0.25f) / 0.15f);
             else
-                scale = Mathf.Lerp(1f, endScale, EaseInCubic((t - 0.40f) / 0.60f));
+                k = Mathf.Lerp(1f, endScale, EaseInCubic((t - 0.40f) / 0.60f));
 
-            transform.localScale = Vector3.one / parentScale * scale;
+            transform.localScale = baseScale * (k / parentScale);
 
             //알파는 끝에서만 뺀다. 크기가 줄어드는 게 주연이라 일찍 흐려지면 둘 다 약해진다.
             //색 자체는 프리팹이 정한 것을 그대로 쓴다.
-            Color c = baseColor;
-            c.a = t < 0.7f ? baseColor.a : Mathf.Lerp(baseColor.a, 0f, (t - 0.7f) / 0.3f);
-            tmp.color = c;
+            float alpha = t < 0.7f ? baseColor.a
+                                   : Mathf.Lerp(baseColor.a, 0f, (t - 0.7f) / 0.3f);
+            ApplyAlpha(alpha);
 
             yield return null;
         }
@@ -137,6 +143,17 @@ public class LevelUpFloater : MonoBehaviour
         routine = null;
         gameObject.SetActive(false);
         onComplete?.Invoke(this);   // 풀에 반환
+    }
+
+    private void ApplyAlpha(float alpha)
+    {
+        Color c = baseColor;
+        c.a = alpha;
+
+        if (graphic != null)
+            graphic.color = c;
+        else if (sprite != null)
+            sprite.color = c;
     }
 
     private static float EaseOutCubic(float x) => 1f - (1f - x) * (1f - x) * (1f - x);
