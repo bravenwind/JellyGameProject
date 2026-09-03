@@ -37,17 +37,21 @@ public class LoadingBGSlideAni : MonoBehaviour
     public event Action ExitStarted;
 
     // ─────────────────────────────────────────────────────────
-    // 나가는 조건 / 콜백 (LoadingSceneController가 주입)
-    //   • isNextSceneReady : 다음 씬이 준비됐는지. null이면(단독 사용/테스트) 시간 조건만으로 나간다.
-    //   • onExitStarted    : 센터->오른쪽 이동을 '시작'하는 순간(커튼이 걷히기 시작).
-    //   • onExited         : 센터->오른쪽 이동이 '끝난' 순간(커튼이 완전히 빠짐).
+    // 전환 계획 (LoadingSceneController가 주입)
+    //   재생은 [유예 → 왼→센터 → 대기 → 센터→오른쪽] 한 줄기이고, 아래 다섯은 그 줄기의
+    //   각 마디에 붙는다. 커튼이 아니라 단독으로 쓰이는 인스턴스는 아무것도 주입받지 않아
+    //   전부 null이다(프리팹의 조작 팁 패널 둘이 그렇다) — 그래서 호출부마다 null 검사가 있다.
+    //     • slideInDelay     : 왼→센터를 시작하기 '전' 유예. 인스턴스화 히칭이 지나가길 기다린다.
+    //     • onSlideInDone    : 왼→센터가 '끝난' 순간. 여기서 다음 씬 로드가 시작된다.
+    //     • isNextSceneReady : 다음 씬이 준비됐는지. null이면 시간 조건만으로 나간다.
+    //     • onExitStarted    : 센터→오른쪽 이동을 '시작'하는 순간(커튼이 걷히기 시작).
+    //     • onExited         : 센터→오른쪽 이동이 '끝난' 순간(커튼이 완전히 빠짐).
     // ─────────────────────────────────────────────────────────
+    private float slideInDelay;
+    private Action onSlideInDone;
     private Func<bool> isNextSceneReady;
-    private Action onSlideInStarted; // 왼->센터 이동이 '끝난'(등장 완료) 순간. 완전판에서 씬 로드 트리거에 쓴다.
     private Action onExitStarted;
     private Action onExited;
-    private float slideInDelay;      // 왼->센터 시작 '전' 유예(초). 인스턴스화/씬 히칭이 지나간 뒤 슬라이드인 시작.
-    private bool forceExit; // 외부에서 최소 대기를 건너뛰고 즉시 나가라는 요청(하위호환)
 
     private Coroutine routine;
     private Sequence moveSeq;
@@ -74,28 +78,36 @@ public class LoadingBGSlideAni : MonoBehaviour
     }
 
     /// <summary>
-    /// 나가는 조건과 콜백을 주입한다. 반드시 이 애니가 켜지기 직전/직후에 호출해 둔다.
-    /// isNextSceneReady()가 true가 되고 holdSeconds가 지나야 센터->오른쪽으로 나간다.
+    /// 이 커튼이 <b>등장부터 퇴장까지</b> 어떻게 돌지를 한 번에 주입한다.
+    /// 반드시 이 애니가 켜지기 '전'에 호출해 둔다 — 켜지는 순간 OnEnable→Play가
+    /// 슬라이드인 유예부터 읽기 시작하므로, 그 뒤에 넣으면 유예가 적용되지 않는다.
+    ///
+    /// ★ 이름이 SetExitCondition이었다
+    ///   나가는 조건만 받는 것처럼 읽히는데 실제로는 <b>들어오기 전 유예(slideInDelay)와
+    ///   들어온 직후에 할 일(onSlideInDone)까지</b> 함께 받고 있었다. 그 둘은 퇴장과
+    ///   아무 상관이 없다. 인자 순서도 재생 순서와 뒤집혀 있어서, 읽는 사람이
+    ///   "슬라이드인 관련 인자가 왜 여기 있지"를 매번 다시 물었다.
+    ///   이름을 계획 전체로 넓히고 인자를 재생 순서대로 세웠다.
     /// </summary>
-    public void SetExitCondition(Func<bool> isNextSceneReady, Action onExitStarted = null, Action onExited = null,
-                                 Action onSlideInDone = null, float slideInDelay = 0f)
+    public void SetTransitionPlan(float slideInDelay = 0f, Action onSlideInDone = null,
+                                  Func<bool> isNextSceneReady = null,
+                                  Action onExitStarted = null, Action onExited = null)
     {
+        this.slideInDelay = slideInDelay;
+        this.onSlideInDone = onSlideInDone;
         this.isNextSceneReady = isNextSceneReady;
         this.onExitStarted = onExitStarted;
         this.onExited = onExited;
-        onSlideInStarted = onSlideInDone;
-        this.slideInDelay = slideInDelay;
     }
 
     public void Play()
     {
-        if (target == null)
-            target = GetComponent<RectTransform>();
+        //Awake가 이미 채워뒀다. 여기서 남는 건 'RectTransform이 아예 없는 오브젝트'뿐이라
+        //조용히 돌아간다 — 애니가 없는 것과 같고, 그건 배선의 문제지 재생의 문제가 아니다
         if (target == null)
             return;
 
         Stop();
-        forceExit = false;
         routine = StartCoroutine(PlayRoutine());
     }
 
@@ -119,12 +131,12 @@ public class LoadingBGSlideAni : MonoBehaviour
 
         // 등장(왼->센터)이 끝난 순간 알림. 완전판(출발 씬 슬라이드인)에서 이 시점에 씬 로드를 시작한다
         // → 슬라이드인은 로드와 겹치지 않고(출발 씬 위에서) 끝난 뒤에 로드가 돌아 끊김이 사라진다.
-        onSlideInStarted?.Invoke();
+        onSlideInDone?.Invoke();
 
         // 2) 센터에서 대기 — (holdSeconds 경과) && (다음 씬 준비됨) 이 둘 다 true여야 나간다.
         //    holdSeconds는 '최소 표시 시간', 씬 준비는 '조기 종료 방지'. 둘의 AND라 항상 max로 걸린다.
         float held = 0f;
-        while (!forceExit)
+        while (true)
         {
             held += ignoreTimeScale ? Time.unscaledDeltaTime : Time.deltaTime;
             bool minHoldPassed = held >= holdSeconds;
@@ -159,15 +171,6 @@ public class LoadingBGSlideAni : MonoBehaviour
             yield return null;
     }
 
-    /// <summary>
-    /// 외부에서 최소 대기(holdSeconds)와 씬 준비 조건을 건너뛰고 즉시 나가게 한다(하위호환).
-    /// 현재 흐름은 SetExitCondition 기반이라 보통 쓰지 않지만, 강제 종료 경로용으로 남겨 둔다.
-    /// </summary>
-    public void SkipHoldAndExit(float customOutDuration = -1f)
-    {
-        forceExit = true;
-    }
-
     public void Stop()
     {
         if (routine != null)
@@ -176,12 +179,6 @@ public class LoadingBGSlideAni : MonoBehaviour
             routine = null;
         }
         KillSeq();
-    }
-
-    // 하위호환: 예전 이름(Kill) 호출부가 남아 있어도 동작하도록 유지.
-    public void Kill()
-    {
-        Stop();
     }
 
     private void KillSeq()
