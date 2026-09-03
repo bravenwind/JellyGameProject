@@ -2755,7 +2755,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bgSlide: {fileID: 3004678215206512855}
-  loadingSortingOrder: 32000
   settleAfterLoad: 0.35
   departureSlideInDelay: 0.5
   pushModeTipPanel: {fileID: 7888946579234686552}
@@ -2783,7 +2782,7 @@ Canvas:
   m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 32000
   m_TargetDisplay: 0
 --- !u!114 &5008419334765753707
 MonoBehaviour:

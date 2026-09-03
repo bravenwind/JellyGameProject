@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace JellyNet
 {
@@ -51,12 +50,12 @@ namespace JellyNet
             //   그대로 보인다(멈춰 있던 캐릭터들이 갑자기 정상 속도로 튀는 그림).
             //   커튼 애니는 unscaled로 돌아 timeScale이 0이어도 정상 재생되므로,
             //   해제는 커튼이 화면을 다 덮은 순간(LoadingSceneController.OnDepartureSlideInDone)에 한다.
-            if (LoadingSceneController.TryBeginDepartureIntro())
-                return;
-
-            //커튼 프리팹이 없는 폴백 경로. 가려줄 것이 없으니 여기서 바로 되돌린다
-            Time.timeScale = 1f;
-            SceneManager.LoadScene(LOADING_SCENE);
+            //  ★ 예전엔 여기에 '커튼 없는 폴백'이 있었다
+            //    TryBeginDepartureIntro가 false를 주면 timeScale을 풀고 곧장 Loading 씬으로
+            //    넘어갔다. 그런데 false가 되는 조건이 둘 다 성립하지 않는다 — 중복 호출은
+            //    바로 위 IsTransitioning이 막고, 커튼 프리팹은 항상 있다. Loading 씬에는
+            //    커튼이 없으므로 그 갈래로 갔다면 화면이 그냥 끊겼을 것이다.
+            LoadingSceneController.BeginDepartureIntro();
         }
 
         private static void Disconnect()
