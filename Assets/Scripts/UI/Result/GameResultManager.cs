@@ -392,18 +392,46 @@ public class GameResultManager : MonoBehaviour
         overviewCam.Priority = 0;
     }
 
+    /// <summary>
+    /// 반지름 radius인 젤리가 화면에 다 들어오는 <b>최소</b> 거리. 실제로 쓰는 거리는
+    /// 이 값과 focusDistanceMultiplier 바닥값 중 큰 쪽이다.
+    ///
+    /// ★ 최소 거리 식을 r/tan(θ)+r 에서 r/sin(θ) 로 고쳤다
+    ///   구는 화면 가장자리에 <b>접할</b> 때 꽉 찬다. 카메라 꼭짓점에서 반각 θ로 뻗는
+    ///   프러스텀 옆면까지, 축 위 거리 d에 있는 중심으로부터의 수직거리는 d·sinθ 이므로
+    ///   접선 조건은 d·sinθ = r, 즉 <b>d = r / sinθ</b> 다.
+    ///
+    ///   옛 식 r/tanθ 는 <b>평평한 원판</b>이 화면 높이를 채우는 거리다(그 거리에서
+    ///   화면 반높이가 정확히 r). 구에는 깊이가 있으니 +r 로 한 반지름 밀어 중심까지
+    ///   맞춘 것인데, 이건 기하가 아니라 어림이다. 실제로 두 값의 비는
+    ///     (r/tanθ + r) / (r/sinθ) = cosθ + sinθ
+    ///   이고 0&lt;θ&lt;90°에서 이 값은 항상 1보다 크다. 즉 옛 식은 <b>언제나 더 멀었다</b>
+    ///   (FoV 40°면 22% 더 멀어 젤리가 그만큼 작게 보인다). 안전한 쪽으로 틀린 셈이라
+    ///   잘려 보이지는 않았고, 그래서 오래 남아 있었다.
+    ///
+    /// ★ 다만 지금은 이 값이 쓰이지 않는다
+    ///   아래 Mathf.Max의 다른 항이 radius * focusDistanceMultiplier 인데, 결과 씬 둘 다
+    ///   그 값이 7.5다. 이 식은 FoV만으로 정해지는 r의 상수배라(FoV 40°에서 2.92r,
+    ///   옛 식은 3.75r) radius가 무엇이든 7.5r 이 항상 이긴다. 즉 젤리 간격을 정하는 건
+    ///   전적으로 focusDistanceMultiplier이고, 이 함수는 "그보다 가까워지지는 말라"는
+    ///   하한으로만 남아 있다. 그 하한이 실제로 걸리게 하려면 인스펙터의
+    ///   focusDistanceMultiplier를 2.92 아래로 내려야 한다.
+    ///
+    ///   r/sinθ 는 여유가 0인 <b>정확한 접선</b> 값이다. 젤리는 완전한 구가 아니고
+    ///   radius도 localScale.x로 어림한 값이라, 하한을 실제로 쓰게 된다면 여기에
+    ///   여유 배수를 눈에 보이게 곱하는 편이 낫다 — 옛 +r처럼 식 안에 숨기지 말고.
+    /// </summary>
     private float ComputeFocusDistance(float radius)
     {
-        // 전신이 들어오도록: half-FoV 기반 최소 거리 + 약간의 여유
-        float fov = virtualCameraFov;
         if (resultCamera.orthographic)
         {
             resultCamera.orthographicSize = Mathf.Max(resultCamera.orthographicSize, radius * 1.3f);
             return radius * focusDistanceMultiplier;
         }
-        float halfFovRad = fov * 0.5f * Mathf.Deg2Rad;
-        float required = radius / Mathf.Tan(halfFovRad) + radius;
-        return Mathf.Max(radius * focusDistanceMultiplier, required);
+
+        float halfFovRad = virtualCameraFov * 0.5f * Mathf.Deg2Rad;
+        float exactDistance = radius / Mathf.Sin(halfFovRad);
+        return Mathf.Max(radius * focusDistanceMultiplier, exactDistance);
     }
 
     private static void ApplyLens(CinemachineCamera vcam, float fov)
