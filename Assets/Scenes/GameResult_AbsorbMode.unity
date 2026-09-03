@@ -74619,21 +74619,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerJellyPrefab: {fileID: 1177273754728550086, guid: e6104118e78dee7438729bf80b54c0e5, type: 3}
   botJellyPrefab: {fileID: 1177273754728550086, guid: b1819b7e9bcac3e41927d859b19f03a0, type: 3}
-  playerPrefabResourcePath: Prefabs/NetworkPlayer_Bear
-  botPrefabResourcePath: Prefabs/AIPlayer_Bear
-  rightAnchor: {x: 30, y: 0.3, z: 0}
+  podiumCenter: {x: 0, y: 0.3, z: 0}
   padding: 30
-  baseRadius: 0.5
   resultCamera: {fileID: 1707815816}
   cameraTransitionDuration: 0.6
-  focusDistanceMultiplier: 7.5
+  focusDistanceMultiplier: 4.65
   focusHeightOffset: 2
   focusHoldDuration: 2.5
   overviewDistance: 100
   overviewHeight: 4
   virtualCameraFov: 40
   curtainWaitTimeout: 6
-  fallbackColor: {r: 1, g: 1, b: 1, a: 1}
   baseColor02Lightness: 0.6
   baseColor01Property: _BaseColor_01
   baseColor02Property: _BaseColor_02

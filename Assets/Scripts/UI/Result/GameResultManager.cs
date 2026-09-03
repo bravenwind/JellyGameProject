@@ -16,19 +16,24 @@ using UnityEngine.UI;
 /// </summary>
 public class GameResultManager : MonoBehaviour
 {
-    [Header("프리팹 (비우면 Resources에서 자동 로드)")]
+    [Header("프리팹")]
     [SerializeField] private GameObject playerJellyPrefab;
     [SerializeField] private GameObject botJellyPrefab;
-    [SerializeField] private string playerPrefabResourcePath = "Prefabs/NetworkPlayer_Bear";
-    [SerializeField] private string botPrefabResourcePath = "Prefabs/AIPlayer_Bear";
 
     [Header("배치 설정")]
-    [Tooltip("3위가 놓일 우측 끝 기준점 (월드 좌표)")]
-    [SerializeField] private Vector3 rightAnchor = new Vector3(30f, 0f, 0f);
+    // ★ 예전엔 rightAnchor(= 3위가 놓일 우측 끝)였다
+    //   그런데 이 값의 x는 <b>아무 영향이 없었다.</b> 오른쪽부터 왼쪽으로 자리를 잡은 뒤
+    //   맨 마지막에 "가운데 인물을 x=0으로" 다시 밀어서 x를 통째로 지웠기 때문이다.
+    //   실제로 흡수 씬엔 x=30, 밀치기 씬엔 x=0이 들어 있었는데 결과는 같았다 —
+    //   이름이 거짓말을 해서 누군가 30을 넣어본 흔적이다.
+    //   살아남던 건 y(바닥 높이)와 z(깊이)뿐이었다.
+    //
+    //   지금은 처음부터 가운데를 기준으로 잡는다. 두 단계가 한 단계가 되고,
+    //   인스펙터의 x가 실제로 화면 중심을 옮긴다.
+    [Tooltip("가운데 인물(2위)이 놓일 자리. 1위·3위가 좌우로 같은 간격만큼 벌어진다. y는 바닥 높이.")]
+    [SerializeField] private Vector3 podiumCenter = new Vector3(0f, 0f, 0f);
     [Tooltip("젤리 사이 기본 여유 공간 (월드 단위)")]
     [SerializeField] private float padding = 1.0f;
-    [Tooltip("scale=1일 때 젤리의 기준 반지름")]
-    [SerializeField] private float baseRadius = 0.5f;
 
     [Header("카메라")]
     [SerializeField] private Camera resultCamera;
@@ -51,8 +56,6 @@ public class GameResultManager : MonoBehaviour
     [SerializeField] private float curtainWaitTimeout = 6f;
 
     [Header("색상")]
-    [Tooltip("저장된 색상이 없을 때 사용할 기본 색")]
-    [SerializeField] private Color fallbackColor = Color.white;
     [Tooltip("BaseColor_02(밝은 색)를 만들 때 흰색과의 보간 비율")]
     [Range(0f, 1f)] [SerializeField] private float baseColor02Lightness = 0.6f;
     [SerializeField] private string baseColor01Property = "_BaseColor_01";
@@ -77,7 +80,6 @@ public class GameResultManager : MonoBehaviour
 
     private void Start()
     {
-        EnsurePrefabs();
         EnsureCameraAndBrain();
 
         var top = GatherTopEntries();
@@ -115,33 +117,28 @@ public class GameResultManager : MonoBehaviour
     // 셋업
     // ──────────────────────────────────────────────
 
-    private void EnsurePrefabs()
-    {
-        if (playerJellyPrefab == null)
-            playerJellyPrefab = Resources.Load<GameObject>(playerPrefabResourcePath);
-        if (botJellyPrefab == null)
-            botJellyPrefab = Resources.Load<GameObject>(botPrefabResourcePath);
-
-        if (playerJellyPrefab == null)
-            Debug.LogError($"[GameResult] 플레이어 프리팹 로드 실패: Resources/{playerPrefabResourcePath}");
-        if (botJellyPrefab == null)
-            Debug.LogWarning($"[GameResult] 봇 프리팹 로드 실패 → 플레이어 프리팹 재사용");
-    }
-
+    // ★ 카메라와 Brain을 런타임에 만들던 폴백을 걷어냈다
+    //   resultCamera가 비면 Camera.main → 그것도 없으면 new GameObject("ResultCamera")까지
+    //   내려갔는데, 두 결과 씬 모두 인스펙터에 Camera가 꽂혀 있어 한 번도 내려간 적이 없다.
+    //   씬에 있어야 할 것을 코드가 몰래 만들어주면, 씬을 보는 사람은 왜 카메라가 없는데
+    //   화면이 나오는지 알 수 없다. 없으면 없다고 말하고 멈춘다.
+    //
+    //   DefaultBlend만 코드에 남긴다. 이 값은 아래 PlayCameraSequence가 대기 시간으로도
+    //   쓰기 때문에, 인스펙터로 옮기면 '블렌드 시간'의 출처가 둘이 된다.
     private void EnsureCameraAndBrain()
     {
         if (resultCamera == null)
-            resultCamera = Camera.main;
-        if (resultCamera == null)
         {
-            var camGO = new GameObject("ResultCamera");
-            resultCamera = camGO.AddComponent<Camera>();
-            resultCamera.tag = GameTags.MainCamera;
+            Debug.LogError("[GameResult] resultCamera가 비어 있습니다. 씬의 Camera를 인스펙터에 연결하세요.");
+            return;
         }
 
         brain = resultCamera.GetComponent<CinemachineBrain>();
         if (brain == null)
-            brain = resultCamera.gameObject.AddComponent<CinemachineBrain>();
+        {
+            Debug.LogError("[GameResult] " + resultCamera.name + " 에 CinemachineBrain이 없습니다. 씬에서 추가하세요.");
+            return;
+        }
 
         brain.DefaultBlend = new CinemachineBlendDefinition(
             CinemachineBlendDefinition.Styles.EaseInOut, cameraTransitionDuration);
@@ -163,17 +160,9 @@ public class GameResultManager : MonoBehaviour
             return new List<LanScoreboard.Entry>();
         }
 
-        var top = new List<LanScoreboard.Entry>();
-
-        for (int i = 0; i < final.Count && i < 3; i++)
-        {
-            var e = final[i];
-            if (e.color.a <= 0.01f)
-                e.color = fallbackColor;
-            top.Add(e);
-        }
-
-        return top;
+        //FinalStandings에는 참가자 전원이 순위대로 들어 있다. 포디움은 셋뿐이라 앞에서 잘라 온다
+        //— 이 루프가 하던 일이 그거였다(나머지 절반은 색 폴백이었는데 그건 지웠다).
+        return final.GetRange(0, Mathf.Min(3, final.Count));
     }
 
     // ──────────────────────────────────────────────
@@ -185,26 +174,19 @@ public class GameResultManager : MonoBehaviour
         int count = top.Count;
         float[] radii = new float[count];
         for (int i = 0; i < count; i++)
-            radii[i] = Mathf.Max(0.1f, baseRadius * top[i].scale);
+            radii[i] = Mathf.Max(0.1f, JellyRadius(top[i].scale));
 
-        Vector3[] positions = new Vector3[count];
-        int rightmost = count - 1;
-
-        // rightAnchor는 "3위가 배치될 시작 위치(월드 좌표)"
-        positions[rightmost] = rightAnchor;
-
-        for (int i = rightmost - 1; i >= 0; i--)
-        {
-            float gap = radii[i + 1] + padding + radii[i];
-            positions[i] = positions[i + 1] + Vector3.left * gap;
-        }
-
-        // 중앙 캐릭터(인덱스 count/2)를 X=0 기준으로 정렬
-        // avgX 방식은 각 캐릭터 크기 차이로 인해 중앙 캐릭터가 화면 중심에서 벗어남
+        //가운데 인물을 podiumCenter에 놓고 좌우로 벌린다. 이웃한 둘 사이의 간격은
+        //'두 몸의 반지름 + padding'이라 크기가 달라도 옷깃이 겹치지 않는다
         int centerIdx = count / 2;
-        float centerX = positions[centerIdx].x;
-        for (int i = 0; i < count; i++)
-            positions[i] -= new Vector3(centerX, 0f, 0f);
+        Vector3[] positions = new Vector3[count];
+        positions[centerIdx] = podiumCenter;
+
+        for (int i = centerIdx - 1; i >= 0; i--)
+            positions[i] = positions[i + 1] + Vector3.left * (radii[i + 1] + padding + radii[i]);
+
+        for (int i = centerIdx + 1; i < count; i++)
+            positions[i] = positions[i - 1] + Vector3.right * (radii[i - 1] + padding + radii[i]);
 
         for (int i = 0; i < count; i++)
         {
@@ -305,15 +287,56 @@ public class GameResultManager : MonoBehaviour
         return root.GetComponentInChildren<Renderer>(true);
     }
 
+    // ── 몸 치수의 출처 ──────────────────────────────────────
+    //
+    // ★ 가로 반지름은 NavMesh 에이전트 타입 설정에서 가져온다
+    //   예전엔 인스펙터의 baseRadius(0.5)를 썼는데, 같은 몸의 굵기를 재는 값이
+    //   NavMesh 에이전트 타입 설정(0.65)에도 따로 있었다. 출처가 둘이라 한쪽만 고치면
+    //   "길찾기가 보는 몸"과 "결과 화면이 보는 몸"이 조용히 어긋난다.
+    //   NavMeshUtil이 이미 그 값을 유일한 출처로 감싸고 있으므로 거기서 읽는다.
+    //
+    // ★ 세로는 가로와 다르다 — 그래서 프리팹의 두 지점을 쓴다
+    //   젤리는 구가 아니라 세로로 긴 몸이다(크기 1 기준 반높이 0.807 vs 반지름 0.65).
+    //   그런데 카메라는 '중심 = 발밑에서 반지름만큼 위'로 잡고 있었다. 반지름은 가로
+    //   치수라 그 점은 실제 중심이 아니었고, 큰 젤리일수록 더 위를 봤다.
+    //   프리팹에는 BottomTransform·TopTransform이 이미 있다(바닥 정렬과 이름표가 쓴다).
+    //   그 둘의 중점이 진짜 중심이고 간격의 절반이 진짜 반높이다.
+    private const string BottomAnchorName = "BottomTransform";
+    private const string TopAnchorName = "TopTransform";
+
+    /// <summary>크기 scale인 젤리의 <b>가로</b> 반지름.</summary>
+    private static float JellyRadius(float scale)
+    {
+        return NavMeshUtil.PlayerJellyRadius * scale;
+    }
+
+    /// <summary>프리팹의 두 기준점으로 몸의 중심과 반높이를 잰다.</summary>
+    private static bool TryMeasureBody(GameObject go, out Vector3 center, out float halfHeight)
+    {
+        Transform bottom = go.transform.Find(BottomAnchorName);
+        Transform top = go.transform.Find(TopAnchorName);
+
+        if (bottom == null || top == null)
+        {
+            Debug.LogError("[GameResult] " + go.name + " 에 " + BottomAnchorName + "/" + TopAnchorName
+                           + " 이 없습니다. 결과 화면의 바닥 정렬과 카메라 조준이 어긋납니다.");
+            center = go.transform.position;
+            halfHeight = 0f;
+            return false;
+        }
+
+        center = (bottom.position + top.position) * 0.5f;
+        halfHeight = Mathf.Abs(top.position.y - bottom.position.y) * 0.5f;
+        return true;
+    }
+
     private static void GroundToFloor(GameObject go, float floorY)
     {
-        Transform bottom = go.transform.Find("BottomTransform");
-        if (bottom != null)
-        {
-            float offset = floorY - bottom.position.y;
-            go.transform.position += new Vector3(0f, offset, 0f);
+        Transform bottom = go.transform.Find(BottomAnchorName);
+        if (bottom == null)
             return;
-        }
+
+        go.transform.position += new Vector3(0f, floorY - bottom.position.y, 0f);
     }
 
     private void SetupNameTag(GameObject root, string playerName)
@@ -324,7 +347,7 @@ public class GameResultManager : MonoBehaviour
         tag.gameObject.SetActive(true);
         tag.SetName(playerName);
 
-        Transform top = root.transform.Find("TopTransform");
+        Transform top = root.transform.Find(TopAnchorName);
         if (top != null)
             tag.TopTransform = top;
     }
@@ -356,10 +379,13 @@ public class GameResultManager : MonoBehaviour
         for (int i = 0; i < jellies.Count; i++)
         {
             var jelly = jellies[i];
-            float radius = Mathf.Max(0.2f, jelly.transform.localScale.x * baseRadius);
+
+            //화면에 다 담아야 하는 건 몸 전체다. 세로가 가로보다 길므로(반높이 0.807 vs
+            //반지름 0.65, 크기 1 기준) 둘 중 큰 쪽을 감싸는 반지름으로 본다
+            TryMeasureBody(jelly, out Vector3 centerWorld, out float halfHeight);
+            float radius = Mathf.Max(JellyRadius(jelly.transform.localScale.x), halfHeight);
             float distance = ComputeFocusDistance(radius);
 
-            Vector3 centerWorld = jelly.transform.position + Vector3.up * radius;
             Vector3 camPos = centerWorld + new Vector3(0f, focusHeightOffset, -distance);
             Quaternion camRot = Quaternion.LookRotation(centerWorld - camPos);
 
@@ -450,8 +476,6 @@ public class GameResultManager : MonoBehaviour
     {
         if (jellies.Count == 0)
             yield break;
-        EnsureRankText();
-
         // 우측(낮은 순위) → 좌측(높은 순위): jellies[last] = 3위, jellies[0] = 1위
         for (int i = jellies.Count - 1; i >= 0; i--)
         {
@@ -517,33 +541,11 @@ public class GameResultManager : MonoBehaviour
     // UI 헬퍼
     // ──────────────────────────────────────────────
 
-    private void EnsureRankText()
-    {
-        if (rankAnnouncementText != null)
-            return;
-
-        var canvasGO = new GameObject("ResultRankCanvas");
-        var canvas = canvasGO.AddComponent<Canvas>();
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvasGO.AddComponent<CanvasScaler>();
-        canvasGO.AddComponent<GraphicRaycaster>();
-
-        var textGO = new GameObject("RankText");
-        textGO.transform.SetParent(canvasGO.transform, false);
-        var text = textGO.AddComponent<TextMeshProUGUI>();
-        text.alignment = TextAlignmentOptions.Center;
-        text.fontSize = 80;
-        text.color = Color.white;
-        text.fontStyle = FontStyles.Bold;
-
-        var rt = text.rectTransform;
-        rt.anchorMin = new Vector2(0.5f, 0.85f);
-        rt.anchorMax = new Vector2(0.5f, 0.85f);
-        rt.sizeDelta = new Vector2(800, 120);
-        rt.anchoredPosition = Vector2.zero;
-
-        rankAnnouncementText = text;
-    }
+    // ★ 순위 텍스트를 런타임에 만들던 폴백을 걷어냈다
+    //   rankAnnouncementText가 비면 Canvas·CanvasScaler·GraphicRaycaster·TMP까지
+    //   코드로 조립했는데, 두 결과 씬 모두 인스펙터에 꽂혀 있어 한 번도 돌지 않았다.
+    //   글자 크기·색·앵커가 코드에 박혀 있어서 씬에서 고쳐도 코드가 이긴다고 오해할
+    //   여지만 남겼다. 씬에 있는 것을 씬에서 고치게 둔다.
 
     private void SetRankText(string s)
     {
