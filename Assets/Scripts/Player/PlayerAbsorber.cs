@@ -12,7 +12,7 @@ using JellyNet;
 ///
 /// ★ OnJellyScored는 남긴다 — 이쪽은 진짜 이벤트다
 ///   듣는 쪽이 둘이고 서로 성격이 다르다:
-///     · PlayerBridge     — HUD 점수 예측·효과음. 사람 전용이고 소유자일 때만.
+///     · LocalOwnerFeedback — HUD 점수 예측·효과음. 사람 전용이고 소유자일 때만.
 ///     · LevelUpFloaterPool — 성장 팝업. 사람·봇 둘 다, 모든 기계에서.
 ///   "누가 들을지 모른다"가 성립하므로 느슨하게 두는 게 맞다.
 ///

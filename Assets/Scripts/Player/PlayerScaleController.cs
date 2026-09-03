@@ -94,7 +94,7 @@ public class PlayerScaleController : MonoBehaviour
     // ★ playEffect가 false인 이유 — 젤리는 '큰 성장' 소리를 내지 않는다
     //   이 플래그가 지금 가르는 것은 <b>효과음 하나뿐이다.</b> 젤리는 한 판에 수십 번
     //   먹으므로 봇 흡수·배트 적중과 같은 소리를 내면 시끄럽다. 젤리 전용 소리는
-    //   PlayerBridge.HandleJellyScored가 따로 낸다.
+    //   LocalOwnerFeedback.HandleJellyScored가 따로 낸다.
     //
     //   한때 이 값을 true로 바꾼 적이 있다. 팝업이 이 이벤트에 붙어 있어서
     //   "원격 화면에 젤리 팝업이 안 뜬다"를 여기서 풀려고 했던 것인데, 잘못된 자리였다.

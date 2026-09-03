@@ -22,7 +22,7 @@ public enum GameModeType { Absorb, Push }
 //   판정용 크기를 찾는다면 NetEntity.ScaleOf가 유일한 창구다.
 //
 // ★ 여기 있는 값은 전부 <b>내 캐릭터 것</b>이다
-//   원격 아바타의 값이 새어 들어오지 않게, PlayerBridge가 IsLocalOwner로 거른 뒤에만
+//   원격 아바타의 값이 새어 들어오지 않게, LocalOwnerFeedback이 IsLocalOwner로 거른 뒤에만
 //   쓴다. 이 클래스에는 소유권 개념이 없으므로 거르는 책임은 전적으로 부르는 쪽에 있다.
 public static class GameState
 {
@@ -33,7 +33,7 @@ public static class GameState
     //   OnEnable이 돌지 않으니 구독조차 하지 않았고, 결국 두 이벤트는
     //   <b>아무도 듣지 않는데 계속 발화</b>하고 CurrentDisplayColor는 쓰기 전용이었다.
     //
-    //   PlayerCurrentScale은 남는다 — PlayerBridge가 예측 점수를 계산할 때 읽는다.
+    //   PlayerCurrentScale은 남는다 — LocalOwnerFeedback이 예측 점수를 계산할 때 읽는다.
     public static Action OnCameraScaleIncreased;
 
     private static float playerCurrentScale;

@@ -234,7 +234,7 @@ public class AIPlayerMovement : MonoBehaviour
     //   "봇에만 필요한 일이라 봇 쪽 클래스에 둔다"가 이유였지만
     //   이 클래스(AIPlayerMovement)도 봇 전용이라 그 이유가 성립하지 않았다.
     //
-    //   사람 쪽 PlayerBridge는 사정이 다르다. 거기 있는 핸들러들은 전부
+    //   사람 쪽 LocalOwnerFeedback은 사정이 다르다. 거기 있는 핸들러들은 전부
     //   IsLocalOwner 가드를 통과해야 하고 GameState 전역 상태를 건드린다 —
     //   NetIdentity를 아는 중간 자리가 실제로 필요하다. 대칭이 아니라고 이상한 게 아니라,
     //   중간에 설 이유가 있는 쪽만 서 있는 것이다.

@@ -1,13 +1,31 @@
 ﻿using UnityEngine;
 using JellyNet;
 
-public class PlayerBridge : MonoBehaviour
+/// <summary>
+/// 내 캐릭터가 자랐을 때 <b>내 기계에서만</b> 일어나야 하는 반응을 모은다 —
+/// HUD 점수, 카메라 줌아웃, 점프력, 효과음. 사람 프리팹에만 붙는다.
+///
+/// ★ 이름이 PlayerBridge였다
+///   BotBridge와 짝을 이루던 이름인데 그쪽이 사라지면서 'Bridge'가 무엇과
+///   대비되는지 없어졌다. "무엇을 무엇에 잇는가"를 아무도 말해주지 않으니
+///   <b>새 반응을 어디에 붙일지</b>가 매번 판단이 됐다.
+///
+///   실체는 아래 핸들러 넷이 전부 IsLocalOwner로 갈린다는 것 하나다. 그래서
+///   게이트의 이름을 클래스 이름으로 올렸다. 이제 규칙이 이름에서 바로 나온다:
+///     · 내 화면·내 전역 상태에만 영향을 주는 반응  → 여기
+///     · 모든 기계에서 그 캐릭터 옆에 나야 하는 월드 연출
+///       → 그 캐릭터의 컴포넌트가 방송 지점을 직접 듣는다 (LevelUpFloaterPool)
+///
+///   성장 팝업이 여기 없는 이유도 같은 문장으로 설명된다 — 팝업은 소유와 무관하고
+///   봇에게도 떠야 하는데, 이 컴포넌트는 사람 프리팹에만 있다.
+/// </summary>
+public class LocalOwnerFeedback : MonoBehaviour
 {
     private PlayerScaleController scaleController;
     private PlayerAbsorber absorber;
     private PlayerMovement movement;
 
-    // [CBT-4/W6] 이 아바타가 로컬 소유인가. PlayerBridge는 로컬·원격 플레이어 프리팹 모두에 붙고
+    // [CBT-4/W6] 이 아바타가 로컬 소유인가. 이 컴포넌트는 로컬·원격 플레이어 프리팹 모두에 붙고
     // PlayerScaleController.Start는 소유 무관하게 OnScaleSettled를 발화한다. 아래 핸들러들이 전역 정적
     // GameState(PlayerCurrentScale/색 — 클라당 1개)를 쓰므로, 원격 플레이어 스폰마다
     // 로컬 HUD/동기화 색이 남의 값으로 오염됐다. 소유자일 때만 전역 상태를 쓰도록 가드한다.
@@ -32,7 +50,7 @@ public class PlayerBridge : MonoBehaviour
     {
         get
         {
-            //PlayerBridge는 플레이어 프리팹에만 붙고, 그 루트엔 항상 NetIdentity가 있다.
+            //이 컴포넌트는 플레이어 프리팹에만 붙고, 그 루트엔 항상 NetIdentity가 있다.
             //없다면 배선 사고이므로 전역 상태를 건드리지 않는 쪽(false)이 안전하다
             return netId != null && netId.IsMine;
         }
@@ -89,7 +107,7 @@ public class PlayerBridge : MonoBehaviour
 
         // ★ 효과음은 내 캐릭터일 때만
         //   [W6] 가드가 다른 핸들러에는 다 있는데 여기만 빠져 있었다.
-        //   PlayerBridge는 원격 아바타에도 붙으므로, 남이 커질 때마다 내 스피커에서
+        //   이 컴포넌트는 원격 아바타에도 붙으므로, 남이 커질 때마다 내 스피커에서
         //   소리가 났다. 봇을 흡수하면 흡수자가 크게 자라(GrowByAbsorbing) 그 소리가
         //   양쪽 화면에서 겹쳐 들렸다.
         //   젤리는 GrowByJelly가 playEffect: false 로 묶어 보내서 티가 안 났을 뿐이다.

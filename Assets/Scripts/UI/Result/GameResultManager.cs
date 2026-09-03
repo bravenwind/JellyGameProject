@@ -269,7 +269,7 @@ public class GameResultManager : MonoBehaviour
         DestroyAll<WanderingAI>(root);
         DestroyAll<PlayerMovement>(root);
         DestroyAll<PlayerAbsorber>(root);
-        DestroyAll<PlayerBridge>(root);
+        DestroyAll<LocalOwnerFeedback>(root);
         DestroyAll<NavMeshAgent>(root);
 
         // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
