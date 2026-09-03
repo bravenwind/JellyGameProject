@@ -1004,9 +1004,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   popupPrefabs:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 361467399864989892, guid: 73ad5c79497eca14eb2ae98395357caf, type: 3}
+  - {fileID: 1127420863661024188, guid: 979d3e8cac6b7684e9e8a4ca17324ad6, type: 3}
+  - {fileID: 6756932893125842188, guid: 2e043650a48f6f2499ae8f3eb9d938e7, type: 3}
   prewarmPerPrefab: 2
 --- !u!1 &5979714396672895507
 GameObject:

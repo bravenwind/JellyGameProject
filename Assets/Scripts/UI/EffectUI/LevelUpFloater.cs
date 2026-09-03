@@ -68,9 +68,12 @@ public class LevelUpFloater : MonoBehaviour
             if (sprite != null)
                 baseColor = sprite.color;
         }
-
-        gameObject.SetActive(false);   // 풀에서 꺼낼 때 활성화된다
     }
+
+    // ★ 켜고 끄는 건 풀이 한다 — 여기서는 건드리지 않는다
+    //   예전엔 Awake와 애니메이션 끝에서 각각 SetActive를 불렀다. 지금은
+    //   ComponentPool이 Get에서 켜고 Return에서 끄므로 출처가 둘이 된다.
+    //   둘이 되면 "왜 꺼진 채로 나오지" 같은 걸 두 곳에서 찾게 된다.
 
     /// <summary>풀에서 호출. scaleRef는 크기 상쇄 기준(캐릭터 루트), onComplete는 반환 콜백.</summary>
     public void Play(Transform scaleRef, Action<LevelUpFloater> onComplete)
@@ -79,7 +82,6 @@ public class LevelUpFloater : MonoBehaviour
         this.onComplete = onComplete;
         cam = Camera.main;
 
-        gameObject.SetActive(true);
         if (routine != null)
             StopCoroutine(routine);
         routine = StartCoroutine(AnimateRoutine());
@@ -141,8 +143,7 @@ public class LevelUpFloater : MonoBehaviour
         }
 
         routine = null;
-        gameObject.SetActive(false);
-        onComplete?.Invoke(this);   // 풀에 반환
+        onComplete?.Invoke(this);   // 풀에 반환 — 끄는 건 풀이 한다
     }
 
     private void ApplyAlpha(float alpha)
