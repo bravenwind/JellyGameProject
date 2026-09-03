@@ -58,7 +58,6 @@ MonoBehaviour:
   scoreText: {fileID: 2516197336744459393}
   backgroundImage: {fileID: 662453615372126297}
   myEntryColor: {r: 1, g: 1, b: 0, a: 0.3}
-  botEntryColor: {r: 0.5, g: 0.5, b: 0.5, a: 0.2}
 --- !u!114 &3325438767463975838
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -467,7 +466,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Type: 1
   m_PreserveAspect: 0
   m_FillCenter: 1
   m_FillMethod: 4

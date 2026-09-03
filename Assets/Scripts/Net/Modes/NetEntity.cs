@@ -44,6 +44,40 @@ namespace JellyNet
             return !id.IsSimulatedHere;
         }
 
+        /// <summary>
+        /// 이 기계가 이 캐릭터의 <b>크기를 몰아도 되는가.</b> false면 ScaleTo를 돌리면 안 된다.
+        ///
+        /// ★ 사람과 봇이 다르다
+        ///   사람의 크기는 패킷으로 오지 않는다 — LanPlayerState가 보내는 건 점수·플래그·색뿐이다.
+        ///   대신 '성장했다'는 사건이 모든 기계에 전달되고 각자 ScaleTo를 돌려 같은 값에 도달한다.
+        ///   그래서 사람은 <b>어느 기계에서나</b> 자기 크기를 만든다.
+        ///
+        ///   봇은 반대다. LanBotState가 크기를 절대값으로 방송하고 클라는 FollowScale로 따라간다.
+        ///   거기에 ScaleTo까지 돌면 둘이 같은 transform.localScale에 쓴다 —
+        ///   코루틴이 Update보다 나중에 재개되므로 성장 시간(1.5초) 동안 ScaleTo가 이기고,
+        ///   그 시작값은 FollowScale이 건드리지 않는 컨트롤러의 캐시라 <b>툭 튄다.</b>
+        ///   게다가 클라의 pendingScale에는 젤리 증가분만 쌓여 있어(흡수·배트 성장은 호스트에만
+        ///   있다) 목표값 자체가 호스트보다 작다 → 봇이 1.5초 작아졌다가 돌아온다.
+        ///
+        /// ★ 같은 판단이 두 군데에 흩어져 있었다
+        ///   LanPlayerVisual.ApplyGrow에는 `if (bot != null &amp;&amp; !bot.IsDriver) return;`이 있었는데
+        ///   PlayerAbsorber.AbsorbColor는 그 가드를 거치지 않고 GrowByJelly를 직접 불렀다.
+        ///   그래서 봇이 젤리를 먹을 때만 위 증상이 났다. 한쪽만 고쳐지는 걸 막으려고 모은다.
+        /// </summary>
+        public static bool DrivesScaleHere(Component c)
+        {
+            if (c == null)
+                return false;
+
+            LanBotState bot = c.GetComponentInParent<LanBotState>();
+
+            //사람(그리고 봇이 아닌 무엇이든)은 모든 기계가 자기 크기를 스스로 만든다
+            if (bot == null)
+                return true;
+
+            return bot.IsDriver;
+        }
+
         // ═══════════════════════════════════════════════════════
         //  기준 크기 — 플레이어 프리팹이 유일한 출처
         // ═══════════════════════════════════════════════════════

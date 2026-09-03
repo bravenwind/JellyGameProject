@@ -154,12 +154,12 @@ public class PlayerBridge : MonoBehaviour
         
         GameState.CurrentScore = NetEntity.ScoreFromScale(predictedScale);
 
-        // ★ 여기서는 연출을 하지 않는다 — 점수 예측만 한다
-        //   예전엔 팝업과 효과음을 여기서도 냈다. 그런데 젤리를 먹으면
-        //   GrowByJelly → OnGrowStarted 를 타고 HandleGrowStarted가 <b>어차피 불린다.</b>
-        //   두 곳이 같은 일을 하니 먹은 사람만 소리가 겹쳐 들렸고, 팝업이 뜨는 규칙도
-        //   "젤리는 여기서, 나머지는 저기서"로 갈라져 있었다.
-        //   연출은 HandleGrowStarted 한 곳이 갖는다. 이 함수에 남는 일은
-        //   내 화면 HUD 점수 예측뿐이다.
+        // ★ 팝업은 여기서 띄우지 않는다 — LevelUpFloaterPool이 같은 이벤트를 직접 듣는다
+        //   팝업은 사람·봇 모두, 모든 기계에서 떠야 하는 월드 연출이다.
+        //   반면 이 함수는 IsLocalOwner로 막혀 있어 <b>내 캐릭터에서만</b> 실행된다.
+        //   같은 이벤트에 성격이 다른 두 반응을 한 함수에 묶으면 가드가 서로를 오염시킨다.
+        //   소리는 내 것만 나야 하므로 여기 남는다.
+        if (PlaySFXAudio.Instance != null)
+            PlaySFXAudio.Instance.PlayColorMixSound();
     }
 }

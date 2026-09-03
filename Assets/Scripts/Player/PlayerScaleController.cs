@@ -91,19 +91,21 @@ public class PlayerScaleController : MonoBehaviour
             jellyBatchCoroutine = StartCoroutine(BatchedJellyGrow());
     }
 
-    // ★ playEffect를 false에서 true로 바꿨다
-    //   젤리를 먹었을 때만 연출을 끄고 있었다. 원래 이유는 소리가 두 번 나서였는데,
-    //   진짜 원인은 PlayerBridge.HandleGrowStarted에 <b>소유자 가드가 빠져 있던 것</b>이었고
-    //   그건 따로 고쳤다. false로 막아두는 바람에 생긴 부작용이 더 컸다:
-    //   젤리 흡수는 호스트가 EatJellyConfirm을 <b>전원에게</b> 방송하고 각 기계의
-    //   AbsorbMode.OnEatConfirmed가 먹은 개체를 NetId로 찾아 AbsorbColor를 부른다.
-    //   즉 원격 화면도 "저 캐릭터가 먹었다"를 이미 알고 여기까지 들어오는데,
-    //   연출만 꺼져 있어서 봇 흡수(모두에게 보임)와 젤리(아무에게도 안 보임)가 달랐다.
+    // ★ playEffect가 false인 이유 — 젤리는 '큰 성장' 소리를 내지 않는다
+    //   이 플래그가 지금 가르는 것은 <b>효과음 하나뿐이다.</b> 젤리는 한 판에 수십 번
+    //   먹으므로 봇 흡수·배트 적중과 같은 소리를 내면 시끄럽다. 젤리 전용 소리는
+    //   PlayerBridge.HandleJellyScored가 따로 낸다.
+    //
+    //   한때 이 값을 true로 바꾼 적이 있다. 팝업이 이 이벤트에 붙어 있어서
+    //   "원격 화면에 젤리 팝업이 안 뜬다"를 여기서 풀려고 했던 것인데, 잘못된 자리였다.
+    //   봇의 ScaleTo는 구동자에서만 돌아서 클라에서는 애초에 이 코루틴이 실행되지 않는다.
+    //   팝업은 크기 파이프라인이 아니라 방송이 도착한 자리에 붙였다
+    //   (PlayerAbsorber.OnJellyScored / LanPlayerVisual.OnGrowBroadcastReceived).
     private IEnumerator BatchedJellyGrow()
     {
         yield return null;
         jellyBatchCoroutine = null;
-        QueueScaleChange(ScaleTo(pendingScale, DataManager.Instance.GrowAnimTime, playEffect: true));
+        QueueScaleChange(ScaleTo(pendingScale, DataManager.Instance.GrowAnimTime, playEffect: false));
     }
 
     public void GrowByAbsorbing(float absorbedScaleValue)

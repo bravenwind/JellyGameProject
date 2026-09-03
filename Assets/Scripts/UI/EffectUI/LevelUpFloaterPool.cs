@@ -1,4 +1,5 @@
 using UnityEngine;
+using JellyNet;
 
 /// <summary>
 /// 성장 팝업 프리팹들을 풀링하고 띄우는 컨테이너.
@@ -19,18 +20,20 @@ using UnityEngine;
 ///   그래서 pools[i]가 popupPrefabs[i]만 복제한다.
 ///
 /// ★ 언제 뜰지는 이 컴포넌트가 직접 듣는다
-///   예전엔 PlayerBridge가 OnGrowStarted를 받아 풀에게 Play()를 시켰다. 그래서
-///   <b>봇에는 팝업이 없었다</b> — 봇에 붙는 건 BotBridge이고 거기엔 그 구독이 없었다.
-///   같은 코드를 BotBridge에도 복사하는 대신 풀이 스스로 부모의
-///   PlayerScaleController를 구독한다. 이제 "풀 자식이 있는 캐릭터는 팝업이 뜬다"가
-///   전부라 사람·봇이 같다.
+///   예전엔 PlayerBridge가 받아서 풀에게 Play()를 시켰다. 그래서 <b>봇에는 팝업이
+///   없었다</b> — 봇에 붙는 건 BotBridge이고 거기엔 그 구독이 없었다.
+///   같은 코드를 BotBridge에도 복사하는 대신 풀이 스스로 듣는다.
+///   이제 "풀 자식이 있는 캐릭터는 팝업이 뜬다"가 전부라 사람·봇이 같다.
 ///
-/// ★ 네트워크: 팝업은 모든 화면에서, 그 캐릭터 옆에 뜬다
-///   젤리 흡수는 호스트가 EatJellyConfirm을 전원에게 방송하고, 각 기계의
-///   AbsorbMode.OnEatConfirmed가 <b>먹은 개체를 NetId로 찾아</b> AbsorbColor를 부른다
-///   → GrowByJelly → OnGrowStarted. 풀은 그 캐릭터의 자식이고 팝업도 자식으로 낳으므로,
-///   원격 화면에서도 먹은 그 캐릭터 옆에 뜬다. 봇 흡수·배트 적중은 GrowEvent 방송이
-///   같은 자리로 이어진다.
+/// ★ 크기 파이프라인이 아니라 <b>방송이 도착한 자리</b>를 듣는다
+///   한때 PlayerScaleController.OnGrowStarted를 구독했다. 사람은 그래도 맞는데
+///   (사람의 크기는 모든 기계가 스스로 만든다) 봇은 아니다 —
+///   봇의 ScaleTo는 구동자에서만 도니까 클라 화면에서는 봇이 자라도 발화하지 않는다.
+///   그래서 크기와 무관하게 기계당 정확히 한 번 오는 두 자리를 대신 듣는다:
+///     · PlayerAbsorber.OnJellyScored           — 젤리 (EatJellyConfirm 방송)
+///     · LanPlayerVisual.OnGrowBroadcastReceived — 봇 흡수·배트 적중 (GrowEvent 방송)
+///   둘 다 개체별이고 모든 기계에서 불리므로, 원격 화면에서도 먹은 그 캐릭터 옆에 뜬다
+///   (풀이 그 캐릭터의 자식이고 팝업도 자식으로 낳는다).
 /// </summary>
 public class LevelUpFloaterPool : MonoBehaviour
 {
@@ -41,13 +44,15 @@ public class LevelUpFloaterPool : MonoBehaviour
     [SerializeField] private int prewarmPerPrefab = 2;
 
     private Transform scaleRef;   // 크기 상쇄 기준 = 캐릭터 루트(이 컨테이너의 부모)
-    private PlayerScaleController scaleController;
+    private PlayerAbsorber absorber;          // 젤리 흡수 방송이 도착하는 자리
+    private LanPlayerVisual visual;           // 봇 흡수·배트 적중 방송이 도착하는 자리
     private ComponentPool<LevelUpFloater>[] pools;
 
     private void Awake()
     {
         scaleRef = transform.parent;
-        scaleController = GetComponentInParent<PlayerScaleController>();
+        absorber = GetComponentInParent<PlayerAbsorber>();
+        visual = GetComponentInParent<LanPlayerVisual>();
 
         if (popupPrefabs == null)
             popupPrefabs = new LevelUpFloater[0];
@@ -67,21 +72,18 @@ public class LevelUpFloaterPool : MonoBehaviour
 
     private void OnEnable()
     {
-        if (scaleController != null)
-            scaleController.OnGrowStarted += HandleGrowStarted;
+        if (absorber != null)
+            absorber.OnJellyScored += Play;
+        if (visual != null)
+            visual.OnGrowBroadcastReceived += Play;
     }
 
     private void OnDisable()
     {
-        if (scaleController != null)
-            scaleController.OnGrowStarted -= HandleGrowStarted;
-    }
-
-    //playEffect가 false인 성장(연출 없이 값만 맞추는 보정)에는 뜨지 않는다.
-    private void HandleGrowStarted(bool playEffect)
-    {
-        if (playEffect)
-            Play();
+        if (absorber != null)
+            absorber.OnJellyScored -= Play;
+        if (visual != null)
+            visual.OnGrowBroadcastReceived -= Play;
     }
 
     /// <summary>팝업 1회 표시. 동시에 여러 번 불려도 각 인스턴스가 독립적으로 뜬다.</summary>

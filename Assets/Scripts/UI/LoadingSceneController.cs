@@ -127,7 +127,7 @@ public class LoadingSceneController : MonoBehaviour
                 onExitStarted: OnCurtainExitStarted, // 커튼이 걷히기 시작 → 다음 씬 연출 진행 허용
                 onExited: OnCurtainExited,           // 커튼이 완전히 빠짐 → 로딩 컨트롤러 정리
                 // 완전판: 출발 씬 위에서 슬라이드인이 끝난 순간에 비로소 도착 씬을 로드한다(로드-애니 분리).
-                onSlideInDone: departureIntro ? OnDepartureSlideInDone : (Action)null,
+                onSlideInDone: departureIntro ? OnDepartureSlideInDone : null,
                 // 완전판에서만 슬라이드인 유예 적용(인스턴스화 히칭 회피). 기존 경로는 0(검은 프레임 없음).
                 slideInDelay: departureIntro ? departureSlideInDelay : 0f
             );

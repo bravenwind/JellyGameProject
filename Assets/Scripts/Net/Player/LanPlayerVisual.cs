@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections;
 
 namespace JellyNet
@@ -201,18 +202,38 @@ namespace JellyNet
             batSwing = null;
         }
 
+        /// <summary>
+        /// 이 개체가 성장했다는 <b>방송이 도착했다.</b> 크기와 무관하게 모든 기계에서 한 번씩 뜬다.
+        /// 성장 팝업(LevelUpFloaterPool)이 여기에 붙는다.
+        ///
+        /// ★ 왜 OnGrowStarted가 아니라 이 자리인가
+        ///   OnGrowStarted는 크기 파이프라인(ScaleTo) 안에서 나온다. 그런데 봇의 ScaleTo는
+        ///   구동자에서만 돌아서(아래 가드), 클라 화면에서는 봇이 자라도 발화하지 않는다.
+        ///   "방송이 왔다"와 "내가 크기를 몬다"는 다른 사건이고, 연출이 필요한 건 앞쪽이다.
+        /// </summary>
+        public event Action OnGrowBroadcastReceived;
+
         public void ApplyGrow(GrowKind kind, float amount)
         {
+            //연출은 가드 앞에 둔다 — 크기를 몰지 않는 기계에서도 팝업은 떠야 한다
+            OnGrowBroadcastReceived?.Invoke();
+
             if (scaleController == null)
                 return;
 
-            LanBotState bot = GetComponent<LanBotState>();
-            if (bot != null && !bot.IsDriver)
+            //봇의 크기는 호스트가 절대값으로 방송한다. 클라에서 ScaleTo까지 돌면
+            //FollowScale과 서로의 값을 덮어써 봇이 튄다. 판단은 NetEntity가 갖는다.
+            if (!NetEntity.DrivesScaleHere(this))
                 return;
 
+            // ★ GrowKind.Jelly 분기는 지웠다 — 도달하지 않는다
+            //   BroadcastGrow를 부르는 곳은 둘뿐이고 각각 Absorbing(AbsorbMode)과
+            //   BatHit(PushMode)만 보낸다. 젤리는 이 메시지를 타지 않는다 —
+            //   EatJellyConfirm 방송을 받은 AbsorbMode.OnEatConfirmed가
+            //   PlayerAbsorber.AbsorbColor를 직접 부르고, 거기서 GrowByJelly가 돈다.
+            //   열거형에 Jelly가 남아 있는 건 프로토콜 호환용이다.
             switch (kind)
             {
-                case GrowKind.Jelly: scaleController.GrowByJelly(); break;
                 case GrowKind.Absorbing: scaleController.GrowByAbsorbing(amount); break;
                 case GrowKind.BatHit: scaleController.GrowByBatHit(amount); break;
             }

@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System;
 using System.Collections;
@@ -119,10 +119,6 @@ public class LevelUpFloater : MonoBehaviour
                 transform.rotation = Quaternion.LookRotation(
                     transform.position - cam.transform.position);
 
-            // ── 팝 하고 나타났다가 작아지며 사라진다 ──
-            //   0 ~ 25%   : 0 → popScale   (튀어나옴)
-            //   25 ~ 40%  : popScale → 1   (되튐)
-            //   40 ~ 100% : 1 → endScale   (줄어들며 퇴장)
             float k;
             if (t < 0.25f)
                 k = Mathf.Lerp(0f, popScale, EaseOutCubic(t / 0.25f));

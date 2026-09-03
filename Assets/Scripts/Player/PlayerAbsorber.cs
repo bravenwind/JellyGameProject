@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using JellyNet;
 
 /// <summary>
 /// 젤리를 먹는 쪽. 사람·봇 프리팹 <b>둘 다</b>의 루트에 붙는다.
@@ -10,9 +11,14 @@ using UnityEngine;
 ///   이벤트는 '발행자가 구독자를 몰라도 되게' 하려고 쓰는 건데 그 이점이 없는 자리였다.
 ///
 /// ★ OnJellyScored는 남긴다 — 이쪽은 진짜 이벤트다
-///   색·크기는 사람과 봇이 똑같이 처리하지만, HUD·효과음·팝업은 <b>사람만</b> 한다.
-///   그 처리는 사람 전용인 PlayerBridge에 있고 봇에는 구독자가 없는 게 정상이다.
+///   듣는 쪽이 둘이고 서로 성격이 다르다:
+///     · PlayerBridge     — HUD 점수 예측·효과음. 사람 전용이고 소유자일 때만.
+///     · LevelUpFloaterPool — 성장 팝업. 사람·봇 둘 다, 모든 기계에서.
 ///   "누가 들을지 모른다"가 성립하므로 느슨하게 두는 게 맞다.
+///
+///   AbsorbColor는 <b>모든 기계에서</b> 불린다(호스트가 EatJellyConfirm을 방송하고
+///   각 기계의 AbsorbMode.OnEatConfirmed가 먹은 개체를 NetId로 찾아 부른다).
+///   그래서 이 이벤트는 젤리 흡수 연출을 걸기에 가장 정확한 자리다.
 /// </summary>
 public class PlayerAbsorber : MonoBehaviour
 {
@@ -65,12 +71,20 @@ public class PlayerAbsorber : MonoBehaviour
     {
         OnJellyScored?.Invoke();
 
-        //색과 크기는 사람·봇이 같다. 소유권을 볼 필요도 없다 —
+        //색은 사람·봇이 같다. 소유권을 볼 필요도 없다 —
         //호스트가 '이 개체가 먹었다'고 확정해 보낸 것이기 때문이다
         if (colorVisual != null)
             colorVisual.HandleJellyAbsorbed(type);
 
-        if (scaleController != null)
+        // ★ 크기는 소유권을 본다 — 봇은 구동자에서만 자란다
+        //   예전엔 여기서 조건 없이 GrowByJelly를 불렀다. 사람은 그게 맞다(크기가
+        //   패킷으로 오지 않으니 각 기계가 스스로 만들어야 한다). 그런데 봇의 크기는
+        //   LanBotState가 절대값으로 방송하고 클라는 FollowScale로 따라간다.
+        //   두 개가 같은 transform.localScale에 쓰면서 성장 시간(1.5초) 동안 봇이
+        //   작아졌다 돌아오는 증상이 났다. 자세한 이유는 NetEntity.DrivesScaleHere에.
+        //
+        //   LanPlayerVisual.ApplyGrow에는 같은 가드가 원래 있었는데 이 경로만 빠져 있었다.
+        if (scaleController != null && NetEntity.DrivesScaleHere(this))
             scaleController.GrowByJelly();
     }
 }
