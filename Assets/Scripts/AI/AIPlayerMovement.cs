@@ -228,6 +228,28 @@ public class AIPlayerMovement : MonoBehaviour
         //     autoBraking off   — 목적지 근처에서 임의로 감속하지 않는다
     }
 
+    // ★ 예전엔 BotBridge라는 클래스가 이 구독을 대신 했다
+    //   PlayerScaleController → BotBridge → 여기로 한 번 튕기는 구조였는데,
+    //   그 클래스가 하는 일이 <b>이 한 줄의 중계뿐</b>이었다. 가드도 변환도 없었다.
+    //   "봇에만 필요한 일이라 봇 쪽 클래스에 둔다"가 이유였지만
+    //   이 클래스(AIPlayerMovement)도 봇 전용이라 그 이유가 성립하지 않았다.
+    //
+    //   사람 쪽 PlayerBridge는 사정이 다르다. 거기 있는 핸들러들은 전부
+    //   IsLocalOwner 가드를 통과해야 하고 GameState 전역 상태를 건드린다 —
+    //   NetIdentity를 아는 중간 자리가 실제로 필요하다. 대칭이 아니라고 이상한 게 아니라,
+    //   중간에 설 이유가 있는 쪽만 서 있는 것이다.
+    private void OnEnable()
+    {
+        if (ScaleCtrl != null)
+            ScaleCtrl.OnPostScalePhysics += UpdateScaleOnAgent;
+    }
+
+    private void OnDisable()
+    {
+        if (ScaleCtrl != null)
+            ScaleCtrl.OnPostScalePhysics -= UpdateScaleOnAgent;
+    }
+
     private void Start()
     {
         // 상태 인스턴스 생성 (PlayerController 패턴과 동일)
@@ -888,7 +910,7 @@ public class AIPlayerMovement : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────
-    // 크기 변화 뒤처리 (PlayerScaleController → BotBridge → 여기)
+    // 크기 변화 뒤처리 (PlayerScaleController.OnPostScalePhysics → 여기)
     // ─────────────────────────────────────────────────────────
 
     /// <summary>
