@@ -8,7 +8,7 @@ using JellyNet;
 ///
 /// ★ 꺼내고 넣는 규칙은 직접 만들지 않는다 — ComponentPool에 맡긴다
 ///   예전엔 이 클래스가 Queue를 손으로 굴리며 Get/Create/Return을 다 갖고 있었다.
-///   그 시절엔 이유가 있었다: 이 컴포넌트를 PlayerBridge가 런타임에 AddComponent로
+///   그 시절엔 이유가 있었다: 이 컴포넌트를 LocalOwnerFeedback(옛 PlayerBridge)이 런타임에 AddComponent로
 ///   만들었기 때문에 <b>복제할 프리팹을 인스펙터에서 받을 방법이 없었고</b>,
 ///   ComponentPool은 프리팹을 받아야 동작한다. 지금은 이 컨테이너가 캐릭터 프리팹의
 ///   자식으로 들어 있어 그 조건이 사라졌다.
@@ -17,10 +17,18 @@ using JellyNet;
 ///
 /// ★ 종류별로 풀을 따로 둔다
 ///   프리팹이 여러 개인데 풀이 하나면, 반납된 A를 다음 B 자리에 꺼내 쓰게 된다.
-///   그래서 pools[i]가 popupPrefabs[i]만 복제한다.
+///   그래서 pools[i]가 고른 칸 하나만 복제한다.
+///
+/// ★ 모드마다 띄울 팝업이 다르다
+///   흡수 모드는 '먹었다'(Yum·Squishy·Grow), 밀치기 모드는 밀어낸 쪽 문구가 맞다.
+///   같은 칸을 공유하면 한쪽 모드에 맞춘 순간 다른 쪽이 틀리므로 칸을 나눠 받는다.
+///   <b>고르는 일은 Awake에서 한 번만 한다</b> — 모드는 어느 씬을 열지 정하는 값이라
+///   (LanSceneFlow가 GameState.CurrentGameMode를 씬 로드 전에 확정한다)
+///   캐릭터가 스폰될 때는 이미 바뀌지 않는다. 매번 보면 판 도중에 바뀔 수 있는 값처럼
+///   읽혀서 오해를 부른다.
 ///
 /// ★ 언제 뜰지는 이 컴포넌트가 직접 듣는다
-///   예전엔 PlayerBridge가 받아서 풀에게 Play()를 시켰다. 그래서 <b>봇에는 팝업이
+///   예전엔 LocalOwnerFeedback(옛 PlayerBridge)이 받아서 풀에게 Play()를 시켰다. 그래서 <b>봇에는 팝업이
 ///   없었다</b> — 봇에 붙는 건 BotBridge이고 거기엔 그 구독이 없었다.
 ///   같은 코드를 BotBridge에도 복사하는 대신 풀이 스스로 듣는다.
 ///   이제 "풀 자식이 있는 캐릭터는 팝업이 뜬다"가 전부라 사람·봇이 같다.
@@ -37,8 +45,11 @@ using JellyNet;
 /// </summary>
 public class LevelUpFloaterPool : MonoBehaviour
 {
-    [Tooltip("띄울 팝업 프리팹들. 이 중 하나가 무작위로 뜬다.")]
-    [SerializeField] private LevelUpFloater[] popupPrefabs = new LevelUpFloater[3];
+    [Tooltip("흡수 모드에서 띄울 팝업 프리팹들. 이 중 하나가 무작위로 뜬다.")]
+    [SerializeField] private LevelUpFloater[] absorbPopupPrefabs = new LevelUpFloater[3];
+
+    [Tooltip("밀치기 모드에서 띄울 팝업 프리팹들. 이 중 하나가 무작위로 뜬다.")]
+    [SerializeField] private LevelUpFloater[] pushPopupPrefabs = new LevelUpFloater[3];
 
     [Tooltip("종류마다 미리 만들어둘 개수")]
     [SerializeField] private int prewarmPerPrefab = 2;
@@ -54,19 +65,23 @@ public class LevelUpFloaterPool : MonoBehaviour
         absorber = GetComponentInParent<PlayerAbsorber>();
         visual = GetComponentInParent<LanPlayerVisual>();
 
-        if (popupPrefabs == null)
-            popupPrefabs = new LevelUpFloater[0];
+        LevelUpFloater[] prefabs = GameState.CurrentGameMode == GameModeType.Push
+            ? pushPopupPrefabs
+            : absorbPopupPrefabs;
 
-        pools = new ComponentPool<LevelUpFloater>[popupPrefabs.Length];
+        if (prefabs == null)
+            prefabs = new LevelUpFloater[0];
 
-        for (int i = 0; i < popupPrefabs.Length; i++)
+        pools = new ComponentPool<LevelUpFloater>[prefabs.Length];
+
+        for (int i = 0; i < prefabs.Length; i++)
         {
-            if (popupPrefabs[i] == null)
+            if (prefabs[i] == null)
                 continue;   //아직 프리팹을 안 꽂은 칸. PickKind가 건너뛴다
 
             //자식으로 낳는다 — 캐릭터가 움직이면 팝업도 따라가고 사라질 때 같이 사라진다
             pools[i] = new ComponentPool<LevelUpFloater>(
-                popupPrefabs[i], transform, prewarmPerPrefab);
+                prefabs[i], transform, prewarmPerPrefab);
         }
     }
 
