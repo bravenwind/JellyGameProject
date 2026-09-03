@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
-using TMPro;
 
 namespace JellyNet
 {
@@ -16,8 +14,6 @@ namespace JellyNet
 
         [Tooltip("목록이 비었을 때 보여줄 안내.")]
         [SerializeField] private GameObject emptyHint;
-
-        [SerializeField] private TMP_Text statusText;
 
         [Header("표시")]
         [Tooltip("초당 몇 번 갱신할지. 방 정보는 1초에 한 번 오므로 낮아도 된다.")]
@@ -106,16 +102,6 @@ namespace JellyNet
 
             if (emptyHint != null)
                 emptyHint.SetActive(count == 0 && !stillSearching);
-
-            if (statusText == null)
-                return;
-
-            if (count > 0)
-                statusText.text = count + "개의 방을 찾았습니다.";
-            else if (stillSearching)
-                statusText.text = "방을 찾는 중…";
-            else
-                statusText.text = "같은 와이파이의 방을 찾는 중…  방장과 같은 공유기에 연결되어 있어야 합니다.";
         }
 
         private void ClearRows()

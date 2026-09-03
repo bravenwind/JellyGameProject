@@ -3057,7 +3057,6 @@ MonoBehaviour:
   container: {fileID: 1614005601}
   rowPrefab: {fileID: 5774589755866084799, guid: 585115c1f43fd104ca1ee7a52931b16e, type: 3}
   emptyHint: {fileID: 287867369}
-  statusText: {fileID: 0}
   refreshRate: 4
 --- !u!1 &287867369
 GameObject:
