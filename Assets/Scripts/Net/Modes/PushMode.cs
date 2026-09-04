@@ -70,7 +70,7 @@ namespace JellyNet
             w.WriteInt(victimNetId);
             w.WriteInt(attackerNetId);
             w.End();
-            net.Client.Send(w);
+            net.SendToHost(w);
         }
 
         protected override void RegisterRoutes()
@@ -202,7 +202,7 @@ namespace JellyNet
             w.Begin(MsgType.KilledBy);
             w.WriteInt(killerNetId);
             w.End();
-            NetManager.Instance.Host.SendTo(victim.OwnerId, w);
+            NetManager.Instance.SendTo(victim.OwnerId, w);
         }
 
 
@@ -222,7 +222,7 @@ namespace JellyNet
             w.WriteFloat(dir.z);
             w.WriteFloat(force);
             w.End();
-            net.Host.SendTo(victim.OwnerId, w);
+            net.SendTo(victim.OwnerId, w);
         }
 
         private void ApplyKnockbackLocal(int victimNetId, Vector3 dir, float force)

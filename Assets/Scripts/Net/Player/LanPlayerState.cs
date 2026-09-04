@@ -114,7 +114,7 @@ namespace JellyNet
             w.Begin(MsgType.SetMyName);
             w.WriteString(nick);
             w.End();
-            net.Client.Send(w);
+            net.SendToHost(w);
         }
 
         private void Update()

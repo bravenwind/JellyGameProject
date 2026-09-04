@@ -197,7 +197,7 @@ namespace JellyNet
             w.WriteInt(CurrentScore);
             w.WriteByte(IsEliminatedNow ? (byte)1 : (byte)0);
             w.End();
-            net.Host.Broadcast(w);
+            net.Broadcast(w);
         }
 
         //호스트가 보내주는 크기로 부드럽게 따라간다. 클라에서만 돈다

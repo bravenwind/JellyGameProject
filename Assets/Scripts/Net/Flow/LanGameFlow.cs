@@ -183,7 +183,7 @@ namespace JellyNet
             writer.Begin(MsgType.EliminateRequest);
             writer.WriteInt(netId);
             writer.End();
-            net.Client.Send(writer);
+            net.SendToHost(writer);
         }
 
         public void HostConfirmEliminated(int netId)
@@ -296,7 +296,7 @@ namespace JellyNet
         private void HandlePeerJoined(int peerId)
         {
             WritePhase(Phase, Remaining);
-            NetManager.Instance.Host.SendTo(peerId, writer);
+            NetManager.Instance.SendTo(peerId, writer);
         }
 
         private void Update()
@@ -351,7 +351,7 @@ namespace JellyNet
             resyncTimer = 0f;
 
             WritePhase(Phase, Remaining);
-            NetManager.Instance.Host.Broadcast(writer);
+            NetManager.Instance.Broadcast(writer);
         }
 
         public float Elapsed
@@ -545,7 +545,7 @@ namespace JellyNet
             WinnerScore = final.WinnerScore;
 
             LanStandings.Write(writer, final.Entries, final.WinnerName);
-            NetManager.Instance.Host.Broadcast(writer);
+            NetManager.Instance.Broadcast(writer);
 
             LanScoreboard.SetFinal(final.Entries, final.WinnerName);
 
@@ -553,7 +553,7 @@ namespace JellyNet
             writer.WriteInt(WinnerNetId);
             writer.WriteInt(WinnerScore);
             writer.End();
-            NetManager.Instance.Host.Broadcast(writer);
+            NetManager.Instance.Broadcast(writer);
 
             HostSetPhase(GamePhase.GameOver);
             OnGameOver();
@@ -564,7 +564,7 @@ namespace JellyNet
             SetPhaseLocal(p);
 
             WritePhase(p, Remaining);
-            NetManager.Instance.Host.Broadcast(writer);
+            NetManager.Instance.Broadcast(writer);
         }
 
         private void SetPhaseLocal(GamePhase p)

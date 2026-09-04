@@ -17,23 +17,33 @@ namespace JellyNet
         public string JoinIp { get { return joinIp; } set { joinIp = value; } }
         [SerializeField] private int maxLogLines = 200;
 
-        public Mode CurrentMode { get; private set; }
-        public NetHost Host { get; private set; }
-        public NetClient Client { get; private set; }
+        //LAN 전용 진입점(StartHost/JoinHost)이 필요해 구체 타입도 함께 들고 있다.
+        //3단계에서 방 만들기·참가가 INetSession 으로 넘어가면 transport 하나만 남는다
+        private LanTransport lan;
+        private INetTransport transport;
 
-        public int MyId
+        /// <summary>
+        /// ★ 예전엔 필드에 저장했다
+        ///   Shutdown 이 소켓을 닫고 CurrentMode 를 None 으로 되돌리는 순서에 의존하는
+        ///   코드가 있었고(로비의 취소 처리는 OnDisconnected 안에서 다시 Offline 을 묻는다),
+        ///   순서를 한 번 어긋나게 놓으면 Shutdown 이 재귀로 들어갔다.
+        ///   전송의 상태에서 매번 유도하면 어긋날 순서 자체가 없어진다.
+        /// </summary>
+        public Mode CurrentMode
         {
             get
             {
-                if (CurrentMode == Mode.Host)
-                    return NetHost.HOST_ID;
-                if (CurrentMode == Mode.Client && Client != null)
-                    return Client.MyId;
-                return 0;
+                if (transport == null)
+                    return Mode.None;
+                if (transport.IsHost)
+                    return Mode.Host;
+                return transport.IsConnected ? Mode.Client : Mode.None;
             }
         }
 
-        public bool IsHost { get { return CurrentMode == Mode.Host; } }
+        public int MyId { get { return transport != null ? transport.MyId : 0; } }
+
+        public bool IsHost { get { return transport != null && transport.IsHost; } }
 
         /// <summary>
         /// 네트워크가 없는 상태. 호스트도 클라도 아니다.
@@ -45,7 +55,7 @@ namespace JellyNet
         ///   ③ StartHost/JoinHost가 실패함 (포트 충돌, 접속 실패)
         ///
         /// 이 값을 보는 코드는 두 부류다.
-        ///   · 전송을 멈춘다  — Host/Client가 null이라 그냥 두면 NullReference
+        ///   · 전송을 멈춘다  — 보낼 곳이 없다(이제 전송이 조용히 버리지만, 쓸데없이 쓰지 않는다)
         ///   · 로컬로 처리한다 — 아무도 시뮬레이션을 안 돌리면 전부 얼어붙는다
         /// </summary>
         public static bool Offline
@@ -67,10 +77,10 @@ namespace JellyNet
         //"서버와 연결이 끊겼습니다"를 띄울지 조용히 나갈지 판단할 수 있다
         public event Action OnConnectionLost;
 
-        public bool ConnectionLost { get; private set; }
+        public bool ConnectionLost { get { return lan != null && lan.ConnectionLost; } }
 
         /// <summary>StartHost/JoinHost가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
-        public string LastError { get; private set; }
+        public string LastError { get { return lan != null ? lan.LastError : null; } }
 
         [Header("씬 전환")]
         [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
@@ -99,25 +109,25 @@ namespace JellyNet
             }
 
             Application.runInBackground = true;
+
+            //전송은 NetManager 와 수명이 같다. 판마다 새로 만들면 접속 전에 걸어둔
+            //라우팅(로비의 LoadGameScene 등)과 이벤트 구독이 통째로 사라진다
+            lan = new LanTransport();
+            lan.OnLog = AddLog;
+            lan.OnError = msg => Debug.LogError("[NetManager] " + msg);
+            transport = lan;
+
+            //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다
+            transport.OnPeerJoined += RaisePeerJoined;
+            transport.OnPeerLeft += RaisePeerLeft;
+            transport.OnHostStarted += RaiseHostStarted;
+            transport.OnDisconnected += RaiseDisconnected;
+            transport.OnConnectionLost += RaiseConnectionLost;
         }
 
         private void Update()
         {
-            if (Host != null)
-                Host.Poll();
-
-            if (Client == null)
-                return;
-
-            Client.Poll();
-
-            if (ConnectionLost || Client.Connected)
-                return;
-
-            ConnectionLost = true;
-            AddLog("호스트와의 연결이 끊어졌습니다.");
-
-            OnConnectionLost?.Invoke();
+            transport?.Poll();
         }
 
         private void OnApplicationQuit() { Shutdown(); }
@@ -125,6 +135,19 @@ namespace JellyNet
         private void OnDestroy()
         {
             Shutdown();
+
+            //전송은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
+            //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
+            //생각하면 짝을 맞춰두는 편이 안전하다
+            if (transport != null)
+            {
+                transport.OnPeerJoined -= RaisePeerJoined;
+                transport.OnPeerLeft -= RaisePeerLeft;
+                transport.OnHostStarted -= RaiseHostStarted;
+                transport.OnDisconnected -= RaiseDisconnected;
+                transport.OnConnectionLost -= RaiseConnectionLost;
+            }
+
             if (Instance == this)
                 Instance = null;
         }
@@ -139,72 +162,53 @@ namespace JellyNet
         /// </summary>
         public bool StartHost()
         {
-            Shutdown();
-
-            Host = new NetHost();
-            Host.OnLog = AddLog;
-            Host.OnPeerJoined = RaisePeerJoined;
-            Host.OnPeerLeft = RaisePeerLeft;
-            Host.OnMessage = RaiseHostMessage;
-
-            if (!Host.Start(port))
-            {
-                Host = null;
-                LastError = "포트 " + port + " 를 열 수 없습니다. 다른 게임이 켜져 있는지 확인해주세요.";
-                return false;
-            }
-
-            CurrentMode = Mode.Host;
-            AddLog("== 호스트 모드 ==  내 번호: P" + NetHost.HOST_ID);
-
-            foreach (string ip in NetUtil.GetLocalIPv4List())
-                AddLog("  다른 기기에서 접속: " + ip + ":" + port);
-
-            OnHostStarted?.Invoke();
-            return true;
+            return lan.StartHost(port);
         }
 
         /// <summary>방에 붙는다. 실패하면 false — IP 오타·방이 닫힘 등.</summary>
         public bool JoinHost()
         {
-            Shutdown();
-
-            Client = new NetClient();
-            Client.OnLog = AddLog;
-            Client.OnMessage = RaiseClientMessage;
-
-            if (!Client.Connect(joinIp, port))
-            {
-                Client = null;
-                LastError = joinIp + ":" + port + " 에 접속하지 못했습니다. 주소를 확인해주세요.";
-                return false;
-            }
-
-            CurrentMode = Mode.Client;
-            AddLog("== 참가 모드 ==");
-            return true;
+            return lan.JoinHost(joinIp, port);
         }
 
         public void Shutdown()
         {
-            bool wasConnected = (Host != null || Client != null);
+            transport?.Shutdown();
+        }
 
-            ConnectionLost = false;
+        // ─────────────────────────────────────────────────────────
+        //  전송 위임 — 바깥은 NetManager.Instance 만 보고 말한다
+        // ─────────────────────────────────────────────────────────
+        //
+        //호스트가 아닌데 Broadcast 를 부르는 등 상태에 맞지 않는 호출은 전송이 조용히 버린다.
+        //예전엔 Host/Client 를 직접 만져 판이 끝난 뒤 커튼 구간에서 NullReference 가 났다
 
-            if (Host != null)
-            {
-                Host.Stop();
-                Host = null;
-            }
-            if (Client != null)
-            {
-                Client.Disconnect();
-                Client = null;
-            }
-            CurrentMode = Mode.None;
+        public void Broadcast(NetWriter w)
+        {
+            transport?.Broadcast(w);
+        }
 
-            if (wasConnected)
-                OnDisconnected?.Invoke();
+        public void BroadcastExcept(int exceptPeerId, NetWriter w)
+        {
+            transport?.BroadcastExcept(exceptPeerId, w);
+        }
+
+        public void SendTo(int peerId, NetWriter w)
+        {
+            transport?.SendTo(peerId, w);
+        }
+
+        public void SendToHost(NetWriter w)
+        {
+            transport?.SendToHost(w);
+        }
+
+        public int PeerCount { get { return transport != null ? transport.PeerCount : 0; } }
+
+        public bool AcceptingNewPeers
+        {
+            get { return transport != null && transport.AcceptingNewPeers; }
+            set { if (transport != null) transport.AcceptingNewPeers = value; }
         }
 
         private void RaisePeerJoined(int peerId)
@@ -217,94 +221,52 @@ namespace JellyNet
             OnPeerLeft?.Invoke(peerId);
         }
 
-        // ─────────────────────────────────────────────────────────
-        //  메시지 라우팅 테이블
-        // ─────────────────────────────────────────────────────────
-        //
-        // ★ 왜 이벤트 브로드캐스트로는 부족한가
-        //   OnHostMessage/OnClientMessage는 멀티캐스트라 구독자 전원이 같은 메시지를
-        //   순서대로 받는다. 문제가 셋 있었다.
-        //
-        //     1. MsgType 하나를 추가하면 NetWorld·AbsorbMode·LanGameFlow 중
-        //        어디 switch에 넣을지 매번 골라야 하고, 아무 데도 안 넣어도 조용하다.
-        //     2. 두 구독자가 같은 타입을 읽으면 NetReader를 공유하므로 두 번째는
-        //        위치가 밀린 채 쓰레기를 읽는다. 예외도 안 난다.
-        //     3. 어떤 타입을 누가 담당하는지 코드 어디에도 안 적혀 있다.
-        //
-        //   타입당 주인을 하나로 못 박으면 셋 다 사라진다. 중복 등록은 그 자리에서
-        //   에러로 잡히고, 주인 없는 타입은 로그에 남는다.
-        private readonly Dictionary<MsgType, Action<int, NetReader>> hostRoutes
-            = new Dictionary<MsgType, Action<int, NetReader>>();
+        private void RaiseHostStarted()
+        {
+            OnHostStarted?.Invoke();
+        }
 
-        private readonly Dictionary<MsgType, Action<NetReader>> clientRoutes
-            = new Dictionary<MsgType, Action<NetReader>>();
+        private void RaiseDisconnected()
+        {
+            OnDisconnected?.Invoke();
+        }
+
+        private void RaiseConnectionLost()
+        {
+            OnConnectionLost?.Invoke();
+        }
+
+        // ─────────────────────────────────────────────────────────
+        //  메시지 라우팅 — 전송이 표를 들고 있다
+        // ─────────────────────────────────────────────────────────
+        //
+        //표가 전송 쪽에 있는 이유는 수명 때문이다. 라우팅은 접속보다 먼저 걸리고
+        //(로비는 Start 에서 LoadGameScene 을 등록하고 한참 뒤에 참가한다) 판이 끝나도
+        //살아남아야 한다. LanTransport 는 NetManager 와 수명이 같고 Shutdown 은
+        //소켓만 닫으므로 그 조건을 만족한다.
 
         /// <summary>클라가 호스트로 보낸 메시지 한 종류의 처리를 맡는다. 첫 인자는 보낸 사람의 번호다.</summary>
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
-            if (handler == null)
-                return;
-
-            if (hostRoutes.ContainsKey(type))
-            {
-                Debug.LogError("[NetManager] 호스트 메시지 " + type + " 의 주인이 이미 있습니다. "
-                    + "한 타입은 한 곳에서만 처리해야 합니다.");
-                return;
-            }
-
-            hostRoutes[type] = handler;
+            transport?.RouteHost(type, handler);
         }
 
         /// <summary>호스트가 클라로 보낸 메시지 한 종류의 처리를 맡는다.</summary>
         public void RouteClient(MsgType type, Action<NetReader> handler)
         {
-            if (handler == null)
-                return;
-
-            if (clientRoutes.ContainsKey(type))
-            {
-                Debug.LogError("[NetManager] 클라 메시지 " + type + " 의 주인이 이미 있습니다. "
-                    + "한 타입은 한 곳에서만 처리해야 합니다.");
-                return;
-            }
-
-            clientRoutes[type] = handler;
+            transport?.RouteClient(type, handler);
         }
 
         //씬을 나갈 때 반드시 풀어야 한다. 안 그러면 파괴된 오브젝트의 메서드가 남아
         //다음 판에서 "주인이 이미 있습니다" 에러가 뜬다
         public void UnrouteHost(MsgType type)
         {
-            hostRoutes.Remove(type);
+            transport?.UnrouteHost(type);
         }
 
         public void UnrouteClient(MsgType type)
         {
-            clientRoutes.Remove(type);
-        }
-
-        private void RaiseHostMessage(int peerId, MsgType type, NetReader reader)
-        {
-            Action<int, NetReader> route;
-            if (hostRoutes.TryGetValue(type, out route))
-            {
-                route(peerId, reader);
-                return;
-            }
-
-            AddLog("처리되지 않은 호스트 메시지: " + type);
-        }
-
-        private void RaiseClientMessage(MsgType type, NetReader reader)
-        {
-            Action<NetReader> route;
-            if (clientRoutes.TryGetValue(type, out route))
-            {
-                route(reader);
-                return;
-            }
-
-            AddLog("처리되지 않은 클라 메시지: " + type);
+            transport?.UnrouteClient(type);
         }
 
         public void AddLog(string line)

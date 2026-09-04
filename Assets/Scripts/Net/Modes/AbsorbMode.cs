@@ -307,7 +307,7 @@ namespace JellyNet
             w.WriteInt(jellyNetId);
             w.WriteInt(eaterNetId);
             w.End();
-            net.Client.Send(w);
+            net.SendToHost(w);
         }
 
         protected override void RegisterRoutes()
@@ -408,7 +408,7 @@ namespace JellyNet
             w.WriteInt(eaterNetId);
             w.WriteInt(colorType);
             w.End();
-            net.Host.Broadcast(w);
+            net.Broadcast(w);
 
             OnEatConfirmed(eaterNetId, colorType);
         }
@@ -476,7 +476,7 @@ namespace JellyNet
             w.WriteInt(victimNetId);
             w.WriteInt(absorberNetId);
             w.End();
-            net.Client.Send(w);
+            net.SendToHost(w);
         }
 
         /// <summary>
@@ -549,7 +549,7 @@ namespace JellyNet
             w.WriteInt(victimNetId);
             w.WriteInt(absorberNetId);
             w.End();
-            NetManager.Instance.Host.Broadcast(w);
+            NetManager.Instance.Broadcast(w);
 
             OnPlayerAbsorbed(victimNetId, absorberNetId);
         }

@@ -151,7 +151,8 @@ namespace JellyNet
             if (send == null || net == null || !net.IsHost)
                 return;
 
-            int current = net.Host != null ? net.Host.PeerCount + 1 : 1;
+            //여기 오는 건 호스트뿐이다(위에서 걸렀다). PeerCount 에 자기 자신을 더한다
+            int current = net.PeerCount + 1;
 
             string name = (LanRoomConfig.Nickname ?? "").Replace("|", "");
             if (string.IsNullOrEmpty(name))

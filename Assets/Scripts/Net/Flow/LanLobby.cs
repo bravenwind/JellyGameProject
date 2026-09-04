@@ -180,7 +180,7 @@ namespace JellyNet
         private void HostBroadcastStatus(bool force = false)
         {
             NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost || net.Host == null)
+            if (net == null || !net.IsHost)
                 return;
 
             int humans = HumanCount();
@@ -198,7 +198,7 @@ namespace JellyNet
             w.WriteByte((byte)Mathf.Clamp(LanRoomConfig.AiCount, 0, 255));
             w.WriteByte((byte)shown);
             w.End();
-            net.Host.Broadcast(w);
+            net.Broadcast(w);
         }
 
         /// <summary>호스트가 보낸 대기 화면 상태를 그대로 재생한다(클라 전용).</summary>
@@ -598,8 +598,8 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
             if (net == null)
                 return 0;
-            if (net.IsHost && net.Host != null)
-                return net.Host.PeerCount + 1;
+            if (net.IsHost)
+                return net.PeerCount + 1;
 
             //클라는 다른 클라가 몇 명인지 모른다. 호스트만 아는 값이라 자기 자신만 센다
             return net.CurrentMode == NetManager.Mode.Client ? 1 : 0;
@@ -724,7 +724,7 @@ namespace JellyNet
             w.WriteByte((byte)Mathf.Clamp(LanRoomConfig.TotalPlayers, 1, 255));
             w.WriteString(scene);
             w.End();
-            net.Host.Broadcast(w);
+            net.Broadcast(w);
 
             BeginLaunch(scene, LanRoomConfig.Mode);
         }

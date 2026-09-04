@@ -110,9 +110,9 @@ namespace JellyNet
             w.End();
 
             if (net.IsHost)
-                net.Host.Broadcast(w);
+                net.Broadcast(w);
             else
-                net.Client.Send(w);
+                net.SendToHost(w);
         }
 
         public void ApplyAnim(byte kind, byte value)

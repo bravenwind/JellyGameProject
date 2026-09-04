@@ -28,8 +28,8 @@ namespace JellyNet
 
             s.AppendLine("[연결]");
             s.AppendLine("  모드: " + net.CurrentMode + "   내 번호: P" + net.MyId + "   호스트: " + net.IsHost);
-            if (net.Host != null)
-                s.AppendLine("  접속자: " + net.Host.PeerCount + "명");
+            if (net.IsHost)
+                s.AppendLine("  접속자: " + net.PeerCount + "명");
 
             s.AppendLine();
             s.AppendLine("[게임 흐름]");

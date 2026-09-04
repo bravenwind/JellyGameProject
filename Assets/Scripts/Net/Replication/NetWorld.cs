@@ -144,7 +144,7 @@ namespace JellyNet
 
             if (net.IsHost)
             {
-                net.Host.AcceptingNewPeers = false;
+                net.AcceptingNewPeers = false;
 
                 SpawnForOwner(NetHost.HOST_ID);
                 return;
@@ -171,7 +171,7 @@ namespace JellyNet
 
                 w.Begin(MsgType.SceneReady);
                 w.End();
-                net.Client.Send(w);
+                net.SendToHost(w);
 
                 yield return new WaitForSeconds(INTERVAL);
                 waited += INTERVAL;
@@ -209,13 +209,13 @@ namespace JellyNet
                     continue;
 
                 WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position);
-                NetManager.Instance.Host.SendTo(peerId, w);
+                NetManager.Instance.SendTo(peerId, w);
 
                 LanPlayerState ps = id.PlayerState;
                 if (ps != null)
                 {
                     WritePlayerState(id.NetId, ps.Score, (byte)ps.Flags, ps.DisplayColor);
-                    NetManager.Instance.Host.SendTo(peerId, w);
+                    NetManager.Instance.SendTo(peerId, w);
 
                     if (!string.IsNullOrEmpty(ps.PlayerName))
                     {
@@ -223,7 +223,7 @@ namespace JellyNet
                         w.WriteInt(id.NetId);
                         w.WriteString(ps.PlayerName);
                         w.End();
-                        NetManager.Instance.Host.SendTo(peerId, w);
+                        NetManager.Instance.SendTo(peerId, w);
                     }
                 }
             }
@@ -233,7 +233,7 @@ namespace JellyNet
                 w.Begin(MsgType.DespawnEntity);
                 w.WriteInt(removedSceneIds[i]);
                 w.End();
-                NetManager.Instance.Host.SendTo(peerId, w);
+                NetManager.Instance.SendTo(peerId, w);
             }
         }
 
@@ -284,7 +284,7 @@ namespace JellyNet
             NetIdentity id = SpawnLocal(netId, prefabId, ownerId, pos);
 
             WriteSpawn(netId, prefabId, ownerId, pos);
-            NetManager.Instance.Host.Broadcast(w);
+            NetManager.Instance.Broadcast(w);
             return id;
         }
 
@@ -298,7 +298,7 @@ namespace JellyNet
             w.WriteByte((byte)kind);
             w.WriteFloat(amount);
             w.End();
-            NetManager.Instance.Host.Broadcast(w);
+            NetManager.Instance.Broadcast(w);
 
             NetIdentity id = Find(netId);
             if (id != null)
@@ -319,7 +319,7 @@ namespace JellyNet
             w.WriteByte(kind);
             w.WriteByte(value);
             w.End();
-            NetManager.Instance.Host.BroadcastExcept(from, w);
+            NetManager.Instance.BroadcastExcept(from, w);
 
             NetIdentity id = Find(netId);
             if (id != null && !id.IsMine)
@@ -340,7 +340,7 @@ namespace JellyNet
             w.WriteInt(x);
             w.WriteInt(z);
             w.End();
-            net.Host.Broadcast(w);
+            net.Broadcast(w);
         }
 
         public void BroadcastTileWear(int x, int z, int count, int maxSteps)
@@ -355,7 +355,7 @@ namespace JellyNet
             w.WriteByte((byte)Mathf.Clamp(count, 0, 255));
             w.WriteByte((byte)Mathf.Clamp(maxSteps, 1, 255));
             w.End();
-            net.Host.Broadcast(w);
+            net.Broadcast(w);
         }
 
         public void BroadcastPlayerState(int netId, int score, byte flags, Color color)
@@ -364,7 +364,7 @@ namespace JellyNet
                 return;
 
             WritePlayerState(netId, score, flags, color);
-            NetManager.Instance.Host.Broadcast(w);
+            NetManager.Instance.Broadcast(w);
         }
 
         public void BroadcastPlayerName(int netId, string name)
@@ -376,7 +376,7 @@ namespace JellyNet
             w.WriteInt(netId);
             w.WriteString(name);
             w.End();
-            NetManager.Instance.Host.Broadcast(w);
+            NetManager.Instance.Broadcast(w);
         }
 
         private void WritePlayerState(int netId, int score, byte flags, Color color)
@@ -401,7 +401,7 @@ namespace JellyNet
             w.Begin(MsgType.DespawnEntity);
             w.WriteInt(netId);
             w.End();
-            NetManager.Instance.Host.Broadcast(w);
+            NetManager.Instance.Broadcast(w);
         }
 
         //클라가 보낸 메시지는 전부 "주장"이다. 어느 경로든 소유권 확인을 통과해야 반영된다.
@@ -445,7 +445,7 @@ namespace JellyNet
                 //sendTime은 원본 그대로 넘긴다. 여기서 다시 찍으면 호스트 처리 지연이
                 //그대로 타임라인에 섞여 버벅임이 남는다
                 WriteTransform(netId, pos, yaw, sendTime);
-                NetManager.Instance.Host.BroadcastExcept(from, w);
+                NetManager.Instance.BroadcastExcept(from, w);
             });
 
             // ── 클라가 받는 것 (호스트의 '확정') ──
@@ -746,9 +746,9 @@ namespace JellyNet
             WriteTransform(netId, pos, yaw, Time.unscaledTime);
 
             if (net.IsHost)
-                net.Host.Broadcast(w);
-            else if (net.Client != null)
-                net.Client.Send(w);
+                net.Broadcast(w);
+            else
+                net.SendToHost(w);
         }
 
         private Vector3 PickSpawnPos(int netId)
