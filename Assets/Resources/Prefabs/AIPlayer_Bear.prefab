@@ -334,7 +334,7 @@ MonoBehaviour:
   rotateSpeed: 10
   matchPlayerSpeed: 1
   speedRatio: 1
-  detectRadius: 15
+  detectRadius: 30
   stateEvalRate: 0.4
   batPivot: {fileID: 5781355599537278488}
   hideBatWhenIdle: 1

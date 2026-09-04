@@ -8,6 +8,17 @@ public class AIPushSurviveState : AIBaseState
     private bool fleeing;
     private float attackScanTimer;
 
+    //각을 잡으러 이동하는 중인가. 도착 전까지 교전 정지 코드로 내려가지 않는다
+    private bool repositioning;
+
+    // ★ 각 잡기에 쿨다운을 둔다 — 돌기만 하고 안 때리는 것을 막는다
+    //   상대가 계속 움직이면 도착할 때마다 각이 다시 어긋나 또 돌게 된다.
+    //   그러면 봇은 평생 상대 주위를 맴돌기만 하고 한 대도 안 친다.
+    //   한 번 돌고 나면 잠깐은 각을 따지지 않고 그 자리에서 겨눠 친다.
+    //   AIM_DELAY(0.45초) + 스윙이 한 번은 들어가는 길이여야 한다.
+    private const float ORBIT_COOLDOWN = 1.5f;
+    private float nextOrbitTime;
+
     // ═══════════════════════════════════════════════════════
     //  ★ 반응 속도
     // ═══════════════════════════════════════════════════════
@@ -27,6 +38,8 @@ public class AIPushSurviveState : AIBaseState
     {
         checkTimer = 0f;
         fleeing = false;
+        repositioning = false;
+        nextOrbitTime = 0f;
         attackScanTimer = 0f;
         ai.ApplyStateSpeed();
         ai.Agent.stoppingDistance = 0.3f;
@@ -194,13 +207,30 @@ public class AIPushSurviveState : AIBaseState
             //   옮기는 동안 봇이 상대 주위를 도는 그림이 나오고, 후반에 구멍이 늘수록
             //   각이 자주 잡혀 실제로 서로를 떨어뜨리게 된다.
             //
-            //   이미 어디론가 가는 중이면 다시 고르지 않는다 — 매 틱 목적지를 바꾸면
-            //   제자리에서 떨리기만 한다.
-            bool standing = !ai.Agent.pathPending && !ai.Agent.hasPath;
-            if (standing
+            // ★ 각을 잡으러 가는 중이면 그 이동을 <b>끊지 않는다</b>
+            //   처음엔 "경로가 없을 때만 새로 고른다"로만 막았는데, 그것만으로는
+            //   봇이 통째로 얼어붙었다. 경로를 깐 다음 틱에는 hasPath가 참이라
+            //   재배치 블록을 건너뛰고, 바로 아래 ResetPath가 <b>방금 깐 그 경로를
+            //   지웠기 때문이다.</b> 0.1초(=ATTACK_SCAN_INTERVAL)마다 깔았다 지웠다를
+            //   반복하니 0.6m쯤 움직이다 멈추기를 되풀이했다.
+            //   그래서 '지금 각을 잡으러 이동 중'을 상태로 들고, 도착할 때까지는
+            //   아래 정지 코드로 내려가지 않는다.
+            if (repositioning)
+            {
+                if (!ReachedDestination())
+                    return true;
+
+                repositioning = false;              //도착했다 → 이제 겨눈다
+                nextOrbitTime = Time.time + ORBIT_COOLDOWN;
+            }
+
+            if (Time.time >= nextOrbitTime
                 && !HasPushOff(ai.transform.position, target.position)
-                && TryRepositionFor(target, fromDanger: false))
+                && TryOrbitForPushAngle(target))
+            {
+                repositioning = true;
                 return true;
+            }
 
             if (ai.Agent.enabled && ai.Agent.isOnNavMesh && ai.Agent.hasPath)
                 ai.Agent.ResetPath();
@@ -221,8 +251,9 @@ public class AIPushSurviveState : AIBaseState
             return true;
         }
 
-        //사거리를 벗어났다 → 겨누던 것을 접는다
+        //사거리를 벗어났다 → 겨누던 것도 각 잡던 것도 접는다
         aimStartTime = -1f;
+        repositioning = false;
 
         // ── 추격 ──
         //
@@ -367,7 +398,7 @@ public class AIPushSurviveState : AIBaseState
     private bool TryReposition()
     {
         Transform target = FindNearestTarget();
-        return target != null && TryRepositionFor(target, fromDanger: true);
+        return target != null && TryRepositionFor(target);
     }
 
     /// <summary>
@@ -381,7 +412,7 @@ public class AIPushSurviveState : AIBaseState
     ///   봇이 한 걸음도 못 떼고 제자리에서 떨린다.
     ///   그래서 도주에서 부를 때만 세운다.
     /// </summary>
-    private bool TryRepositionFor(Transform target, bool fromDanger)
+    private bool TryRepositionFor(Transform target)
     {
         var collapse = TileCollapseManager.Instance;
         var dm = DataManager.Instance;
@@ -413,9 +444,7 @@ public class AIPushSurviveState : AIBaseState
         ai.Agent.SetPath(ai.CachedPath);
         ai.ApplyStateSpeed();
 
-        if (fromDanger)
-            fleeing = true;   //안전한 칸에 닿으면 위 else 분기가 경로를 정리한다
-
+        fleeing = true;   //안전한 칸에 닿으면 위 else 분기가 경로를 정리한다
         return true;
     }
 
@@ -458,6 +487,86 @@ public class AIPushSurviveState : AIBaseState
     //  그래서 <b>밀었을 때 상대가 빈 칸이나 맵 밖으로 갈 때만</b> 붙는다.
     //  각이 안 나오면 치지 않고 각이 나오는 칸으로 옮긴다. 그 '옮김'이
     //  봇을 움직이게 하고, 후반에 구멍이 늘수록 각이 자주 나와 서로를 떨어뜨린다.
+
+    /// <summary>지금 걸어둔 경로의 끝에 닿았는가.</summary>
+    private bool ReachedDestination()
+    {
+        if (ai.Agent.pathPending)
+            return false;
+        if (!ai.Agent.hasPath)
+            return true;
+
+        return ai.Agent.remainingDistance <= ai.Agent.stoppingDistance + 0.5f;
+    }
+
+    //상대 주위를 몇 등분해서 훑을지. 12면 30°마다 본다
+    private const int ORBIT_SAMPLES = 12;
+
+    /// <summary>
+    /// 교전 중 각 잡기 — <b>상대 주위를 배트 사거리로 돈다.</b>
+    /// 각이 나오는 자리를 찾아 경로를 걸면 true.
+    ///
+    /// ★ 타일 중심을 후보로 쓰면 안 된다 — 처음에 그렇게 했다가 교전이 깨졌다
+    ///   재배치 후보를 주변 타일의 중심으로 잡았는데, 타일이 14m 간격이고 배트
+    ///   사거리는 4m(크기 2 기준)다. 격자에는 "상대에게서 4m 떨어진 칸 중심" 같은
+    ///   자리가 사실상 없어서, 점수가 가장 나은 후보가 <b>28m 밖</b>인 일이 생겼다.
+    ///   봇이 각을 잡겠다고 교전에서 통째로 걸어 나가 버린다.
+    ///
+    ///   각을 바꾸는 데 필요한 건 '어느 칸에 서느냐'가 아니라 '상대를 기준으로 어느
+    ///   방향에 서느냐'다. 그래서 격자를 버리고 상대 중심의 원 위를 훑는다.
+    ///   지금 서 있는 각도에서 좌우로 번갈아 넓혀 가며 보므로 <b>가장 조금 도는</b>
+    ///   자리를 먼저 찾는다 — 한 칸(30°)이면 4m 반경에서 2m쯤 움직인다.
+    /// </summary>
+    private bool TryOrbitForPushAngle(Transform target)
+    {
+        var collapse = TileCollapseManager.Instance;
+        var dm = DataManager.Instance;
+        if (collapse == null || dm == null)
+            return false;
+
+        Vector3 targetPos = target.position;
+        float standoff = dm.BatRange * ai.GetMyAuthorityScale();
+        float knockback = KnockbackDistance();
+
+        //지금 내가 서 있는 각도가 기준이다. 여기서 좌우로 벌려 나간다
+        Vector3 toMe = ai.transform.position - targetPos;
+        toMe.y = 0f;
+        if (toMe.sqrMagnitude < 0.0001f)
+            return false;
+
+        float baseAngle = Mathf.Atan2(toMe.z, toMe.x);
+        float stepAngle = Mathf.PI * 2f / ORBIT_SAMPLES;
+
+        for (int step = 1; step <= ORBIT_SAMPLES / 2; step++)
+        {
+            for (int sign = -1; sign <= 1; sign += 2)
+            {
+                float a = baseAngle + sign * step * stepAngle;
+                Vector3 spot = targetPos + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * standoff;
+
+                //거기 섰다가 같이 꺼지면 의미가 없다
+                if (collapse.IsFootingUnsafe(spot))
+                    continue;
+
+                if (!collapse.HasPushOff(spot, targetPos, knockback))
+                    continue;
+
+                if (!NavMesh.SamplePosition(spot, out NavMeshHit hit, 3f, ai.NavFilter))
+                    continue;
+
+                ai.CachedPath.ClearCorners();
+                if (!ai.Agent.CalculatePath(hit.position, ai.CachedPath)
+                    || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
+                    continue;
+
+                ai.Agent.SetPath(ai.CachedPath);
+                ai.ApplyStateSpeed();
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     /// <summary>이 봇이 한 대 쳤을 때 상대가 밀려나는 거리(월드 미터).</summary>
     private float KnockbackDistance()
