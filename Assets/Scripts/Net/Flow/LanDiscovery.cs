@@ -49,7 +49,9 @@ namespace JellyNet
         private UdpClient listen;
         private float beaconTimer;
 
-        public IEnumerable<RoomInfo> Rooms { get { return rooms.Values; } }
+        //IEnumerable로 내보내면 foreach가 열거자를 박싱해 매번 쓰레기가 생긴다.
+        //LanSession이 매 프레임 훑는 자리라 구체 타입 그대로 내보낸다
+        public Dictionary<string, RoomInfo>.ValueCollection Rooms { get { return rooms.Values; } }
         private void Awake()
         {
             if (Instance != null && Instance != this) 
@@ -99,9 +101,14 @@ namespace JellyNet
             StopListening();
         }
 
-        public void StartBeacon()
+        //알릴 포트. 예전엔 SendBeacon 이 NetManager.Port 를 직접 읽었는데, 그러면
+        //"호스트가 실제로 연 포트"와 "알리는 포트"의 출처가 둘이 된다. 세션이 하나만 넘긴다
+        private int beaconPort;
+
+        public void StartBeacon(int port)
         {
             StopBeacon();
+            beaconPort = port;
             try
             {
                 send = new UdpClient();
@@ -161,7 +168,7 @@ namespace JellyNet
             string msg = string.Join("|", new string[]
             {
                 MAGIC,
-                net.Port.ToString(),
+                beaconPort.ToString(),
                 name,
                 ((int)LanRoomConfig.Mode).ToString(),
                 current.ToString(),

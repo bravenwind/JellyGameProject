@@ -11,16 +11,22 @@ namespace JellyNet
         public static NetManager Instance { get; private set; }
 
         [Header("설정")]
+        //방을 만들 때·붙을 때의 기본값이다. 실제로 쓰는 값은 세션이 들고 있다 —
+        //로비의 포트 입력이 방을 만들 때 덮어쓰고, 참가는 고른 방의 주소를 따른다.
+        //인스펙터에 남겨두는 건 "아무것도 안 정했을 때의 출발점"이기 때문이다
         [SerializeField] private int port = NetConfig.DEFAULT_PORT;
-        public int Port { get { return port; } set { port = value; } }
         [SerializeField] private string joinIp = "127.0.0.1";
-        public string JoinIp { get { return joinIp; } set { joinIp = value; } }
         [SerializeField] private int maxLogLines = 200;
 
         //LAN 전용 진입점(StartHost/JoinHost)이 필요해 구체 타입도 함께 들고 있다.
         //3단계에서 방 만들기·참가가 INetSession 으로 넘어가면 transport 하나만 남는다
         private LanTransport lan;
         private INetTransport transport;
+
+        private LanSession lanSession;
+
+        /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
+        public INetSession Session { get { return lanSession; } }
 
         /// <summary>
         /// ★ 예전엔 필드에 저장했다
@@ -117,6 +123,8 @@ namespace JellyNet
             lan.OnError = msg => Debug.LogError("[NetManager] " + msg);
             transport = lan;
 
+            lanSession = new LanSession(lan, port, joinIp);
+
             //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다
             transport.OnPeerJoined += RaisePeerJoined;
             transport.OnPeerLeft += RaisePeerLeft;
@@ -128,6 +136,10 @@ namespace JellyNet
         private void Update()
         {
             transport?.Poll();
+
+            //방 목록이 바뀌었는지 훑는다. 로비 화면에서만 의미가 있지만, 목록을 켜지 않았으면
+            //훑을 것도 없어 비용이 사실상 0이다
+            lanSession?.Poll();
         }
 
         private void OnApplicationQuit() { Shutdown(); }
@@ -139,6 +151,8 @@ namespace JellyNet
             //전송은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
+            lanSession?.Unhook();
+
             if (transport != null)
             {
                 transport.OnPeerJoined -= RaisePeerJoined;

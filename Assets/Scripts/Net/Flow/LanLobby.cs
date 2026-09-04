@@ -116,6 +116,11 @@ namespace JellyNet
             net.OnPeerLeft += HandlePeerChanged;
             net.OnDisconnected += HandleDisconnected;
 
+            //방 만들기·참가 실패는 세션이 알려준다. 예전엔 호출부가 반환값을 보고
+            //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
+            if (net.Session != null)
+                net.Session.OnFailed += ShowLobbyError;
+
             LanScoreboard.Clear();
             LanRoomConfig.Clear();
 
@@ -240,6 +245,9 @@ namespace JellyNet
                 net.UnrouteClient(MsgType.LobbyStatus);
                 net.OnPeerJoined -= HandlePeerChanged;
                 net.OnPeerLeft -= HandlePeerChanged;
+
+                if (net.Session != null)
+                    net.Session.OnFailed -= ShowLobbyError;
                 net.OnDisconnected -= HandleDisconnected;
             }
             //트윈은 DOTween 엔진이 들고 있어 이 컴포넌트보다 오래 산다.
@@ -441,42 +449,49 @@ namespace JellyNet
 
             LanRoomConfig.Set(mode, total, ai);
 
-            net.Port = port;
-            if (!net.StartHost())
+            //실패 사유는 세션이 OnFailed 로 알린다(ShowLobbyError 가 받는다)
+            RoomOptions opts = new RoomOptions
             {
-                ShowLobbyError(net.LastError);
+                RoomName = LanRoomConfig.Nickname,
+                LocalPort = port
+            };
+
+            if (net.Session == null || !net.Session.CreateRoom(opts))
                 return;
-            }
 
             if (roomAddressText != null)
                 roomAddressText.text = NetUtil.GetPrimaryIPv4() + " : " + port;
-
-            if (LanDiscovery.Instance != null)
-                LanDiscovery.Instance.StartBeacon();
 
             Unpop(hostOptionPanel);
             OpenMatching(MATCHING_LABEL);
         }
 
-        public void JoinRoom(string ip, int port)
+        /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 세션이 OnFailed 로 알린다.</summary>
+        public void JoinRoom(RoomHandle room)
         {
             NetManager net = NetManager.Instance;
-            if (net == null)
+            if (net == null || net.Session == null || room == null)
                 return;
 
-            net.JoinIp = ip;
-            net.Port = port;
-            if (!net.JoinHost())
-            {
-                ShowLobbyError(net.LastError);
+            if (!net.Session.JoinRoom(room))
                 return;
-            }
 
             if (roomAddressText != null)
-                roomAddressText.text = ip + " : " + port;
+                roomAddressText.text = room.Address;
 
             Unpop(joinPanel);
             OpenMatching(MATCHING_LABEL);
+        }
+
+        //방 목록 UI가 아직 ip/port 로 말한다. 4단계에서 UI가 RoomHandle 을 넘기면 지운다
+        public void JoinRoom(string ip, int port)
+        {
+            NetManager net = NetManager.Instance;
+            LanSession session = net != null ? net.Session as LanSession : null;
+            if (session == null)
+                return;
+
+            JoinRoom(session.HandleFor(ip, port));
         }
 
         //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
@@ -543,8 +558,9 @@ namespace JellyNet
             sentHumans = -1;
             sentCountdown = -2;
 
-            if (LanDiscovery.Instance != null)
-                LanDiscovery.Instance.StopAll();
+            //방 알리기는 위의 Shutdown 이 끊기면서 세션이 알아서 멈춘다. 여기선 찾기만 끈다
+            if (net != null && net.Session != null)
+                net.Session.StopBrowsing();
 
             if (dots != null)
             {
@@ -710,8 +726,9 @@ namespace JellyNet
             if (net == null || !net.IsHost || launching)
                 return;
 
-            if (LanDiscovery.Instance != null)
-                LanDiscovery.Instance.StopAll();
+            //판이 시작됐으니 목록에서 내린다. 연결은 그대로 유지해야 한다
+            if (net.Session != null)
+                net.Session.StopAdvertising();
 
             string scene = SceneFor(LanRoomConfig.Mode);
 
