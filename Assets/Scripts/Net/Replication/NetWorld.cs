@@ -426,25 +426,44 @@ namespace JellyNet
 
             net.RouteHost(MsgType.TransformUpdate, (from, r) =>
             {
-                int netId = r.ReadInt();
-                float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
-                float sendTime = r.ReadFloat();
+                int count = r.ReadByte();
+                relay.Clear();
 
-                NetIdentity id;
-                if (!objects.TryGetValue(netId, out id))
+                for (int i = 0; i < count; i++)
+                {
+                    //거를 것이 있어도 항목의 바이트는 먼저 전부 읽는다.
+                    //중간에서 빠져나가면 뒤 항목이 한 칸씩 밀려 쓰레기를 읽는다
+                    int netId = r.ReadInt();
+                    float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
+                    float sendTime = r.ReadFloat();
+
+                    NetIdentity id;
+                    if (!objects.TryGetValue(netId, out id))
+                        continue;
+
+                    //이게 없으면 남의 netId로 위치를 보내 순간이동시킬 수 있다
+                    if (id.OwnerId != from)
+                        continue;
+
+                    Vector3 pos = new Vector3(x, y, z);
+                    ApplyTransform(id, pos, yaw, sendTime);
+
+                    relay.Add(new TransformEntry
+                    {
+                        NetId = netId,
+                        Pos = pos,
+                        Yaw = yaw,
+                        SendTime = sendTime
+                    });
+                }
+
+                if (relay.Count == 0)
                     return;
-
-                //이게 없으면 남의 netId로 위치를 보내 순간이동시킬 수 있다
-                if (id.OwnerId != from)
-                    return;
-
-                Vector3 pos = new Vector3(x, y, z);
-                ApplyTransform(id, pos, yaw, sendTime);
 
                 //보낸 사람은 이미 자기 화면에서 움직였다. 되돌려주면 과거 좌표로 끌려간다
                 //sendTime은 원본 그대로 넘긴다. 여기서 다시 찍으면 호스트 처리 지연이
                 //그대로 타임라인에 섞여 버벅임이 남는다
-                WriteTransform(netId, pos, yaw, sendTime);
+                WriteTransforms(relay);
                 NetManager.Instance.BroadcastExcept(from, w);
             });
 
@@ -559,13 +578,18 @@ namespace JellyNet
 
             net.RouteClient(MsgType.TransformUpdate, r =>
             {
-                int netId = r.ReadInt();
-                float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
-                float sendTime = r.ReadFloat();
+                int count = r.ReadByte();
 
-                NetIdentity id;
-                if (objects.TryGetValue(netId, out id))
-                    ApplyTransform(id, new Vector3(x, y, z), yaw, sendTime);
+                for (int i = 0; i < count; i++)
+                {
+                    int netId = r.ReadInt();
+                    float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
+                    float sendTime = r.ReadFloat();
+
+                    NetIdentity id;
+                    if (objects.TryGetValue(netId, out id))
+                        ApplyTransform(id, new Vector3(x, y, z), yaw, sendTime);
+                }
             });
         }
 
@@ -726,29 +750,110 @@ namespace JellyNet
         //sendTime은 '보낸 사람의 시계'다. 중계할 때 호스트가 다시 찍으면 안 된다.
         //받는 쪽은 이 값으로 보간 타임라인을 세운다 — 도착 시각을 쓰면 네트워크 지터가
         //그대로 속도 변화로 보인다 (원격 캐릭터가 순간적으로 빨라졌다 느려짐)
-        private void WriteTransform(int netId, Vector3 pos, float yaw, float sendTime)
+        // ═══════════════════════════════════════════════════════
+        //  위치 동기화 — [count][entry]*
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 왜 묶을 수 있게 해뒀는데 꺼놨나
+        //   Photon 무료 티어는 방 하나에 초당 500 메시지다. 지금 호스트가 내보내는 양이
+        //   봇 9 + 클라 3 기준으로 초당 약 305개라 여유가 거의 없다. 위치 갱신을 묶으면
+        //   그 수가 크게 준다 — 온라인 모드에 반드시 필요해질 손잡이다.
+        //
+        //   그런데 묶으면 한 메시지가 여러 개를 들고 다니므로, 마지막 것이 나갈 때까지
+        //   앞의 것이 프레임 끝까지 기다린다. LAN 은 메시지 수가 문제가 아니라
+        //   그 지연만 손해다. 그래서 지금은 꺼둔 채로 두고, 켜는 판단은 온라인이
+        //   실제로 붙은 뒤에 수치를 보고 한다.
+        //
+        //   끈 상태의 동작은 예전과 같다 — 한 번에 하나씩, 부르는 즉시 나간다.
+        //   (형식에 [count] 한 바이트가 붙은 것만 다르다. 호스트와 클라는 언제나
+        //    같은 빌드라 형식이 어긋날 일은 없다)
+        [Header("위치 동기화")]
+        [Tooltip("여러 위치 갱신을 한 메시지로 묶어 보낸다. 온라인 모드용 손잡이 — LAN에서는 꺼둔다.")]
+        [SerializeField] private bool batchTransforms = false;
+
+        //한 메시지에 담는 최대 개수. count가 1바이트라 255가 상한이고,
+        //그 전에 한 프레임에 이만큼 쌓일 일이 없어 넉넉히 32로 둔다
+        private const int MAX_TRANSFORM_BATCH = 32;
+
+        private struct TransformEntry
+        {
+            public int NetId;
+            public Vector3 Pos;
+            public float Yaw;
+            public float SendTime;
+        }
+
+        //내보낼 것을 모아두는 곳과, 호스트가 중계할 것을 모아두는 곳.
+        //매번 새로 만들면 초당 수백 개의 쓰레기가 된다
+        private readonly List<TransformEntry> pending = new List<TransformEntry>();
+        private readonly List<TransformEntry> relay = new List<TransformEntry>();
+
+        private void WriteTransforms(List<TransformEntry> entries)
         {
             w.Begin(MsgType.TransformUpdate);
-            w.WriteInt(netId);
-            w.WriteFloat(pos.x); w.WriteFloat(pos.y); w.WriteFloat(pos.z);
-            w.WriteFloat(yaw);
-            w.WriteFloat(sendTime);
+            w.WriteByte((byte)entries.Count);
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                TransformEntry e = entries[i];
+                w.WriteInt(e.NetId);
+                w.WriteFloat(e.Pos.x); w.WriteFloat(e.Pos.y); w.WriteFloat(e.Pos.z);
+                w.WriteFloat(e.Yaw);
+                w.WriteFloat(e.SendTime);
+            }
+
             w.End();
         }
 
         public void SendMyTransform(int netId, Vector3 pos, float yaw)
         {
-            NetManager net = NetManager.Instance;
-            if (net == null)
+            if (NetManager.Instance == null)
                 return;
 
+            //sendTime은 '보낸 순간'이 아니라 '이 좌표를 잰 순간'이다. 묶어서 나중에 내보내도
+            //여기서 찍은 값을 그대로 들고 간다 — 나갈 때 다시 찍으면 묶느라 생긴 지연이
+            //그대로 타임라인에 섞여 받는 쪽이 버벅인다.
             //timeScale에 흔들리지 않도록 unscaled를 쓴다. 받는 쪽도 unscaled로 읽는다
-            WriteTransform(netId, pos, yaw, Time.unscaledTime);
+            pending.Add(new TransformEntry
+            {
+                NetId = netId,
+                Pos = pos,
+                Yaw = yaw,
+                SendTime = Time.unscaledTime
+            });
+
+            if (!batchTransforms || pending.Count >= MAX_TRANSFORM_BATCH)
+                FlushTransforms();
+        }
+
+        //묶기를 켰을 때 프레임에 남은 것을 내보낸다. 꺼져 있으면 pending이 늘 비어 있어
+        //아무 일도 하지 않는다
+        private void LateUpdate()
+        {
+            if (batchTransforms)
+                FlushTransforms();
+        }
+
+        private void FlushTransforms()
+        {
+            if (pending.Count == 0)
+                return;
+
+            NetManager net = NetManager.Instance;
+            if (net == null)
+            {
+                pending.Clear();
+                return;
+            }
+
+            WriteTransforms(pending);
 
             if (net.IsHost)
                 net.Broadcast(w);
             else
                 net.SendToHost(w);
+
+            pending.Clear();
         }
 
         private Vector3 PickSpawnPos(int netId)
