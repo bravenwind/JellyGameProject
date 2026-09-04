@@ -120,7 +120,15 @@ public class DataManager : MonoBehaviour
     [SerializeField] private int stepTileDangerMargin = 1;
     public int StepTileDangerMargin { get { return stepTileDangerMargin; } }
 
-    [Tooltip("서 있는 칸 판정: 붕괴까지 이만큼 남으면 '발밑이 위험'으로 본다. 위보다 크거나 같아야 한다.")]
+    // ★ 0이면 "실제로 무너지기 시작했을 때만" 도망친다 — 그게 기본이다
+    //   1로 두면 '한 번 더 밟으면 무너질' 단계에서 이미 도망친다. 그런데 제자리
+    //   마모가 2초마다 오므로 봇은 어느 칸에 서든 2초 뒤 그 단계가 되어 또 도망친다.
+    //   결과적으로 판 내내 도망만 다니고 싸우지도 배회하지도 못했다.
+    //
+    //   닳은 칸을 <b>피하는</b> 일은 목적지 순위(StepsAfterArrival)가 이미 하고 있다.
+    //   여기서 정할 것은 "하던 일을 버리고 뛸 만큼 급한가" 하나뿐이고, 그 답은
+    //   '바닥이 사라지는 중일 때'다. 그때부터 stepTileCollapseDelay 만큼 여유가 있다.
+    [Tooltip("서 있는 칸 판정: 붕괴까지 이만큼 남으면 '발밑이 위험'으로 본다. 0이면 실제 붕괴가 시작됐을 때만.")]
     [SerializeField] private int stepTileFootingMargin = 0;
     public int StepTileFootingMargin { get { return stepTileFootingMargin; } }
 
@@ -271,14 +279,6 @@ public class DataManager : MonoBehaviour
         {
             Debug.LogError("[설정] stepTileStepsToCollapse가 0 이하입니다 — 타일이 밟자마자 무너집니다.");
             stepTileStepsToCollapse = 3;
-        }
-
-        //발밑 문턱이 경로 문턱보다 이르지 않으면 나눈 의미가 없다
-        if (stepTileFootingMargin < stepTileDangerMargin)
-        {
-            Debug.LogError($"[설정] stepTileFootingMargin({stepTileFootingMargin})이 "
-                         + $"stepTileDangerMargin({stepTileDangerMargin})보다 작습니다 — 발밑을 경로보다 늦게 피합니다.");
-            stepTileFootingMargin = stepTileDangerMargin;
         }
 
         //여유가 밟는 횟수 이상이면 새 타일도 처음부터 위험이 되어 갈 곳이 사라진다

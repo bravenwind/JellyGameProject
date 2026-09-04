@@ -92,11 +92,20 @@ public abstract class AIBaseState
             || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
             return false;
 
-        if (!allowDangerousCrossing)
+        // ★ 감수 모드에서도 <b>이미 무너지는 중인 칸</b>은 지나지 않는다
+        //   예전엔 allowDangerousCrossing이 검사를 통째로 껐다. 그래서 흔들리는
+        //   빨간 타일을 태연히 밟고 지나가는 봇이 나왔다.
+        //   닳은 칸은 지나가도 밟는 순간 무너지지 않지만, 붕괴가 시작된 칸은
+        //   collapseDelay 뒤에 바닥이 사라진다 — 그 위를 지나다 만나면 떨어진다.
+        //   그래서 감수해도 되는 것(닳음)과 감수하면 안 되는 것(붕괴중)을 나눈다.
+        var collapse = TileCollapseManager.Instance;
+        if (collapse != null)
         {
-            var collapse = TileCollapseManager.Instance;
-            if (collapse != null
-                && collapse.IsPathDangerousIgnoringStart(ai.CachedPath.corners, ai.transform.position))
+            bool blocked = allowDangerousCrossing
+                ? collapse.IsPathOverCollapsing(ai.CachedPath.corners, ai.transform.position)
+                : collapse.IsPathDangerousIgnoringStart(ai.CachedPath.corners, ai.transform.position);
+
+            if (blocked)
                 return false;
         }
 
@@ -117,6 +126,25 @@ public abstract class AIBaseState
     {
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
             return false;
+
+        // ★ SetDestination 을 그냥 부르지 않는다 — 그러면 검사할 기회가 없다
+        //   먼저 계산해 보고, 붕괴중인 칸을 지나지 않는 부분 경로면 그걸 쓴다.
+        //   그마저 없으면 그때는 SetDestination 이다. 여기까지 왔다는 건
+        //   '어디로도 깨끗하게 갈 수 없다'는 뜻이고, 그럴 땐 제자리가 확실한 죽음이라
+        //   붕괴중인 칸을 지나서라도 움직이는 편이 낫다.
+        ai.CachedPath.ClearCorners();
+
+        if (ai.Agent.CalculatePath(destination, ai.CachedPath)
+            && ai.CachedPath.status != NavMeshPathStatus.PathInvalid)
+        {
+            var collapse = TileCollapseManager.Instance;
+            if (collapse == null
+                || !collapse.IsPathOverCollapsing(ai.CachedPath.corners, ai.transform.position))
+            {
+                ai.Agent.SetPath(ai.CachedPath);
+                return true;
+            }
+        }
 
         return ai.Agent.SetDestination(destination);
     }

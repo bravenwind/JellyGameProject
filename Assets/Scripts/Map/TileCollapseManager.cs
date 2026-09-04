@@ -1160,6 +1160,50 @@ public class TileCollapseManager : MonoBehaviour
     ///   막지 말아야 할 것은 '내가 선 칸에서 나가는 것' 하나뿐이다.
     ///   그 칸만 빼고 나머지는 그대로 본다.
     /// </summary>
+    /// <summary>
+    /// 경로가 <b>이미 무너지는 중인 칸</b>을 지나는가. 출발한 칸은 못 본 척한다.
+    ///
+    /// ★ '위험'과 '이미 꺼지는 중'은 급이 다르다
+    ///   닳은 칸(count가 찼을 뿐)은 지나가도 밟는 순간 무너지지 않는다. 그런데
+    ///   붕괴가 시작된 칸은 collapseDelay 뒤에 <b>바닥이 사라진다</b>. 지나가다
+    ///   그 순간을 만나면 떨어진다.
+    ///   그래서 도주 경로가 위험을 감수할 때도 이것만은 피해야 한다.
+    ///   (예전엔 감수 모드가 검사를 통째로 껐고, 그래서 흔들리는 빨간 타일을
+    ///    태연히 밟는 봇이 나왔다)
+    /// </summary>
+    public bool IsPathOverCollapsing(Vector3[] corners, Vector3 startPos)
+    {
+        if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)
+            return false;
+
+        int startKey = CellKeyOf(startPos);
+        float sampleStep = PathSampleStep;
+
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector3 from = corners[i - 1];
+            Vector3 to = corners[i];
+
+            int steps = Mathf.Clamp(
+                Mathf.CeilToInt(Vector3.Distance(from, to) / sampleStep),
+                1, maxSamplesPerSegment);
+
+            for (int j = 1; j <= steps; j++)
+            {
+                Vector3 p = Vector3.Lerp(from, to, (float)j / steps);
+
+                if (CellKeyOf(p) == startKey)
+                    continue;
+
+                //StepsAfterArrival이 음수인 칸 = 이미 붕괴중이거나 격자 밖
+                if (StepsAfterArrival(p) < 0)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     public bool IsPathDangerousIgnoringStart(Vector3[] corners, Vector3 startPos)
     {
         if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)

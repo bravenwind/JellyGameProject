@@ -450,13 +450,22 @@ public class AIPlayerMovement : MonoBehaviour
                 continue;
             }
 
+            // ★ 밀치기 모드에서는 크기로 도망 상태를 고르지 않는다
+            //   예전엔 FindThreat()(= 감지 반경 안의 나보다 큰 상대 아무나)이 잡히면
+            //   AIFleeState로 보냈다. 그런데 <b>AIFleeState에는 공격이 없다.</b> 도망만 간다.
+            //
+            //   밀치기 모드는 때리면 커진다(GrowKind.BatHit). 누구든 한 대 맞히는 순간
+            //   크기 차가 생기고, 그 주변 봇들이 전부 도망 상태로 넘어간다.
+            //   그래서 봇끼리 마주쳐도 서로 공격하지 않고 지나쳤다.
+            //
+            //   이 오해는 이미 한 번 고친 적이 있다 — AIPushSurviveState.FindNearestTarget의
+            //   "밀치기 모드에는 잡아먹히는 개념이 없다. 큰 상대라고 피할 이유가 없고,
+            //   오히려 큰 상대일수록 밀어 떨어뜨릴 가치가 있다"가 그것이다.
+            //   그때 <b>대상 선택만</b> 고치고 상태 라우팅은 그대로 뒀다.
+            //
+            //   도망칠 이유는 크기가 아니라 발밑이다. 그 판단은 PushSurviveState 안에 있다.
             if (GameState.CurrentGameMode == GameModeType.Push)
             {
-                if (Detector.FindThreat() != null)
-                {
-                    ChangeState(FleeState);
-                    continue;
-                }
                 ChangeState(PushSurviveState);
                 continue;
             }
@@ -639,7 +648,17 @@ public class AIPlayerMovement : MonoBehaviour
         currentState?.Update();
 
         // 긴급 위협 감지: FleeState가 아닐 때 0.1초 간격으로 위협 체크
-        if (currentState != FleeState
+        //
+        // ★ 밀치기 모드는 제외한다 — 여기가 위의 두 가드를 무력화하고 있었다
+        //   EvaluateAndTransition에는 "밀치기면 무조건 PushSurviveState"라는 가드가
+        //   이미 있었다(그 주석이 이 증상을 정확히 설명한다). 그런데 <b>이 검사에는
+        //   모드 가드가 없어서</b>, 상태를 제대로 골라놓고도 0.1초 뒤에 여기서
+        //   FleeState로 끌려갔다.
+        //   밀치기는 때리면 커지므로 누구든 한 대 맞히는 순간 주변 봇 전부가
+        //   '나보다 큰 상대'를 보게 되고, 그때부터 도망만 다닌다.
+        //   AIFleeState에는 공격이 없다 — 봇끼리 마주쳐도 그냥 지나친 이유다.
+        if (GameState.CurrentGameMode != GameModeType.Push
+            && currentState != FleeState
             && Time.time - lastUrgentThreatCheck >= 0.1f)
         {
             lastUrgentThreatCheck = Time.time;
