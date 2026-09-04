@@ -1101,6 +1101,63 @@ public class TileCollapseManager : MonoBehaviour
     ///   개수를 따로 받는 게 옳은 경우는 GetCornersNonAlloc처럼 큰 버퍼의 앞부분만
     ///   채우는 때다. 그때는 Length가 용량이지 유효 개수가 아니다. 여기는 그 경우가 아니다.
     /// </summary>
+    /// <summary>
+    /// 경로가 위험한 칸을 지나는가 — <b>단, 출발한 칸은 못 본 척한다.</b>
+    ///
+    /// ★ 왜 이 변종이 필요한가
+    ///   이미 꺼지는 발판 위에 서 있을 때는 IsPathDangerous가 항상 참이다.
+    ///   corners[0]이 곧 내가 선 자리이기 때문이다. 그래서 도주·재배치 경로는
+    ///   아예 검사를 건너뛰고 있었는데, 그러면 <b>남의 빨간 칸까지 가로질러도</b>
+    ///   된다는 뜻이 된다. 실제로 흔들리는 타일 위를 걸어가는 봇이 나왔다.
+    ///
+    ///   막지 말아야 할 것은 '내가 선 칸에서 나가는 것' 하나뿐이다.
+    ///   그 칸만 빼고 나머지는 그대로 본다.
+    /// </summary>
+    public bool IsPathDangerousIgnoringStart(Vector3[] corners, Vector3 startPos)
+    {
+        if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)
+            return false;
+
+        int startKey = CellKeyOf(startPos);
+        float sampleStep = PathSampleStep;
+
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector3 from = corners[i - 1];
+            Vector3 to = corners[i];
+
+            int steps = Mathf.Clamp(
+                Mathf.CeilToInt(Vector3.Distance(from, to) / sampleStep),
+                1, maxSamplesPerSegment);
+
+            for (int j = 1; j <= steps; j++)
+            {
+                Vector3 p = Vector3.Lerp(from, to, (float)j / steps);
+
+                //출발한 칸 안이면 넘어간다 — 거기서 나가는 길을 막지 않는다
+                if (CellKeyOf(p) == startKey)
+                    continue;
+
+                if (IsPositionDangerous(p))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    //월드 좌표가 속한 칸의 키. 격자 밖이면 어떤 칸과도 같지 않은 값을 준다
+    private int CellKeyOf(Vector3 worldPos)
+    {
+        int x = Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX);
+        int z = Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ);
+
+        if (x < 0 || x >= width || z < 0 || z >= height)
+            return int.MinValue;
+
+        return CellKey(x, z);
+    }
+
     public bool IsPathDangerous(Vector3[] corners)
     {
         if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)

@@ -70,6 +70,57 @@ public abstract class AIBaseState
         return true;
     }
 
+    /// <summary>
+    /// <b>이미 위험한 칸에 서 있을 때</b> 쓰는 경로 설정.
+    /// 지금 선 칸은 못 본 척하고, <paramref name="allowDangerousCrossing"/>이 false면
+    /// 그 밖의 위험 칸을 지나는 경로는 거절한다(호출부가 다른 후보를 보게).
+    ///
+    /// ★ 왜 '지금 선 칸만' 예외인가
+    ///   이미 꺼지는 발판 위에 있으면 TrySetSafePath는 항상 false다 —
+    ///   corners[0]이 곧 내가 선 자리이기 때문이다. 그래서 도주 경로는 아예 검사를
+    ///   건너뛰고 있었는데, 그건 <b>남의 빨간 칸까지 가로질러도 된다</b>는 뜻이 됐다.
+    ///   막지 말아야 할 것은 '내가 선 칸에서 나가는 것' 하나뿐이다.
+    /// </summary>
+    protected bool TrySetEscapePath(Vector3 destination, bool allowDangerousCrossing)
+    {
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return false;
+
+        ai.CachedPath.ClearCorners();
+
+        if (!ai.Agent.CalculatePath(destination, ai.CachedPath)
+            || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
+            return false;
+
+        if (!allowDangerousCrossing)
+        {
+            var collapse = TileCollapseManager.Instance;
+            if (collapse != null
+                && collapse.IsPathDangerousIgnoringStart(ai.CachedPath.corners, ai.transform.position))
+                return false;
+        }
+
+        ai.Agent.SetPath(ai.CachedPath);
+        return true;
+    }
+
+    /// <summary>
+    /// 완주 경로가 없어도 갈 수 있는 데까지 간다. 물러설 곳의 맨 끝이다.
+    ///
+    /// ★ 제자리가 언제나 최악이다
+    ///   예전엔 도주 분기가 `CalculatePath && status == PathComplete` 하나로 끝나서,
+    ///   주변이 무너져 NavMesh가 잘리면 아무 일도 안 일어났다 — 봇은 꺼지는 발판
+    ///   위에 선 채로 판단을 포기했다. 서 있으면 확실히 죽고 움직이면 죽을 수도
+    ///   있을 뿐이다.
+    /// </summary>
+    protected bool TrySetPartialPath(Vector3 destination)
+    {
+        if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
+            return false;
+
+        return ai.Agent.SetDestination(destination);
+    }
+
     // ─────────────────────────────────────────────────────────
     // 공용: 끼임 감지
     // ─────────────────────────────────────────────────────────

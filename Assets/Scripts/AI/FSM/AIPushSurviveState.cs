@@ -111,39 +111,31 @@ public class AIPushSurviveState : AIBaseState
             if (TryReposition())
                 return;
 
+            // ★ 후보를 하나만 보고 포기하지 않는다
+            //   예전엔 후보를 하나 고른 뒤 `CalculatePath && PathComplete` 하나로 끝냈다.
+            //   주변이 무너져 NavMesh가 잘려 완주 경로가 안 나오면 아무 일도 일어나지
+            //   않았고, 봇은 꺼지는 발판 위에 선 채로 판단을 포기했다.
+            //   ("사방이 위험한데 플레이어가 붙으면 아예 멈춘다"가 이것이다)
+            //
+            //   이제 셋을 모아 두 바퀴 돈다. 먼저 <b>남의 빨간 칸을 안 지나는</b> 길만
+            //   찾고, 그런 게 없을 때만 위험을 감수한다. 그것도 없으면 부분 경로로라도
+            //   움직인다. 서 있으면 확실히 죽고, 움직이면 죽을 수도 있을 뿐이다.
             Vector3 threat = NearestThreatPos();
 
-            // ★ 마지막 수단까지 내려간다 — 제자리가 언제나 최악이기 때문이다
-            //   예전엔 여기서 두 번째 탐색(avoidDangerous: true)까지만 하고 실패하면
-            //   return이었다. 그런데 그 두 탐색은 <b>둘 다 위험한 칸을 후보에서 뺀다.</b>
-            //   후반에 주변이 전부 닳으면 둘 다 빈손으로 돌아오고, 봇은 곧 꺼질 칸 위에
-            //   선 채로 판단을 포기했다.
-            //
-            //   서 있는 칸은 이미 '발밑 위험'이라 가장 먼저 무너진다. 옆 칸이 아무리
-            //   닳았어도 그보다는 오래 간다. 그래서 세 번째로 '위험해도 발판이 남은
-            //   가장 가까운 칸'을 찾는다. FindNearestSafeTile은 고리 1부터 보므로
-            //   지금 서 있는 칸을 다시 고르는 일은 없다.
-            Vector3 safePos;
-            if (!collapse.FindEscapeTile(ai.transform.position, threat, out safePos)
-                && !collapse.FindNearestSafeTile(ai.transform.position, out safePos, avoidDangerous: true)
-                && !collapse.FindNearestSafeTile(ai.transform.position, out safePos, avoidDangerous: false))
+            escapeCandidateCount = 0;
+            AddEscapeCandidate(collapse.FindEscapeTile(ai.transform.position, threat, out Vector3 a), a);
+            AddEscapeCandidate(collapse.FindNearestSafeTile(ai.transform.position, out Vector3 b, avoidDangerous: true), b);
+            AddEscapeCandidate(collapse.FindNearestSafeTile(ai.transform.position, out Vector3 c, avoidDangerous: false), c);
+
+            if (escapeCandidateCount == 0)
                 return;
 
-            // 속도는 플레이어와 동일(moveSpeed)하게 유지한다. 위험(무너지는 발판) 회피는
-            // 속도 부스트가 아니라 아래 TryDash(짧은 대쉬 버스트)로 처리한다.
-            // ★ 여기만 TrySetSafePath를 쓰지 않는다 — 의도적이다.
-            //   이미 무너지는 발판 위에 서 있는 상황이라, "경로가 위험 구간을 지난다"는
-            //   이유로 탈출을 막으면 제자리에서 같이 떨어진다. 나가는 길은 막지 않는다.
-            if (NavMesh.SamplePosition(safePos, out NavMeshHit hit, 5f, ai.NavFilter))
+            if (TryEscapeToAny(allowDangerousCrossing: false)
+                || TryEscapeToAny(allowDangerousCrossing: true)
+                || TrySetPartialPath(escapeCandidates[0]))
             {
-                ai.CachedPath.ClearCorners();
-                if (ai.Agent.CalculatePath(hit.position, ai.CachedPath)
-                    && ai.CachedPath.status == NavMeshPathStatus.PathComplete)
-                {
-                    ai.Agent.SetPath(ai.CachedPath);
-                    fleeing = true;
-                    ai.TryDash();
-                }
+                fleeing = true;
+                ai.TryDash();
             }
         }
         else if (fleeing)
@@ -453,16 +445,13 @@ public class AIPushSurviveState : AIBaseState
         if (!NavMesh.SamplePosition(spot, out NavMeshHit hit, 5f, ai.NavFilter))
             return false;
 
-        ai.CachedPath.ClearCorners();
-        if (!ai.Agent.CalculatePath(hit.position, ai.CachedPath)
-            || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
+        //내가 선 칸만 예외로 두고 나머지 위험 칸은 피한다. 그런 길이 없으면 감수한다 —
+        //발밑이 이미 닳은 상황이라 나가는 것 자체를 막으면 그 자리에서 같이 떨어진다
+        if (!TrySetEscapePath(hit.position, allowDangerousCrossing: false)
+            && !TrySetEscapePath(hit.position, allowDangerousCrossing: true))
             return false;
 
-        //발밑이 이미 닳은 상황이라 경로 위험 검사로 막지 않는다 — 나가는 길은 열어둔다
-        //(바로 아래 도주 분기가 같은 이유로 TrySetSafePath를 쓰지 않는다)
-        ai.Agent.SetPath(ai.CachedPath);
         ai.ApplyStateSpeed();
-
         fleeing = true;   //안전한 칸에 닿으면 위 else 분기가 경로를 정리한다
         return true;
     }
@@ -506,6 +495,29 @@ public class AIPushSurviveState : AIBaseState
     //  그래서 <b>밀었을 때 상대가 빈 칸이나 맵 밖으로 갈 때만</b> 붙는다.
     //  각이 안 나오면 치지 않고 각이 나오는 칸으로 옮긴다. 그 '옮김'이
     //  봇을 움직이게 하고, 후반에 구멍이 늘수록 각이 자주 나와 서로를 떨어뜨린다.
+
+    // 도주 후보. 매 판단마다 새로 채우므로 배열 하나를 재사용한다
+    private readonly Vector3[] escapeCandidates = new Vector3[3];
+    private int escapeCandidateCount;
+
+    private void AddEscapeCandidate(bool found, Vector3 pos)
+    {
+        if (found && escapeCandidateCount < escapeCandidates.Length)
+            escapeCandidates[escapeCandidateCount++] = pos;
+    }
+
+    /// <summary>후보들을 순서대로 시도한다. 하나라도 경로가 깔리면 true.</summary>
+    private bool TryEscapeToAny(bool allowDangerousCrossing)
+    {
+        for (int i = 0; i < escapeCandidateCount; i++)
+        {
+            if (NavMesh.SamplePosition(escapeCandidates[i], out NavMeshHit hit, 5f, ai.NavFilter)
+                && TrySetEscapePath(hit.position, allowDangerousCrossing))
+                return true;
+        }
+
+        return false;
+    }
 
     /// <summary>지금 걸어둔 경로의 끝에 닿았는가.</summary>
     private bool ReachedDestination()
@@ -626,10 +638,40 @@ public class AIPushSurviveState : AIBaseState
         ai.ApplyStateSpeed();
 
         if (ai.TryGetWanderDestination(out Vector3 dest)
-            && NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter))
-        {
-            TrySetSafePath(hit.position);
-        }
+            && NavMesh.SamplePosition(dest, out NavMeshHit hit, 5f, ai.NavFilter)
+            && TrySetSafePath(hit.position))
+            return;
+
+        // ★ 배회 경로가 거부되면 <b>그냥 서 있었다</b> — 이 모드에서 그건 죽음이다
+        //   후반엔 닳은 칸이 많아 TrySetSafePath 거부가 잦다. 거부될 때마다 봇은 섰고,
+        //   서 있으면 제자리 마모가 2초마다 자기 발밑을 깎는다. 그러다 '발밑 위험'이
+        //   뜨면 도주 분기가 <b>타일 정중앙</b>(CellCenter)으로 옮겨 주고, 거기서 또 선다.
+        //   "타일 중앙에 섰다가 빨개지면 다음 타일 중앙으로"의 정체가 이 순환이다.
+        //
+        //   갈 곳을 못 찾으면 옆의 멀쩡한 칸으로라도 옮긴다. 어디로든 옮기면
+        //   그 칸의 제자리 마모 시계가 처음부터 다시 간다.
+        var collapse = TileCollapseManager.Instance;
+        if (collapse == null)
+            return;
+
+        wanderFromPos = ai.transform.position;
+        wanderScorer ??= ScoreWanderFallbackTile;
+
+        if (collapse.FindBestFooting(wanderFromPos, WANDER_FALLBACK_CELLS, wanderScorer, out Vector3 spot)
+            && NavMesh.SamplePosition(spot, out NavMeshHit fallbackHit, 5f, ai.NavFilter))
+            TrySetEscapePath(fallbackHit.position, allowDangerousCrossing: false);
+    }
+
+    //배회 폴백에서 훑을 반경. 한 칸 옆이면 충분하다 — 멀리 갈 이유가 없다
+    private const int WANDER_FALLBACK_CELLS = 1;
+
+    private Vector3 wanderFromPos;
+    private System.Func<Vector3, float> wanderScorer;
+
+    //가까운 칸일수록 좋다. 목적은 '다른 칸으로 옮기는 것' 자체다
+    private float ScoreWanderFallbackTile(Vector3 tileCenter)
+    {
+        return -Vector3.Distance(tileCenter, wanderFromPos);
     }
 
     // ═════════════════════════════════════════════════════════
