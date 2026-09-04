@@ -851,6 +851,44 @@ public class TileCollapseManager : MonoBehaviour
         collapsedCells.Add(CellKey(x, z));
     }
 
+    /// <summary>
+    /// <paramref name="from"/>에서 <paramref name="victimPos"/>를 밀었을 때,
+    /// 밀려나는 선 위에 <b>떨어질 곳(빈 칸 또는 격자 밖)</b>이 있는가.
+    ///
+    /// ★ 밀치기 모드에서 "칠 가치가 있는가"의 실질적 기준이다
+    ///   맵 한복판에서 서로 때려봐야 옆 칸으로 밀릴 뿐 아무 일도 안 일어난다.
+    ///   봇이 "가까우면 친다"로만 움직이면 그 무의미한 교착에 갇힌다.
+    ///   밀치는 방향은 PushMode가 judgement.DirectionToTarget()으로 정하므로
+    ///   <b>때리는 사람 → 맞는 사람</b> 방향이다. 그 연장선을 훑으면 된다.
+    ///
+    ///   훑는 길이는 넉백이 실제로 보내는 거리다. Knockback은 force에서 0까지
+    ///   DURATION 동안 선형으로 줄어드니 이동거리는 force × DURATION / 2 다.
+    /// </summary>
+    public bool HasPushOff(Vector3 from, Vector3 victimPos, float knockbackDistance)
+    {
+        if (stepX == 0f || stepZ == 0f || knockbackDistance <= 0f)
+            return false;
+
+        Vector3 dir = victimPos - from;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f)
+            return false;
+        dir.Normalize();
+
+        //칸을 건너뛰지 않도록 칸 크기의 절반 간격으로 훑는다
+        float sampleStep = Mathf.Max(1f, Mathf.Min(stepX, stepZ) * 0.5f);
+        int steps = Mathf.Max(1, Mathf.CeilToInt(knockbackDistance / sampleStep));
+
+        for (int i = 1; i <= steps; i++)
+        {
+            Vector3 p = victimPos + dir * (knockbackDistance * i / steps);
+            if (IsOverVoid(p))
+                return true;
+        }
+
+        return false;
+    }
+
     public bool IsOverVoid(Vector3 worldPos)
     {
         if (stepX == 0f || stepZ == 0f)

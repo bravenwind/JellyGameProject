@@ -183,6 +183,25 @@ public class AIPushSurviveState : AIBaseState
         //     휘두르는 동안은 제자리에서 상대를 보고 있어야 한다.
         if (dist <= range * 1.2f)
         {
+            // ★ 각이 없으면 치기 전에 자리를 옮겨 본다
+            //   여기서 휘둘러 봐야 상대는 옆 칸으로 밀릴 뿐이다. 서로 그러고 있으면
+            //   마주 보고 굳은 채 아무도 떨어지지 않는다 — 봇이 멍청해 보이는 그림이다.
+            //
+            //   <b>다만 각이 없다고 안 치지는 않는다.</b> 그러면 구멍이 없는 초반에
+            //   봇이 완전히 수동적이 되고, 때리는 것 자체에도 값이 있다
+            //   (BatHitGrowth로 커지고 pushHitScore가 붙는다).
+            //   그래서 "각이 나오는 칸이 근처에 있으면 그리로 옮기고, 없으면 그냥 친다"로 둔다.
+            //   옮기는 동안 봇이 상대 주위를 도는 그림이 나오고, 후반에 구멍이 늘수록
+            //   각이 자주 잡혀 실제로 서로를 떨어뜨리게 된다.
+            //
+            //   이미 어디론가 가는 중이면 다시 고르지 않는다 — 매 틱 목적지를 바꾸면
+            //   제자리에서 떨리기만 한다.
+            bool standing = !ai.Agent.pathPending && !ai.Agent.hasPath;
+            if (standing
+                && !HasPushOff(ai.transform.position, target.position)
+                && TryRepositionFor(target))
+                return true;
+
             if (ai.Agent.enabled && ai.Agent.isOnNavMesh && ai.Agent.hasPath)
                 ai.Agent.ResetPath();
             ai.Agent.velocity = Vector3.zero;
@@ -348,9 +367,12 @@ public class AIPushSurviveState : AIBaseState
     private bool TryReposition()
     {
         Transform target = FindNearestTarget();
-        if (target == null)
-            return false;
+        return target != null && TryRepositionFor(target);
+    }
 
+    /// <summary>지정한 상대를 붙잡아 둔 채 옆 칸으로 옮긴다.</summary>
+    private bool TryRepositionFor(Transform target)
+    {
         var collapse = TileCollapseManager.Instance;
         var dm = DataManager.Instance;
         if (collapse == null || dm == null)
@@ -394,12 +416,57 @@ public class AIPushSurviveState : AIBaseState
         float distToTarget = Vector3.Distance(tileCenter, repositionTargetPos);
         float travel = Vector3.Distance(tileCenter, repositionFromPos);
 
-        return -Mathf.Abs(distToTarget - repositionPreferredDist) - travel * TravelCostWeight;
+        float score = -Mathf.Abs(distToTarget - repositionPreferredDist) - travel * TravelCostWeight;
+
+        //이 칸에서 밀면 상대가 떨어진다면 그쪽으로 돌아가는 값이 있다.
+        //가점을 거리 항보다 크게 둬야 "조금 멀어도 각이 나오는 칸"을 고른다
+        if (HasPushOff(tileCenter, repositionTargetPos))
+            score += PushOffBonus;
+
+        return score;
     }
+
+    //각이 나오는 칸에 주는 가점. 배트 사거리(크기 2에서 4m)보다 넉넉히 커야
+    //거리 항을 이기고 실제로 각을 보고 자리를 잡는다
+    private const float PushOffBonus = 25f;
 
     //"상대와의 거리를 1m 맞추는 것"이 "내가 1m 더 뛰는 것"의 몇 배 가치인가.
     //1보다 작게 둔 이유는 가까운 칸을 우선하기 위해서다 — 멀리 가면 가는 도중에 꺼진다
     private const float TravelCostWeight = 0.6f;
+
+    // ─────────────────────────────────────────────────────────
+    //  ★ 밀어 떨어뜨릴 각
+    // ─────────────────────────────────────────────────────────
+    //
+    //  맵 한복판에서 서로 때려봐야 옆 칸으로 밀릴 뿐 아무 일도 안 일어난다.
+    //  "가까우면 친다"로만 움직이면 봇들은 그 무의미한 교착에 갇힌다 —
+    //  마주 보고 서서 서로 휘두르기만 하고 아무도 떨어지지 않는다.
+    //
+    //  그래서 <b>밀었을 때 상대가 빈 칸이나 맵 밖으로 갈 때만</b> 붙는다.
+    //  각이 안 나오면 치지 않고 각이 나오는 칸으로 옮긴다. 그 '옮김'이
+    //  봇을 움직이게 하고, 후반에 구멍이 늘수록 각이 자주 나와 서로를 떨어뜨린다.
+
+    /// <summary>이 봇이 한 대 쳤을 때 상대가 밀려나는 거리(월드 미터).</summary>
+    private float KnockbackDistance()
+    {
+        var dm = DataManager.Instance;
+        if (dm == null)
+            return 0f;
+
+        //PushMode.HostJudgeBatHit과 같은 식이다 — 힘은 기준 크기 대비 배수다
+        float force = dm.BatPushForce
+                    * (ai.GetMyAuthorityScale() / Mathf.Max(0.01f, NetEntity.BaselineScale));
+
+        //Knockback은 force에서 0까지 DURATION 동안 선형으로 준다 → 이동거리는 그 삼각형 넓이
+        return force * Knockback.DURATION * 0.5f;
+    }
+
+    /// <summary><paramref name="from"/>에 서서 상대를 밀면 떨어뜨릴 수 있는가.</summary>
+    private bool HasPushOff(Vector3 from, Vector3 targetPos)
+    {
+        var collapse = TileCollapseManager.Instance;
+        return collapse != null && collapse.HasPushOff(from, targetPos, KnockbackDistance());
+    }
 
     /// <summary>위험 타일을 피해 무작위 안전 지점으로 배회한다.</summary>
     private void Wander()
