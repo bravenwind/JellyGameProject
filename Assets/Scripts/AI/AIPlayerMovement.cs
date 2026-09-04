@@ -71,6 +71,17 @@ public class AIPlayerMovement : MonoBehaviour
     public float BaseAgentRadius { get; private set; }
     public float BaseAgentHeight { get; private set; }
 
+    /// <summary>
+    /// 밀치기 모드에서 지금 노리는 상대. AIPushSurviveState가 매 판단마다 갱신한다.
+    ///
+    /// ★ 왜 밖에서 읽을 수 있어야 하나
+    ///   봇이 대상을 고를 때 "이미 이 상대를 노리는 봇이 몇인가"를 감점으로 쓴다.
+    ///   그게 없으면 전원이 가장 가까운 하나에게 몰려 한 칸에 뭉치고,
+    ///   그 칸이 마모로 꺼지며 다 같이 떨어진다 — 크기 필터가 있던 시절의 그 증상이다.
+    ///   크기로 거르는 대신 몰림 자체를 값으로 세기 위해 노출한다.
+    /// </summary>
+    [System.NonSerialized] public Transform PushTarget;
+
     [Header("Push 모드 (빠따/대쉬)")]
     [SerializeField] private Transform batPivot;
     public Transform BatPivot { get { return batPivot; } }

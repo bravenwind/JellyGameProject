@@ -199,7 +199,7 @@ public class AIPushSurviveState : AIBaseState
             bool standing = !ai.Agent.pathPending && !ai.Agent.hasPath;
             if (standing
                 && !HasPushOff(ai.transform.position, target.position)
-                && TryRepositionFor(target))
+                && TryRepositionFor(target, fromDanger: false))
                 return true;
 
             if (ai.Agent.enabled && ai.Agent.isOnNavMesh && ai.Agent.hasPath)
@@ -367,11 +367,21 @@ public class AIPushSurviveState : AIBaseState
     private bool TryReposition()
     {
         Transform target = FindNearestTarget();
-        return target != null && TryRepositionFor(target);
+        return target != null && TryRepositionFor(target, fromDanger: true);
     }
 
-    /// <summary>지정한 상대를 붙잡아 둔 채 옆 칸으로 옮긴다.</summary>
-    private bool TryRepositionFor(Transform target)
+    /// <summary>
+    /// 지정한 상대를 붙잡아 둔 채 옆 칸으로 옮긴다.
+    ///
+    /// ★ fromDanger를 받는 이유 — fleeing 플래그의 주인이 하나여야 한다
+    ///   fleeing은 "발밑이 위험해서 나가는 중"이라는 뜻이고, Update의
+    ///   `else if (fleeing)` 가지가 안전해진 순간 경로를 정리하는 데 쓴다.
+    ///   그런데 교전 중 각을 잡으려는 재배치는 발밑이 멀쩡한 상태에서 부른다.
+    ///   거기서 fleeing을 세우면 <b>바로 다음 틱에 그 가지가 경로를 지워</b>
+    ///   봇이 한 걸음도 못 떼고 제자리에서 떨린다.
+    ///   그래서 도주에서 부를 때만 세운다.
+    /// </summary>
+    private bool TryRepositionFor(Transform target, bool fromDanger)
     {
         var collapse = TileCollapseManager.Instance;
         var dm = DataManager.Instance;
@@ -402,7 +412,10 @@ public class AIPushSurviveState : AIBaseState
         //(바로 아래 도주 분기가 같은 이유로 TrySetSafePath를 쓰지 않는다)
         ai.Agent.SetPath(ai.CachedPath);
         ai.ApplyStateSpeed();
-        fleeing = true;   //안전한 칸에 닿으면 위 else 분기가 경로를 정리한다
+
+        if (fromDanger)
+            fleeing = true;   //안전한 칸에 닿으면 위 else 분기가 경로를 정리한다
+
         return true;
     }
 
@@ -486,16 +499,41 @@ public class AIPushSurviveState : AIBaseState
         }
     }
 
-    // 자기보다 '작은' 먹잇감만 추격 대상으로 본다.
-    // 예전엔 크기 무관 최근접 엔티티(같은 크기의 다른 봇 포함)를 쫓아서, 봇끼리 서로를 추격하며
-    // 한 타일로 눈덩이처럼 뭉쳤다 → 그 타일이 step 마모로 '무너지기 직전'이 되어 다 같이 추락했다.
-    // 더 큰 상대는 어차피 FindThreat→FleeState가 처리(도주)하므로, 여기서 동급/대형을 빼면
-    // 봇끼리 서로 끌어당겨 뭉치는 일이 사라진다(포식자-피식자 관계만 남아 자연히 분산).
+    // ═════════════════════════════════════════════════════════
+    //  ★ 대상 고르기 — 크기 필터를 점수로 바꿨다
+    // ═════════════════════════════════════════════════════════
+    //
+    //  예전엔 이 한 줄이 전부였다:
+    //      if (e.IsBot && e.ScaleValue >= myScale) continue;
+    //  자기보다 <b>엄격히 작은</b> 봇만 대상으로 봤다는 뜻이다. 그런데 봇은 전원
+    //  같은 크기로 태어나고(LanBotSpawner는 위치만 흩뿌린다), 밀치기 모드에서
+    //  크기가 느는 유일한 길은 누군가를 때리는 것(GrowKind.BatHit)이다.
+    //  그래서 순환이 닫혀 있었다 — 봇을 때리려면 먼저 커야 하고, 커지려면 때려야
+    //  하는데, 때릴 수 있는 건 크기 조건이 없는 사람뿐이다.
+    //  결과적으로 <b>봇끼리는 한 번도 싸우지 않았다.</b>
+    //
+    //  그 필터가 원래 막으려던 것은 크기가 아니라 <b>몰림</b>이었다. 봇들이 서로를
+    //  쫓다 한 칸에 뭉치면 그 칸이 마모로 꺼져 다 같이 떨어졌다. 그건 진짜 문제였다.
+    //  이제 몰림을 몰림으로 센다 — 같은 상대를 노리는 봇 수가 감점이다.
+    //  크기는 조건이 아니라 가벼운 가중치 하나로만 남는다.
+
+    //이미 그 상대를 노리는 봇 하나당 감점. 몰림을 막는 항이다
+    private const float ClaimPenalty = 12f;
+
+    //나보다 작은 상대에 주는 가점. 밀어내기 쉬우니 조금 선호할 뿐, 조건은 아니다
+    private const float SmallerBonus = 4f;
+
+    /// <summary>
+    /// 지금 노릴 만한 상대. 없으면 null.
+    /// 고른 결과를 ai.PushTarget에 남겨, 다른 봇이 몰림을 셀 수 있게 한다.
+    /// </summary>
     private Transform FindNearestTarget()
     {
-        float bestDist = float.MaxValue;
-        Transform best = null;
+        Vector3 myPos = ai.transform.position;
         float myScale = ai.GetMyAuthorityScale();
+
+        float bestScore = float.MinValue;
+        Transform best = null;
 
         foreach (INetEntity e in EntityRegistry.Entities)
         {
@@ -504,30 +542,52 @@ public class AIPushSurviveState : AIBaseState
             if (e.IsOutOfPlay)
                 continue; // 탈락/흡수 판정 단일 출처 (G6/K2)
 
-            // ★ 크기 조건은 봇에게만 건다 — 사람은 크기와 무관하게 대상이다.
-            //
-            //   밀치기 모드에는 <b>잡아먹히는 개념이 없다.</b> 큰 상대라고 피할 이유가 없고,
-            //   오히려 큰 상대일수록 밀어 떨어뜨릴 가치가 있다.
-            //
-            //   예전엔 사람도 크기로 걸렀는데 그게 이런 악순환을 만들었다:
-            //     플레이어가 배트를 맞힌다 → 커진다 → 봇의 대상에서 빠진다
-            //     → 봇이 공격을 못 한다 → 봇은 안 커진다 → 격차가 더 벌어진다
-            //   한 번 맞기 시작하면 봇이 영원히 반격하지 못하는 구조였다.
-            //
-            //   봇끼리만 크기를 보는 건 서로 추격하며 한 타일에 뭉치는 것을
-            //   막기 위한 별개의 규칙이다. 그래서 이 한 줄만 IsBot으로 갈린다.
-            if (e.IsBot && e.ScaleValue >= myScale)
+            float distance = Vector3.Distance(myPos, e.Transform.position);
+            if (distance >= ai.DetectRadius)
                 continue;
 
-            float d = Vector3.Distance(ai.transform.position, e.Transform.position);
-            if (d < bestDist)
+            //가까울수록 좋다가 기본이고, 나머지 항이 그걸 흔든다
+            float score = -distance;
+
+            //여기서 밀면 떨어뜨릴 수 있다면 그게 이 모드의 목적이다 — 가장 큰 항
+            if (HasPushOff(myPos, e.Transform.position))
+                score += PushOffBonus;
+
+            score -= ClaimPenalty * CountClaims(e.Transform);
+
+            if (e.ScaleValue < myScale)
+                score += SmallerBonus;
+
+            if (score > bestScore)
             {
-                bestDist = d;
+                bestScore = score;
                 best = e.Transform;
             }
         }
 
-        return bestDist < ai.DetectRadius ? best : null;
+        ai.PushTarget = best;
+        return best;
+    }
+
+    /// <summary>이 상대를 이미 노리고 있는 <b>다른</b> 봇의 수.</summary>
+    private int CountClaims(Transform target)
+    {
+        int n = 0;
+
+        foreach (INetEntity e in EntityRegistry.Entities)
+        {
+            if (e == null || e.Identity == null)
+                continue;
+
+            AIPlayerMovement other = e.Identity.Bot;
+            if (other == null || other == ai)
+                continue;
+
+            if (other.PushTarget == target)
+                n++;
+        }
+
+        return n;
     }
 
     private void FaceTarget(Vector3 direction)
