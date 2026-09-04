@@ -794,7 +794,7 @@ public class TileCollapseManager : MonoBehaviour
     public bool IsPositionDangerous(Vector3 worldPos)
     {
         return IsCellUnsafe(worldPos, DataManager.Instance != null
-            ? DataManager.Instance.StepTileDangerMargin : 1);
+            ? DataManager.Instance.StepTileDangerMargin : 1, extraSteps: 0);
     }
 
     /// <summary>
@@ -809,12 +809,35 @@ public class TileCollapseManager : MonoBehaviour
     /// </summary>
     public bool IsFootingUnsafe(Vector3 worldPos)
     {
-        return IsCellUnsafe(worldPos, DataManager.Instance != null
-            ? DataManager.Instance.StepTileFootingMargin : 2);
+        return IsCellUnsafe(worldPos, FootingMargin, extraSteps: 0);
     }
 
-    //두 판정의 공통 몸통. margin은 '붕괴까지 이만큼 남으면 위험'이다.
-    private bool IsCellUnsafe(Vector3 worldPos, int margin)
+    /// <summary>
+    /// 거기까지 <b>가서 서면</b> 발밑이 위험해지는가.
+    ///
+    /// ★ 목적지는 이 잣대로 골라야 한다 — 도착 자체가 한 걸음이기 때문이다
+    ///   칸에 새로 들어서면 발자국이 그 칸을 밟아 마모가 1 오른다(WearTile).
+    ///   그런데 목적지 필터는 <b>지금</b> 값만 보고 있었다. 그래서 '한 걸음 뒤면
+    ///   위험해질 칸'이 후보로 통과했고, 봇은 거기까지 가서 도착하는 순간
+    ///   '발밑 위험'을 받아 또 도망쳤다. 겨우 옮겼는데 도착하자마자 다시 도망가는
+    ///   왕복이 여기서 나왔고, 그러다 점점 나쁜 칸으로 몰려 죽었다.
+    ///
+    ///   흔들리는 붕괴중 칸과 '한 번 더 밟으면 무너질' 칸은 원래도 피하고 있었다.
+    ///   빠져 있던 건 <b>그 한 단계 앞</b>이다.
+    /// </summary>
+    public bool WillFootingBeUnsafe(Vector3 worldPos)
+    {
+        return IsCellUnsafe(worldPos, FootingMargin, extraSteps: 1);
+    }
+
+    private static int FootingMargin
+    {
+        get { return DataManager.Instance != null ? DataManager.Instance.StepTileFootingMargin : 1; }
+    }
+
+    //세 판정의 공통 몸통. margin은 '붕괴까지 이만큼 남으면 위험',
+    //extraSteps는 '내가 이만큼 더 밟을 예정'이다.
+    private bool IsCellUnsafe(Vector3 worldPos, int margin, int extraSteps)
     {
         if (stepX == 0f || stepZ == 0f)
             return false;
@@ -833,10 +856,12 @@ public class TileCollapseManager : MonoBehaviour
             if (tileStepCounts.TryGetValue(tileKey, out int count))
             {
                 int stepsToCollapse = DataManager.Instance.StepTileStepsToCollapse;
-                if (count >= stepsToCollapse - margin)
+                if (count + extraSteps >= stepsToCollapse - margin)
                     return true;
             }
-            return false;
+
+            //기록이 없는 칸(한 번도 안 밟힘)도 내가 밟을 몫은 세야 한다
+            return extraSteps >= DataManager.Instance.StepTileStepsToCollapse - margin;
         }
 
         //흡수 모드는 링 단위로 무너지므로 걸음 수 여유라는 개념이 없다
@@ -944,10 +969,8 @@ public class TileCollapseManager : MonoBehaviour
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                //목적지는 '지나갈 곳'이 아니라 <b>서 있을 곳</b>이라 발밑 잣대로 거른다.
-                //경로 잣대로 거르면 이미 발밑 위험인 칸이 통과해, 도착하자마자 다시
-                //도망가는 왕복이 생긴다
-                if (IsFootingUnsafe(tileCenter))
+                //목적지는 '지나갈 곳'이 아니라 <b>서 있을 곳</b>이고, 도착 자체가 한 걸음이다
+                if (WillFootingBeUnsafe(tileCenter))
                     continue;
 
                 float distanceFromThreat = Vector3.Distance(tileCenter, threatPos);
@@ -1035,7 +1058,7 @@ public class TileCollapseManager : MonoBehaviour
                     continue;
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
-                if (requireSafeFooting && IsFootingUnsafe(tileCenter))
+                if (requireSafeFooting && WillFootingBeUnsafe(tileCenter))
                     continue;
 
                 float value = score(tileCenter);
@@ -1092,8 +1115,8 @@ public class TileCollapseManager : MonoBehaviour
 
                     Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                    //여기도 '서 있을 곳'이므로 발밑 잣대다
-                    if (avoidDangerous && IsFootingUnsafe(tileCenter))
+                    //여기도 '서 있을 곳'이므로 도착이 더할 한 걸음까지 센다
+                    if (avoidDangerous && WillFootingBeUnsafe(tileCenter))
                         continue;
 
                     // 제곱거리로 비교한다. 크기 순서는 같고 제곱근을 뽑지 않아도 된다.

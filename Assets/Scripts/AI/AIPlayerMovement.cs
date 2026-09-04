@@ -144,6 +144,9 @@ public class AIPlayerMovement : MonoBehaviour
     public bool IsDashing => dashTimer > 0f;
     public bool IsAttacking => attackCoroutine != null;
 
+    /// <summary>지금 배트를 휘두를 수 있는가. 쿨다운 중이면 false.</summary>
+    public bool AttackReady => attackCoroutine == null && attackCooldownTimer <= 0f;
+
 
     // ═════════════════════════════════════════════════════════
     //  [LAN 이식] 봇 권위 판정

@@ -104,7 +104,7 @@ public class AIPushSurviveState : AIBaseState
             //   방향을 계속 갈아타며 제자리에서 떤다.
             //   목적지가 아직 안전하고 거기 닿지 않았다면 다시 고를 이유가 없다.
             if (fleeing && ai.Agent.hasPath && !ReachedDestination()
-                && !collapse.IsFootingUnsafe(ai.Agent.destination))
+                && !collapse.WillFootingBeUnsafe(ai.Agent.destination))
                 return;
 
             // ★ '발밑이 닳았다'와 '위협에서 도망친다'는 다른 사건이다
@@ -273,6 +273,20 @@ public class AIPushSurviveState : AIBaseState
             if (Time.time >= nextOrbitTime
                 && !HasPushOff(ai.transform.position, target.position)
                 && TryOrbitForPushAngle(target))
+            {
+                repositioning = true;
+                repositionDeadline = Time.time + REPOSITION_TIMEOUT;
+                return true;
+            }
+
+            // ★ 쿨다운 동안은 서 있지 않는다
+            //   어차피 못 치는 시간이므로 각을 따지지 않고 한 칸 돈다. 각이 나오는
+            //   자리가 있으면 위에서 이미 잡았고, 여기는 '그래도 움직인다'가 목적이다.
+            //   쿨다운이 풀리면 AttackReady가 참이 되어 이 분기를 빠져나가고,
+            //   아래에서 멈춰 겨눈다 — 그래서 영원히 돌기만 하는 일은 없다.
+            //   (여기엔 nextOrbitTime을 걸지 않는다. 그 쿨다운은 '치지 않고 돌기만
+            //    하는 것'을 막으려는 건데, 지금은 애초에 칠 수 없는 시간이다)
+            if (!ai.AttackReady && TryStrafeAroundTarget(target))
             {
                 repositioning = true;
                 repositionDeadline = Time.time + REPOSITION_TIMEOUT;
@@ -604,6 +618,27 @@ public class AIPushSurviveState : AIBaseState
     /// </summary>
     private bool TryOrbitForPushAngle(Transform target)
     {
+        return TryMoveOnOrbit(target, requirePushOff: true);
+    }
+
+    /// <summary>
+    /// 각을 따지지 않고 상대 주위로 한 칸 돈다. <b>공격 쿨다운 동안</b> 쓴다.
+    ///
+    /// ★ 쿨다운 동안 서 있을 이유가 없다
+    ///   사거리에 들어오면 ResetPath + velocity 0 으로 굳는데, 한 스윙 주기는
+    ///   AIM_DELAY(0.45초) + BatCooldown(1.2초) ≈ 1.65초다. 그중 1.2초는 어차피
+    ///   못 치는 시간인데 그동안 가만히 서 있었다. 봇이 여럿 붙어 있으면
+    ///   화면의 정지 대부분이 여기서 나온다.
+    ///   그 시간에 자리를 옮기면 (a) 움직이는 그림이 나오고 (b) 제자리 마모를
+    ///   안 먹고 (c) 다음 스윙의 각이 좋아질 수도 있다.
+    /// </summary>
+    private bool TryStrafeAroundTarget(Transform target)
+    {
+        return TryMoveOnOrbit(target, requirePushOff: false);
+    }
+
+    private bool TryMoveOnOrbit(Transform target, bool requirePushOff)
+    {
         var collapse = TileCollapseManager.Instance;
         var dm = DataManager.Instance;
         if (collapse == null || dm == null)
@@ -629,11 +664,11 @@ public class AIPushSurviveState : AIBaseState
                 float a = baseAngle + sign * step * stepAngle;
                 Vector3 spot = targetPos + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * standoff;
 
-                //거기 섰다가 같이 꺼지면 의미가 없다
-                if (collapse.IsFootingUnsafe(spot))
+                //거기 섰다가 같이 꺼지면 의미가 없다. 도착이 한 걸음을 더하는 것까지 센다
+                if (collapse.WillFootingBeUnsafe(spot))
                     continue;
 
-                if (!collapse.HasPushOff(spot, targetPos, knockback))
+                if (requirePushOff && !collapse.HasPushOff(spot, targetPos, knockback))
                     continue;
 
                 if (!NavMesh.SamplePosition(spot, out NavMeshHit hit, 3f, ai.NavFilter))
