@@ -787,7 +787,34 @@ public class TileCollapseManager : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// <b>지나갈</b> 칸이 위험한가. 경로 필터·목적지 후보가 쓴다.
+    /// 스치고 지나갈 뿐이라 문턱이 늦다(DataManager.StepTileDangerMargin).
+    /// </summary>
     public bool IsPositionDangerous(Vector3 worldPos)
+    {
+        return IsCellUnsafe(worldPos, DataManager.Instance != null
+            ? DataManager.Instance.StepTileDangerMargin : 1);
+    }
+
+    /// <summary>
+    /// <b>서 있는</b> 칸이 위험한가. "여기서 도망쳐야 하나"를 묻는 쪽이 쓴다.
+    ///
+    /// ★ 지나갈 칸보다 일찍 위험으로 본다
+    ///   서 있으면 제자리 마모(StepTileIdleWearSeconds)까지 먹으므로 그 칸에서
+    ///   보내는 시간이 길다. 경보가 한 걸음만 앞서면 벗어날 시간이 안 나온다 —
+    ///   봇 속도 6m/s에 칸이 14m라 한 칸 벗어나는 데만 2.33초가 걸리는데,
+    ///   한 걸음 여유는 제자리에서 2.00초밖에 안 된다.
+    ///   자세한 계산은 DataManager의 두 margin 필드 주석에 있다.
+    /// </summary>
+    public bool IsFootingUnsafe(Vector3 worldPos)
+    {
+        return IsCellUnsafe(worldPos, DataManager.Instance != null
+            ? DataManager.Instance.StepTileFootingMargin : 2);
+    }
+
+    //두 판정의 공통 몸통. margin은 '붕괴까지 이만큼 남으면 위험'이다.
+    private bool IsCellUnsafe(Vector3 worldPos, int margin)
     {
         if (stepX == 0f || stepZ == 0f)
             return false;
@@ -806,12 +833,13 @@ public class TileCollapseManager : MonoBehaviour
             if (tileStepCounts.TryGetValue(tileKey, out int count))
             {
                 int stepsToCollapse = DataManager.Instance.StepTileStepsToCollapse;
-                if (count >= stepsToCollapse - 1)
+                if (count >= stepsToCollapse - margin)
                     return true;
             }
             return false;
         }
 
+        //흡수 모드는 링 단위로 무너지므로 걸음 수 여유라는 개념이 없다
         int ring = GetRing(x, z);
         return ring <= lastShakenRing;
     }

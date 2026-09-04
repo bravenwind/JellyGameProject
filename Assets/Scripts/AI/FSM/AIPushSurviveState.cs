@@ -55,7 +55,7 @@ public class AIPushSurviveState : AIBaseState
         if (collapse == null)
             return;
 
-        bool onDanger = collapse.IsPositionDangerous(ai.transform.position);
+        bool onDanger = collapse.IsFootingUnsafe(ai.transform.position);
 
         if (onDanger)
         {
@@ -71,11 +71,20 @@ public class AIPushSurviveState : AIBaseState
             //   가까운 곳만 찾으면 무너지는 발판은 피했는데 때리려는 사람 품으로 뛰어든다.
             Vector3 threat = NearestThreatPos();
 
+            // ★ 마지막 수단까지 내려간다 — 제자리가 언제나 최악이기 때문이다
+            //   예전엔 여기서 두 번째 탐색(avoidDangerous: true)까지만 하고 실패하면
+            //   return이었다. 그런데 그 두 탐색은 <b>둘 다 위험한 칸을 후보에서 뺀다.</b>
+            //   후반에 주변이 전부 닳으면 둘 다 빈손으로 돌아오고, 봇은 곧 꺼질 칸 위에
+            //   선 채로 판단을 포기했다.
+            //
+            //   서 있는 칸은 이미 '발밑 위험'이라 가장 먼저 무너진다. 옆 칸이 아무리
+            //   닳았어도 그보다는 오래 간다. 그래서 세 번째로 '위험해도 발판이 남은
+            //   가장 가까운 칸'을 찾는다. FindNearestSafeTile은 고리 1부터 보므로
+            //   지금 서 있는 칸을 다시 고르는 일은 없다.
             Vector3 safePos;
-            bool ok = collapse.FindEscapeTile(ai.transform.position, threat, out safePos);
-
-            // 그런 곳이 없으면(사방이 위험) 최소한 발판이 남은 곳으로
-            if (!ok && !collapse.FindNearestSafeTile(ai.transform.position, out safePos, avoidDangerous: true))
+            if (!collapse.FindEscapeTile(ai.transform.position, threat, out safePos)
+                && !collapse.FindNearestSafeTile(ai.transform.position, out safePos, avoidDangerous: true)
+                && !collapse.FindNearestSafeTile(ai.transform.position, out safePos, avoidDangerous: false))
                 return;
 
             // 속도는 플레이어와 동일(moveSpeed)하게 유지한다. 위험(무너지는 발판) 회피는

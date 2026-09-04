@@ -98263,6 +98263,8 @@ MonoBehaviour:
   stepTileWarningDuration: 1.5
   stepTileStepsToCollapse: 3
   stepTileIdleWearSeconds: 2
+  stepTileDangerMargin: 1
+  stepTileFootingMargin: 2
   cameraZoomDuration: 1.5
   scaleChangedPlusSize: 7
   cameraZoomFirstThreshold: 6

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using System;
 
@@ -97,6 +97,33 @@ public class DataManager : MonoBehaviour
     [Tooltip("한 타일 위에 가만히 머물 때 견디는 횟수가 1 감소하기까지의 시간 (초). 0 이하면 제자리 마모 비활성")]
     [SerializeField] private float stepTileIdleWearSeconds = 2f;
     public float StepTileIdleWearSeconds { get { return stepTileIdleWearSeconds; } }
+
+    // ═════════════════════════════════════════════════════════
+    //  '위험한 칸'의 문턱이 둘인 이유
+    // ═════════════════════════════════════════════════════════
+    //
+    // ★ 예전엔 하나였다 — 그게 봇을 죽이고 있었다
+    //   붕괴까지 한 걸음 남았을 때(3중 2) 비로소 위험으로 봤는데, 그 문턱을
+    //   <b>서 있는 칸과 지나갈 칸이 함께 썼다.</b> 그래서 이런 계산이 나왔다:
+    //     · 제자리 마모는 2초마다 온다 → 경보를 받고 붕괴까지 남은 시간 2.00초
+    //     · 봇 속도 6m/s, 칸 크기 14m → 한 칸 벗어나는 데 2.33초
+    //   경보가 정확했는데도 걸어서는 늦었다. 대쉬는 쿨다운이 3초라 매번 못 쓴다.
+    //
+    //   그렇다고 문턱 하나를 통째로 앞당기면 반대쪽이 망가진다. 같은 판정이
+    //   <b>경로 필터</b>에도 쓰여서(IsPathDangerous), 한 번 밟힌 칸까지 위험으로
+    //   보면 배회 경로가 거의 다 거부된다. 그러면 봇은 갈 곳을 못 찾고 제자리에
+    //   서고, 제자리가 곧 마모라 결국 같은 자리에서 죽는다.
+    //
+    //   그래서 둘로 나눈다. 기준은 <b>그 칸에 얼마나 머무느냐</b>다.
+    //     · 서 있는 칸: 계속 머물며 제자리 마모까지 먹는다 → 일찍 피한다
+    //     · 지나갈 칸: 한순간 스칠 뿐이다 → 늦게까지 허용한다
+    [Tooltip("지나갈 칸 판정: 붕괴까지 이만큼 남으면 '위험'으로 본다. 경로·목적지 필터가 쓴다.")]
+    [SerializeField] private int stepTileDangerMargin = 1;
+    public int StepTileDangerMargin { get { return stepTileDangerMargin; } }
+
+    [Tooltip("서 있는 칸 판정: 붕괴까지 이만큼 남으면 '발밑이 위험'으로 본다. 위보다 크거나 같아야 한다.")]
+    [SerializeField] private int stepTileFootingMargin = 2;
+    public int StepTileFootingMargin { get { return stepTileFootingMargin; } }
 
     [Header("카메라")]
     // ★ 예전 이름은 scaleIncreaseDuration이었다 (위 growAnimTime 주석 참고)
@@ -245,6 +272,22 @@ public class DataManager : MonoBehaviour
         {
             Debug.LogError("[설정] stepTileStepsToCollapse가 0 이하입니다 — 타일이 밟자마자 무너집니다.");
             stepTileStepsToCollapse = 3;
+        }
+
+        //발밑 문턱이 경로 문턱보다 이르지 않으면 나눈 의미가 없다
+        if (stepTileFootingMargin < stepTileDangerMargin)
+        {
+            Debug.LogError($"[설정] stepTileFootingMargin({stepTileFootingMargin})이 "
+                         + $"stepTileDangerMargin({stepTileDangerMargin})보다 작습니다 — 발밑을 경로보다 늦게 피합니다.");
+            stepTileFootingMargin = stepTileDangerMargin;
+        }
+
+        //여유가 밟는 횟수 이상이면 새 타일도 처음부터 위험이 되어 갈 곳이 사라진다
+        if (stepTileFootingMargin >= stepTileStepsToCollapse)
+        {
+            Debug.LogError($"[설정] stepTileFootingMargin({stepTileFootingMargin})이 "
+                         + $"stepTileStepsToCollapse({stepTileStepsToCollapse}) 이상입니다 — 모든 칸이 위험이 됩니다.");
+            stepTileFootingMargin = Mathf.Max(1, stepTileStepsToCollapse - 1);
         }
 
         //둘 중 하나라도 0이면 방망이가 아무도 못 맞힌다

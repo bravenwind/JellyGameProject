@@ -210,7 +210,7 @@ public class WanderingAI : MonoBehaviour
         if (collapse == null)
             return false;
 
-        bool here = collapse.IsPositionDangerous(transform.position);
+        bool here = collapse.IsFootingUnsafe(transform.position);
         bool ahead = agent.hasPath && collapse.IsPositionDangerous(agent.destination);
 
         if (!here && !ahead)
