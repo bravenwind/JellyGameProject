@@ -104,15 +104,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7988438608829161243}
-  - component: {fileID: 6975552852123859224}
   - component: {fileID: 365858056229833277}
-  - component: {fileID: 3832500137166153991}
   - component: {fileID: 2786491381095114607}
-  - component: {fileID: 5855782841606973248}
-  - component: {fileID: 7887277291886506913}
-  - component: {fileID: 623676650804486841}
-  - component: {fileID: -8060117360205482862}
-  - component: {fileID: 1315389326974286027}
   m_Layer: 6
   m_Name: NetworkPlayer_Bear_Result
   m_TagString: Player
@@ -143,19 +136,6 @@ Transform:
   - {fileID: 785506583776545882}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &6975552852123859224
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ba8419777fc8c774fafd207b345c792c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  softBody3D: {fileID: 0}
 --- !u!95 &365858056229833277
 Animator:
   serializedVersion: 7
@@ -178,31 +158,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!143 &3832500137166153991
-CharacterController:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 128
-  m_LayerOverridePriority: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Height: 1.45
-  m_Radius: 0.5
-  m_SlopeLimit: 90
-  m_StepOffset: 0.3
-  m_SkinWidth: 0.08
-  m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &2786491381095114607
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -230,75 +185,6 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 1
---- !u!114 &5855782841606973248
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae122f4dfc426ba40bd770f429a87ee5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &7887277291886506913
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6454a4b8f358f9b419197ccc9772a427, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  sceneNetId: 0
---- !u!114 &623676650804486841
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: dce8ee68459f03145a02e2518d6cbdfe, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  targetRenderer: {fileID: 4241201823037191511}
-  colorLerpSpeed: 6
---- !u!114 &-8060117360205482862
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a444959b67c932c4b956d6c3f23e528b, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  playerController: {fileID: 0}
-  nameTagBillboard: {fileID: 1991741170197539670}
---- !u!114 &1315389326974286027
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1177273754728550086}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f3c672c59c11756419ed8e72b795066d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  scaleController: {fileID: 6975552852123859224}
-  colorVisual: {fileID: 0}
-  animator: {fileID: 365858056229833277}
-  animSendRate: 10
 --- !u!1 &1243590521275635783
 GameObject:
   m_ObjectHideFlags: 0
