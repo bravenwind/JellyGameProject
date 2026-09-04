@@ -19,6 +19,11 @@ public class AIPushSurviveState : AIBaseState
     private const float ORBIT_COOLDOWN = 1.5f;
     private float nextOrbitTime;
 
+    // 각 잡기 이동에 거는 시간 상한. 끼임 감지가 먼저 걸리는 게 보통이지만,
+    // 아주 느리게 밀려나는 등 velocity가 0이 아닌 채 도착이 안 되는 경우도 막는다.
+    private const float REPOSITION_TIMEOUT = 2.5f;
+    private float repositionDeadline;
+
     // ═══════════════════════════════════════════════════════
     //  ★ 반응 속도
     // ═══════════════════════════════════════════════════════
@@ -36,6 +41,7 @@ public class AIPushSurviveState : AIBaseState
 
     public override void Enter()
     {
+        ResetStuck();
         checkTimer = 0f;
         fleeing = false;
         repositioning = false;
@@ -53,6 +59,18 @@ public class AIPushSurviveState : AIBaseState
             return;
         if (ai.IsDashing || ai.IsAttacking)
             return;
+
+        // ★ 끼임 감지를 여기에도 붙인다 — 네 상태 중 여기만 빠져 있었다
+        //   (AIChaseState·AIFleeState·AIWanderState는 전부 부르고 있다)
+        //   구석에 몰리거나 몸끼리 밀리면 경로는 있는데 속도가 0인 상태가 이어진다.
+        //   그걸 푸는 곳이 없으면 봇은 그 경로를 붙잡고 영영 서 있는다.
+        //   여기에 이번 repositioning 래치까지 얹히면 <b>도착 판정이 영원히 false</b>가
+        //   되어 겨누지도 치지도 다시 판단하지도 않는 완전 정지가 된다.
+        if (HandleStuck())
+        {
+            repositioning = false;   //붙잡고 있던 재배치도 같이 접는다
+            return;
+        }
 
         checkTimer += Time.deltaTime;
         if (checkTimer < CHECK_INTERVAL)
@@ -217,10 +235,10 @@ public class AIPushSurviveState : AIBaseState
             //   아래 정지 코드로 내려가지 않는다.
             if (repositioning)
             {
-                if (!ReachedDestination())
+                if (!ReachedDestination() && Time.time < repositionDeadline)
                     return true;
 
-                repositioning = false;              //도착했다 → 이제 겨눈다
+                repositioning = false;              //도착했거나 시간이 다 됐다 → 이제 겨눈다
                 nextOrbitTime = Time.time + ORBIT_COOLDOWN;
             }
 
@@ -229,6 +247,7 @@ public class AIPushSurviveState : AIBaseState
                 && TryOrbitForPushAngle(target))
             {
                 repositioning = true;
+                repositionDeadline = Time.time + REPOSITION_TIMEOUT;
                 return true;
             }
 
@@ -554,14 +573,19 @@ public class AIPushSurviveState : AIBaseState
                 if (!NavMesh.SamplePosition(spot, out NavMeshHit hit, 3f, ai.NavFilter))
                     continue;
 
-                ai.CachedPath.ClearCorners();
-                if (!ai.Agent.CalculatePath(hit.position, ai.CachedPath)
-                    || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
-                    continue;
-
-                ai.Agent.SetPath(ai.CachedPath);
+                // ★ 여기는 TrySetSafePath를 써야 한다 — 처음엔 날것으로 SetPath 했고 그게 버그였다
+                //   도주 분기가 위험 검사를 건너뛰는 건 <b>이미 꺼지는 발판 위에 서 있어서</b>
+                //   나가는 길을 막으면 그 자리에서 같이 떨어지기 때문이다. 그건 응급이다.
+                //   각 잡기는 응급이 아니다. 발밑이 멀쩡한 상태에서 더 좋은 자리를 찾아가는
+                //   것뿐인데, 검사를 건너뛰면 곧 꺼질 타일을 가로질러 간다.
+                //
+                //   하필 이 이동은 <b>일부러 구멍 근처로</b> 간다(각이 나오는 자리를 찾으므로).
+                //   가장 위험한 경로에만 검사가 빠져 있던 셈이다.
+                //   타일은 붕괴가 시작되고도 2.0초(collapseDelay) 동안 바닥이 남아 있고
+                //   NavMesh는 그 뒤에야 잘리므로, 그 창에서는 검사만이 유일한 방어다.
                 ai.ApplyStateSpeed();
-                return true;
+                if (TrySetSafePath(hit.position))
+                    return true;
             }
         }
 
