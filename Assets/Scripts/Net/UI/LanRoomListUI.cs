@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace JellyNet
@@ -29,14 +29,28 @@ namespace JellyNet
         [SerializeField] private float emptyHintDelay = 2.5f;
 
         private readonly List<LanRoomRow> rows = new List<LanRoomRow>();
+
+        //매 갱신마다 새로 만들면 초당 4개씩 쓰레기가 쌓인다. 담을 그릇은 하나만 둔다
+        private readonly List<RoomHandle> list = new List<RoomHandle>();
+
         private float timer;
         private int lastCount = -1;
         private float searchElapsed;
 
+        private static INetSession Session
+        {
+            get { return NetManager.Instance != null ? NetManager.Instance.Session : null; }
+        }
+
         private void OnEnable()
         {
-            if (LanDiscovery.Instance != null)
-                LanDiscovery.Instance.StartListening();
+            INetSession s = Session;
+            if (s != null)
+            {
+                s.StartBrowsing();
+                s.OnRoomListChanged += Refresh;
+            }
+
             lastCount = -1;
             searchElapsed = 0f;
             Refresh();
@@ -44,11 +58,19 @@ namespace JellyNet
 
         private void OnDisable()
         {
-            if (LanDiscovery.Instance != null)
-                LanDiscovery.Instance.StopListening();
+            INetSession s = Session;
+            if (s != null)
+            {
+                s.OnRoomListChanged -= Refresh;
+                s.StopBrowsing();
+            }
+
             ClearRows();
         }
 
+        //바뀔 때마다 OnRoomListChanged로 곧바로 그리지만, 주기 갱신도 남겨둔다.
+        //Refresh는 몇 번을 불러도 같은 결과라 겹쳐도 문제가 없고,
+        //알림이 오지 않는 경우에도 목록이 굳지 않는다
         private void Update()
         {
             searchElapsed += Time.unscaledDeltaTime;
@@ -62,11 +84,13 @@ namespace JellyNet
 
         private void Refresh()
         {
-            LanDiscovery d = LanDiscovery.Instance;
-            if (d == null || container == null || rowPrefab == null)
+            INetSession s = Session;
+            if (s == null || container == null || rowPrefab == null)
                 return;
 
-            List<LanDiscovery.RoomInfo> list = new List<LanDiscovery.RoomInfo>(d.Rooms);
+            list.Clear();
+            foreach (RoomHandle r in s.Rooms)
+                list.Add(r);
 
             if (list.Count == lastCount && rows.Count == list.Count)
             {
@@ -113,10 +137,10 @@ namespace JellyNet
             lastCount = -1;
         }
 
-        private void OnPick(LanDiscovery.RoomInfo r)
+        private void OnPick(RoomHandle r)
         {
             if (LanLobby.Instance != null)
-                LanLobby.Instance.JoinRoom(r.Ip, r.Port);
+                LanLobby.Instance.JoinRoom(r);
         }
     }
 }

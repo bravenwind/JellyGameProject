@@ -15,20 +15,19 @@ namespace JellyNet
     {
         private readonly LanTransport transport;
 
-        //지금 쓰는 값. 인스펙터의 기본값에서 출발해 방을 만들거나 참가할 때 갱신된다
+        //지금 쓰는 포트. 인스펙터의 기본값에서 출발해 방을 만들 때 갱신된다.
+        //참가할 때 쓰는 주소는 고른 방(RoomHandle)에서 나오므로 따로 들고 있지 않는다
         private int port;
-        private string joinIp;
 
         public event Action OnRoomListChanged;
         public event Action<string> OnFailed;
 
         public bool IsLocal { get { return true; } }
 
-        public LanSession(LanTransport transport, int defaultPort, string defaultJoinIp)
+        public LanSession(LanTransport transport, int defaultPort)
         {
             this.transport = transport;
             port = defaultPort;
-            joinIp = defaultJoinIp;
 
             //방이 닫히면 알리기도 멈춘다. 호출부가 따로 기억해야 하는 일로 두면
             //취소 경로 하나를 빠뜨렸을 때 없는 방이 목록에 계속 떠 있게 된다
@@ -69,26 +68,15 @@ namespace JellyNet
                 return false;
             }
 
-            joinIp = ip;
             port = p;
 
-            if (!transport.JoinHost(joinIp, port))
+            if (!transport.JoinHost(ip, port))
             {
                 Fail(transport.LastError);
                 return false;
             }
 
             return true;
-        }
-
-        /// <summary>목록을 거치지 않고 주소를 직접 아는 경우(직접 입력·재접속).</summary>
-        public RoomHandle HandleFor(string ip, int p)
-        {
-            return new RoomHandle
-            {
-                Id = ip + ":" + p,
-                Address = ip + ":" + p
-            };
         }
 
         //Id 는 LAN 에서 "ip:port" 다. 마지막 ':' 로 자른다 — IPv6 는 콜론이 여러 개다

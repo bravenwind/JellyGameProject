@@ -24,12 +24,20 @@ namespace JellyNet
         [Tooltip("0 = absorb, 1 = push")]
         [SerializeField] private TMP_Dropdown modeDropdown;
         [SerializeField] private TMP_InputField portInput;
+
+        // ★ 온라인 모드가 붙었을 때를 위한 자리 — 지금은 비워둬도 아무 일도 안 일어난다
+        //   포트는 같은 랜에서 직접 붙을 때만 뜻이 있다. 온라인은 릴레이가 주소를 정하므로
+        //   입력칸이 남아 있으면 "여기 뭘 넣어야 하나"가 된다.
+        //   라벨까지 같이 숨겨야 하므로 입력칸 하나가 아니라 그 줄 전체를 받는다.
+        //   씬에서 포트 라벨+입력칸을 감싸는 오브젝트를 여기 꽂으면 로컬 모드에서만 보인다.
+        [Tooltip("포트 라벨과 입력칸을 감싸는 오브젝트. 로컬(LAN) 세션에서만 보인다. 비워두면 항상 보인다.")]
+        [SerializeField] private GameObject localOnlyGroup;
         [SerializeField] private TMP_InputField totalPlayersInput;
         [SerializeField] private TMP_InputField aiCountInput;
         [SerializeField] private TMP_Text roomSettingWarningText;
 
         //주소를 직접 입력하지 않는다. 이 패널 안에서 LanRoomListUI가 같은 대역의 방 목록을 띄우고,
-        //방을 고르면 LanRoomListUI.OnPick → JoinRoom(ip, port)로 들어온다
+        //방을 고르면 LanRoomListUI.OnPick → JoinRoom(RoomHandle)로 들어온다
         [Header("Join Room UI")]
         [SerializeField] private RectTransform joinPanel;
 
@@ -408,7 +416,21 @@ namespace JellyNet
 
         public void OnClickCreateRoom()
         {
+            ApplyLocalOnlyVisibility();
             Pop(hostOptionPanel, popDelay);
+        }
+
+        //세션이 로컬인지에 따라 로컬 전용 입력을 보이고 숨긴다.
+        //꽂아둔 게 없으면 아무것도 하지 않는다 — 지금(LAN 전용)은 그래도 맞다
+        private void ApplyLocalOnlyVisibility()
+        {
+            if (localOnlyGroup == null)
+                return;
+
+            NetManager net = NetManager.Instance;
+            bool local = net == null || net.Session == null || net.Session.IsLocal;
+
+            localOnlyGroup.SetActive(local);
         }
 
         public void OnClickJoinRoom()
@@ -483,16 +505,6 @@ namespace JellyNet
             OpenMatching(MATCHING_LABEL);
         }
 
-        //방 목록 UI가 아직 ip/port 로 말한다. 4단계에서 UI가 RoomHandle 을 넘기면 지운다
-        public void JoinRoom(string ip, int port)
-        {
-            NetManager net = NetManager.Instance;
-            LanSession session = net != null ? net.Session as LanSession : null;
-            if (session == null)
-                return;
-
-            JoinRoom(session.HandleFor(ip, port));
-        }
 
         //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
         //양쪽 다 "판이 차기를 기다린다"는 같은 상태이므로 문구도 하나로 둔다

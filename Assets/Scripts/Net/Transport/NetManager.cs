@@ -15,8 +15,11 @@ namespace JellyNet
         //로비의 포트 입력이 방을 만들 때 덮어쓰고, 참가는 고른 방의 주소를 따른다.
         //인스펙터에 남겨두는 건 "아무것도 안 정했을 때의 출발점"이기 때문이다
         [SerializeField] private int port = NetConfig.DEFAULT_PORT;
-        [SerializeField] private string joinIp = "127.0.0.1";
         [SerializeField] private int maxLogLines = 200;
+
+        //joinIp 를 걷어냈다. 붙을 주소는 언제나 목록에서 고른 방(RoomHandle)에서 나오고,
+        //주소를 손으로 넣는 화면은 없다. 남겨두면 "인스펙터의 저 IP 는 뭐지"가 된다
+        //(씬에 남은 joinIp 키는 다음 저장 때 유니티가 알아서 버린다)
 
         //LAN 전용 진입점(StartHost/JoinHost)이 필요해 구체 타입도 함께 들고 있다.
         //3단계에서 방 만들기·참가가 INetSession 으로 넘어가면 transport 하나만 남는다
@@ -123,7 +126,7 @@ namespace JellyNet
             lan.OnError = msg => Debug.LogError("[NetManager] " + msg);
             transport = lan;
 
-            lanSession = new LanSession(lan, port, joinIp);
+            lanSession = new LanSession(lan, port);
 
             //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다
             transport.OnPeerJoined += RaisePeerJoined;
