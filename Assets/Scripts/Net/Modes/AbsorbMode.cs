@@ -316,14 +316,14 @@ namespace JellyNet
             {
                 int jellyNetId = r.ReadInt();
                 int eaterNetId = r.ReadInt();
-                ResolveEat(from.Id, jellyNetId, eaterNetId);
+                ResolveEat(from, jellyNetId, eaterNetId);
             });
 
             Net.RouteHost(MsgType.AbsorbPlayerRequest, (from, r) =>
             {
                 int victimNetId = r.ReadInt();
                 int absorberNetId = r.ReadInt();
-                ResolveAbsorbPlayer(from.Id, victimNetId, absorberNetId);
+                ResolveAbsorbPlayer(from, victimNetId, absorberNetId);
             });
 
             Net.RouteClient(MsgType.EatJellyConfirm, r =>

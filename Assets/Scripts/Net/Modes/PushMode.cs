@@ -79,7 +79,7 @@ namespace JellyNet
             {
                 int victimNetId = r.ReadInt();
                 int attackerNetId = r.ReadInt();
-                ResolveBatHit(from.Id, victimNetId, attackerNetId);
+                ResolveBatHit(from, victimNetId, attackerNetId);
             });
 
             Net.RouteClient(MsgType.KilledBy, r => LanSpectator.ReportKiller(r.ReadInt()));
@@ -198,14 +198,11 @@ namespace JellyNet
                 return;
             }
 
-            NetHost.Peer target = NetManager.Instance.Host.FindPeer(victim.OwnerId);
-            if (target == null)
-                return;
-
+            //OwnerId가 곧 접속자 번호다. 그 사이에 나갔으면 SendTo가 조용히 버린다
             w.Begin(MsgType.KilledBy);
             w.WriteInt(killerNetId);
             w.End();
-            NetManager.Instance.Host.SendTo(target, w);
+            NetManager.Instance.Host.SendTo(victim.OwnerId, w);
         }
 
 
@@ -219,17 +216,13 @@ namespace JellyNet
                 return;
             }
 
-            NetHost.Peer target = net.Host.FindPeer(victim.OwnerId);
-            if (target == null)
-                return;
-
             w.Begin(MsgType.Knockback);
             w.WriteInt(victim.NetId);
             w.WriteFloat(dir.x);
             w.WriteFloat(dir.z);
             w.WriteFloat(force);
             w.End();
-            net.Host.SendTo(target, w);
+            net.Host.SendTo(victim.OwnerId, w);
         }
 
         private void ApplyKnockbackLocal(int victimNetId, Vector3 dir, float force)

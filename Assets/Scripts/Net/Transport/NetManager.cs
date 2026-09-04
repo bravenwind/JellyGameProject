@@ -59,8 +59,8 @@ namespace JellyNet
 
         private readonly List<string> log = new List<string>();
         public event Action OnHostStarted;
-        public event Action<NetHost.Peer> OnPeerJoined;
-        public event Action<NetHost.Peer> OnPeerLeft;
+        public event Action<int> OnPeerJoined;
+        public event Action<int> OnPeerLeft;
         public event Action OnDisconnected;
 
         //호스트가 강제 종료 등으로 사라진 경우. 정상 종료(Shutdown)와 구분해야
@@ -207,14 +207,14 @@ namespace JellyNet
                 OnDisconnected?.Invoke();
         }
 
-        private void RaisePeerJoined(NetHost.Peer peer)
+        private void RaisePeerJoined(int peerId)
         {
-            OnPeerJoined?.Invoke(peer);
+            OnPeerJoined?.Invoke(peerId);
         }
 
-        private void RaisePeerLeft(NetHost.Peer peer)
+        private void RaisePeerLeft(int peerId)
         {
-            OnPeerLeft?.Invoke(peer);
+            OnPeerLeft?.Invoke(peerId);
         }
 
         // ─────────────────────────────────────────────────────────
@@ -233,14 +233,14 @@ namespace JellyNet
         //
         //   타입당 주인을 하나로 못 박으면 셋 다 사라진다. 중복 등록은 그 자리에서
         //   에러로 잡히고, 주인 없는 타입은 로그에 남는다.
-        private readonly Dictionary<MsgType, Action<NetHost.Peer, NetReader>> hostRoutes
-            = new Dictionary<MsgType, Action<NetHost.Peer, NetReader>>();
+        private readonly Dictionary<MsgType, Action<int, NetReader>> hostRoutes
+            = new Dictionary<MsgType, Action<int, NetReader>>();
 
         private readonly Dictionary<MsgType, Action<NetReader>> clientRoutes
             = new Dictionary<MsgType, Action<NetReader>>();
 
-        /// <summary>클라가 호스트로 보낸 메시지 한 종류의 처리를 맡는다.</summary>
-        public void RouteHost(MsgType type, Action<NetHost.Peer, NetReader> handler)
+        /// <summary>클라가 호스트로 보낸 메시지 한 종류의 처리를 맡는다. 첫 인자는 보낸 사람의 번호다.</summary>
+        public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
             if (handler == null)
                 return;
@@ -283,12 +283,12 @@ namespace JellyNet
             clientRoutes.Remove(type);
         }
 
-        private void RaiseHostMessage(NetHost.Peer peer, MsgType type, NetReader reader)
+        private void RaiseHostMessage(int peerId, MsgType type, NetReader reader)
         {
-            Action<NetHost.Peer, NetReader> route;
+            Action<int, NetReader> route;
             if (hostRoutes.TryGetValue(type, out route))
             {
-                route(peer, reader);
+                route(peerId, reader);
                 return;
             }
 

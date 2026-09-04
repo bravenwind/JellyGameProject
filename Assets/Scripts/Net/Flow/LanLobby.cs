@@ -576,7 +576,7 @@ namespace JellyNet
         }
 
 
-        private void HandlePeerChanged(NetHost.Peer peer)
+        private void HandlePeerChanged(int peerId)
         {
             UpdatePlayerCountUI();
             PlayJoinPop();

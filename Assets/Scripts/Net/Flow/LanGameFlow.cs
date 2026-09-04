@@ -233,12 +233,12 @@ namespace JellyNet
             net.UnrouteClient(MsgType.GameOver);
         }
 
-        private void HandleEliminateRequest(NetHost.Peer from, NetReader r)
+        private void HandleEliminateRequest(int from, NetReader r)
         {
             int netId = r.ReadInt();
 
             NetIdentity id = NetWorld.Instance != null ? NetWorld.Instance.Find(netId) : null;
-            if (id == null || id.OwnerId != from.Id)
+            if (id == null || id.OwnerId != from)
                 return;
 
             HostConfirmEliminated(netId);
@@ -293,10 +293,10 @@ namespace JellyNet
             SetPhaseLocal(GamePhase.Loading);
         }
 
-        private void HandlePeerJoined(NetHost.Peer peer)
+        private void HandlePeerJoined(int peerId)
         {
             WritePhase(Phase, Remaining);
-            NetManager.Instance.Host.SendTo(peer, writer);
+            NetManager.Instance.Host.SendTo(peerId, writer);
         }
 
         private void Update()

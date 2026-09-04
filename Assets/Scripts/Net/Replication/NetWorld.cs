@@ -193,13 +193,13 @@ namespace JellyNet
         //연결되자마자 스냅샷을 쏘면 클라는 아직 로비라 NetWorld가 없어 그대로 버려지고,
         //나중에 SceneReady로 한 번 더 스폰돼 캐릭터가 둘 생긴다.
         //LAN은 한 판의 인원이 로비에서 확정되므로 도중 난입 경로는 아예 두지 않는다.
-        private void HandleSceneReady(NetHost.Peer peer)
+        private void HandleSceneReady(int peerId)
         {
-            SendWorldSnapshot(peer);
-            SpawnForOwner(peer.Id);
+            SendWorldSnapshot(peerId);
+            SpawnForOwner(peerId);
         }
 
-        private void SendWorldSnapshot(NetHost.Peer peer)
+        private void SendWorldSnapshot(int peerId)
         {
             foreach (var kv in objects)
             {
@@ -209,13 +209,13 @@ namespace JellyNet
                     continue;
 
                 WriteSpawn(id.NetId, id.PrefabId, id.OwnerId, id.transform.position);
-                NetManager.Instance.Host.SendTo(peer, w);
+                NetManager.Instance.Host.SendTo(peerId, w);
 
                 LanPlayerState ps = id.PlayerState;
                 if (ps != null)
                 {
                     WritePlayerState(id.NetId, ps.Score, (byte)ps.Flags, ps.DisplayColor);
-                    NetManager.Instance.Host.SendTo(peer, w);
+                    NetManager.Instance.Host.SendTo(peerId, w);
 
                     if (!string.IsNullOrEmpty(ps.PlayerName))
                     {
@@ -223,7 +223,7 @@ namespace JellyNet
                         w.WriteInt(id.NetId);
                         w.WriteString(ps.PlayerName);
                         w.End();
-                        NetManager.Instance.Host.SendTo(peer, w);
+                        NetManager.Instance.Host.SendTo(peerId, w);
                     }
                 }
             }
@@ -233,15 +233,15 @@ namespace JellyNet
                 w.Begin(MsgType.DespawnEntity);
                 w.WriteInt(removedSceneIds[i]);
                 w.End();
-                NetManager.Instance.Host.SendTo(peer, w);
+                NetManager.Instance.Host.SendTo(peerId, w);
             }
         }
 
-        private void HandlePeerLeft(NetHost.Peer peer)
+        private void HandlePeerLeft(int peerId)
         {
             List<int> toRemove = new List<int>();
             foreach (var kv in objects)
-                if (kv.Value.OwnerId == peer.Id)
+                if (kv.Value.OwnerId == peerId)
                     toRemove.Add(kv.Key);
 
             for (int i = 0; i < toRemove.Count; i++)
@@ -309,7 +309,7 @@ namespace JellyNet
             }
         }
 
-        public void RelayAnimState(NetHost.Peer from, int netId, byte kind, byte value)
+        public void RelayAnimState(int from, int netId, byte kind, byte value)
         {
             if (!NetManager.Instance.IsHost)
                 return;
@@ -405,7 +405,7 @@ namespace JellyNet
         }
 
         //클라가 보낸 메시지는 전부 "주장"이다. 어느 경로든 소유권 확인을 통과해야 반영된다.
-        //from.Id는 소켓에서 나와 위조할 수 없고, 메시지 본문의 netId는 위조할 수 있다
+        //from(보낸 사람 번호)은 전송 계층이 붙이는 값이라 위조할 수 없고, 메시지 본문의 netId는 위조할 수 있다
         private void RegisterRoutes(NetManager net)
         {
             // ── 호스트가 받는 것 (클라의 '주장') ──
@@ -420,7 +420,7 @@ namespace JellyNet
                 byte value = r.ReadByte();
 
                 NetIdentity id = Find(netId);
-                if (id != null && id.OwnerId == from.Id)
+                if (id != null && id.OwnerId == from)
                     RelayAnimState(from, netId, kind, value);
             });
 
@@ -435,7 +435,7 @@ namespace JellyNet
                     return;
 
                 //이게 없으면 남의 netId로 위치를 보내 순간이동시킬 수 있다
-                if (id.OwnerId != from.Id)
+                if (id.OwnerId != from)
                     return;
 
                 Vector3 pos = new Vector3(x, y, z);
@@ -589,7 +589,7 @@ namespace JellyNet
         }
 
         //이름은 사람 캐릭터 하나에만 붙인다. break가 없으면 그 사람 소유의 봇까지 같은 이름이 된다
-        private void HostApplyName(NetHost.Peer from, string name)
+        private void HostApplyName(int from, string name)
         {
             if (string.IsNullOrEmpty(name))
                 return;
@@ -603,7 +603,7 @@ namespace JellyNet
             for (int i = 0; i < players.Count; i++)
             {
                 LanPlayerState ps = players[i];
-                if (ps == null || ps.OwnerId != from.Id)
+                if (ps == null || ps.OwnerId != from)
                     continue;
 
                 ps.HostSetName(name);
