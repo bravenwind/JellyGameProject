@@ -943,7 +943,11 @@ public class TileCollapseManager : MonoBehaviour
                     continue;
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
-                if (IsPositionDangerous(tileCenter))
+
+                //목적지는 '지나갈 곳'이 아니라 <b>서 있을 곳</b>이라 발밑 잣대로 거른다.
+                //경로 잣대로 거르면 이미 발밑 위험인 칸이 통과해, 도착하자마자 다시
+                //도망가는 왕복이 생긴다
+                if (IsFootingUnsafe(tileCenter))
                     continue;
 
                 float distanceFromThreat = Vector3.Distance(tileCenter, threatPos);
@@ -981,8 +985,28 @@ public class TileCollapseManager : MonoBehaviour
     ///   <b>상대는 붙잡아 두고 발판만 갈아타야</b> 하기 때문이다.
     ///   기준이 하나 더 필요할 때마다 이 함수를 복사하는 대신 점수를 밖에서 받는다.
     /// </summary>
+    /// <summary>
+    /// 이 칸이 무너지기까지 남은 걸음. 이미 무너지는 중이거나 격자 밖이면 0.
+    /// "어느 칸이 그나마 오래 버티나"를 비교할 때 쓴다.
+    /// </summary>
+    public int StepsRemaining(Vector3 worldPos)
+    {
+        if (stepX == 0f || stepZ == 0f)
+            return 0;
+
+        int x = Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX);
+        int z = Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ);
+
+        if (x < 0 || x >= width || z < 0 || z >= height || tiles[x, z] == null)
+            return 0;
+
+        tileStepCounts.TryGetValue(CellKey(x, z), out int count);
+        return Mathf.Max(0, DataManager.Instance.StepTileStepsToCollapse - count);
+    }
+
     public bool FindBestFooting(Vector3 worldPos, int searchRadiusCells,
-                                System.Func<Vector3, float> score, out Vector3 best)
+                                System.Func<Vector3, float> score, out Vector3 best,
+                                bool requireSafeFooting = true)
     {
         best = Vector3.zero;
         if (stepX == 0f || stepZ == 0f || score == null)
@@ -1011,7 +1035,7 @@ public class TileCollapseManager : MonoBehaviour
                     continue;
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
-                if (IsFootingUnsafe(tileCenter))
+                if (requireSafeFooting && IsFootingUnsafe(tileCenter))
                     continue;
 
                 float value = score(tileCenter);
@@ -1068,7 +1092,8 @@ public class TileCollapseManager : MonoBehaviour
 
                     Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                    if (avoidDangerous && IsPositionDangerous(tileCenter))
+                    //여기도 '서 있을 곳'이므로 발밑 잣대다
+                    if (avoidDangerous && IsFootingUnsafe(tileCenter))
                         continue;
 
                     // 제곱거리로 비교한다. 크기 순서는 같고 제곱근을 뽑지 않아도 된다.

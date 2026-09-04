@@ -134,7 +134,17 @@ public class AIPushSurviveState : AIBaseState
             escapeCandidateCount = 0;
             AddEscapeCandidate(collapse.FindEscapeTile(ai.transform.position, threat, out Vector3 a), a);
             AddEscapeCandidate(collapse.FindNearestSafeTile(ai.transform.position, out Vector3 b, avoidDangerous: true), b);
-            AddEscapeCandidate(collapse.FindNearestSafeTile(ai.transform.position, out Vector3 c, avoidDangerous: false), c);
+            // ★ 마지막 후보는 '가장 가까운 칸'이면 안 된다
+            //   FindNearestSafeTile(avoidDangerous: false)는 필터 없이 최단거리를 고른다.
+            //   사방이 닳았을 때 가장 가까운 칸은 대개 <b>한 번 더 밟으면 무너질 칸</b>이라,
+            //   도착하는 순간 발자국이 그 칸을 밟아 붕괴가 시작되고 봇은 또 도망친다.
+            //   "무너지는 타일과 한 번 더 밟으면 무너질 타일 사이를 왕복하다 죽는다"가 이것이다.
+            //   설 곳이 마땅치 않을수록 <b>그나마 오래 버틸 칸</b>을 골라야 한다.
+            lastResortFromPos = ai.transform.position;
+            lastResortScorer ??= ScoreLastResortTile;
+            AddEscapeCandidate(
+                collapse.FindBestFooting(lastResortFromPos, LAST_RESORT_CELLS,
+                                         lastResortScorer, out Vector3 c, requireSafeFooting: false), c);
 
             if (escapeCandidateCount == 0)
                 return;
@@ -532,6 +542,24 @@ public class AIPushSurviveState : AIBaseState
             escapeCandidates[escapeCandidateCount++] = pos;
     }
 
+    //최후 폴백에서 훑을 반경
+    private const int LAST_RESORT_CELLS = 3;
+
+    private Vector3 lastResortFromPos;
+    private System.Func<Vector3, float> lastResortScorer;
+
+    //남은 걸음이 많을수록 좋고, 멀수록 감점. 걸음 하나가 거리 한 칸보다 값지다
+    private float ScoreLastResortTile(Vector3 tileCenter)
+    {
+        var collapse = TileCollapseManager.Instance;
+        int remaining = collapse != null ? collapse.StepsRemaining(tileCenter) : 0;
+
+        return remaining * StepsRemainingWeight - Vector3.Distance(tileCenter, lastResortFromPos);
+    }
+
+    //"버티는 걸음 하나"가 "1m 더 뛰는 것"의 몇 배 가치인가. 타일이 14m라 그보다 크게 둔다
+    private const float StepsRemainingWeight = 20f;
+
     /// <summary>후보들을 순서대로 시도한다. 하나라도 경로가 깔리면 true.</summary>
     private bool TryEscapeToAny(bool allowDangerousCrossing)
     {
@@ -658,7 +686,14 @@ public class AIPushSurviveState : AIBaseState
         // 이미 경로를 따라 이동 중이면 목적지 도착/경로 소실 전까진 그대로 둔다.
         if (ai.Agent.pathPending)
             return;
-        if (ai.Agent.hasPath && ai.Agent.remainingDistance > ai.Agent.stoppingDistance + 0.5f)
+
+        // ★ 도착하기 <b>전에</b> 다음 목적지를 잡는다 — 그래야 안 멈춘다
+        //   예전엔 남은 거리가 stoppingDistance + 0.5m(=0.8m) 아래로 떨어져야 다음
+        //   목적지를 골랐다. 그런데 에이전트는 stoppingDistance 근처에서 이미 감속해
+        //   거의 서고, 그 뒤에 새 경로가 깔린다. 목적지마다 한 번씩 서는 셈이라
+        //   봇이 '가다 서다'를 반복하는 것처럼 보였다.
+        //   조금 남았을 때 미리 다음 다리를 이어 붙이면 속도를 잃지 않는다.
+        if (ai.Agent.hasPath && ai.Agent.remainingDistance > WANDER_RETARGET_DISTANCE)
             return;
 
         ai.ApplyStateSpeed();
@@ -687,6 +722,9 @@ public class AIPushSurviveState : AIBaseState
             && NavMesh.SamplePosition(spot, out NavMeshHit fallbackHit, 5f, ai.NavFilter))
             TrySetEscapePath(fallbackHit.position, allowDangerousCrossing: false);
     }
+
+    //남은 거리가 이보다 짧아지면 다음 목적지를 미리 잡는다. 감속 구간보다 넉넉해야 한다
+    private const float WANDER_RETARGET_DISTANCE = 3f;
 
     //배회 폴백에서 훑을 반경. 한 칸 옆이면 충분하다 — 멀리 갈 이유가 없다
     private const int WANDER_FALLBACK_CELLS = 1;
