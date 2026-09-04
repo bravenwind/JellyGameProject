@@ -195,16 +195,16 @@ public class GameResultManager : MonoBehaviour
             if (prefab == null)
                 continue;
 
-            // 여기서 pos는 X, Z 위치만 중요해지고, Y는 바닥 보정에 쓰임
-            GameObject go = InstantiateDisplayOnly(prefab, positions[i], Quaternion.identity);
+            // pos는 X·Z 자리이고, Y는 바닥 높이로 쓰인다
+            GameObject go = Instantiate(prefab, positions[i], Quaternion.identity);
             go.transform.Rotate(new Vector3(0, 180, 0)); // 카메라 정면을 보도록 180도 회전
 
-            // 1. 크기 적용 (Scale을 먼저 키워야 bounds가 제대로 갱신됨)
+            //바닥 정렬보다 먼저 키운다 — BottomTransform의 월드 높이가 크기에 따라 달라진다
             go.transform.localScale = Vector3.one * entry.scale;
-            go.SetActive(true);
+
+            ApplyBatVisibility(go);
             GroundToFloor(go, positions[i].y);
             SetupNameTag(go, entry.name);
-
             ApplyJellyColor(go, entry.color);
 
             jellies.Add(go);
@@ -212,71 +212,38 @@ public class GameResultManager : MonoBehaviour
         }
     }
 
-    private GameObject InstantiateDisplayOnly(GameObject prefab, Vector3 pos, Quaternion rot)
+    // ★ '인게임 프리팹을 런타임에 분해하기'를 걷어냈다
+    //   예전엔 NetworkPlayer_Bear / AIPlayer_Bear를 그대로 가져와, <b>비활성 상태로
+    //   Instantiate해 Awake를 막고</b> 그 틈에 컴포넌트 일곱 종을 DestroyImmediate로
+    //   뜯어낸 뒤 켰다. 콜라이더·Rigidbody·Cloth는 하나씩 꺼서 재웠다.
+    //
+    //   문제는 그 목록이 <b>인게임 프리팹을 따라다녀야 했다</b>는 것이다. 프리팹에
+    //   컴포넌트가 하나 늘면 여기도 한 줄 늘려야 하는데, 늘리는 걸 잊으면 아무 신호
+    //   없이 결과 화면까지 따라온다. 실제로 LevelUpFloaterPool이 목록에 없어서 결과
+    //   젤리마다 성장 팝업 풀이 딸려 왔다. 그리고 씬을 보는 사람은 프리팹에 무엇이
+    //   붙어 있는지로는 결과 화면에 무엇이 도는지 알 수 없었다.
+    //
+    //   지금은 NetworkPlayer_Bear_Result / AIPlayer_Bear_Result 가 결과 화면에 필요한
+    //   것만 들고 있다. 코드는 낳아서 놓고, 모드에 따라 달라지는 것 하나(배트)만 정한다.
+
+    private const string BatPivotName = "BatPivot";
+
+    /// <summary>
+    /// 배트는 밀치기 모드에서만 보인다. <b>프리팹의 초기 상태와 무관하게</b> 여기서 정한다 —
+    /// 두 결과 프리팹의 BatPivot 초기값이 서로 달랐고(사람 꺼짐/봇 켜짐), 그대로 두면
+    /// 같은 판에서 사람만 맨손이고 봇만 배트를 든 그림이 나온다.
+    ///
+    /// ★ 예전엔 PlayerMovement.BatPivot / AIPlayerMovement.BatPivot을 타고 들어갔다
+    ///   그 둘은 결과 전용 프리팹에서 빠졌으므로 더는 길이 없다. BottomTransform·
+    ///   TopTransform과 같이 <b>이름으로</b> 찾는다 — 셋 다 루트의 직계 자식이다.
+    /// </summary>
+    private static void ApplyBatVisibility(GameObject go)
     {
-        bool wasActive = prefab.activeSelf;
-        prefab.SetActive(false);
-        GameObject go = Instantiate(prefab, pos, rot);
-        prefab.SetActive(wasActive);
+        Transform bat = go.transform.Find(BatPivotName);
+        if (bat == null)
+            return;
 
-        // 흡수 모드에서는 방망이(배트)를 숨긴다(밀치기 모드는 그대로 표시).
-        // 반드시 인스턴스(go)에 적용한다 — 공유 프리팹을 건드리면 변경이 Resources
-        // 캐시에 남아 다음 매치까지 누수된다. PlayerMovement/AIPlayerMovement는
-        // 바로 아래 Strip에서 제거되므로, 그 전에 batPivot을 끈다.
-        if (GameState.CurrentGameMode == GameModeType.Absorb)
-            HideBat(go);
-
-        // 비활성 상태 → 모든 Awake 미실행. 문제 컴포넌트를 즉시 제거.
-        StripNetworkingAndGameplay(go);
-        return go;
-    }
-
-    // 결과 젤리 인스턴스의 방망이(배트)를 숨긴다. PlayerMovement/AIPlayerMovement의
-    // batPivot은 인게임 로직(AIPlayerMovement.UpdateBatVisibility 등)도 null 가드를
-    // 두므로 동일하게 미할당을 안전 처리한다.
-    private static void HideBat(GameObject go)
-    {
-        var pm = go.GetComponent<PlayerMovement>();
-        if (pm != null && pm.BatPivot != null)
-            pm.BatPivot.gameObject.SetActive(false);
-
-        var ai = go.GetComponent<AIPlayerMovement>();
-        if (ai != null && ai.BatPivot != null)
-            ai.BatPivot.gameObject.SetActive(false);
-    }
-
-    private void StripNetworkingAndGameplay(GameObject root)
-    {
-        DestroyAll<AIPlayerMovement>(root);
-        DestroyAll<WanderingAI>(root);
-        DestroyAll<PlayerMovement>(root);
-        DestroyAll<PlayerAbsorber>(root);
-        DestroyAll<LocalOwnerFeedback>(root);
-        DestroyAll<NavMeshAgent>(root);
-
-        // PlayerColorVisual.Start가 색을 흰색으로 덮어쓰지 않도록 미리 제거 → 우리가 직접 색 적용
-        DestroyAll<PlayerColorVisual>(root);
-
-        // Cloth를 DestroyImmediate하면 SkinnedMeshRenderer 데이터가 오염되므로 비활성화만
-        foreach (var sb in root.GetComponentsInChildren<SoftBody3D>(true))
-            sb.enabled = false;
-        foreach (var cloth in root.GetComponentsInChildren<Cloth>(true))
-            cloth.enabled = false;
-
-        foreach (var col in root.GetComponentsInChildren<Collider>(true))
-            col.enabled = false;
-
-        foreach (var rb in root.GetComponentsInChildren<Rigidbody>(true))
-        {
-            rb.isKinematic = true;
-            rb.useGravity = false;
-        }
-    }
-
-    private static void DestroyAll<T>(GameObject root) where T : Component
-    {
-        foreach (var c in root.GetComponentsInChildren<T>(true))
-            DestroyImmediate(c);
+        bat.gameObject.SetActive(GameState.CurrentGameMode == GameModeType.Push);
     }
 
     private static Renderer FindJellyRenderer(GameObject root)
