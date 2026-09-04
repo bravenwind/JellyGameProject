@@ -809,30 +809,40 @@ public class TileCollapseManager : MonoBehaviour
     /// </summary>
     public bool IsFootingUnsafe(Vector3 worldPos)
     {
-        return IsCellUnsafe(worldPos, FootingMargin, extraSteps: 0);
+        return IsCellUnsafe(worldPos, DataManager.Instance != null
+            ? DataManager.Instance.StepTileFootingMargin : 1, extraSteps: 0);
     }
 
     /// <summary>
-    /// 거기까지 <b>가서 서면</b> 발밑이 위험해지는가.
+    /// 거기 가서 선 <b>뒤에</b> 그 칸이 몇 걸음 더 버티는가. 클수록 좋은 목적지다.
+    /// 이미 무너지는 중이거나 격자 밖이면 -1 — 그건 순위가 아니라 <b>못 쓰는</b> 칸이다.
     ///
-    /// ★ 목적지는 이 잣대로 골라야 한다 — 도착 자체가 한 걸음이기 때문이다
-    ///   칸에 새로 들어서면 발자국이 그 칸을 밟아 마모가 1 오른다(WearTile).
-    ///   그런데 목적지 필터는 <b>지금</b> 값만 보고 있었다. 그래서 '한 걸음 뒤면
-    ///   위험해질 칸'이 후보로 통과했고, 봇은 거기까지 가서 도착하는 순간
-    ///   '발밑 위험'을 받아 또 도망쳤다. 겨우 옮겼는데 도착하자마자 다시 도망가는
-    ///   왕복이 여기서 나왔고, 그러다 점점 나쁜 칸으로 몰려 죽었다.
+    /// ★ 목적지는 거르는 게 아니라 <b>순위를 매기는</b> 것이다
+    ///   한때 WillFootingBeUnsafe라는 이진 필터를 만들어 목적지를 걸렀다. 그런데
+    ///   stepsToCollapse가 3이면 그 필터를 통과하는 건 <b>한 번도 안 밟힌 칸뿐</b>이라,
+    ///   후반에 후보가 거의 사라졌다. 쓸 만한 칸을 통째로 버린 것이다.
     ///
-    ///   흔들리는 붕괴중 칸과 '한 번 더 밟으면 무너질' 칸은 원래도 피하고 있었다.
-    ///   빠져 있던 건 <b>그 한 단계 앞</b>이다.
+    ///   실제로 못 쓰는 칸은 '이미 붕괴중'인 것 하나뿐이다. 나머지는 좋고 나쁨의
+    ///   문제다 — 안 밟힌 칸이 제일 좋고, 한 번 밟힌 칸이 그다음이고, 도착이 곧
+    ///   붕괴를 시작시키는 칸이 제일 나쁘다. <b>그래도 제자리보다는 낫다</b>
+    ///   (붕괴가 시작돼도 collapseDelay만큼은 바닥이 남는다).
+    ///   그러니 걸러내지 말고 이 값으로 줄을 세운다.
     /// </summary>
-    public bool WillFootingBeUnsafe(Vector3 worldPos)
+    public int StepsAfterArrival(Vector3 worldPos)
     {
-        return IsCellUnsafe(worldPos, FootingMargin, extraSteps: 1);
-    }
+        if (stepX == 0f || stepZ == 0f)
+            return 0;
 
-    private static int FootingMargin
-    {
-        get { return DataManager.Instance != null ? DataManager.Instance.StepTileFootingMargin : 1; }
+        int x = Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX);
+        int z = Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ);
+
+        if (x < 0 || x >= width || z < 0 || z >= height || tiles[x, z] == null)
+            return -1;   //못 쓰는 칸
+
+        tileStepCounts.TryGetValue(CellKey(x, z), out int count);
+
+        //도착이 한 걸음을 더한다(WearTile). 그 뒤로 몇 걸음이 남는가
+        return Mathf.Max(0, DataManager.Instance.StepTileStepsToCollapse - count - 1);
     }
 
     //세 판정의 공통 몸통. margin은 '붕괴까지 이만큼 남으면 위험',
@@ -969,8 +979,9 @@ public class TileCollapseManager : MonoBehaviour
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                //목적지는 '지나갈 곳'이 아니라 <b>서 있을 곳</b>이고, 도착 자체가 한 걸음이다
-                if (WillFootingBeUnsafe(tileCenter))
+                //못 쓰는 칸(이미 붕괴중)만 뺀다. 나머지는 아래 점수로 줄을 세운다
+                int stepsLeft = StepsAfterArrival(tileCenter);
+                if (stepsLeft < 0)
                     continue;
 
                 float distanceFromThreat = Vector3.Distance(tileCenter, threatPos);
@@ -982,7 +993,10 @@ public class TileCollapseManager : MonoBehaviour
                 //   1.5는 "위협에서 1m 더 멀어지는 것"이 "내가 1m 더 뛰는 것"보다
                 //   1.5배 가치 있다는 뜻이다. 1보다 작으면 코앞 칸만 골라 붙잡히고,
                 //   너무 크면 맵 반대편까지 무작정 뛴다.
-                float score = distanceFromThreat * ThreatDistanceWeight - distanceFromMe;
+                //버티는 걸음이 가장 무겁다 — 위협에서 좀 멀어져도 곧 꺼질 칸은 소용없다
+                float score = stepsLeft * SurvivalWeight
+                            + distanceFromThreat * ThreatDistanceWeight
+                            - distanceFromMe;
 
                 if (score > bestScore)
                 {
@@ -998,6 +1012,10 @@ public class TileCollapseManager : MonoBehaviour
 
     private const float ThreatDistanceWeight = 1.5f;
 
+    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
+    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
+    private const float SurvivalWeight = 40f;
+
     /// <summary>
     /// 주변 칸 중 <b>발밑이 안전하면서</b> 점수가 가장 높은 칸을 고른다.
     /// 어디로 갈지의 기준은 부르는 쪽이 정하고, 여기는 격자만 안다.
@@ -1008,28 +1026,8 @@ public class TileCollapseManager : MonoBehaviour
     ///   <b>상대는 붙잡아 두고 발판만 갈아타야</b> 하기 때문이다.
     ///   기준이 하나 더 필요할 때마다 이 함수를 복사하는 대신 점수를 밖에서 받는다.
     /// </summary>
-    /// <summary>
-    /// 이 칸이 무너지기까지 남은 걸음. 이미 무너지는 중이거나 격자 밖이면 0.
-    /// "어느 칸이 그나마 오래 버티나"를 비교할 때 쓴다.
-    /// </summary>
-    public int StepsRemaining(Vector3 worldPos)
-    {
-        if (stepX == 0f || stepZ == 0f)
-            return 0;
-
-        int x = Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX);
-        int z = Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ);
-
-        if (x < 0 || x >= width || z < 0 || z >= height || tiles[x, z] == null)
-            return 0;
-
-        tileStepCounts.TryGetValue(CellKey(x, z), out int count);
-        return Mathf.Max(0, DataManager.Instance.StepTileStepsToCollapse - count);
-    }
-
     public bool FindBestFooting(Vector3 worldPos, int searchRadiusCells,
-                                System.Func<Vector3, float> score, out Vector3 best,
-                                bool requireSafeFooting = true)
+                                System.Func<Vector3, float> score, out Vector3 best)
     {
         best = Vector3.zero;
         if (stepX == 0f || stepZ == 0f || score == null)
@@ -1058,7 +1056,8 @@ public class TileCollapseManager : MonoBehaviour
                     continue;
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
-                if (requireSafeFooting && WillFootingBeUnsafe(tileCenter))
+                //못 쓰는 칸만 뺀다. 좋고 나쁨은 부르는 쪽의 점수가 정한다
+                if (StepsAfterArrival(tileCenter) < 0)
                     continue;
 
                 float value = score(tileCenter);
@@ -1115,8 +1114,8 @@ public class TileCollapseManager : MonoBehaviour
 
                     Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                    //여기도 '서 있을 곳'이므로 도착이 더할 한 걸음까지 센다
-                    if (avoidDangerous && WillFootingBeUnsafe(tileCenter))
+                    //avoidDangerous는 "도착이 곧 붕괴를 시작시키는 칸은 빼자"는 뜻이다
+                    if (avoidDangerous && StepsAfterArrival(tileCenter) <= 0)
                         continue;
 
                     // 제곱거리로 비교한다. 크기 순서는 같고 제곱근을 뽑지 않아도 된다.

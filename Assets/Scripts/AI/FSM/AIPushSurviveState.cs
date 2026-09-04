@@ -103,8 +103,9 @@ public class AIPushSurviveState : AIBaseState
             //   흔들려도(상대가 움직이거나 옆 칸이 닳거나) 목적지가 바뀌어, 봇이
             //   방향을 계속 갈아타며 제자리에서 떤다.
             //   목적지가 아직 안전하고 거기 닿지 않았다면 다시 고를 이유가 없다.
+            //가던 목적지가 아직 쓸 만하면(붕괴중이 아니면) 그 길을 지킨다
             if (fleeing && ai.Agent.hasPath && !ReachedDestination()
-                && !collapse.WillFootingBeUnsafe(ai.Agent.destination))
+                && collapse.StepsAfterArrival(ai.Agent.destination) >= 0)
                 return;
 
             // ★ '발밑이 닳았다'와 '위협에서 도망친다'는 다른 사건이다
@@ -134,17 +135,9 @@ public class AIPushSurviveState : AIBaseState
             escapeCandidateCount = 0;
             AddEscapeCandidate(collapse.FindEscapeTile(ai.transform.position, threat, out Vector3 a), a);
             AddEscapeCandidate(collapse.FindNearestSafeTile(ai.transform.position, out Vector3 b, avoidDangerous: true), b);
-            // ★ 마지막 후보는 '가장 가까운 칸'이면 안 된다
-            //   FindNearestSafeTile(avoidDangerous: false)는 필터 없이 최단거리를 고른다.
-            //   사방이 닳았을 때 가장 가까운 칸은 대개 <b>한 번 더 밟으면 무너질 칸</b>이라,
-            //   도착하는 순간 발자국이 그 칸을 밟아 붕괴가 시작되고 봇은 또 도망친다.
-            //   "무너지는 타일과 한 번 더 밟으면 무너질 타일 사이를 왕복하다 죽는다"가 이것이다.
-            //   설 곳이 마땅치 않을수록 <b>그나마 오래 버틸 칸</b>을 골라야 한다.
-            lastResortFromPos = ai.transform.position;
-            lastResortScorer ??= ScoreLastResortTile;
-            AddEscapeCandidate(
-                collapse.FindBestFooting(lastResortFromPos, LAST_RESORT_CELLS,
-                                         lastResortScorer, out Vector3 c, requireSafeFooting: false), c);
+            //격자 끝까지 넓혀 가며 찾는 폴백 둘. 위 탐색은 반경 6칸 상자라
+            //그 안에 쓸 칸이 하나도 없을 때를 대비한다
+            AddEscapeCandidate(collapse.FindNearestSafeTile(ai.transform.position, out Vector3 c, avoidDangerous: false), c);
 
             if (escapeCandidateCount == 0)
                 return;
@@ -518,8 +511,11 @@ public class AIPushSurviveState : AIBaseState
 
         float score = -Mathf.Abs(distToTarget - repositionPreferredDist) - travel * TravelCostWeight;
 
-        //이 칸에서 밀면 상대가 떨어진다면 그쪽으로 돌아가는 값이 있다.
-        //가점을 거리 항보다 크게 둬야 "조금 멀어도 각이 나오는 칸"을 고른다
+        //발판을 갈아타려고 옮기는 것이므로 '거기서 몇 걸음 더 버티나'가 가장 무겁다.
+        //안 밟힌 칸 > 한 번 밟힌 칸 > 도착이 곧 붕괴인 칸 순으로 줄이 선다
+        score += SurvivalBonusPerStep * StepsAfterArrivalOf(tileCenter);
+
+        //이 칸에서 밀면 상대가 떨어진다면 그쪽으로 돌아가는 값이 있다
         if (HasPushOff(tileCenter, repositionTargetPos))
             score += PushOffBonus;
 
@@ -555,24 +551,6 @@ public class AIPushSurviveState : AIBaseState
         if (found && escapeCandidateCount < escapeCandidates.Length)
             escapeCandidates[escapeCandidateCount++] = pos;
     }
-
-    //최후 폴백에서 훑을 반경
-    private const int LAST_RESORT_CELLS = 3;
-
-    private Vector3 lastResortFromPos;
-    private System.Func<Vector3, float> lastResortScorer;
-
-    //남은 걸음이 많을수록 좋고, 멀수록 감점. 걸음 하나가 거리 한 칸보다 값지다
-    private float ScoreLastResortTile(Vector3 tileCenter)
-    {
-        var collapse = TileCollapseManager.Instance;
-        int remaining = collapse != null ? collapse.StepsRemaining(tileCenter) : 0;
-
-        return remaining * StepsRemainingWeight - Vector3.Distance(tileCenter, lastResortFromPos);
-    }
-
-    //"버티는 걸음 하나"가 "1m 더 뛰는 것"의 몇 배 가치인가. 타일이 14m라 그보다 크게 둔다
-    private const float StepsRemainingWeight = 20f;
 
     /// <summary>후보들을 순서대로 시도한다. 하나라도 경로가 깔리면 true.</summary>
     private bool TryEscapeToAny(bool allowDangerousCrossing)
@@ -664,8 +642,8 @@ public class AIPushSurviveState : AIBaseState
                 float a = baseAngle + sign * step * stepAngle;
                 Vector3 spot = targetPos + new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * standoff;
 
-                //거기 섰다가 같이 꺼지면 의미가 없다. 도착이 한 걸음을 더하는 것까지 센다
-                if (collapse.WillFootingBeUnsafe(spot))
+                //이미 붕괴중인 자리는 못 쓴다. 그 밖은 아래 첫 유효 후보가 곧 가장 가까운 자리다
+                if (collapse.StepsAfterArrival(spot) < 0)
                     continue;
 
                 if (requirePushOff && !collapse.HasPushOff(spot, targetPos, knockback))
@@ -770,7 +748,18 @@ public class AIPushSurviveState : AIBaseState
     //가까운 칸일수록 좋다. 목적은 '다른 칸으로 옮기는 것' 자체다
     private float ScoreWanderFallbackTile(Vector3 tileCenter)
     {
-        return -Vector3.Distance(tileCenter, wanderFromPos);
+        return SurvivalBonusPerStep * StepsAfterArrivalOf(tileCenter)
+             - Vector3.Distance(tileCenter, wanderFromPos);
+    }
+
+    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
+    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
+    private const float SurvivalBonusPerStep = 40f;
+
+    private static int StepsAfterArrivalOf(Vector3 tileCenter)
+    {
+        var collapse = TileCollapseManager.Instance;
+        return collapse != null ? Mathf.Max(0, collapse.StepsAfterArrival(tileCenter)) : 0;
     }
 
     // ═════════════════════════════════════════════════════════

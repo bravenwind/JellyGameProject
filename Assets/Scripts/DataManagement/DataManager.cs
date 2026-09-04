@@ -121,7 +121,7 @@ public class DataManager : MonoBehaviour
     public int StepTileDangerMargin { get { return stepTileDangerMargin; } }
 
     [Tooltip("서 있는 칸 판정: 붕괴까지 이만큼 남으면 '발밑이 위험'으로 본다. 위보다 크거나 같아야 한다.")]
-    [SerializeField] private int stepTileFootingMargin = 1;
+    [SerializeField] private int stepTileFootingMargin = 0;
     public int StepTileFootingMargin { get { return stepTileFootingMargin; } }
 
     [Header("카메라")]
