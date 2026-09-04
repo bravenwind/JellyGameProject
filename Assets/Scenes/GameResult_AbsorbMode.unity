@@ -74662,7 +74662,7 @@ MonoBehaviour:
   focusHoldDuration: 2.5
   overviewDistance: 100
   overviewHeight: 4
-  virtualCameraFov: 40
+  virtualCameraPrefab: {fileID: 8412770511903355203, guid: 21f92fe54e8d4bf3947ddf43d187975e, type: 3}
   curtainWaitTimeout: 6
   baseColor02Lightness: 0.6
   baseColor01Property: _BaseColor_01

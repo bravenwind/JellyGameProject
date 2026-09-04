@@ -49,8 +49,14 @@ public class GameResultManager : MonoBehaviour
     [SerializeField] private float overviewDistance = 12f;
     [Tooltip("오버뷰 카메라 높이")]
     [SerializeField] private float overviewHeight = 4f;
-    [Tooltip("가상 카메라 FoV")]
-    [SerializeField] private float virtualCameraFov = 40f;
+
+    // ★ FoV를 인스펙터에서 뺐다 — 이제 프리팹의 Lens가 유일한 출처다
+    //   예전엔 virtualCameraFov(40)를 들고 있다가 만든 카메라마다 ApplyLens로 덮어썼다.
+    //   그런데 같은 값이 <b>조준 거리 계산(ComputeFocusDistance)</b>에도 쓰여서,
+    //   프리팹의 Lens를 고쳐도 코드가 덮어쓰고 거리 계산은 옛 값을 보는 상태가 됐다.
+    //   지금은 프리팹의 Lens.FieldOfView 하나를 읽어서 둘 다 쓴다.
+    [Tooltip("포커스·오버뷰 가상 카메라의 원본. FoV는 이 프리팹의 Lens에서 정한다.")]
+    [SerializeField] private CinemachineCamera virtualCameraPrefab;
 
     [Tooltip("로딩 커튼이 걷힐 때까지 카메라 시퀀스 시작을 대기하는 최대 시간(신호 유실 대비 안전장치)")]
     [SerializeField] private float curtainWaitTimeout = 6f;
@@ -80,6 +86,12 @@ public class GameResultManager : MonoBehaviour
 
     private void Start()
     {
+        if (virtualCameraPrefab == null)
+        {
+            Debug.LogError("[GameResult] virtualCameraPrefab이 비어 있습니다. VCam_ResultFocus 프리팹을 인스펙터에 연결하세요.");
+            return;
+        }
+
         EnsureCameraAndBrain();
 
         var top = GatherTopEntries();
@@ -356,16 +368,7 @@ public class GameResultManager : MonoBehaviour
             Vector3 camPos = centerWorld + new Vector3(0f, focusHeightOffset, -distance);
             Quaternion camRot = Quaternion.LookRotation(centerWorld - camPos);
 
-            var go = new GameObject($"VCam_Focus_Rank{displayOrderRanks[i]}");
-            go.transform.SetParent(transform, false);
-            go.transform.position = camPos;
-            go.transform.rotation = camRot;
-
-            var vcam = go.AddComponent<CinemachineCamera>();
-            ApplyLens(vcam, virtualCameraFov);
-            vcam.Priority = 0;
-
-            focusCams.Add(vcam);
+            focusCams.Add(SpawnVirtualCamera($"VCam_Focus_Rank{displayOrderRanks[i]}", camPos, camRot));
         }
 
         // 오버뷰 카메라
@@ -375,14 +378,24 @@ public class GameResultManager : MonoBehaviour
             center /= jellies.Count;
 
         Vector3 ovPos = center + new Vector3(0f, overviewHeight, -overviewDistance);
-        Quaternion ovRot = Quaternion.LookRotation(center - ovPos);
-        var ovGo = new GameObject("VCam_Overview");
-        ovGo.transform.SetParent(transform, false);
-        ovGo.transform.position = ovPos;
-        ovGo.transform.rotation = ovRot;
-        overviewCam = ovGo.AddComponent<CinemachineCamera>();
-        ApplyLens(overviewCam, virtualCameraFov);
-        overviewCam.Priority = 0;
+        overviewCam = SpawnVirtualCamera("VCam_Overview", ovPos, Quaternion.LookRotation(center - ovPos));
+    }
+
+    // ★ 예전엔 new GameObject + AddComponent<CinemachineCamera> 였다
+    //   빈 오브젝트를 만들고 컴포넌트를 붙인 뒤 렌즈를 코드로 채웠다. 그래서 카메라의
+    //   생김새(FoV·클립 평면·렌즈 모드)를 바꾸려면 코드를 고쳐야 했고, 프로젝트 어디에도
+    //   "결과 화면 카메라는 이렇게 생겼다"를 보여주는 에셋이 없었다.
+    //   지금은 VCam_ResultFocus 프리팹이 그 답이고, 코드는 어디에 놓을지만 정한다.
+    //
+    //   부모 붙이기에 SetParent(transform, false)를 쓴다 — Instantiate(원본, 부모)나
+    //   worldPositionStays: true 경로는 부모 스케일에 따라 localScale을 건드린다.
+    private CinemachineCamera SpawnVirtualCamera(string name, Vector3 pos, Quaternion rot)
+    {
+        CinemachineCamera vcam = Instantiate(virtualCameraPrefab);
+        vcam.name = name;
+        vcam.transform.SetParent(transform, false);
+        vcam.transform.SetPositionAndRotation(pos, rot);
+        return vcam;   //우선순위는 프리팹이 0으로 들고 있다. 켜는 건 시퀀스가 한다
     }
 
     /// <summary>
@@ -422,17 +435,9 @@ public class GameResultManager : MonoBehaviour
             return radius * focusDistanceMultiplier;
         }
 
-        float halfFovRad = virtualCameraFov * 0.5f * Mathf.Deg2Rad;
+        float halfFovRad = virtualCameraPrefab.Lens.FieldOfView * 0.5f * Mathf.Deg2Rad;
         float exactDistance = radius / Mathf.Sin(halfFovRad);
         return Mathf.Max(radius * focusDistanceMultiplier, exactDistance);
-    }
-
-    private static void ApplyLens(CinemachineCamera vcam, float fov)
-    {
-        // Lens는 struct이므로 복사 → 수정 → 다시 대입
-        var lens = vcam.Lens;
-        lens.FieldOfView = fov;
-        vcam.Lens = lens;
     }
 
     // ──────────────────────────────────────────────
