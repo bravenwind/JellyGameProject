@@ -934,6 +934,62 @@ public class TileCollapseManager : MonoBehaviour
     private const float ThreatDistanceWeight = 1.5f;
 
     /// <summary>
+    /// 주변 칸 중 <b>발밑이 안전하면서</b> 점수가 가장 높은 칸을 고른다.
+    /// 어디로 갈지의 기준은 부르는 쪽이 정하고, 여기는 격자만 안다.
+    ///
+    /// ★ FindEscapeTile과 나눈 이유
+    ///   그쪽은 "위협에서 멀리"라는 기준이 박혀 있다. 밀치기 모드에서 발밑이 닳아
+    ///   자리를 옮길 때는 그 기준이 틀리다 — 싸우던 상대에게서 멀어지는 게 아니라
+    ///   <b>상대는 붙잡아 두고 발판만 갈아타야</b> 하기 때문이다.
+    ///   기준이 하나 더 필요할 때마다 이 함수를 복사하는 대신 점수를 밖에서 받는다.
+    /// </summary>
+    public bool FindBestFooting(Vector3 worldPos, int searchRadiusCells,
+                                System.Func<Vector3, float> score, out Vector3 best)
+    {
+        best = Vector3.zero;
+        if (stepX == 0f || stepZ == 0f || score == null)
+            return false;
+
+        int myCellX = Mathf.Clamp(Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX), 0, width - 1);
+        int myCellZ = Mathf.Clamp(Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ), 0, height - 1);
+
+        float bestScore = float.MinValue;
+        bool found = false;
+
+        for (int offsetX = -searchRadiusCells; offsetX <= searchRadiusCells; offsetX++)
+        {
+            for (int offsetZ = -searchRadiusCells; offsetZ <= searchRadiusCells; offsetZ++)
+            {
+                //지금 서 있는 칸은 후보가 아니다 — 여기서 떠나려고 부른 것이다
+                if (offsetX == 0 && offsetZ == 0)
+                    continue;
+
+                int cellX = myCellX + offsetX;
+                int cellZ = myCellZ + offsetZ;
+
+                if (cellX < 0 || cellX >= width || cellZ < 0 || cellZ >= height)
+                    continue;
+                if (tiles[cellX, cellZ] == null)
+                    continue;
+
+                Vector3 tileCenter = CellCenter(cellX, cellZ);
+                if (IsFootingUnsafe(tileCenter))
+                    continue;
+
+                float value = score(tileCenter);
+                if (value > bestScore)
+                {
+                    bestScore = value;
+                    best = tileCenter;
+                    found = true;
+                }
+            }
+        }
+
+        return found;
+    }
+
+    /// <summary>
     /// 가장 가까운 발판을 고른다. "일단 설 곳"이 필요할 때의 폴백이다.
     ///
     /// 안쪽 고리부터 한 겹씩 넓혀 가며 찾고, 발판을 하나라도 찾은 고리에서 멈춘다.

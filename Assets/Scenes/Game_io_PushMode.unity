@@ -54977,7 +54977,7 @@ MonoBehaviour:
   batArcAngle: 120
   stepTileCollapseDelay: 2
   stepTileWarningDuration: 1.5
-  stepTileStepsToCollapse: 3
+  stepTileStepsToCollapse: 4
   stepTileIdleWearSeconds: 2
   stepTileDangerMargin: 1
   stepTileFootingMargin: 2

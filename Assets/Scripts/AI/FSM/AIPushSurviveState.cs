@@ -67,8 +67,19 @@ public class AIPushSurviveState : AIBaseState
             //   배트를 휘두르는 건 제자리 동작이라 도피와 동시에 할 수 있다.
             TryOpportunisticSwing();
 
-            // ★ 도망갈 곳은 '가까운 안전 타일'이 아니라 '위협에서 먼 안전 타일'이다.
-            //   가까운 곳만 찾으면 무너지는 발판은 피했는데 때리려는 사람 품으로 뛰어든다.
+            // ★ '발밑이 닳았다'와 '위협에서 도망친다'는 다른 사건이다
+            //   예전엔 발밑이 위험해지면 무조건 가장 가까운 상대에게서 <b>멀어지는</b>
+            //   칸으로 갔다. 밀치기 모드에서 그 상대는 대개 자기가 싸우던 대상이라,
+            //   발판이 닳을 때마다 교전을 통째로 접고 도망쳤다. 그러면 봇은 판 내내
+            //   붙었다 도망쳤다만 반복하고 아무도 떨어뜨리지 못한다.
+            //
+            //   싸울 상대가 있으면 <b>상대는 붙잡아 두고 발판만 갈아탄다</b>(재배치).
+            //   그게 곧 치고 빠지기다 — 한 칸에 머무는 시간이 제자리 마모 주기를 넘지
+            //   않으므로 자기 발밑에서 죽지도 않는다.
+            //   상대가 없을 때만 예전처럼 '위협에서 먼 곳'으로 도망친다.
+            if (TryReposition())
+                return;
+
             Vector3 threat = NearestThreatPos();
 
             // ★ 마지막 수단까지 내려간다 — 제자리가 언제나 최악이기 때문이다
@@ -316,6 +327,79 @@ public class AIPushSurviveState : AIBaseState
         ai.TryAttack();
         aimStartTime = -1f;
     }
+
+    // ─────────────────────────────────────────────────────────
+    //  재배치 — 상대는 붙잡아 두고 발판만 갈아탄다
+    // ─────────────────────────────────────────────────────────
+
+    [Tooltip("재배치할 때 훑어볼 주변 칸 반경")]
+    private const int REPOSITION_SEARCH_CELLS = 2;
+
+    //점수 계산에 쓰는 값. 델리게이트가 매번 새 클로저를 만들지 않도록 필드로 둔다
+    private Vector3 repositionTargetPos;
+    private float repositionPreferredDist;
+    private Vector3 repositionFromPos;
+    private System.Func<Vector3, float> repositionScorer;
+
+    /// <summary>
+    /// 발밑이 닳았지만 싸울 상대가 있을 때, 상대를 놓지 않는 선에서 옆 칸으로 옮긴다.
+    /// 옮길 곳을 못 찾으면 false — 그때는 호출부가 평소의 도주로 내려간다.
+    /// </summary>
+    private bool TryReposition()
+    {
+        Transform target = FindNearestTarget();
+        if (target == null)
+            return false;
+
+        var collapse = TileCollapseManager.Instance;
+        var dm = DataManager.Instance;
+        if (collapse == null || dm == null)
+            return false;
+
+        repositionTargetPos = target.position;
+        repositionFromPos = ai.transform.position;
+
+        //배트가 닿는 거리에 서고 싶다. 여기에 서 있어야 다음 스윙이 가능하다
+        repositionPreferredDist = dm.BatRange * ai.GetMyAuthorityScale();
+
+        repositionScorer ??= ScoreRepositionTile;
+
+        if (!collapse.FindBestFooting(repositionFromPos, REPOSITION_SEARCH_CELLS,
+                                      repositionScorer, out Vector3 spot))
+            return false;
+
+        if (!NavMesh.SamplePosition(spot, out NavMeshHit hit, 5f, ai.NavFilter))
+            return false;
+
+        ai.CachedPath.ClearCorners();
+        if (!ai.Agent.CalculatePath(hit.position, ai.CachedPath)
+            || ai.CachedPath.status != NavMeshPathStatus.PathComplete)
+            return false;
+
+        //발밑이 이미 닳은 상황이라 경로 위험 검사로 막지 않는다 — 나가는 길은 열어둔다
+        //(바로 아래 도주 분기가 같은 이유로 TrySetSafePath를 쓰지 않는다)
+        ai.Agent.SetPath(ai.CachedPath);
+        ai.ApplyStateSpeed();
+        fleeing = true;   //안전한 칸에 닿으면 위 else 분기가 경로를 정리한다
+        return true;
+    }
+
+    /// <summary>
+    /// 재배치 후보 칸의 점수. 높을수록 좋다.
+    ///   · 상대와의 거리가 배트 사거리에 가까울수록 가점 — 붙잡아 두기 위해서다
+    ///   · 내가 멀리 가야 할수록 감점 — 가는 동안 지금 칸이 꺼진다
+    /// </summary>
+    private float ScoreRepositionTile(Vector3 tileCenter)
+    {
+        float distToTarget = Vector3.Distance(tileCenter, repositionTargetPos);
+        float travel = Vector3.Distance(tileCenter, repositionFromPos);
+
+        return -Mathf.Abs(distToTarget - repositionPreferredDist) - travel * TravelCostWeight;
+    }
+
+    //"상대와의 거리를 1m 맞추는 것"이 "내가 1m 더 뛰는 것"의 몇 배 가치인가.
+    //1보다 작게 둔 이유는 가까운 칸을 우선하기 위해서다 — 멀리 가면 가는 도중에 꺼진다
+    private const float TravelCostWeight = 0.6f;
 
     /// <summary>위험 타일을 피해 무작위 안전 지점으로 배회한다.</summary>
     private void Wander()
