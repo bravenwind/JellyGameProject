@@ -98,6 +98,15 @@ public class AIPushSurviveState : AIBaseState
             //   배트를 휘두르는 건 제자리 동작이라 도피와 동시에 할 수 있다.
             TryOpportunisticSwing();
 
+            // ★ 이미 안전한 곳으로 가는 중이면 그 길을 지킨다
+            //   판단은 0.06초마다 돈다. 그때마다 후보를 다시 고르면 점수가 조금만
+            //   흔들려도(상대가 움직이거나 옆 칸이 닳거나) 목적지가 바뀌어, 봇이
+            //   방향을 계속 갈아타며 제자리에서 떤다.
+            //   목적지가 아직 안전하고 거기 닿지 않았다면 다시 고를 이유가 없다.
+            if (fleeing && ai.Agent.hasPath && !ReachedDestination()
+                && !collapse.IsFootingUnsafe(ai.Agent.destination))
+                return;
+
             // ★ '발밑이 닳았다'와 '위협에서 도망친다'는 다른 사건이다
             //   예전엔 발밑이 위험해지면 무조건 가장 가까운 상대에게서 <b>멀어지는</b>
             //   칸으로 갔다. 밀치기 모드에서 그 상대는 대개 자기가 싸우던 대상이라,
@@ -140,6 +149,23 @@ public class AIPushSurviveState : AIBaseState
         }
         else if (fleeing)
         {
+            // ★ '이제 안전하다'고 그 자리에 멈추면 경계선 위에서 떤다
+            //   위험 판정은 transform.position <b>점 하나</b>를 보는데, 마모는 몸
+            //   발자국(반지름 = PlayerJellyRadius × 크기 ≈ 1.3m)을 본다. 그래서
+            //   경계선 ±1.3m 구간에는 "중심은 안전한데 몸은 아직 빨간 칸을 밟고 있는"
+            //   자리가 있다.
+            //
+            //   예전엔 중심이 경계를 넘는 <b>그 순간</b> ResetPath로 세웠다. 봇은 몸을
+            //   반쯤 걸친 채 멈추고, 서 있으니 발밑이 깎이고, 에이전트 정렬이나 다른
+            //   봇에 밀려 중심이 도로 넘어가면 다시 도망 경로를 깔았다. 경계선을
+            //   사이에 두고 진동하다 무너지는 칸과 함께 떨어진다.
+            //   ("무너지는 타일과 멀쩡한 타일을 계속 왔다갔다 하다 죽는다"가 이것이다)
+            //
+            //   목적지는 칸의 중심이므로 거기까지 가면 몸이 위험 칸에서 완전히 빠진다.
+            //   경로를 잃었으면 ReachedDestination이 true라 여기서 막히지 않는다.
+            if (!ReachedDestination())
+                return;
+
             ai.Agent.ResetPath();
             ai.Agent.velocity = Vector3.zero;
             ai.ApplyStateSpeed();
