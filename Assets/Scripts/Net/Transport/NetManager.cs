@@ -25,7 +25,7 @@ namespace JellyNet
         private LanTransport lan;
         private LanSession lanSession;
 
-#if JELLY_PHOTON
+#if PHOTON_REALTIME_5_OR_NEWER
         private PhotonTransport photon;
         private PhotonSession photonSession;
 #endif
@@ -59,17 +59,17 @@ namespace JellyNet
                 return;
             }
 
-#if JELLY_PHOTON
+#if PHOTON_REALTIME_5_OR_NEWER
             IsOnline = online;
             transport = online ? (INetTransport)photon : lan;
             session = online ? (INetSession)photonSession : lanSession;
 #else
             if (online)
             {
-                //JELLY_PHOTON 이 꺼져 있으면 Photon 코드가 아예 컴파일되지 않았다.
+                //Photon Realtime SDK 가 없으면 온라인 코드가 아예 컴파일되지 않았다.
                 //조용히 LAN 으로 돌리면 "온라인을 골랐는데 랜으로 붙는다"가 되므로 말한다
                 Debug.LogError("[Net] 온라인 전송이 이 빌드에 없습니다. "
-                    + "Scripting Define Symbols 에 JELLY_PHOTON 이 있는지 확인해주세요.");
+                    + "Photon Realtime SDK 가 설치돼 있는지 확인해주세요.");
                 return;
             }
 #endif
@@ -184,7 +184,7 @@ namespace JellyNet
             transport = lan;
             session = lanSession;
 
-#if JELLY_PHOTON
+#if PHOTON_REALTIME_5_OR_NEWER
             //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
             photon = new PhotonTransport();
             photon.OnLog = AddLog;
@@ -241,7 +241,7 @@ namespace JellyNet
             lanSession?.Unhook();
 
             Unhook(lan);
-#if JELLY_PHOTON
+#if PHOTON_REALTIME_5_OR_NEWER
             Unhook(photon);
 #endif
 

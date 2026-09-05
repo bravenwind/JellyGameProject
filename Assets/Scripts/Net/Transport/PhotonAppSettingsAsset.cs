@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace JellyNet
 {
@@ -11,7 +11,7 @@ namespace JellyNet
     ///   오는지"를 코드를 읽어야만 알게 된다. 세팅은 세팅이 있는 곳에 둔다.
     ///
     /// ★ Photon 타입을 참조하지 않는 이유
-    ///   AppSettings 를 그대로 담으면 이 파일이 JELLY_PHOTON 안으로 들어가야 하고,
+    ///   AppSettings 를 그대로 담으면 이 파일이 PHOTON_REALTIME_5_OR_NEWER 안으로 들어가야 하고,
     ///   심볼을 끄는 순간 에셋이 "스크립트 없음"이 되어 적어둔 값이 날아간다.
     ///   문자열 셋만 들고 있다가 PhotonTransport 가 AppSettings 로 옮겨 담는다.
     /// </summary>

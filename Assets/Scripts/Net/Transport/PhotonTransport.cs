@@ -1,10 +1,19 @@
 ﻿// ─────────────────────────────────────────────────────────────────────
 //  Photon Realtime 전송
-//  ★ 가드가 왜 JELLY_PHOTON 인가
-//    처음엔 PHOTON_UNITY_NETWORKING 을 썼다가 컴파일이 깨졌다. 그건 PUN2 가 정의하는
-//    심볼인데, PUN2 를 걷어낼 때 ProjectSettings 의 정의 심볼이 지워지지 않아
-//    <b>SDK 도 없는 채로 켜져 있었다</b>. 남의 심볼에 우리 코드를 매달면 이렇게 된다.
-//    Realtime 만 설치해도 어차피 그 심볼은 안 켜지므로 우리 이름을 쓴다.
+// ─────────────────────────────────────────────────────────────────────
+//
+//  ★ 가드가 왜 PHOTON_REALTIME_5_OR_NEWER 인가 — 손으로 켜는 심볼을 두 번 버렸다
+//    ① PHOTON_UNITY_NETWORKING — PUN2 의 심볼이다. PUN2 를 걷어낼 때 ProjectSettings 의
+//       정의 심볼은 지워지지 않아 <b>SDK 도 없는 채로 켜져 있었고</b> 컴파일이 깨졌다.
+//    ② JELLY_PHOTON — 그래서 우리 이름을 만들어 손으로 넣었다. 그런데 정의 심볼은
+//       플랫폼마다 따로고 유니티가 메모리에 들고 있어서, 파일에는 있는데 컴파일에는
+//       안 들어가는 상태가 됐다(Bee 의 Assembly-CSharp.rsp 로 확인).
+//       사람이 열일곱 줄을 맞춰야 하는 스위치는 언젠가 어긋난다.
+//
+//    PHOTON_REALTIME_5_OR_NEWER 는 Realtime SDK 가 [InitializeOnLoad] 로 <b>스스로</b>
+//    모든 플랫폼에 박는다(PhotonUtilitiesUnity.ApplyDefinesRealtimeV5).
+//    "Realtime 5 가 설치돼 있다"는 우리가 필요한 조건 그 자체이고, 켜고 끄는 일이
+//    SDK 를 넣고 빼는 일과 하나로 묶인다 — 사람이 맞춰야 할 것이 없다.
 //
 //  ★ 설정은 어디에 있나
 //    App ID·지역·앱 버전은 Resources/PhotonAppSettings.asset 에 있다.
@@ -14,7 +23,7 @@
 //    ExitGames.Client.Photon → Photon.Client / LoadBalancingClient → RealtimeClient
 //    RaiseEventOptions → RaiseEventArgs(구조체)
 
-#if JELLY_PHOTON
+#if PHOTON_REALTIME_5_OR_NEWER
 
 using System;
 using System.Collections.Generic;
@@ -471,7 +480,11 @@ namespace JellyNet
             OnHostStarted?.Invoke();
         }
 
-        public void OnDisconnected(DisconnectCause cause)
+        // ★ 이름이 겹친다 — 명시적 구현으로 푼다
+        //   INetTransport 의 OnDisconnected 는 우리가 쏘는 이벤트고,
+        //   IConnectionCallbacks 의 OnDisconnected 는 Photon 이 부르는 메서드다.
+        //   둘 다 그냥 public 으로 두면 같은 이름이라 컴파일이 안 된다.
+        void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
         {
             //Shutdown 이 부른 끊김은 이미 알렸다. 두 번 쏘면 로비가 두 번 되돌아간다
             if (shuttingDown)

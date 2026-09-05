@@ -2,12 +2,13 @@
 //  Photon Realtime 세션 — 방 만들기·찾기·참가
 // ─────────────────────────────────────────────────────────────────────
 //
-//  JELLY_PHOTON 을 켜야 컴파일에 들어온다. 켜는 법은 PhotonTransport.cs 머리말 참고.
+//  Photon Realtime SDK 가 있어야 컴파일에 들어온다. 가드 이야기는 PhotonTransport.cs 머리말 참고.
 
-#if JELLY_PHOTON
+#if PHOTON_REALTIME_5_OR_NEWER
 
 using System;
 using System.Collections.Generic;
+using Photon.Client;
 using Photon.Realtime;
 
 namespace JellyNet
