@@ -25,6 +25,9 @@ namespace JellyNet
 
         public bool IsLocal { get { return true; } }
 
+        //UDP 를 듣기 시작하면 곧바로 준비된 것이다. 붙을 서버가 없다
+        public bool IsBrowseReady { get { return LanDiscovery.Instance != null; } }
+
         public LanSession(LanTransport transport, int defaultPort)
         {
             this.transport = transport;

@@ -36,6 +36,34 @@ namespace JellyNet
         /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
         public INetSession Session { get { return session; } }
 
+        // ★ 세션 이벤트는 NetManager 가 중계한다 — 전송 이벤트와 같은 이유다
+        //   로비는 Start 에서 한 번 구독하는데, 그때 세션은 아직 LAN 이다.
+        //   온라인을 고르면 session 이 바뀌지만 구독은 옛 세션에 남아,
+        //   방에 들어가도 OnRoomReady 가 오지 않아 "연결 중..." 에서 멈췄다.
+        //   실패(OnFailed)도 마찬가지로 화면에 닿지 못했다.
+        public event Action OnRoomReady;
+        public event Action<string> OnSessionFailed;
+
+        private void HookSession(INetSession s)
+        {
+            s.OnRoomReady += RaiseRoomReady;
+            s.OnFailed += RaiseSessionFailed;
+        }
+
+        private void UnhookSession(INetSession s)
+        {
+            if (s == null)
+                return;
+
+            s.OnRoomReady -= RaiseRoomReady;
+            s.OnFailed -= RaiseSessionFailed;
+        }
+
+        //고르지 않은 세션은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다
+        private void RaiseRoomReady() { OnRoomReady?.Invoke(); }
+
+        private void RaiseSessionFailed(string reason) { OnSessionFailed?.Invoke(reason); }
+
         /// <summary>지금 온라인 전송을 쓰고 있는가. 화면의 로컬/온라인 선택이 정한다.</summary>
         public bool IsOnline { get; private set; }
 
@@ -184,6 +212,8 @@ namespace JellyNet
             transport = lan;
             session = lanSession;
 
+            HookSession(lanSession);
+
 #if PHOTON_REALTIME_5_OR_NEWER
             //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
             photon = new PhotonTransport();
@@ -193,6 +223,7 @@ namespace JellyNet
             photonSession = new PhotonSession(photon);
 
             Hook(photon);
+            HookSession(photonSession);
 #endif
             Hook(lan);
         }
@@ -257,8 +288,10 @@ namespace JellyNet
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
             lanSession?.Unhook();
+            UnhookSession(lanSession);
 #if PHOTON_REALTIME_5_OR_NEWER
             photonSession?.Unhook();
+            UnhookSession(photonSession);
 #endif
 
             Unhook(lan);

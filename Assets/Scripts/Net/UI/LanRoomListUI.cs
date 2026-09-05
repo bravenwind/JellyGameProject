@@ -76,7 +76,15 @@ namespace JellyNet
         //알림이 오지 않는 경우에도 목록이 굳지 않는다
         private void Update()
         {
-            searchElapsed += Time.unscaledDeltaTime;
+            // ★ 시계는 '볼 수 있게 된 뒤'부터 센다
+            //   온라인은 릴레이에 붙고 로비에 들어가는 데 1초쯤 걸린다. 그 시간까지
+            //   같이 세면 목록이 오기도 전에 유예가 끝나 "방이 존재하지 않습니다"가 뜬다.
+            //   (두 번째로 열면 이미 붙어 있어 멀쩡했던 이유가 이것이다)
+            INetSession s = Session;
+            if (s == null || !s.IsBrowseReady)
+                searchElapsed = 0f;
+            else
+                searchElapsed += Time.unscaledDeltaTime;
 
             timer += Time.unscaledDeltaTime;
             if (timer < 1f / refreshRate)

@@ -70,6 +70,17 @@ namespace JellyNet
         /// <summary>지금까지 찾은 방들. StartBrowsing 을 부르기 전에는 비어 있다.</summary>
         IEnumerable<RoomHandle> Rooms { get; }
 
+        /// <summary>
+        /// 지금 방 목록을 볼 수 있는 상태인가.
+        ///
+        /// ★ LAN 과 온라인의 '찾기 시작'이 다르다
+        ///   LAN 은 StartBrowsing 하는 순간부터 UDP 를 듣는다 — 준비랄 게 없다.
+        ///   온라인은 릴레이에 붙고 로비에 들어가야 목록이 오기 시작하는데 그게 1초쯤
+        ///   걸린다. 그동안을 '찾는 중'이 아니라 '방이 없다'로 읽으면, 처음 열었을 때만
+        ///   "방이 존재하지 않습니다"가 뜨고 다시 열면 멀쩡한 이상한 화면이 된다.
+        /// </summary>
+        bool IsBrowseReady { get; }
+
         /// <summary>방 찾기를 시작한다(방 목록 화면을 열 때).</summary>
         void StartBrowsing();
 

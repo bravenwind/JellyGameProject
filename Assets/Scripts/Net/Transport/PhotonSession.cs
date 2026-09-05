@@ -32,6 +32,12 @@ namespace JellyNet
         //온라인이므로 로컬 전용 입력(포트)은 화면에서 감춰야 한다
         public bool IsLocal { get { return false; } }
 
+        //로비에 들어가야 목록이 오기 시작한다. 그 전엔 '방이 없다'가 아니라 '아직'이다
+        public bool IsBrowseReady
+        {
+            get { return transport.Client != null && transport.Client.InLobby; }
+        }
+
         // ★ 방 조작은 '마스터 서버에 붙은 뒤'에만 할 수 있다
         //   LAN 은 소켓을 여는 것이 곧 방을 여는 것이라 한 걸음이었다. Photon 은
         //   접속 → 마스터 서버 도착 → 그제서야 방 만들기/참가/로비 순이다.

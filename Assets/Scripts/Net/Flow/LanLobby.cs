@@ -131,11 +131,9 @@ namespace JellyNet
 
             //방 만들기·참가 실패는 세션이 알려준다. 예전엔 호출부가 반환값을 보고
             //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
-            if (net.Session != null)
-            {
-                net.Session.OnFailed += ShowLobbyError;
-                net.Session.OnRoomReady += HandleRoomReady;
-            }
+            //세션이 아니라 NetManager 를 구독한다. 로컬/온라인을 갈아끼워도 끊기지 않는다
+            net.OnSessionFailed += ShowLobbyError;
+            net.OnRoomReady += HandleRoomReady;
 
             LanScoreboard.Clear();
             LanRoomConfig.Clear();
@@ -262,11 +260,8 @@ namespace JellyNet
                 net.OnPeerJoined -= HandlePeerChanged;
                 net.OnPeerLeft -= HandlePeerChanged;
 
-                if (net.Session != null)
-                {
-                    net.Session.OnFailed -= ShowLobbyError;
-                    net.Session.OnRoomReady -= HandleRoomReady;
-                }
+                net.OnSessionFailed -= ShowLobbyError;
+                net.OnRoomReady -= HandleRoomReady;
                 net.OnDisconnected -= HandleDisconnected;
             }
             //트윈은 DOTween 엔진이 들고 있어 이 컴포넌트보다 오래 산다.
