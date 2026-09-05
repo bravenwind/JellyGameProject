@@ -23,7 +23,7 @@
 
 using System;
 using System.Collections.Generic;
-using ExitGames.Client.Photon;
+using Photon.Client;
 using Photon.Realtime;
 
 namespace JellyNet
@@ -86,11 +86,16 @@ namespace JellyNet
         //  상태
         // ═══════════════════════════════════════════════════════
 
-        //TODO(사람): LoadBalancingClient 를 만들고 App ID·지역을 넣는다.
-        //           App ID 는 코드에 박지 말고 에셋(ScriptableObject)이나
-        //           Photon 이 만들어 주는 설정 에셋에서 읽는다 —
-        //           "세팅은 세팅이 있는 곳에".
-        private LoadBalancingClient client;
+        // ★ 5.1 에서 이름이 바뀌었다
+        //   LoadBalancingClient 는 ExitGames.Client.Photon 에 남은 [Obsolete] 껍데기이고,
+        //   본체는 Photon.Realtime.RealtimeClient 다. 같은 이유로 EventData 등이 들어 있던
+        //   ExitGames.Client.Photon 네임스페이스도 Photon.Client 로 옮겨갔다.
+        //   (뼈대를 세울 땐 SDK가 없어 4.x 시절 이름으로 적혀 있었다)
+        //
+        //TODO(사람): 만들면서 App ID·지역을 넣는다.
+        //           값은 Resources/PhotonAppSettings.asset 에서 읽는다 —
+        //           PhotonAppSettingsAsset.Load(). 코드에 박지 않는다.
+        private RealtimeClient client;
 
         public Action<string> OnLog;
         public Action<string> OnError;
@@ -175,17 +180,28 @@ namespace JellyNet
             if (client == null || !client.InRoom)
                 return;
 
-            //TODO(사람): SendOptions 를 메시지 종류별로 나눌 것.
-            //           TransformUpdate 처럼 매 프레임 덮어써도 되는 건 SendUnreliable,
-            //           스폰·탈락처럼 놓치면 안 되는 건 SendReliable.
-            //           LAN 은 전부 TCP 라 신경 쓸 필요가 없었지만 여기선 이게 대역폭을 좌우한다.
-            RaiseEventOptions options = new RaiseEventOptions
+// ★ 5.1 에서 RaiseEventOptions 는 RaiseEventArgs 가 됐다(클래스 → 구조체)
+            RaiseEventArgs args = new RaiseEventArgs
             {
                 Receivers = group,
                 TargetActors = targets
             };
 
-            client.OpRaiseEvent(CodeOf(w), BodyOf(w), options, SendOptions.SendReliable);
+            // ★ 어떤 메시지를 놓쳐도 되는가
+            //   LAN 은 전부 TCP 라 고민할 필요가 없었지만, 릴레이에서는 이게
+            //   대역폭과 지연을 좌우한다.
+            //
+            //   위치 갱신은 20Hz로 계속 덮어쓰는 값이라 하나 놓쳐도 다음 것이
+            //   50ms 뒤에 온다. 게다가 엔트리마다 '잰 순간'(SendTime)을 들고 다녀서
+            //   순서가 바뀌어도 받는 쪽이 타임라인을 바로 세운다 — 재전송을 기다리면
+            //   오히려 그 뒤의 최신 위치까지 같이 밀린다.
+            //
+            //   나머지는 전부 사건이다. 스폰·탈락·점수는 놓치면 그걸로 끝이라 신뢰 전송.
+            SendOptions send = CodeOf(w) == (byte)MsgType.TransformUpdate
+                ? SendOptions.SendUnreliable
+                : SendOptions.SendReliable;
+
+            client.OpRaiseEvent(CodeOf(w), BodyOf(w), args, send);
         }
 
         // ═══════════════════════════════════════════════════════
