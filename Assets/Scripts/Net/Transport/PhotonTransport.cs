@@ -16,7 +16,7 @@
 //    4. 아래 API 이름을 설치한 SDK 버전에 맞춘다. 여기 적힌 건 Realtime 5.x 기준이고
 //       검증하지 않았다 — 이 환경에는 SDK가 없어 컴파일해 본 적이 없다.
 
-#if PHOTON_UNITY_NETWORKING
+#if JELLY_PHOTON
 
 using System;
 using System.Collections.Generic;

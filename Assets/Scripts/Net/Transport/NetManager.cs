@@ -169,25 +169,6 @@ namespace JellyNet
                 Instance = null;
         }
 
-        /// <summary>
-        /// 방을 연다. 실패하면 false — 호출부가 반드시 확인해야 한다.
-        ///
-        /// ★ 예전엔 void였다
-        ///   포트가 이미 쓰이는 중이면 조용히 return했고, 로비는 그걸 모른 채
-        ///   대기 화면으로 넘어가 영원히 "다른 참가자를 기다리는 중"을 띄웠다.
-        ///   실패를 반환값으로 표현할 수 없으면 호출부는 실패를 무시하게 된다.
-        /// </summary>
-        public bool StartHost()
-        {
-            return lan.StartHost(port);
-        }
-
-        /// <summary>방에 붙는다. 실패하면 false — IP 오타·방이 닫힘 등.</summary>
-        public bool JoinHost()
-        {
-            return lan.JoinHost(joinIp, port);
-        }
-
         public void Shutdown()
         {
             transport?.Shutdown();

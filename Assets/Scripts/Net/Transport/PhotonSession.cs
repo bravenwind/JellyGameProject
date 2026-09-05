@@ -5,7 +5,7 @@
 //  PhotonTransport.cs 의 머리말에 적은 TODO(사람) 목록이 이 파일에도 그대로 적용된다.
 //  SDK가 없는 지금은 통째로 없는 파일과 같다.
 
-#if PHOTON_UNITY_NETWORKING
+#if JELLY_PHOTON
 
 using System;
 using System.Collections.Generic;
