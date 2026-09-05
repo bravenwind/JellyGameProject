@@ -19,6 +19,11 @@ namespace JellyNet
         [Header("Select Room UI")]
         [SerializeField] private RectTransform roomChoicePanel;
 
+        // 방 생성·방 참가 어느 쪽을 눌렀든 먼저 여기서 로컬인지 온라인인지 고른다.
+        // 고른 뒤에야 원래 패널(방 설정 / 방 목록)이 뜬다.
+        [Header("Local / Online 선택")]
+        [SerializeField] private RectTransform netChoicePanel;
+
         [Header("Room Option UI")]
         [SerializeField] private RectTransform hostOptionPanel;
         [Tooltip("0 = absorb, 1 = push")]
@@ -420,10 +425,78 @@ namespace JellyNet
             Pop(roomChoicePanel, popDelay);
         }
 
+        // ★ 어디로 갈지는 여기서 정해두고, 로컬/온라인을 고른 뒤에 연다
+        //   버튼 두 개(로컬·온라인)가 방 생성과 방 참가 양쪽에서 재사용되므로,
+        //   "고르고 나면 어디로 가야 하는지"를 패널이 아니라 여기서 기억한다.
+        private enum AfterChoice { None, Host, Join }
+
+        private AfterChoice afterChoice;
+
         public void OnClickCreateRoom()
         {
-            ApplyLocalOnlyVisibility();
-            Pop(hostOptionPanel, popDelay);
+            OpenNetChoice(AfterChoice.Host);
+        }
+
+        public void OnClickJoinRoom()
+        {
+            OpenNetChoice(AfterChoice.Join);
+        }
+
+        private void OpenNetChoice(AfterChoice next)
+        {
+            afterChoice = next;
+
+            if (netChoicePanel == null)
+            {
+                //꽂는 것을 잊으면 조용히 로컬로 가는 대신 말한다. 조용히 넘어가면
+                //"온라인을 고른 적이 없는데 왜 랜이지"를 나중에 화면에서 찾게 된다
+                Debug.LogError("[로비] netChoicePanel 이 비어 있습니다. 로컬로 진행합니다.");
+                ChooseNet(false);
+                return;
+            }
+
+            Pop(netChoicePanel, popDelay);
+        }
+
+        /// <summary>선택 패널의 '로컬(같은 와이파이)' 버튼.</summary>
+        public void OnClickLocal()
+        {
+            ChooseNet(false);
+        }
+
+        /// <summary>선택 패널의 '온라인' 버튼.</summary>
+        public void OnClickOnline()
+        {
+            ChooseNet(true);
+        }
+
+        private void ChooseNet(bool online)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null)
+                return;
+
+            net.UseOnline(online);
+
+            //UseOnline 은 거절할 수 있다(온라인 코드가 빠진 빌드, 접속 중 등).
+            //그때 다음 화면으로 넘어가면 고른 것과 다른 전송으로 방을 만들게 된다
+            if (net.IsOnline != online)
+                return;
+
+            Unpop(netChoicePanel);
+
+            if (afterChoice == AfterChoice.Host)
+            {
+                //포트 입력칸은 로컬에서만 뜻이 있다. 세션이 정해진 지금에야 판단할 수 있다
+                ApplyLocalOnlyVisibility();
+                Pop(hostOptionPanel, popDelay);
+            }
+            else
+            {
+                Pop(joinPanel, popDelay);
+            }
+
+            afterChoice = AfterChoice.None;
         }
 
         //세션이 로컬인지에 따라 로컬 전용 입력을 보이고 숨긴다.
@@ -437,11 +510,6 @@ namespace JellyNet
             bool local = net == null || net.Session == null || net.Session.IsLocal;
 
             localOnlyGroup.SetActive(local);
-        }
-
-        public void OnClickJoinRoom()
-        {
-            Pop(joinPanel, popDelay);
         }
 
         public void OnClickGenerate()
@@ -634,10 +702,13 @@ namespace JellyNet
             Unpop(matchingPanel);
         }
 
+        //방 설정·방 목록·로컬/온라인 선택이 같은 뒤로 버튼을 쓴다.
+        //Unpop 은 꺼져 있는 패널에는 아무 일도 하지 않으므로 전부 불러도 된다
         public void OnClickBack()
         {
             Unpop(hostOptionPanel);
             Unpop(joinPanel);
+            Unpop(netChoicePanel);
         }
 
         public void OnClickBackToNickname()
