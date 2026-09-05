@@ -875,8 +875,19 @@ public class AIPlayerMovement : MonoBehaviour
         Vector3 origin = transform.position + Vector3.up * GroundRayLift;
         float rayLength = GroundRayLift + pivotToFeet + GroundRayReach;
 
-        if (Physics.Raycast(origin, Vector3.down, rayLength,
-                            GameLayers.StandableMask, QueryTriggerInteraction.Ignore))
+        // ★ 점 하나가 아니라 <b>발자국</b>으로 잰다
+        //   예전엔 중심에서 레이 하나를 쐈다. 그런데 몸은 반지름이 있다 —
+        //   크기 2인 봇이면 1.3m다. 밀려나서 타일 가장자리에 걸치면, 눈에는 분명히
+        //   타일 위인데 중심만 이음매를 살짝 넘어가 레이가 허공을 지나갔다.
+        //   그 순간 봇은 발판이 있는데도 밑으로 쑥 빠졌다.
+        //   ("밀쳐진 봇이 타일 위인데 떨어진다"가 이것이다)
+        //
+        //   몸의 절반 폭으로 훑으면 '몸의 어딘가가 땅에 걸쳐 있는가'를 묻게 된다.
+        //   0.9를 곱한 것은 콜라이더 겉면이 벽에 스치는 것까지 땅으로 세지 않기 위해서다.
+        float footRadius = Mathf.Max(body.bounds.extents.x, body.bounds.extents.z) * 0.9f;
+
+        if (Physics.SphereCast(origin, footRadius, Vector3.down, out RaycastHit _, rayLength,
+                               GameLayers.StandableMask, QueryTriggerInteraction.Ignore))
             return false;
 
         AwakeFallPhysics();
@@ -1305,15 +1316,15 @@ public class AIPlayerMovement : MonoBehaviour
         // 넉백 종료 지점 아래에 땅이 있는지 먼저 확인한다.
         // Agent.enabled = true 는 근처 NavMesh로 자동 스냅시키므로, 맵 외곽으로
         // 밀려났어도 Agent를 다시 켜면 땅으로 복귀해버린다. 그래서 Agent를 켜기 전에
-        // 레이캐스트로 발밑 땅을 검사해, 땅이 없으면 그대로 낙하시킨다.
-        Vector3 origin = transform.position + Vector3.up * 0.5f;
-        bool groundBelow = Physics.Raycast(origin, Vector3.down, 3f);
-
-        if (!groundBelow)
-        {
-            CheckGroundBelow(true); // 낙하 처리 (Rigidbody 부착)
-            yield break;
-        }
+        // 발밑을 재고, 땅이 없으면 그대로 낙하시킨다.
+        //
+        // ★ 여기에 자기만의 검사를 들고 있었다
+        //   Physics.Raycast(pos + up*0.5, down, 3f) — 레이어 마스크도 없고 트리거도
+        //   거르지 않고 길이도 봇 크기와 무관한, CheckGroundBelow 의 열등한 사본이었다.
+        //   같은 판단이 두 벌로 갈라지면 한쪽만 고쳐진다. CheckGroundBelow 는
+        //   그동안 '발밑에서 쏘기'까지 배웠는데 이쪽은 피벗에서 쏘고 있었다.
+        if (CheckGroundBelow(true))
+            yield break;   //발밑이 비었다 → 안에서 물리 낙하까지 끝냈다
 
         //넉백 동안 Agent를 끄고 transform만 옮겼으므로 에이전트 내부 좌표는 맞기 전 자리에 있다.
         //Warp로 다시 맞춰주지 않으면 다음 프레임에 옛 자리로 되돌아간다
