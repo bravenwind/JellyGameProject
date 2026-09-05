@@ -7748,6 +7748,7 @@ MonoBehaviour:
   - {fileID: 1177273754728550086, guid: e6104118e78dee7438729bf80b54c0e5, type: 3}
   - {fileID: 1177273754728550086, guid: b1819b7e9bcac3e41927d859b19f03a0, type: 3}
   spawnRadius: 4
+  batchTransforms: 0
 --- !u!4 &177226247
 Transform:
   m_ObjectHideFlags: 0
@@ -71875,7 +71876,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 177226241}
         m_TargetAssemblyTypeName: JellyNet.LanGameFlow, Assembly-CSharp
         m_MethodName: OnClick_ReturnToMain
         m_Mode: 1

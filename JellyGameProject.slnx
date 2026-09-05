@@ -1,5 +1,7 @@
 ﻿<Solution>
+  <Project Path="Photon.Realtime.csproj" />
   <Project Path="Assembly-CSharp.csproj" />
   <Project Path="Assembly-CSharp-firstpass.csproj" />
+  <Project Path="Photon.Chat.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
 </Solution>
