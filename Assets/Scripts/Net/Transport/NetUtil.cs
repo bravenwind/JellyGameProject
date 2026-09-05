@@ -115,65 +115,10 @@ namespace JellyNet
             return new IPAddress(result);
         }
 
-        /// <summary>
-        /// 화면에 보여줄 "내 IP". 랜카드가 여럿이면 통신에 쓰일 가능성이 높은 쪽을 고른다.
-        ///
-        /// Dns.GetHostAddresses는 어댑터 순서대로 돌려주기만 해서, VPN·VirtualBox가
-        /// 앞에 오면 접속되지 않는 주소를 안내하게 된다. 여기서는 사설 대역
-        /// (192.168 / 10 / 172.16~31)을 우선하고, 그것도 없으면 살아 있는 첫 IPv4를 쓴다.
-        /// </summary>
-        public static string GetPrimaryIPv4()
-        {
-            string fallback = null;
-
-            try
-            {
-                foreach (NetworkInterface adapter in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (adapter.OperationalStatus != OperationalStatus.Up)
-                        continue;
-
-                    if (adapter.NetworkInterfaceType == NetworkInterfaceType.Loopback)
-                        continue;
-
-                    foreach (UnicastIPAddressInformation address in adapter.GetIPProperties().UnicastAddresses)
-                    {
-                        if (address.Address.AddressFamily != AddressFamily.InterNetwork)
-                            continue;
-
-                        string ip = address.Address.ToString();
-
-                        if (ip.StartsWith("169.254."))
-                            continue;
-
-                        if (IsPrivateLan(address.Address))
-                            return ip;
-
-                        fallback ??= ip;
-                    }
-                }
-            }
-            catch
-            {
-            }
-
-            return fallback ?? "127.0.0.1";
-        }
-
-        private static bool IsPrivateLan(IPAddress ip)
-        {
-            byte[] b = ip.GetAddressBytes();
-            if (b.Length != 4)
-                return false;
-
-            if (b[0] == 192 && b[1] == 168)
-                return true;
-            if (b[0] == 10)
-                return true;
-            if (b[0] == 172 && b[1] >= 16 && b[1] <= 31)
-                return true;
-
-            return false;
-        }
+        // GetPrimaryIPv4 / IsPrivateLan 을 지웠다.
+        // 매칭 패널의 주소 칸이 "192.168.0.5 : 7777" 대신 방 이름을 띄우게 되면서
+        // 마지막 호출부가 사라졌다. 온라인에는 보여줄 IP 가 없고, 로컬에서도
+        // 사람이 알아야 하는 건 "누구 방에 있는가"이지 주소가 아니다.
+        // (IsPrivateLan 은 GetPrimaryIPv4 만 쓰던 도우미라 같이 사라진다)
     }
 }
