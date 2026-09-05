@@ -22,16 +22,62 @@ namespace JellyNet
         //(씬에 남은 joinIp 키는 다음 저장 때 유니티가 알아서 버린다)
 
         //LAN 전용 진입점(StartHost/JoinHost)이 필요해 구체 타입도 함께 들고 있다.
-        //3단계에서 방 만들기·참가가 INetSession 으로 넘어가면 transport 하나만 남는다
         private LanTransport lan;
-        private INetTransport transport;
-
         private LanSession lanSession;
 
+#if JELLY_PHOTON
+        private PhotonTransport photon;
+        private PhotonSession photonSession;
+#endif
+
+        private INetTransport transport;
+        private INetSession session;
+
         /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
-        public INetSession Session { get { return lanSession; } }
+        public INetSession Session { get { return session; } }
+
+        /// <summary>지금 온라인 전송을 쓰고 있는가. 화면의 로컬/온라인 선택이 정한다.</summary>
+        public bool IsOnline { get; private set; }
 
         /// <summary>
+        /// 로컬(LAN)과 온라인(Photon)을 갈아끼운다. 방을 만들거나 참가하기 <b>전에</b> 부른다.
+        ///
+        /// ★ 전송을 판마다 새로 만들지 않는 이유
+        ///   둘 다 미리 만들어 두고 가리키는 곳만 바꾼다. 접속 전에 걸어두는 라우팅
+        ///   (로비가 Start 에서 등록하는 LoadGameScene 등)과 이벤트 구독이,
+        ///   전송을 새로 만드는 순간 통째로 사라지기 때문이다.
+        /// </summary>
+        public void UseOnline(bool online)
+        {
+            if (IsOnline == online)
+                return;
+
+            //판이 도는 중에 바꾸면 라우팅은 새 전송을 보는데 데이터는 옛 전송으로 온다
+            if (transport != null && transport.IsConnected)
+            {
+                Debug.LogError("[Net] 접속 중에는 로컬/온라인을 바꿀 수 없습니다.");
+                return;
+            }
+
+#if JELLY_PHOTON
+            IsOnline = online;
+            transport = online ? (INetTransport)photon : lan;
+            session = online ? (INetSession)photonSession : lanSession;
+#else
+            if (online)
+            {
+                //JELLY_PHOTON 이 꺼져 있으면 Photon 코드가 아예 컴파일되지 않았다.
+                //조용히 LAN 으로 돌리면 "온라인을 골랐는데 랜으로 붙는다"가 되므로 말한다
+                Debug.LogError("[Net] 온라인 전송이 이 빌드에 없습니다. "
+                    + "Scripting Define Symbols 에 JELLY_PHOTON 이 있는지 확인해주세요.");
+                return;
+            }
+#endif
+        }
+
+        /// <summary>
+        /// 지금 호스트인가 클라인가 아무것도 아닌가. 전송 상태에서 매번 유도한다.
+        ///
         /// ★ 예전엔 필드에 저장했다
         ///   Shutdown 이 소켓을 닫고 CurrentMode 를 None 으로 되돌리는 순서에 의존하는
         ///   코드가 있었고(로비의 취소 처리는 OnDisconnected 안에서 다시 Offline 을 묻는다),
@@ -44,8 +90,10 @@ namespace JellyNet
             {
                 if (transport == null)
                     return Mode.None;
+
                 if (transport.IsHost)
                     return Mode.Host;
+
                 return transport.IsConnected ? Mode.Client : Mode.None;
             }
         }
@@ -130,16 +178,46 @@ namespace JellyNet
             lan = new LanTransport();
             lan.OnLog = AddLog;
             lan.OnError = msg => Debug.LogError("[NetManager] " + msg);
-            transport = lan;
 
             lanSession = new LanSession(lan, port);
 
-            //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다
-            transport.OnPeerJoined += RaisePeerJoined;
-            transport.OnPeerLeft += RaisePeerLeft;
-            transport.OnHostStarted += RaiseHostStarted;
-            transport.OnDisconnected += RaiseDisconnected;
-            transport.OnConnectionLost += RaiseConnectionLost;
+            transport = lan;
+            session = lanSession;
+
+#if JELLY_PHOTON
+            //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
+            photon = new PhotonTransport();
+            photon.OnLog = AddLog;
+            photon.OnError = msg => Debug.LogError("[NetManager] " + msg);
+
+            photonSession = new PhotonSession(photon);
+
+            Hook(photon);
+#endif
+            Hook(lan);
+        }
+
+        //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다.
+        //쓰지 않는 전송은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다
+        private void Hook(INetTransport t)
+        {
+            t.OnPeerJoined += RaisePeerJoined;
+            t.OnPeerLeft += RaisePeerLeft;
+            t.OnHostStarted += RaiseHostStarted;
+            t.OnDisconnected += RaiseDisconnected;
+            t.OnConnectionLost += RaiseConnectionLost;
+        }
+
+        private void Unhook(INetTransport t)
+        {
+            if (t == null)
+                return;
+
+            t.OnPeerJoined -= RaisePeerJoined;
+            t.OnPeerLeft -= RaisePeerLeft;
+            t.OnHostStarted -= RaiseHostStarted;
+            t.OnDisconnected -= RaiseDisconnected;
+            t.OnConnectionLost -= RaiseConnectionLost;
         }
 
         private void Update()
@@ -162,14 +240,10 @@ namespace JellyNet
             //생각하면 짝을 맞춰두는 편이 안전하다
             lanSession?.Unhook();
 
-            if (transport != null)
-            {
-                transport.OnPeerJoined -= RaisePeerJoined;
-                transport.OnPeerLeft -= RaisePeerLeft;
-                transport.OnHostStarted -= RaiseHostStarted;
-                transport.OnDisconnected -= RaiseDisconnected;
-                transport.OnConnectionLost -= RaiseConnectionLost;
-            }
+            Unhook(lan);
+#if JELLY_PHOTON
+            Unhook(photon);
+#endif
 
             if (Instance == this)
                 Instance = null;

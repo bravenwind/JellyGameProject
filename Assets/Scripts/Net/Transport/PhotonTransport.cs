@@ -1,23 +1,18 @@
 ﻿// ─────────────────────────────────────────────────────────────────────
-//  Photon Realtime 전송 — 아직 뼈대만 있다
-// ─────────────────────────────────────────────────────────────────────
-//
-//  이 파일 전체가 JELLY_PHOTON 안에 들어 있다. 심볼을 켜기 전에는
-//  통째로 없는 파일과 같아서 컴파일에 아무 영향이 없다.
-//
+//  Photon Realtime 전송
 //  ★ 가드가 왜 JELLY_PHOTON 인가
 //    처음엔 PHOTON_UNITY_NETWORKING 을 썼다가 컴파일이 깨졌다. 그건 PUN2 가 정의하는
 //    심볼인데, PUN2 를 걷어낼 때 ProjectSettings 의 정의 심볼이 지워지지 않아
 //    <b>SDK 도 없는 채로 켜져 있었다</b>. 남의 심볼에 우리 코드를 매달면 이렇게 된다.
 //    Realtime 만 설치해도 어차피 그 심볼은 안 켜지므로 우리 이름을 쓴다.
 //
-//  ★ TODO(사람) — 이 파일을 살리기 전에 해야 하는 일
-//    1. Photon Realtime SDK 설치 (PUN2·Fusion 아님)
-//    2. Photon 대시보드에서 App ID 발급 → PhotonServerSettings 에이셋에 넣는다.
-//       코드에 박지 않는다
-//    3. Player Settings → Other Settings → Scripting Define Symbols 에 JELLY_PHOTON 추가
-//    4. 아래 API 이름을 설치한 SDK 버전에 맞춘다. 여기 적힌 건 Realtime 5.x 기준이고
-//       검증하지 않았다 — 이 파일은 한 번도 컴파일된 적이 없다.
+//  ★ 설정은 어디에 있나
+//    App ID·지역·앱 버전은 Resources/PhotonAppSettings.asset 에 있다.
+//    코드에는 없다 — PhotonAppSettingsAsset.Load() 로 읽는다.
+//
+//  Realtime 5.1.19 기준으로 맞춰져 있다. 5.x 에서 이름이 바뀐 것들:
+//    ExitGames.Client.Photon → Photon.Client / LoadBalancingClient → RealtimeClient
+//    RaiseEventOptions → RaiseEventArgs(구조체)
 
 #if JELLY_PHOTON
 
@@ -37,7 +32,8 @@ namespace JellyNet
     ///   · 번호가 우리 것이 아니라 Photon 의 ActorNumber 다
     /// 그 위의 라우팅·핸들러는 LanTransport 와 글자 그대로 같다.
     /// </summary>
-    public class PhotonTransport : INetTransport
+    public class PhotonTransport : INetTransport,
+        IConnectionCallbacks, IInRoomCallbacks, IMatchmakingCallbacks
     {
         // ═══════════════════════════════════════════════════════
         //  메시지 모양 — [len4][type1][body] ↔ RaiseEvent(byte, byte[])
@@ -92,10 +88,57 @@ namespace JellyNet
         //   ExitGames.Client.Photon 네임스페이스도 Photon.Client 로 옮겨갔다.
         //   (뼈대를 세울 땐 SDK가 없어 4.x 시절 이름으로 적혀 있었다)
         //
-        //TODO(사람): 만들면서 App ID·지역을 넣는다.
-        //           값은 Resources/PhotonAppSettings.asset 에서 읽는다 —
-        //           PhotonAppSettingsAsset.Load(). 코드에 박지 않는다.
         private RealtimeClient client;
+
+        /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
+        public RealtimeClient Client { get { return client; } }
+
+        /// <summary>마스터 서버까지 붙었는가. 방 조작은 이 뒤에야 할 수 있다.</summary>
+        public bool IsOnMaster
+        {
+            get { return client != null && client.IsConnectedAndReady && !client.InRoom; }
+        }
+
+        /// <summary>접속이 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
+        public string LastError { get; private set; }
+
+        /// <summary>
+        /// 릴레이에 붙는다. 이미 붙어 있으면 아무것도 하지 않는다.
+        /// App ID 는 코드에 없다 — Resources/PhotonAppSettings.asset 에서 읽는다.
+        /// </summary>
+        public bool Connect()
+        {
+            if (client != null)
+                return true;
+
+            PhotonAppSettingsAsset asset = PhotonAppSettingsAsset.Load();
+            if (asset == null || string.IsNullOrEmpty(asset.AppIdRealtime))
+            {
+                LastError = "온라인 설정이 없습니다. Resources/PhotonAppSettings 의 App ID 를 확인해주세요.";
+                return false;
+            }
+
+            AppSettings settings = new AppSettings
+            {
+                AppIdRealtime = asset.AppIdRealtime,
+                AppVersion = asset.AppVersion,
+                FixedRegion = asset.FixedRegion
+            };
+
+            client = new RealtimeClient();
+            client.AddCallbackTarget(this);
+            client.EventReceived += OnEventReceived;
+
+            if (!client.ConnectUsingSettings(settings))
+            {
+                LastError = "온라인 서버에 연결하지 못했습니다. 인터넷 상태를 확인해주세요.";
+                Teardown();
+                return false;
+            }
+
+            Log("== 온라인 모드 ==  릴레이에 접속 중");
+            return true;
+        }
 
         public Action<string> OnLog;
         public Action<string> OnError;
@@ -106,15 +149,18 @@ namespace JellyNet
         public event Action OnDisconnected;
         public event Action OnConnectionLost;
 
-        //★ 번호를 반드시 맞춰야 한다
-        //  이 게임에서 OwnerId 는 "책임"이고 호스트는 언제나 1이다(NetHost.HOST_ID).
-        //  Photon 의 ActorNumber 는 1부터 올라가지만 마스터가 1이라는 보장이 없다
-        //  (마스터가 나가면 다음 사람이 마스터가 된다).
-        //  TODO(사람): 둘 중 하나를 고를 것.
-        //    ① 마스터 이양을 끄고(방 만들 때 옵션) ActorNumber 를 그대로 쓴다 — 간단하다
-        //    ② ActorNumber ↔ 우리 번호의 대응표를 여기서 들고 번역한다 — 이양을 견딘다
-        //  ①로 가면 마스터가 나간 순간 판이 끝나야 한다. LAN 도 지금 그렇게 동작하므로
-        //  ①이 기존 동작과 같다.
+        // ★ ActorNumber 를 그대로 쓴다. 번역표는 두지 않는다
+        //   이 게임에서 OwnerId 는 "책임"이고 호스트는 언제나 1이다(NetHost.HOST_ID).
+        //   봇이 전부 호스트 소유라, 호스트 번호가 1이 아니면 호스트가 봇을 자기 것으로
+        //   알아보지 못해 아무도 봇을 굴리지 않는다. 에러 하나 없이 게임만 이상해진다.
+        //
+        //   그런데 Photon 도 <b>새 방의 첫 참가자는 항상 ActorNumber 1</b> 이고 그 사람이
+        //   곧 마스터다. 즉 방을 만든 순간 이미 "마스터 = 1"이 성립한다. 번역표가 필요한
+        //   경우는 마스터가 도중에 바뀔 때 하나뿐인데, 그건 아래에서 판을 끝내는 쪽으로
+        //   막는다. 안 일어날 일을 위해 계층을 하나 더 두면, 나중에 번호가 안 맞을 때
+        //   의심할 곳만 늘어난다.
+        //
+        //   대신 OnMasterClientSwitched 를 반드시 잡아야 한다 — 아래를 볼 것.
         public int MyId
         {
             get { return client != null && client.LocalPlayer != null ? client.LocalPlayer.ActorNumber : 0; }
@@ -150,19 +196,57 @@ namespace JellyNet
         //  보내기
         // ═══════════════════════════════════════════════════════
 
+        //호스트가 아닌데 Broadcast 를 부르는 건 호출부의 실수지만, LAN 과 마찬가지로
+        //조용히 버린다. 판이 끝나 방을 나간 뒤에도 커튼 구간에서 게임 씬의 Update 가
+        //계속 도는 구간이 판마다 반드시 지나가기 때문이다
+
         public void Broadcast(NetWriter w)
         {
-            //TODO(사람): ReceiverGroup.Others + 호스트 자신은 로컬에서 이미 처리하므로
-            //           되돌려 받지 않는다. LAN 의 Broadcast 도 자기 자신에겐 안 보낸다
+            //자기 자신에게는 보내지 않는다. 호스트는 이미 로컬에서 처리했다 — LAN 과 같다
             Raise(w, ReceiverGroup.Others, null);
         }
 
+        // ★ Photon 에는 "한 명 빼고"가 없다
+        //   방에 있는 사람에서 그 한 명만 뺀 명단을 직접 만들어 넘겨야 한다.
+        //   여기는 스폰 중계처럼 자주 도는 자리라 매번 배열을 새로 만들면 그대로
+        //   쓰레기가 된다. 인원이 바뀔 때만 다시 짓고 평소엔 재사용한다.
+        private int[] othersCache;
+        private int othersCacheExcept = -1;
+        private int othersCacheStamp = -1;
+
+        //인원이 바뀔 때마다 올린다. 값 자체에 뜻은 없고 '달라졌다'만 본다
+        private int rosterStamp;
+
         public void BroadcastExcept(int exceptPeerId, NetWriter w)
         {
-            //TODO(사람): Photon 에는 "한 명 빼고"가 없다. 방 인원에서 그 사람만 뺀
-            //           TargetActors 배열을 만들어 넘긴다. 매번 배열을 만들지 않도록
-            //           인원이 바뀔 때만 다시 짓는 것을 권한다
-            throw new NotImplementedException("TODO(사람): TargetActors 로 구현");
+            if (client == null || client.CurrentRoom == null)
+                return;
+
+            if (othersCache == null || othersCacheExcept != exceptPeerId || othersCacheStamp != rosterStamp)
+            {
+                Dictionary<int, Player> players = client.CurrentRoom.Players;
+
+                int count = 0;
+                foreach (int id in players.Keys)
+                    if (id != exceptPeerId && id != MyId)
+                        count++;
+
+                othersCache = new int[count];
+
+                int i = 0;
+                foreach (int id in players.Keys)
+                    if (id != exceptPeerId && id != MyId)
+                        othersCache[i++] = id;
+
+                othersCacheExcept = exceptPeerId;
+                othersCacheStamp = rosterStamp;
+            }
+
+            //보낼 곳이 없으면 보내지 않는다. 빈 TargetActors 는 '전체'로 해석될 수 있다
+            if (othersCache.Length == 0)
+                return;
+
+            Raise(w, ReceiverGroup.Others, othersCache);
         }
 
         public void SendTo(int peerId, NetWriter w)
@@ -208,8 +292,7 @@ namespace JellyNet
         //  받기
         // ═══════════════════════════════════════════════════════
 
-        //TODO(사람): client.EventReceived += OnEventReceived; 로 걸고,
-        //           Shutdown 에서 반드시 푼다
+        //구독은 Connect 에서 걸고 Teardown 에서 푼다
         private void OnEventReceived(EventData e)
         {
             //Photon 내부 이벤트(코드 200 이상)는 우리 것이 아니다
@@ -308,22 +391,114 @@ namespace JellyNet
         //   호스트만으로 초당 300개를 넘긴다. 묶으면 엔티티 수와 무관하게 20개다.
         public bool PrefersBatchedUpdates { get { return true; } }
 
+        //Photon 은 우리가 직접 돌려야 한다. 끊김은 콜백으로 오므로 여기서 볼 게 없다
         public void Poll()
         {
-            //TODO(사람): Photon 은 우리가 직접 돌려야 한다. client.Service() 를 매 프레임.
-            //           끊김 감지(OnDisconnected 콜백)도 여기서 OnConnectionLost 로 옮긴다
             if (client != null)
                 client.Service();
         }
 
+        // ★ 라우팅 표는 남긴다
+        //   라우팅은 접속보다 먼저 걸리고(로비가 Start 에서 LoadGameScene 을 등록한다)
+        //   판이 끝나도 살아남아야 한다. LanTransport 와 같은 이유다.
         public void Shutdown()
         {
-            //TODO(사람): 방을 나가고(OpLeaveRoom) 연결을 끊은 뒤 OnDisconnected 를 쏜다.
-            //           LanTransport 와 마찬가지로 라우팅 표는 남겨야 한다 —
-            //           라우팅은 접속보다 먼저 걸리고 판이 끝나도 살아남아야 한다.
-            //           EventReceived 구독도 여기서 푼다
-            throw new NotImplementedException("TODO(사람)");
+            if (client == null)
+                return;
+
+            bool wasConnected = client.InRoom;
+
+            //정상 종료다. 이 뒤에 따라올 OnDisconnected 콜백을 '연결 끊김'으로
+            //오해하지 않도록 미리 표시해 둔다
+            shuttingDown = true;
+
+            if (client.InRoom)
+                client.OpLeaveRoom(false);
+
+            client.Disconnect();
+            Teardown();
+
+            if (wasConnected)
+                OnDisconnected?.Invoke();
         }
+
+        private bool shuttingDown;
+
+        private void Teardown()
+        {
+            if (client == null)
+                return;
+
+            client.EventReceived -= OnEventReceived;
+            client.RemoveCallbackTarget(this);
+            client = null;
+
+            othersCache = null;
+            othersCacheExcept = -1;
+            othersCacheStamp = -1;
+        }
+
+        // ═══════════════════════════════════════════════════════
+        //  Photon 콜백
+        // ═══════════════════════════════════════════════════════
+
+        public void OnPlayerEnteredRoom(Player newPlayer)
+        {
+            rosterStamp++;
+            OnPeerJoined?.Invoke(newPlayer.ActorNumber);
+        }
+
+        public void OnPlayerLeftRoom(Player otherPlayer)
+        {
+            rosterStamp++;
+            OnPeerLeft?.Invoke(otherPlayer.ActorNumber);
+        }
+
+        // ★ 마스터가 바뀌면 판을 끝낸다
+        //   위에서 "ActorNumber 를 그대로 쓴다"고 한 것의 대가다. 새 마스터의
+        //   ActorNumber 는 1이 아니므로, 그대로 두면 호스트가 봇을 자기 것으로
+        //   알아보지 못한 채 게임이 조용히 망가진다. 아무도 에러를 못 보는 형태라
+        //   최악이다. LAN 도 호스트가 나가면 판이 끝나므로 동작이 같아진다.
+        public void OnMasterClientSwitched(Player newMasterClient)
+        {
+            LogError("방장이 나갔습니다. 게임을 종료합니다.");
+            OnConnectionLost?.Invoke();
+        }
+
+        public void OnCreatedRoom()
+        {
+            //방을 만든 사람이 곧 마스터다. LAN 의 '포트를 열었다'와 같은 자리
+            OnHostStarted?.Invoke();
+        }
+
+        public void OnDisconnected(DisconnectCause cause)
+        {
+            //Shutdown 이 부른 끊김은 이미 알렸다. 두 번 쏘면 로비가 두 번 되돌아간다
+            if (shuttingDown)
+            {
+                shuttingDown = false;
+                return;
+            }
+
+            Log("연결이 끊어졌습니다 — " + cause);
+            Teardown();
+            OnConnectionLost?.Invoke();
+        }
+
+        //우리가 듣지 않는 콜백들. 인터페이스라 비워둘 수는 없다
+        public void OnConnected() { }
+        public void OnConnectedToMaster() { }
+        public void OnRegionListReceived(RegionHandler regionHandler) { }
+        public void OnCustomAuthenticationResponse(Dictionary<string, object> data) { }
+        public void OnCustomAuthenticationFailed(string debugMessage) { }
+        public void OnRoomPropertiesUpdate(PhotonHashtable propertiesThatChanged) { }
+        public void OnPlayerPropertiesUpdate(Player targetPlayer, PhotonHashtable changedProps) { }
+        public void OnFriendListUpdate(List<FriendInfo> friendList) { }
+        public void OnCreateRoomFailed(short returnCode, string message) { }
+        public void OnJoinedRoom() { }
+        public void OnJoinRoomFailed(short returnCode, string message) { }
+        public void OnJoinRandomFailed(short returnCode, string message) { }
+        public void OnLeftRoom() { }
 
         private void Log(string msg) { OnLog?.Invoke(msg); }
 
