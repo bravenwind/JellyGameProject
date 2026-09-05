@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace JellyNet
@@ -88,6 +88,17 @@ namespace JellyNet
 
         /// <summary>방 만들기·참가가 실패했다. 인자는 화면에 그대로 띄울 수 있는 문장이다.</summary>
         event Action<string> OnFailed;
+
+        /// <summary>
+        /// 방에 실제로 들어갔다. 이때부터 대기 화면이 뜻을 갖는다.
+        ///
+        /// ★ CreateRoom/JoinRoom 이 true 를 돌려준 것과 같은 뜻이 아니다
+        ///   LAN 은 소켓을 여는 것까지가 동기라 곧바로 알 수 있지만, 그때도 내 번호는
+        ///   호스트의 환영 인사가 와야 정해진다. 릴레이는 아예 방 만들기 성공 자체가
+        ///   몇백 ms 뒤 콜백으로 온다. 그래서 "요청을 보냈다"와 "들어갔다"를 나눈다 —
+        ///   안 나누면 실패했는데 이미 대기 화면인 상태가 생긴다.
+        /// </summary>
+        event Action OnRoomReady;
 
         /// <summary>
         /// 같은 기계·같은 랜에서만 도는 세션인가. 화면이 로컬 전용 입력(포트 등)을

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace JellyNet
@@ -21,6 +21,7 @@ namespace JellyNet
 
         public event Action OnRoomListChanged;
         public event Action<string> OnFailed;
+        public event Action OnRoomReady;
 
         public bool IsLocal { get { return true; } }
 
@@ -32,6 +33,15 @@ namespace JellyNet
             //방이 닫히면 알리기도 멈춘다. 호출부가 따로 기억해야 하는 일로 두면
             //취소 경로 하나를 빠뜨렸을 때 없는 방이 목록에 계속 떠 있게 된다
             this.transport.OnDisconnected += StopAdvertising;
+
+            //클라는 호스트의 환영 인사(= 내 번호 배정)를 받아야 방에 들어간 것이다.
+            //호스트는 StartHost 가 성공한 순간이라 CreateRoom 에서 직접 알린다
+            this.transport.OnWelcomed += RaiseRoomReady;
+        }
+
+        private void RaiseRoomReady()
+        {
+            OnRoomReady?.Invoke();
         }
 
         // ─────────────────────────────────────────────────────────
@@ -54,6 +64,8 @@ namespace JellyNet
             if (LanDiscovery.Instance != null)
                 LanDiscovery.Instance.StartBeacon(port);
 
+            //호스트는 남의 승인을 기다릴 게 없다. 포트가 열린 순간 방이다
+            RaiseRoomReady();
             return true;
         }
 

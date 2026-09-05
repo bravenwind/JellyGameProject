@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace JellyNet
@@ -14,6 +14,9 @@ namespace JellyNet
 
         [Tooltip("목록이 비었을 때 보여줄 안내.")]
         [SerializeField] private GameObject emptyHint;
+
+        [Tooltip("아직 찾는 중일 때 보여줄 안내. TMP_Text 에 WaitingDots 를 붙여두면 점이 늘어난다.")]
+        [SerializeField] private GameObject searchingHint;
 
         [Header("표시")]
         [Tooltip("초당 몇 번 갱신할지. 방 정보는 1초에 한 번 오므로 낮아도 된다.")]
@@ -126,6 +129,13 @@ namespace JellyNet
 
             if (emptyHint != null)
                 emptyHint.SetActive(count == 0 && !stillSearching);
+
+            // ★ 빈 화면과 '아직 찾는 중'은 다르다
+            //   예전엔 이 구간에 아무것도 안 띄웠다. 방이 없는 것도 아니고 찾는 것도
+            //   아닌 그냥 빈 화면이라, 사용자에게는 목록이 멈춘 것처럼 보인다.
+            //   방이 하나라도 잡히면 목록이 곧 답이므로 안내를 내린다.
+            if (searchingHint != null)
+                searchingHint.SetActive(count == 0 && stillSearching);
         }
 
         private void ClearRows()

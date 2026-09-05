@@ -1,4 +1,4 @@
-// ─────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────
 //  Photon Realtime 세션(방 만들기·찾기·참가) — 아직 뼈대만 있다
 // ─────────────────────────────────────────────────────────────────────
 //
@@ -26,6 +26,10 @@ namespace JellyNet
 
         public event Action OnRoomListChanged;
         public event Action<string> OnFailed;
+
+        //TODO(사람): OnCreatedRoom / OnJoinedRoom 콜백에서 이걸 쏜다.
+        //           로비는 그때까지 "연결 중..." 을 띄우고 기다린다
+        public event Action OnRoomReady;
 
         //온라인이므로 로컬 전용 입력(포트)은 화면에서 감춰야 한다
         public bool IsLocal { get { return false; } }
@@ -55,9 +59,9 @@ namespace JellyNet
             //    성공은 OnCreatedRoom/OnJoinedRoom 콜백으로 나중에 온다.
             //    지금 로비(LanLobby.OnClickGenerate)는 true 를 받으면 곧바로 대기 화면으로
             //    넘어가는데, 그 상태로 실패 콜백이 오면 OnFailed 가 대기 화면 위에 뜬다.
-            //    TODO(사람): 로비에 "연결 중" 단계를 하나 두거나, 성공 콜백을 알리는
-            //                이벤트(OnRoomReady 같은 것)를 INetSession 에 추가할 것.
-            //                이건 화면 흐름 결정이라 여기서 임의로 정하지 않았다.
+            //    이건 해결됐다 — INetSession.OnRoomReady 가 생겼고, 로비는 요청이
+            //    나간 뒤 "연결 중..." 을 띄운 채 그 신호를 기다린다. 여기서는 방에
+            //    실제로 들어간 콜백에서 OnRoomReady 를 쏘기만 하면 된다.
             throw new NotImplementedException("TODO(사람)");
         }
 

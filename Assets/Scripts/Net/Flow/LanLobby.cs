@@ -127,7 +127,10 @@ namespace JellyNet
             //방 만들기·참가 실패는 세션이 알려준다. 예전엔 호출부가 반환값을 보고
             //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
             if (net.Session != null)
+            {
                 net.Session.OnFailed += ShowLobbyError;
+                net.Session.OnRoomReady += HandleRoomReady;
+            }
 
             LanScoreboard.Clear();
             LanRoomConfig.Clear();
@@ -255,7 +258,10 @@ namespace JellyNet
                 net.OnPeerLeft -= HandlePeerChanged;
 
                 if (net.Session != null)
+                {
                     net.Session.OnFailed -= ShowLobbyError;
+                    net.Session.OnRoomReady -= HandleRoomReady;
+                }
                 net.OnDisconnected -= HandleDisconnected;
             }
             //트윈은 DOTween 엔진이 들고 있어 이 컴포넌트보다 오래 산다.
@@ -485,7 +491,7 @@ namespace JellyNet
                 roomAddressText.text = NetUtil.GetPrimaryIPv4() + " : " + port;
 
             Unpop(hostOptionPanel);
-            OpenMatching(MATCHING_LABEL);
+            OpenMatching(CONNECTING_LABEL);
         }
 
         /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 세션이 OnFailed 로 알린다.</summary>
@@ -502,13 +508,39 @@ namespace JellyNet
                 roomAddressText.text = room.Address;
 
             Unpop(joinPanel);
-            OpenMatching(MATCHING_LABEL);
+            OpenMatching(CONNECTING_LABEL);
         }
 
 
         //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
         //양쪽 다 "판이 차기를 기다린다"는 같은 상태이므로 문구도 하나로 둔다
         private const string MATCHING_LABEL = "다른 참가자를 기다리는 중";
+
+        // ★ 요청을 보낸 것과 방에 들어간 것은 다르다
+        //   LAN 은 소켓을 여는 데까지가 동기라 이 문구가 한순간 스치고 지나가지만,
+        //   클라는 그때도 아직 자기 번호를 못 받았다(호스트의 환영 인사가 와야 한다).
+        //   릴레이는 방 만들기 성공 자체가 몇백 ms 뒤에 온다. 그동안 "다른 참가자를
+        //   기다리는 중"을 띄우면, 실패했을 때 아무도 오지 않는 방을 기다린 셈이 된다.
+        private const string CONNECTING_LABEL = "연결 중";
+
+        /// <summary>방에 실제로 들어갔다. 그제서야 '기다린다'는 말이 사실이 된다.</summary>
+        private void HandleRoomReady()
+        {
+            if (!matching)
+                return;
+
+            SetMatchingLabel(MATCHING_LABEL);
+        }
+
+        private void SetMatchingLabel(string label)
+        {
+            if (matchingStatusText != null)
+                matchingStatusText.text = label;
+
+            if (dots != null)
+                StopCoroutine(dots);
+            dots = StartCoroutine(AnimateDots(label));
+        }
 
         //실패했으면 대기 화면으로 넘어가지 않는다. 넘어가면 영원히 기다리는 것처럼 보인다
         private void ShowLobbyError(string message)

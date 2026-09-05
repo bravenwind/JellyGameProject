@@ -30,6 +30,10 @@ namespace JellyNet
         public event Action<int> OnPeerJoined;
         public event Action<int> OnPeerLeft;
         public event Action OnHostStarted;
+
+        //클라가 호스트에게서 자기 번호를 받은 순간. LAN 은 접속(TCP)과 번호 배정이
+        //따로라, 접속만으로 '방에 들어갔다'고 하면 번호가 0인 채로 대기 화면이 뜬다
+        public event Action OnWelcomed;
         public event Action OnDisconnected;
         public event Action OnConnectionLost;
 
@@ -105,6 +109,7 @@ namespace JellyNet
             NetClient c = new NetClient();
             c.OnLog = Log;
             c.OnMessage = RaiseClientMessage;
+            c.OnWelcome = () => OnWelcomed?.Invoke();
 
             if (!c.Connect(ip, port))
             {
