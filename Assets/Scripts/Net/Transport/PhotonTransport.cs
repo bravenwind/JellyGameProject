@@ -1,20 +1,23 @@
-// ─────────────────────────────────────────────────────────────────────
+﻿// ─────────────────────────────────────────────────────────────────────
 //  Photon Realtime 전송 — 아직 뼈대만 있다
 // ─────────────────────────────────────────────────────────────────────
 //
-//  이 파일 전체가 PHOTON_UNITY_NETWORKING 안에 들어 있다. SDK가 없는 지금은
+//  이 파일 전체가 JELLY_PHOTON 안에 들어 있다. 심볼을 켜기 전에는
 //  통째로 없는 파일과 같아서 컴파일에 아무 영향이 없다.
+//
+//  ★ 가드가 왜 JELLY_PHOTON 인가
+//    처음엔 PHOTON_UNITY_NETWORKING 을 썼다가 컴파일이 깨졌다. 그건 PUN2 가 정의하는
+//    심볼인데, PUN2 를 걷어낼 때 ProjectSettings 의 정의 심볼이 지워지지 않아
+//    <b>SDK 도 없는 채로 켜져 있었다</b>. 남의 심볼에 우리 코드를 매달면 이렇게 된다.
+//    Realtime 만 설치해도 어차피 그 심볼은 안 켜지므로 우리 이름을 쓴다.
 //
 //  ★ TODO(사람) — 이 파일을 살리기 전에 해야 하는 일
 //    1. Photon Realtime SDK 설치 (PUN2·Fusion 아님)
-//    2. Photon 대시보드에서 App ID 발급
-//    3. 스크립팅 정의 심볼에 PHOTON_UNITY_NETWORKING 추가.
-//       PHOTON_UNITY_NETWORKING 은 원래 PUN2 가 정의하는 심볼이라,
-//       Realtime 만 넣으면 자동으로 켜지지 않는다.
-//       Player Settings → Other Settings → Scripting Define Symbols 에 손으로 넣거나,
-//       심볼 이름을 이 프로젝트 것으로 바꾼다(그 경우 이 파일과 PhotonSession 둘 다).
+//    2. Photon 대시보드에서 App ID 발급 → PhotonServerSettings 에이셋에 넣는다.
+//       코드에 박지 않는다
+//    3. Player Settings → Other Settings → Scripting Define Symbols 에 JELLY_PHOTON 추가
 //    4. 아래 API 이름을 설치한 SDK 버전에 맞춘다. 여기 적힌 건 Realtime 5.x 기준이고
-//       검증하지 않았다 — 이 환경에는 SDK가 없어 컴파일해 본 적이 없다.
+//       검증하지 않았다 — 이 파일은 한 번도 컴파일된 적이 없다.
 
 #if JELLY_PHOTON
 
