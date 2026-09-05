@@ -1242,10 +1242,11 @@ public class AIPlayerMovement : MonoBehaviour
         if (!IsDriver || netId == null)
             return false;
 
-        DataManager dm = DataManager.Instance;
+        //DataManager는 더 이상 여기서 읽지 않는다 — 증가량을 계산하던 줄이 사라졌다.
+        //설정이 비었을 때의 처리는 ResolveBatHit가 갖고 있고, 거기서 에러를 남긴다.
         PushMode push = PushMode.Instance;
 
-        if (dm == null || push == null)
+        if (push == null)
             return false;
 
         float scale = GetMyAuthorityScale();
@@ -1261,8 +1262,23 @@ public class AIPlayerMovement : MonoBehaviour
         //   플레이어가 때렸을 때와 완전히 같은 코드가 돈다.
         push.HostBotBatHit(victim.NetId, netId.NetId);
 
-        if (ScaleCtrl != null)
-            ScaleCtrl.GrowByBatHit(dm.BatHitGrowth / Mathf.Max(scale, 1f));
+        // ★ 성장도 여기서 직접 부르지 않는다 — 부르면 두 배로 자란다
+        //   위 HostBotBatHit는 ResolveBatHit로 이어지고, 거기서
+        //   BroadcastGrow(공격자, BatHit, 증가량)를 부른다. 그 함수는 방송만 하는 게
+        //   아니라 <b>호스트 자신에게도 ApplyGrow를 적용</b>한다. 봇의 소유자는 호스트라
+        //   NetEntity.DrivesScaleHere가 통과하므로 GrowByBatHit가 이미 한 번 돈다.
+        //
+        //   예전엔 그 아래에서 ScaleCtrl.GrowByBatHit를 한 번 더 불렀다.
+        //   증가량 식도 ResolveBatHit와 똑같아서(BatHitGrowth / max(scale, 1)),
+        //   봇이 배트로 때릴 때마다 정확히 2배로 자랐다.
+        //
+        //   사람 쪽(PlayerAttackState.DetectBatHit)에는 이 줄이 없다. 거기는
+        //   RequestBatHit만 부르고 성장은 방송을 받아서 한다 — 그게 맞는 모양이다.
+        //
+        //   ※ 이 버그가 오래 안 보인 이유
+        //     봇의 크기는 호스트가 값으로 방송하고 클라는 그걸 따라간다. 그래서
+        //     호스트가 두 배로 키워도 클라가 그 값을 그대로 받아 <b>양쪽 화면이 일치했다.</b>
+        //     "화면이 다르다"가 아니라 "봇이 좀 빨리 큰다"로만 보여서 눈에 안 띄었다.
 
         return true;
     }
