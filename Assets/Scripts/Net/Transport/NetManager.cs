@@ -22,6 +22,9 @@ namespace JellyNet
         //(씬에 남은 joinIp 키는 다음 저장 때 유니티가 알아서 버린다)
 
         //LAN 전용 진입점(StartHost/JoinHost)이 필요해 구체 타입도 함께 들고 있다.
+        //전송이 갈려도 하나뿐인 것 — 어떤 MsgType 을 누가 맡는가
+        private NetRouteTable routes;
+
         private LanTransport lan;
         private LanSession lanSession;
 
@@ -203,7 +206,13 @@ namespace JellyNet
 
             //전송은 NetManager 와 수명이 같다. 판마다 새로 만들면 접속 전에 걸어둔
             //라우팅(로비의 LoadGameScene 등)과 이벤트 구독이 통째로 사라진다
-            lan = new LanTransport();
+            //표는 전송보다 위에 있다. 무엇으로 실어 나르든 "이 타입은 누가 맡는가"는
+            //같은 답이고, 등록은 접속보다 한참 먼저 일어난다
+            routes = new NetRouteTable();
+            routes.OnLog = AddLog;
+            routes.OnError = msg => Debug.LogError("[NetManager] " + msg);
+
+            lan = new LanTransport(routes);
             lan.OnLog = AddLog;
             lan.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
@@ -216,7 +225,7 @@ namespace JellyNet
 
 #if PHOTON_REALTIME_5_OR_NEWER
             //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
-            photon = new PhotonTransport();
+            photon = new PhotonTransport(routes);
             photon.OnLog = AddLog;
             photon.OnError = msg => Debug.LogError("[NetManager] " + msg);
 

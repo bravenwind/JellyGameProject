@@ -14,6 +14,11 @@ namespace JellyNet
     /// </summary>
     public class LanTransport : INetTransport
     {
+        public LanTransport(NetRouteTable routes)
+        {
+            this.routes = routes;
+        }
+
         private NetHost host;
         private NetClient client;
 
@@ -203,87 +208,32 @@ namespace JellyNet
         //  메시지 라우팅 테이블
         // ─────────────────────────────────────────────────────────
         //
-        // ★ 왜 이벤트 브로드캐스트로는 부족한가
-        //   멀티캐스트 이벤트는 구독자 전원이 같은 메시지를 순서대로 받는다. 문제가 셋 있었다.
-        //
-        //     1. MsgType 하나를 추가하면 NetWorld·AbsorbMode·LanGameFlow 중
-        //        어디 switch 에 넣을지 매번 골라야 하고, 아무 데도 안 넣어도 조용하다.
-        //     2. 두 구독자가 같은 타입을 읽으면 NetReader 를 공유하므로 두 번째는
-        //        위치가 밀린 채 쓰레기를 읽는다. 예외도 안 난다.
-        //     3. 어떤 타입을 누가 담당하는지 코드 어디에도 안 적혀 있다.
-        //
-        //   타입당 주인을 하나로 못 박으면 셋 다 사라진다. 중복 등록은 그 자리에서
-        //   에러로 잡히고, 주인 없는 타입은 로그에 남는다.
-        private readonly Dictionary<MsgType, Action<int, NetReader>> hostRoutes
-            = new Dictionary<MsgType, Action<int, NetReader>>();
-
-        private readonly Dictionary<MsgType, Action<NetReader>> clientRoutes
-            = new Dictionary<MsgType, Action<NetReader>>();
+        // 표는 NetManager 가 하나 만들어 두 전송에 같이 꽂아준다.
+        // 왜 전송마다 갖지 않는지는 NetRouteTable 의 머리말에 적었다.
+        private readonly NetRouteTable routes;
 
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
-            if (handler == null)
-                return;
-
-            if (hostRoutes.ContainsKey(type))
-            {
-                LogError("호스트 메시지 " + type + " 의 주인이 이미 있습니다. "
-                    + "한 타입은 한 곳에서만 처리해야 합니다.");
-                return;
-            }
-
-            hostRoutes[type] = handler;
+            routes.RouteHost(type, handler);
         }
 
         public void RouteClient(MsgType type, Action<NetReader> handler)
         {
-            if (handler == null)
-                return;
-
-            if (clientRoutes.ContainsKey(type))
-            {
-                LogError("클라 메시지 " + type + " 의 주인이 이미 있습니다. "
-                    + "한 타입은 한 곳에서만 처리해야 합니다.");
-                return;
-            }
-
-            clientRoutes[type] = handler;
+            routes.RouteClient(type, handler);
         }
 
-        //씬을 나갈 때 반드시 풀어야 한다. 안 그러면 파괴된 오브젝트의 메서드가 남아
-        //다음 판에서 "주인이 이미 있습니다" 에러가 뜬다
-        public void UnrouteHost(MsgType type)
-        {
-            hostRoutes.Remove(type);
-        }
+        public void UnrouteHost(MsgType type) { routes.UnrouteHost(type); }
 
-        public void UnrouteClient(MsgType type)
-        {
-            clientRoutes.Remove(type);
-        }
+        public void UnrouteClient(MsgType type) { routes.UnrouteClient(type); }
 
         private void RaiseHostMessage(int peerId, MsgType type, NetReader reader)
         {
-            Action<int, NetReader> route;
-            if (hostRoutes.TryGetValue(type, out route))
-            {
-                route(peerId, reader);
-                return;
-            }
-
-            Log("처리되지 않은 호스트 메시지: " + type);
+            routes.DispatchHost(peerId, type, reader);
         }
 
         private void RaiseClientMessage(MsgType type, NetReader reader)
         {
-            Action<NetReader> route;
-            if (clientRoutes.TryGetValue(type, out route))
-            {
-                route(reader);
-                return;
-            }
-
-            Log("처리되지 않은 클라 메시지: " + type);
+            routes.DispatchClient(type, reader);
         }
 
         private void RaisePeerJoined(int peerId)

@@ -323,73 +323,40 @@ namespace JellyNet
             reader.Reset(body, 0, body.Length);
 
             if (IsHost)
-            {
-                Action<int, NetReader> hostRoute;
-                if (hostRoutes.TryGetValue(type, out hostRoute))
-                {
-                    hostRoute(senderId, reader);
-                    return;
-                }
-            }
+                routes.DispatchHost(senderId, type, reader);
             else
-            {
-                Action<NetReader> clientRoute;
-                if (clientRoutes.TryGetValue(type, out clientRoute))
-                {
-                    clientRoute(reader);
-                    return;
-                }
-            }
-
-            Log("처리되지 않은 메시지: " + type);
+                routes.DispatchClient(type, reader);
         }
 
         // ═══════════════════════════════════════════════════════
-        //  라우팅 — LanTransport 와 같다
+        //  라우팅 — LanTransport 와 <b>같은 표</b>를 쓴다
         // ═══════════════════════════════════════════════════════
         //
-        //TODO(사람): 표를 다루는 코드가 LanTransport 와 글자 그대로 같다.
-        //           둘 다 살아난 뒤에 공통 부모(NetRouteTable 같은 것)로 빼는 걸 권한다.
-        //           지금 미리 빼두지 않은 이유는, 한쪽만 있는 상태에서 추상화를 하면
-        //           실제로 무엇이 같은지 확인하지 못한 채 모양만 맞추게 되기 때문이다.
+        // 예전엔 이 파일이 자기 표를 따로 들고 있었다. 등록은 접속보다 훨씬 먼저
+        // 일어나는데(로비가 Start 에서 LoadGameScene 을 건다) 그때 활성 전송은 LAN 이라,
+        // 온라인으로 방에 들어가면 메시지는 오는데 표가 비어 있었다.
+        // 자세한 이야기는 NetRouteTable 머리말에.
 
-        private readonly Dictionary<MsgType, Action<int, NetReader>> hostRoutes
-            = new Dictionary<MsgType, Action<int, NetReader>>();
+        private readonly NetRouteTable routes;
 
-        private readonly Dictionary<MsgType, Action<NetReader>> clientRoutes
-            = new Dictionary<MsgType, Action<NetReader>>();
+        public PhotonTransport(NetRouteTable routes)
+        {
+            this.routes = routes;
+        }
 
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
-            if (handler == null)
-                return;
-
-            if (hostRoutes.ContainsKey(type))
-            {
-                LogError("호스트 메시지 " + type + " 의 주인이 이미 있습니다.");
-                return;
-            }
-
-            hostRoutes[type] = handler;
+            routes.RouteHost(type, handler);
         }
 
         public void RouteClient(MsgType type, Action<NetReader> handler)
         {
-            if (handler == null)
-                return;
-
-            if (clientRoutes.ContainsKey(type))
-            {
-                LogError("클라 메시지 " + type + " 의 주인이 이미 있습니다.");
-                return;
-            }
-
-            clientRoutes[type] = handler;
+            routes.RouteClient(type, handler);
         }
 
-        public void UnrouteHost(MsgType type) { hostRoutes.Remove(type); }
+        public void UnrouteHost(MsgType type) { routes.UnrouteHost(type); }
 
-        public void UnrouteClient(MsgType type) { clientRoutes.Remove(type); }
+        public void UnrouteClient(MsgType type) { routes.UnrouteClient(type); }
 
         // ═══════════════════════════════════════════════════════
         //  수명
