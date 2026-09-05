@@ -613,8 +613,13 @@ namespace JellyNet
         {
             roomReady = true;
 
-            if (matching)
-                SetMatchingLabel(MATCHING_LABEL);
+            if (!matching)
+                return;
+
+            SetMatchingLabel(MATCHING_LABEL);
+
+            //이제서야 인원을 말할 수 있다. 위 문구와 아래 숫자가 같이 바뀐다
+            UpdatePlayerCountUI();
         }
 
         private void SetMatchingLabel(string label)
@@ -757,6 +762,17 @@ namespace JellyNet
         {
             if (currentPlayerCountText == null)
                 return;
+
+            // ★ 방에 들어가기 전에는 인원을 말하지 않는다
+            //   예전엔 여기서 곧바로 "접속됨"이 떴다. LAN 은 방 만들기가 동기라
+            //   그 글자가 스치고 지나갔지만, 릴레이는 몇백 ms 를 기다리므로
+            //   <b>아직 방이 없는데 접속됐다고 말하는</b> 화면이 그대로 보인다.
+            //   위쪽 문구가 "연결 중..." 인 동안 아래는 비어 있어야 앞뒤가 맞는다.
+            if (!roomReady)
+            {
+                currentPlayerCountText.text = "";
+                return;
+            }
 
             NetManager net = NetManager.Instance;
 

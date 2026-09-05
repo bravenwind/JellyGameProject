@@ -410,25 +410,55 @@ namespace JellyNet
         // ★ 라우팅 표는 남긴다
         //   라우팅은 접속보다 먼저 걸리고(로비가 Start 에서 LoadGameScene 을 등록한다)
         //   판이 끝나도 살아남아야 한다. LanTransport 와 같은 이유다.
+        // ★ 판을 끝내는 것은 '방을 나가는 것'이지 '연결을 끊는 것'이 아니다
+        //   예전엔 여기서 Disconnect 까지 하고 client 를 곧바로 null 로 만들었다.
+        //   Disconnect 는 <b>끊겠다는 요청</b>일 뿐이고 실제 종료는 Service 를 계속
+        //   돌려야 콜백으로 온다. client 를 버리면 Poll 이 멈춰 그 호출이 사라지고,
+        //   Photon 이 Disconnecting 인 채 5초 뒤에 경고를 뱉는다.
+        //   ("DispatchIncomingCommands() wasn't called for > 5 seconds")
+        //   게다가 그 상태에서 방을 다시 만들면 죽지 않은 옛 연결 위에 새 연결이 얹힌다.
+        //
+        //   릴레이에서 로비로 돌아가는 것은 '방에서 나가는 것'이다. 마스터 서버에는
+        //   붙어 있는 편이 맞다 — 방 목록도 거기서 오고, 다시 방을 만들 때 접속
+        //   과정을 처음부터 되풀이하지 않아도 된다.
+        /// <summary>
+        /// 판을 접었다. 세션이 '하려던 일'을 취소할 수 있게 알린다.
+        ///
+        /// ★ 접속 중에 취소하면 취소가 안 됐다
+        ///   Photon 은 접속이 끝나야 방을 만들 수 있어, 하려던 일을 적어두고
+        ///   OnConnectedToMaster 에서 꺼내 실행한다. 그런데 그 사이에 취소를 누르면
+        ///   적어둔 것이 그대로 남아, 몇백 ms 뒤에 <b>아무도 요청하지 않은 방</b>이
+        ///   만들어졌다. 접었다는 사실은 방에 들어갔는지와 무관하게 알려야 한다.
+        /// </summary>
+        public event Action OnShutdownRequested;
+
         public void Shutdown()
+        {
+            OnShutdownRequested?.Invoke();
+
+            if (client == null || !client.InRoom)
+                return;
+
+            client.OpLeaveRoom(false);
+            OnDisconnected?.Invoke();
+        }
+
+        /// <summary>
+        /// 연결까지 정말로 끊는다. 앱을 닫거나 NetManager 가 사라질 때만.
+        /// 끊김 콜백이 올 때까지 Poll 은 계속 돌아야 한다 — NetManager 가 두 전송을
+        /// 모두 돌리는 이유가 이것이다.
+        /// </summary>
+        public void DisconnectFully()
         {
             if (client == null)
                 return;
 
-            bool wasConnected = client.InRoom;
-
-            //정상 종료다. 이 뒤에 따라올 OnDisconnected 콜백을 '연결 끊김'으로
-            //오해하지 않도록 미리 표시해 둔다
             shuttingDown = true;
 
             if (client.InRoom)
                 client.OpLeaveRoom(false);
 
             client.Disconnect();
-            Teardown();
-
-            if (wasConnected)
-                OnDisconnected?.Invoke();
         }
 
         private bool shuttingDown;
@@ -486,16 +516,17 @@ namespace JellyNet
         //   둘 다 그냥 public 으로 두면 같은 이름이라 컴파일이 안 된다.
         void IConnectionCallbacks.OnDisconnected(DisconnectCause cause)
         {
-            //Shutdown 이 부른 끊김은 이미 알렸다. 두 번 쏘면 로비가 두 번 되돌아간다
-            if (shuttingDown)
-            {
-                shuttingDown = false;
-                return;
-            }
+            //우리가 시킨 끊김인가. 정리는 어느 쪽이든 여기서 한다 —
+            //Disconnect 가 실제로 끝나는 시점이 여기이기 때문이다
+            bool expected = shuttingDown;
+            shuttingDown = false;
 
             Log("연결이 끊어졌습니다 — " + cause);
             Teardown();
-            OnConnectionLost?.Invoke();
+
+            //시키지 않은 끊김만 위로 알린다. 시킨 끊김은 부른 쪽이 이미 알고 있다
+            if (!expected)
+                OnConnectionLost?.Invoke();
         }
 
         //우리가 듣지 않는 콜백들. 인터페이스라 비워둘 수는 없다

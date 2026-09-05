@@ -55,6 +55,21 @@ namespace JellyNet
         public PhotonSession(PhotonTransport transport)
         {
             this.transport = transport;
+
+            //취소·판 종료로 전송이 접히면 적어둔 일도 없던 일이 된다
+            this.transport.OnShutdownRequested += CancelPending;
+        }
+
+        /// <summary>전송에 건 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
+        public void Unhook()
+        {
+            transport.OnShutdownRequested -= CancelPending;
+        }
+
+        private void CancelPending()
+        {
+            pending = Intent.None;
+            pendingRoomName = null;
         }
 
         /// <summary>
@@ -307,7 +322,7 @@ namespace JellyNet
         {
             //붙는 도중에 끊겼다면 하려던 일도 없던 일이 된다.
             //남겨두면 다음에 붙었을 때 아무도 시키지 않은 방이 만들어진다
-            pending = Intent.None;
+            CancelPending();
             hooked = false;
             handles.Clear();
             byName.Clear();

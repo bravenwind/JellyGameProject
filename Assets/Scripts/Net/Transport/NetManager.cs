@@ -222,23 +222,44 @@ namespace JellyNet
 
         private void Update()
         {
-            transport?.Poll();
+            // ★ 고르지 않은 전송도 돌린다
+            //   Photon 은 Disconnect 를 던진 뒤에도 Service 를 계속 받아야 실제로
+            //   끝난다. 활성 전송만 돌리면, 온라인을 껐다 로컬로 바꾼 순간
+            //   Photon 이 Disconnecting 인 채 멈춘다. 쓰지 않는 전송의 Poll 은
+            //   소켓도 클라이언트도 없어 사실상 아무 일도 하지 않는다.
+            lan?.Poll();
+#if PHOTON_REALTIME_5_OR_NEWER
+            photon?.Poll();
+#endif
 
             //방 목록이 바뀌었는지 훑는다. 로비 화면에서만 의미가 있지만, 목록을 켜지 않았으면
             //훑을 것도 없어 비용이 사실상 0이다
             lanSession?.Poll();
         }
 
-        private void OnApplicationQuit() { Shutdown(); }
+        private void OnApplicationQuit() { CloseEverything(); }
+
+        //판만 끝내는 Shutdown 과 달리 연결까지 끊는다
+        private void CloseEverything()
+        {
+            Shutdown();
+
+#if PHOTON_REALTIME_5_OR_NEWER
+            photon?.DisconnectFully();
+#endif
+        }
 
         private void OnDestroy()
         {
-            Shutdown();
+            CloseEverything();
 
             //전송은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
             lanSession?.Unhook();
+#if PHOTON_REALTIME_5_OR_NEWER
+            photonSession?.Unhook();
+#endif
 
             Unhook(lan);
 #if PHOTON_REALTIME_5_OR_NEWER
