@@ -406,6 +406,7 @@ namespace JellyNet
             if (client == null || !client.InRoom)
                 return;
 
+            leavingRoom = true;
             client.OpLeaveRoom(false);
             OnDisconnected?.Invoke();
         }
@@ -421,6 +422,7 @@ namespace JellyNet
                 return;
 
             shuttingDown = true;
+            leavingRoom = true;
 
             if (client.InRoom)
                 client.OpLeaveRoom(false);
@@ -467,9 +469,23 @@ namespace JellyNet
         //   최악이다. LAN 도 호스트가 나가면 판이 끝나므로 동작이 같아진다.
         public void OnMasterClientSwitched(Player newMasterClient)
         {
+            // ★ 판이 끝날 때는 모두가 방을 나간다 — 그때의 교체는 사고가 아니다
+            //   결과 씬으로 넘어가며 우리도 OpLeaveRoom 을 부르는데, 그 직후 호스트가
+            //   나가면서 마스터 교체가 도착한다. 그걸 '방장이 나갔다'로 읽으면
+            //   씬 전환 한복판에서 판을 다시 GameOver 로 되돌려, 전환이 끝나지 못하고
+            //   화면이 멈췄다. 매 판 끝날 때마다 반드시 일어나는 일이었다.
+            //
+            //   내가 나가는 중이 아닐 때의 교체만 사고다 — 그때는 정말로 방장이
+            //   판 도중에 사라진 것이다.
+            if (leavingRoom || client == null || !client.InRoom)
+                return;
+
             LogError("방장이 나갔습니다. 게임을 종료합니다.");
             OnConnectionLost?.Invoke();
         }
+
+        //내가 방을 떠나는 중인가. 이 동안 오는 방 이벤트는 뒷정리일 뿐이다
+        private bool leavingRoom;
 
         public void OnCreatedRoom()
         {
@@ -506,10 +522,11 @@ namespace JellyNet
         public void OnPlayerPropertiesUpdate(Player targetPlayer, PhotonHashtable changedProps) { }
         public void OnFriendListUpdate(List<FriendInfo> friendList) { }
         public void OnCreateRoomFailed(short returnCode, string message) { }
-        public void OnJoinedRoom() { }
+        //방에 들어왔으니 '나가는 중'은 끝났다
+        public void OnJoinedRoom() { leavingRoom = false; }
         public void OnJoinRoomFailed(short returnCode, string message) { }
         public void OnJoinRandomFailed(short returnCode, string message) { }
-        public void OnLeftRoom() { }
+        public void OnLeftRoom() { leavingRoom = false; }
 
         private void Log(string msg) { OnLog?.Invoke(msg); }
 

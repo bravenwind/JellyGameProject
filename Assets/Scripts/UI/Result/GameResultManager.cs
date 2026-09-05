@@ -75,7 +75,7 @@ public class GameResultManager : MonoBehaviour
     [SerializeField] private string thirdPlaceText = "3위";
     [SerializeField] private string finalText = "최종 결과";
 
-    [SerializeField] private GameObject buttonRestart;
+    [SerializeField] private GameObject buttonMainMenu;
     [SerializeField] private GameObject buttonGameQuit;
 
     private readonly List<GameObject> jellies = new List<GameObject>();
@@ -480,8 +480,8 @@ public class GameResultManager : MonoBehaviour
         while (brain.IsBlending)
             yield return null;
 
-        if (buttonRestart != null)
-            buttonRestart.SetActive(true);
+        if (buttonMainMenu != null)
+            buttonMainMenu.SetActive(true);
         if (buttonGameQuit != null)
             buttonGameQuit.SetActive(true);
     }

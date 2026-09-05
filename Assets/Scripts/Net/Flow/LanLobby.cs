@@ -129,6 +129,13 @@ namespace JellyNet
             net.OnPeerLeft += HandlePeerChanged;
             net.OnDisconnected += HandleDisconnected;
 
+            // ★ 끊김은 두 얼굴로 온다
+            //   내가 끊은 것(OnDisconnected)과 상대가 사라진 것(OnConnectionLost)이
+            //   다른 이벤트다. 대기 화면 입장에서는 둘 다 "이 방은 끝났다"로 같다.
+            //   예전엔 앞의 것만 들어서, 방장이 취소하면 참가자 화면에 대기 패널이
+            //   그대로 남아 영원히 사람을 기다렸다.
+            net.OnConnectionLost += HandleDisconnected;
+
             //방 만들기·참가 실패는 세션이 알려준다. 예전엔 호출부가 반환값을 보고
             //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
             //세션이 아니라 NetManager 를 구독한다. 로컬/온라인을 갈아끼워도 끊기지 않는다
@@ -263,6 +270,7 @@ namespace JellyNet
                 net.OnSessionFailed -= ShowLobbyError;
                 net.OnRoomReady -= HandleRoomReady;
                 net.OnDisconnected -= HandleDisconnected;
+                net.OnConnectionLost -= HandleDisconnected;
             }
             //트윈은 DOTween 엔진이 들고 있어 이 컴포넌트보다 오래 산다.
             //게임 시작 연출(0.4초)이 끝나기 전에 씬이 바뀌므로, 정리하지 않으면
@@ -552,8 +560,9 @@ namespace JellyNet
             if (net.Session == null || !net.Session.CreateRoom(opts))
                 return;
 
+            //방을 만든 사람에게는 자기 닉네임이 곧 방 이름이다
             if (roomAddressText != null)
-                roomAddressText.text = NetUtil.GetPrimaryIPv4() + " : " + port;
+                roomAddressText.text = LanRoomConfig.Nickname;
 
             Unpop(hostOptionPanel);
             OpenMatching(roomReady ? MATCHING_LABEL : CONNECTING_LABEL);
@@ -571,8 +580,13 @@ namespace JellyNet
             if (!net.Session.JoinRoom(room))
                 return;
 
+            // ★ 주소가 아니라 방 이름을 보여준다
+            //   예전엔 로컬에서 "192.168.0.5 : 7777" 이 떴다. 온라인에는 보여줄
+            //   주소가 없어 방 이름이 떴는데, 같은 자리에 두 가지 다른 것이 뜨면
+            //   화면이 무엇을 말하는 칸인지 흐려진다. 사람이 알아야 하는 건
+            //   "누구 방에 있는가"이지 IP 가 아니다.
             if (roomAddressText != null)
-                roomAddressText.text = room.Address;
+                roomAddressText.text = room.HostName;
 
             Unpop(joinPanel);
             OpenMatching(roomReady ? MATCHING_LABEL : CONNECTING_LABEL);
