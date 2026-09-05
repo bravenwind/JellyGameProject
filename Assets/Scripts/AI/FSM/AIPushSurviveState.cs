@@ -144,10 +144,16 @@ public class AIPushSurviveState : AIBaseState
 
             if (TryEscapeToAny(allowDangerousCrossing: false)
                 || TryEscapeToAny(allowDangerousCrossing: true)
-                || TrySetPartialPath(escapeCandidates[0]))
+                || TryPartialEscapeToAny())
             {
                 fleeing = true;
-                ai.TryDash();
+
+                // ★ 경로의 끝이 설 수 있는 칸일 때만 대쉬한다
+                //   부분 경로는 구멍 앞에서 끊긴다. 그 끝으로 80m/s로 뛰면
+                //   되돌릴 시간이 없다. 걸어가면 가는 도중에 다른 칸이 보여
+                //   다시 판단할 기회가 남는다.
+                if (PathEndsOnFooting())
+                    ai.TryDash();
             }
         }
         else if (fleeing)
@@ -563,6 +569,30 @@ public class AIPushSurviveState : AIBaseState
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// 완주 경로가 하나도 없을 때. 후보들을 순서대로 부분 경로로 시도하되
+    /// <b>설 수 있는 칸에서 끝나는</b> 것을 고른다.
+    ///
+    /// ★ 예전엔 후보[0] 하나만 부분 경로로 시도했다
+    ///   후보[0]은 FindEscapeTile — '위협에서 먼 곳'이라 맵 바깥이나 구멍 건너를
+    ///   가리키기 쉽다. 거기로 부분 경로를 깔면 경로는 구멍 앞 <b>타일 가장자리</b>에서
+    ///   끊기는데 바로 뒤에서 대쉬까지 쏘니, 봇은 멀쩡한 칸을 옆에 두고 꼭짓점으로
+    ///   뛰어가 그 칸과 함께 떨어졌다. 나머지 후보(가장 가까운 안전 칸)는 보지도 못한 채였다.
+    ///   위 두 단계는 후보를 전부 도는데 여기만 하나였다.
+    /// </summary>
+    private bool TryPartialEscapeToAny()
+    {
+        for (int i = 0; i < escapeCandidateCount; i++)
+        {
+            if (TrySetPartialPath(escapeCandidates[i]) && PathEndsOnFooting())
+                return true;
+        }
+
+        //전부 가장자리에서 끊긴다면 그래도 움직인다 — 제자리가 확실한 죽음이다.
+        //대쉬만 호출부가 막는다
+        return escapeCandidateCount > 0 && TrySetPartialPath(escapeCandidates[0]);
     }
 
     /// <summary>지금 걸어둔 경로의 끝에 닿았는가.</summary>

@@ -127,26 +127,48 @@ public abstract class AIBaseState
         if (!ai.Agent.enabled || !ai.Agent.isOnNavMesh)
             return false;
 
-        // ★ SetDestination 을 그냥 부르지 않는다 — 그러면 검사할 기회가 없다
-        //   먼저 계산해 보고, 붕괴중인 칸을 지나지 않는 부분 경로면 그걸 쓴다.
-        //   그마저 없으면 그때는 SetDestination 이다. 여기까지 왔다는 건
-        //   '어디로도 깨끗하게 갈 수 없다'는 뜻이고, 그럴 땐 제자리가 확실한 죽음이라
-        //   붕괴중인 칸을 지나서라도 움직이는 편이 낫다.
+        // 여기까지 왔다는 건 '어디로도 깨끗하게 갈 수 없다'는 뜻이다.
+        // 그럴 땐 붕괴중인 칸을 지나서라도 움직이는 편이 낫다 — 그래서 검사가 없다.
+        //
+        // ★ 예전엔 SetDestination 폴백이 붙어 있었다
+        //   "붕괴중인 칸을 지나면 SetDestination 으로" 였는데, 그건 방금 구한 것과
+        //   똑같은 경로를 비동기로 한 번 더 구하는 것뿐이라 결국 같은 길로 갔다.
+        //   검사가 아무것도 막지 못했으므로 지운다.
+        //
+        //   더 나쁜 건 그 사이 pathPending 이라 호출부가 "이 경로가 어디서 끝나는지"를
+        //   볼 수 없었다는 점이다. 그래서 봇은 <b>구멍 앞에서 끊긴 부분 경로</b>인 줄
+        //   모르고 대쉬로 뛰어들어 타일 꼭짓점에 멈춰 죽었다.
+        //   계산해 둔 경로를 그대로 쓰면 PathEndsOnFooting 으로 즉시 검사할 수 있다.
         ai.CachedPath.ClearCorners();
 
-        if (ai.Agent.CalculatePath(destination, ai.CachedPath)
-            && ai.CachedPath.status != NavMeshPathStatus.PathInvalid)
-        {
-            var collapse = TileCollapseManager.Instance;
-            if (collapse == null
-                || !collapse.IsPathOverCollapsing(ai.CachedPath.corners, ai.transform.position))
-            {
-                ai.Agent.SetPath(ai.CachedPath);
-                return true;
-            }
-        }
+        if (!ai.Agent.CalculatePath(destination, ai.CachedPath)
+            || ai.CachedPath.status == NavMeshPathStatus.PathInvalid)
+            return false;
 
-        return ai.Agent.SetDestination(destination);
+        ai.Agent.SetPath(ai.CachedPath);
+        return true;
+    }
+
+    /// <summary>
+    /// 방금 깔아둔 경로가 <b>설 수 있는 칸</b>에서 끝나는가.
+    ///
+    /// ★ 부분 경로는 구멍 앞에서 끊긴다
+    ///   목적지가 끊긴 NavMesh 너머에 있으면 경로는 갈 수 있는 데까지만
+    ///   그려지고 <b>타일 가장자리</b>에서 끝난다. 거기 서면 그 칸이 무너질 때
+    ///   같이 떨어진다. 목적지를 보면 안 되고 실제로 깔린 경로의 끝을 봐야 한다.
+    /// </summary>
+    protected bool PathEndsOnFooting()
+    {
+        var collapse = TileCollapseManager.Instance;
+        if (collapse == null)
+            return true;
+
+        //corners 는 읽을 때마다 배열을 새로 만드는 프로퍼티다. 한 번만 읽는다
+        Vector3[] corners = ai.CachedPath.corners;
+        if (corners.Length == 0)
+            return false;
+
+        return collapse.StepsAfterArrival(corners[corners.Length - 1]) >= 0;
     }
 
     // ─────────────────────────────────────────────────────────
