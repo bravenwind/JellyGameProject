@@ -477,6 +477,8 @@ namespace JellyNet
 
             LanRoomConfig.Set(mode, total, ai);
 
+            BeginConnecting();
+
             //실패 사유는 세션이 OnFailed 로 알린다(ShowLobbyError 가 받는다)
             RoomOptions opts = new RoomOptions
             {
@@ -491,7 +493,7 @@ namespace JellyNet
                 roomAddressText.text = NetUtil.GetPrimaryIPv4() + " : " + port;
 
             Unpop(hostOptionPanel);
-            OpenMatching(CONNECTING_LABEL);
+            OpenMatching(roomReady ? MATCHING_LABEL : CONNECTING_LABEL);
         }
 
         /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 세션이 OnFailed 로 알린다.</summary>
@@ -501,6 +503,8 @@ namespace JellyNet
             if (net == null || net.Session == null || room == null)
                 return;
 
+            BeginConnecting();
+
             if (!net.Session.JoinRoom(room))
                 return;
 
@@ -508,7 +512,7 @@ namespace JellyNet
                 roomAddressText.text = room.Address;
 
             Unpop(joinPanel);
-            OpenMatching(CONNECTING_LABEL);
+            OpenMatching(roomReady ? MATCHING_LABEL : CONNECTING_LABEL);
         }
 
 
@@ -523,13 +527,26 @@ namespace JellyNet
         //   기다리는 중"을 띄우면, 실패했을 때 아무도 오지 않는 방을 기다린 셈이 된다.
         private const string CONNECTING_LABEL = "연결 중";
 
+        // ★ 신호가 화면보다 먼저 올 수 있다
+        //   LAN 호스트는 CreateRoom 이 성공하는 그 자리에서 OnRoomReady 가 터진다.
+        //   대기 화면을 여는 건 그다음 줄이라, 그때 matching 은 아직 false 다.
+        //   '왔는가'를 기억해 두지 않고 그 순간에만 반응하면 호스트는 영원히
+        //   "연결 중..." 에 갇힌다. 어느 쪽이 먼저 와도 되게 상태로 들고 있는다.
+        private bool roomReady;
+
+        //방을 만들거나 참가하기 직전에 부른다
+        private void BeginConnecting()
+        {
+            roomReady = false;
+        }
+
         /// <summary>방에 실제로 들어갔다. 그제서야 '기다린다'는 말이 사실이 된다.</summary>
         private void HandleRoomReady()
         {
-            if (!matching)
-                return;
+            roomReady = true;
 
-            SetMatchingLabel(MATCHING_LABEL);
+            if (matching)
+                SetMatchingLabel(MATCHING_LABEL);
         }
 
         private void SetMatchingLabel(string label)
