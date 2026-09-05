@@ -287,6 +287,11 @@ namespace JellyNet
         //  수명
         // ═══════════════════════════════════════════════════════
 
+        // ★ 릴레이는 메시지 수가 곧 비용이자 한도다
+        //   Photon 은 방 하나에 초당 500 메시지. 봇 9 + 클라 3 이면 묶지 않았을 때
+        //   호스트만으로 초당 300개를 넘긴다. 묶으면 엔티티 수와 무관하게 20개다.
+        public bool PrefersBatchedUpdates { get { return true; } }
+
         public void Poll()
         {
             //TODO(사람): Photon 은 우리가 직접 돌려야 한다. client.Service() 를 매 프레임.

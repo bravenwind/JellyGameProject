@@ -754,22 +754,28 @@ namespace JellyNet
         //  위치 동기화 — [count][entry]*
         // ═══════════════════════════════════════════════════════
         //
-        // ★ 왜 묶을 수 있게 해뒀는데 꺼놨나
-        //   Photon 무료 티어는 방 하나에 초당 500 메시지다. 지금 호스트가 내보내는 양이
-        //   봇 9 + 클라 3 기준으로 초당 약 305개라 여유가 거의 없다. 위치 갱신을 묶으면
-        //   그 수가 크게 준다 — 온라인 모드에 반드시 필요해질 손잡이다.
+        // ★ 묶을지 말지는 <b>전송이</b> 정한다 — 씬의 체크박스가 아니다
+        //   Photon 은 방 하나에 초당 500 메시지가 한도다. 봇 9 + 클라 3 기준으로
+        //   호스트가 내보내는 양이 초당 약 305개라 여유가 거의 없다. 위치 갱신을 묶으면
+        //   엔티티가 몇이든 호스트 송신이 TRANSFORM_SEND_RATE(20) 로 떨어진다.
+        //   반면 LAN 은 메시지 수가 문제가 아니라, 묶느라 생기는 한 프레임 지연만 손해다.
         //
-        //   그런데 묶으면 한 메시지가 여러 개를 들고 다니므로, 마지막 것이 나갈 때까지
-        //   앞의 것이 프레임 끝까지 기다린다. LAN 은 메시지 수가 문제가 아니라
-        //   그 지연만 손해다. 그래서 지금은 꺼둔 채로 두고, 켜는 판단은 온라인이
-        //   실제로 붙은 뒤에 수치를 보고 한다.
+        //   즉 "묶어야 하는가"는 <b>어느 전송을 골랐는가</b>로 정해지고, 그건 방을 만들거나
+        //   참가하는 순간에야 정해지는 런타임 사실이다. 처음엔 인스펙터 체크박스로 뒀다가
+        //   걷어냈다 — 씬마다 따로 켜야 하고, 게임 씬 하나만 빠뜨리면 그 판만 조용히
+        //   한도를 넘는다. 출처가 둘이 되면 안 되는 전형적인 경우다.
         //
         //   끈 상태의 동작은 예전과 같다 — 한 번에 하나씩, 부르는 즉시 나간다.
         //   (형식에 [count] 한 바이트가 붙은 것만 다르다. 호스트와 클라는 언제나
         //    같은 빌드라 형식이 어긋날 일은 없다)
-        [Header("위치 동기화")]
-        [Tooltip("여러 위치 갱신을 한 메시지로 묶어 보낸다. 온라인 모드용 손잡이 — LAN에서는 꺼둔다.")]
-        [SerializeField] private bool batchTransforms = false;
+        private bool BatchTransforms
+        {
+            get
+            {
+                NetManager net = NetManager.Instance;
+                return net != null && net.PrefersBatchedUpdates;
+            }
+        }
 
         //한 메시지에 담는 최대 개수. count가 1바이트라 255가 상한이고,
         //그 전에 한 프레임에 이만큼 쌓일 일이 없어 넉넉히 32로 둔다
@@ -822,7 +828,7 @@ namespace JellyNet
                 SendTime = Time.unscaledTime
             });
 
-            if (!batchTransforms || pending.Count >= MAX_TRANSFORM_BATCH)
+            if (!BatchTransforms || pending.Count >= MAX_TRANSFORM_BATCH)
                 FlushTransforms();
         }
 
@@ -830,7 +836,7 @@ namespace JellyNet
         //아무 일도 하지 않는다
         private void LateUpdate()
         {
-            if (batchTransforms)
+            if (BatchTransforms)
                 FlushTransforms();
         }
 

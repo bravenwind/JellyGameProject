@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 namespace JellyNet
 {
@@ -69,6 +69,13 @@ namespace JellyNet
         event Action OnConnectionLost;
 
         /// <summary>매 프레임 호출. 받은 것을 읽어 라우팅하고 접속/퇴장을 처리한다.</summary>
+        /// <summary>
+        /// 위치 갱신을 한 메시지로 묶어 보내야 하는 전송인가.
+        /// 릴레이는 방당 초당 메시지 수에 한도가 있고, 소켓은 그렇지 않다.
+        /// NetWorld 가 이 값을 보고 프레임 끝에 몰아 보낼지 즉시 보낼지 정한다.
+        /// </summary>
+        bool PrefersBatchedUpdates { get; }
+
         void Poll();
 
         /// <summary>세션을 닫는다. 라우팅 표와 구독은 살아남는다 — 다음 판에 다시 쓴다.</summary>

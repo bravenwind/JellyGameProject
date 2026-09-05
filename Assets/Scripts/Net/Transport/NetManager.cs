@@ -54,6 +54,12 @@ namespace JellyNet
 
         public bool IsHost { get { return transport != null && transport.IsHost; } }
 
+        /// <summary>위치 갱신을 묶어 보내야 하는 전송인가. NetWorld 가 본다.</summary>
+        public bool PrefersBatchedUpdates
+        {
+            get { return transport != null && transport.PrefersBatchedUpdates; }
+        }
+
         /// <summary>
         /// 네트워크가 없는 상태. 호스트도 클라도 아니다.
         ///

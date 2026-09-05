@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace JellyNet
@@ -139,6 +139,9 @@ namespace JellyNet
             if (wasConnected)
                 OnDisconnected?.Invoke();
         }
+
+        //소켓은 메시지 수에 한도가 없다. 묶으면 한 프레임 지연만 손해다
+        public bool PrefersBatchedUpdates { get { return false; } }
 
         public void Poll()
         {
