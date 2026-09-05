@@ -68,19 +68,27 @@ namespace JellyNet
         public bool IsBot { get { return true; } }
         public string DisplayName { get { return string.IsNullOrEmpty(BotName) ? ("AI 봇 " + EntityId) : BotName; } }
         /// <summary>
-        /// 이 봇의 크기. **읽는 기계에 따라 출처가 다르다.**
+        /// 이 봇의 크기. **읽는 기계에 따라 출처가 다르지만, 어느 쪽이든 확정값이다.**
         ///
-        /// ★ 왜 갈라지나
+        /// ★ 왜 출처가 갈리나
         ///   봇의 PlayerScaleController는 호스트에서만 돈다 —
-        ///   LanPlayerVisual.ApplyGrow가 `if (bot != null && !bot.IsDriver) return;` 으로 막는다.
-        ///   막는 이유는 클라에서 FollowScale(절대값 수신)과 ScaleTo(성장 연출)가
-        ///   둘 다 transform.localScale을 써서 크기가 튀기 때문이다. 쓰는 쪽을 하나로 둔 것이다.
+        ///   NetEntity.DrivesScaleHere가 클라에서 막는다. 막는 이유는 클라에서
+        ///   FollowScale(절대값 수신)과 ScaleTo(성장 연출)가 둘 다 transform.localScale을
+        ///   써서 크기가 튀기 때문이다. 쓰는 쪽을 하나로 둔 것이다.
+        ///   그래서 클라의 CurrentScaleValue는 스폰 당시 값에 머문다 — 읽으면 안 된다.
         ///
-        ///   그 결과 클라의 currentScaleValue는 스폰 당시 값에 머문다.
-        ///   그걸 그대로 읽으면 클라 순위표의 봇 크기가 안 움직이고,
-        ///   AbsorbMode가 '먹을 수 있다'고 잘못 판단해 호스트에 헛요청을 보낸다.
+        /// ★ 그렇다고 transform을 읽으면 안 된다 — 그건 <b>연출 중인 값</b>이다
+        ///   한동안 클라에서 transform.localScale.x를 읽었다. 살아 있는 값이긴 했지만
+        ///   FollowScale이 목표를 향해 기어가는 중간값이라, 호스트의 확정값보다
+        ///   0.1초쯤 작게 나왔다. 그래서 봇이 자라는 동안 클라의 사전 검사가
+        ///   '먹을 수 있다'고 잘못 보고 호스트에 헛요청을 보냈다.
         ///
-        ///   그래서 호스트(=구동자)는 논리값을, 클라는 실제로 갱신되는 transform을 읽는다.
+        ///   확정값은 이미 와 있었다. HostBroadcastState가 보내는 건 애니메이션
+        ///   중간값이 아니라 <b>CurrentScaleValue, 즉 목표값</b>이고, 그게 targetScale에
+        ///   들어 있다. 받아둔 답을 안 읽고 그 답을 향해 가는 중간 상태를 읽고 있었던 셈이다.
+        ///
+        ///   지금은 양쪽 다 확정값을 읽는다. transform은 눈에 보이는 연출 전용으로 물러났고
+        ///   판정 경로에서는 빠졌다 — 사람 쪽(LanPlayerState)과 같은 규칙이 됐다.
         /// </summary>
         public float ScaleValue
         {
@@ -89,7 +97,9 @@ namespace JellyNet
                 if (IsDriver && scaleCtrl != null)
                     return scaleCtrl.CurrentScaleValue;
 
-                return transform.localScale.x;
+                //방송을 한 번도 못 받은 스폰 직후(최대 1/scaleSendRate초)에만 transform으로 떨어진다.
+                //그 구간에는 아직 아무도 자라지 않았으므로 프리팹 크기가 곧 정답이다.
+                return targetScale > 0f ? targetScale : transform.localScale.x;
             }
         }
         public Transform Transform { get { return transform; } }
