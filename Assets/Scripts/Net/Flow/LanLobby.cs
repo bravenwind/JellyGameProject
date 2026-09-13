@@ -667,10 +667,23 @@ namespace JellyNet
             dots = StartCoroutine(AnimateDots(label));
         }
 
-        //실패했으면 대기 화면으로 넘어가지 않는다. 넘어가면 영원히 기다리는 것처럼 보인다
+        // ★ 문장만 띄우면 안 된다 — 대기 화면을 접어야 한다
+        //   로컬은 JoinHost 가 실패하면 그 자리에서 false 를 돌려줘서 대기 화면이
+        //   열리지도 않는다. 그런데 온라인은 JoinRoom 이 곧바로 true 를 돌려준다 —
+        //   "요청이 성립했다"는 뜻이지 성공이 아니다. 실패는 몇백 ms 뒤 콜백으로 온다.
+        //   그때는 이미 OpenMatching 이 돌아 "연결 중" 화면이 떠 있고 점 애니메이션도
+        //   돌고 있다. 문장만 띄우면 <b>아무도 오지 않는 방을 영원히 기다리게 된다.</b>
+        //
+        //   취소 버튼이 하는 일과 똑같이 접으면 된다 — 소켓을 닫고, 대기 상태를 풀고,
+        //   방 찾기를 멈추고, 대기 화면을 접는다.
         private void ShowLobbyError(string message)
         {
             Debug.LogWarning("[로비] " + message);
+
+            //대기 화면이 떠 있을 때만 접는다. 방 만들기 전에 실패한 경우
+            //(포트 충돌 등)에는 접을 것이 없다
+            if (matching)
+                OnCancelMatchingClicked();
 
             if (lobbyErrorText == null)
                 return;
