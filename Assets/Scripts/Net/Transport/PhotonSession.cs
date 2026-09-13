@@ -131,8 +131,44 @@ namespace JellyNet
         //   OnCreatedRoom/OnJoinedRoom 콜백으로 몇백 ms 뒤에 온다. 그래서 true 는
         //   "됐다"가 아니라 "보냈다"는 뜻이고, 로비는 그동안 "연결 중..." 을 띄운 채
         //   INetSession.OnRoomReady 를 기다린다.
+        // ★ 서버에 물어보기 전에 우리가 먼저 거른다
+        //   서버도 같은 이름을 거절하지만, 그 대답은 몇백 ms 뒤 콜백으로 온다.
+        //   그때는 이미 "연결 중" 화면이 떠 있고, 실패 처리가 Photon 이 메시지를
+        //   풀고 있는 도중에 끼어들게 된다. 방 목록은 이미 우리 손에 있으니
+        //   버튼을 누른 그 자리에서 답할 수 있다 — LocalSession 과 같은 방식이다.
+        //
+        //   목록에 없는 방과 겹칠 수는 있다(목록이 도착하기 전, 또는 시작해서 감춰진 방).
+        //   그건 서버가 잡아주고 OnCreateRoomFailed 가 받는다. 여기 검사는 그 경로를
+        //   드물게 만들 뿐 없애지는 않는다.
+        private bool NameTaken(string roomName)
+        {
+            if (string.IsNullOrEmpty(roomName))
+                return false;
+
+            string wanted = roomName.Trim();
+
+            for (int i = 0; i < handles.Count; i++)
+            {
+                RoomEntry r = handles[i];
+                if (r == null || string.IsNullOrEmpty(r.HostName))
+                    continue;
+
+                if (string.Equals(r.HostName.Trim(), wanted,
+                                  StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
+        }
+
         public bool CreateRoom(RoomSetup options)
         {
+            if (NameTaken(options.RoomName))
+            {
+                Fail("같은 이름의 방이 이미 있습니다. 닉네임을 바꿔주세요.");
+                return false;
+            }
+
             //Photon 에는 포트가 없다. options.LocalPort 는 여기서 버린다
             return Begin(Intent.Create, options.RoomName);
         }
