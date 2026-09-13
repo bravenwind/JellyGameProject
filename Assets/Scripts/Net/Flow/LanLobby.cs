@@ -531,6 +531,16 @@ namespace JellyNet
             {
                 //포트 입력칸은 로컬에서만 뜻이 있다. 세션이 정해진 지금에야 판단할 수 있다
                 ApplyLocalOnlyVisibility();
+
+                // ★ 방을 만들 때도 목록을 듣는다 — 이름이 겹치는지 알아야 한다
+                //   예전엔 방 목록 화면(LanRoomListUI)에서만 듣기 시작했다. 그래서
+                //   목록을 한 번도 안 보고 바로 방을 만들면 옆 사람이 같은 닉네임으로
+                //   방을 열었는지 알 수가 없었다. 로컬은 ip:port 가 열쇠라 이름이
+                //   겹쳐도 방이 만들어져서, 목록에 같은 이름이 두 줄 뜬다.
+                //   비콘은 1초에 한 번 오므로 설정을 채우는 동안 목록이 찬다.
+                if (net.Session != null)
+                    net.Session.StartBrowsing();
+
                 Pop(hostOptionPanel, popDelay);
             }
             else
