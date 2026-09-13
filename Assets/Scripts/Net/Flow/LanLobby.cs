@@ -624,6 +624,17 @@ namespace JellyNet
             if (net == null || net.Session == null || room == null)
                 return;
 
+            // ★ 방장과 이름이 같으면 들어가지 않는다
+            //   방 이름이 곧 방장의 닉네임이라, 참가하기 전에 목록만 보고 알 수 있다.
+            //   로컬·온라인 모두 같은 규칙이다.
+            //   같은 이름이 둘이면 이름표·순위표·"누가 누구를 먹었다" 기록이 전부
+            //   구별되지 않는다.
+            if (SameNickname(room.HostName, LanRoomConfig.Nickname))
+            {
+                ShowLobbyError("방장과 닉네임이 같습니다. 닉네임을 바꿔주세요.");
+                return;
+            }
+
             BeginConnecting();
 
             if (!net.Session.JoinRoom(room))
@@ -699,6 +710,16 @@ namespace JellyNet
         //
         //   취소 버튼이 하는 일과 똑같이 접으면 된다 — 소켓을 닫고, 대기 상태를 풀고,
         //   방 찾기를 멈추고, 대기 화면을 접는다.
+        //목록에서 구별이 되느냐가 기준이다. 대소문자와 앞뒤 공백은 무시한다 —
+        //"준서" 와 "준서 " 는 화면에서 같아 보인다. LocalSession 의 중복 검사와 같은 규칙
+        private static bool SameNickname(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+                return false;
+
+            return string.Equals(a.Trim(), b.Trim(), System.StringComparison.OrdinalIgnoreCase);
+        }
+
         private void ShowLobbyError(string message)
         {
             Debug.LogWarning("[로비] " + message);
