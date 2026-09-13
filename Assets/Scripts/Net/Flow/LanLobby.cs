@@ -338,6 +338,14 @@ namespace JellyNet
             Fold(joinPanel);
             Fold(matchingPanel);
 
+            //★ 로컬/온라인 선택 패널이 여기서 빠져 있었다
+            //  Unpop 은 ChooseNet 과 OnClickBack 에서 제대로 부르고 있어서 평소에는
+            //  멀쩡했는데, 판이 끝나고 메인으로 돌아올 때 도는 이 함수만 이 패널을
+            //  건드리지 않았다. 그래서 선택 패널이 켜진 채로 남거나, 꺼져 있어도
+            //  localScale 이 1 이라 다음에 Pop 할 때 커지는 연출 없이 툭 나타났다.
+            //  여는 곳이 하나면 접는 곳도 하나여야 한다.
+            Fold(netChoicePanel);
+
             if (nicknamePanel != null)
             {
                 nicknamePanel.anchoredPosition = nicknameOriginPos;
