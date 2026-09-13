@@ -41,6 +41,23 @@ namespace JellyNet
         [SerializeField] private TMP_InputField aiCountInput;
         [SerializeField] private TMP_Text roomSettingWarningText;
 
+        // ★ 방 만들기·참가가 실패했을 때 뜨는 문장. 화면 한가운데에 둔다
+        //   예전엔 이 문장을 nicknameWarningText 에 덮어썼다. 그 칸은 "닉네임을
+        //   확인해주세요" 같은 고정 문구를 켜고 끄는 용도라, 덮어쓰고 나면 다음에
+        //   닉네임 검사로 켤 때 <b>"방이 가득 찼습니다"가 그대로 남아 있었다.</b>
+        //   쓰임이 다른 두 문장을 한 칸에 담으면 이렇게 된다.
+        //
+        //   색·글꼴·위치는 씬의 오브젝트가 정한다. 여기서는 문장과 투명도만 건드린다.
+        [Header("실패 안내")]
+        [Tooltip("방 만들기·참가 실패 문장. 화면 중앙에 두고 색은 씬에서 정한다")]
+        [SerializeField] private TMP_Text lobbyErrorText;
+
+        [Tooltip("문장이 그대로 떠 있는 시간(초)")]
+        [SerializeField] private float errorHoldSeconds = 1.6f;
+
+        [Tooltip("사라지는 데 걸리는 시간(초)")]
+        [SerializeField] private float errorFadeSeconds = 0.8f;
+
         //주소를 직접 입력하지 않는다. 이 패널 안에서 LanRoomListUI가 같은 대역의 방 목록을 띄우고,
         //방을 고르면 LanRoomListUI.OnPick → JoinRoom(RoomHandle)로 들어온다
         [Header("Join Room UI")]
@@ -331,6 +348,7 @@ namespace JellyNet
                 nicknameWarningText.SetActive(false);
             if (roomSettingWarningText != null)
                 roomSettingWarningText.gameObject.SetActive(false);
+            HideLobbyError();
             if (countdownText != null)
                 countdownText.gameObject.SetActive(false);
             if (gameStartText != null)
@@ -551,7 +569,7 @@ namespace JellyNet
             BeginConnecting();
 
             //실패 사유는 세션이 OnFailed 로 알린다(ShowLobbyError 가 받는다)
-            RoomOptions opts = new RoomOptions
+            RoomSetup opts = new RoomSetup
             {
                 RoomName = LanRoomConfig.Nickname,
                 LocalPort = port
@@ -569,7 +587,7 @@ namespace JellyNet
         }
 
         /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 세션이 OnFailed 로 알린다.</summary>
-        public void JoinRoom(RoomHandle room)
+        public void JoinRoom(RoomEntry room)
         {
             NetManager net = NetManager.Instance;
             if (net == null || net.Session == null || room == null)
@@ -646,14 +664,72 @@ namespace JellyNet
         {
             Debug.LogWarning("[로비] " + message);
 
-            if (nicknameWarningText == null)
+            if (lobbyErrorText == null)
                 return;
 
-            TMP_Text label = nicknameWarningText.GetComponentInChildren<TMP_Text>(true);
-            if (label != null)
-                label.text = message;
+            lobbyErrorText.text = message;
 
-            nicknameWarningText.SetActive(true);
+            //연달아 실패하면 앞의 것이 사라지는 중일 수 있다. 새로 시작한다
+            if (errorFade != null)
+                StopCoroutine(errorFade);
+
+            errorFade = StartCoroutine(FadeErrorOut());
+        }
+
+        private Coroutine errorFade;
+
+        private IEnumerator FadeErrorOut()
+        {
+            lobbyErrorText.gameObject.SetActive(true);
+
+            //색은 씬에서 정한 것을 그대로 쓰고 투명도만 되돌린다
+            Color full = lobbyErrorText.color;
+            full.a = 1f;
+            lobbyErrorText.color = full;
+
+            //로비는 timeScale 이 0 인 구간이 있어 unscaled 로 센다
+            yield return new WaitForSecondsRealtime(errorHoldSeconds);
+
+            float elapsed = 0f;
+
+            while (elapsed < errorFadeSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+
+                Color c = lobbyErrorText.color;
+                c.a = 1f - Mathf.Clamp01(elapsed / errorFadeSeconds);
+                lobbyErrorText.color = c;
+
+                yield return null;
+            }
+
+            errorFade = null;
+            ResetErrorText();
+        }
+
+        //화면을 넘어갈 때 부른다. 떠 있던 문장이 다음 화면까지 따라가면 안 된다
+        private void HideLobbyError()
+        {
+            if (errorFade != null)
+            {
+                StopCoroutine(errorFade);
+                errorFade = null;
+            }
+
+            ResetErrorText();
+        }
+
+        //끄면서 투명도를 되돌린다. 안 되돌리면 다음 실패 때 투명한 채로 켜진다
+        private void ResetErrorText()
+        {
+            if (lobbyErrorText == null)
+                return;
+
+            Color c = lobbyErrorText.color;
+            c.a = 1f;
+            lobbyErrorText.color = c;
+
+            lobbyErrorText.gameObject.SetActive(false);
         }
 
         private void OpenMatching(string label)
