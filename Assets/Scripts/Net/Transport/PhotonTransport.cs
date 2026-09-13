@@ -270,7 +270,9 @@ namespace JellyNet
 
         private void Raise(NetWriter w, ReceiverGroup group, int[] targets)
         {
-            if (client == null || !client.InRoom)
+            //IsConnected 를 함께 보는 이유는 Shutdown 의 주석에 적어두었다 —
+            //소켓이 죽어도 state 는 한동안 Joined 로 남는다
+            if (client == null || !client.IsConnected || !client.InRoom)
                 return;
 
 // ★ 5.1 에서 RaiseEventOptions 는 RaiseEventArgs 가 됐다(클래스 → 구조체)
@@ -403,7 +405,14 @@ namespace JellyNet
         {
             OnShutdownRequested?.Invoke();
 
-            if (client == null || !client.InRoom)
+            // ★ InRoom 만으로는 모자란다 — IsConnected 도 본다
+            //   InRoom 은 state == Joined 인지만 보는데, 그 상태는 소켓이 죽어도
+            //   곧바로 바뀌지 않는다. Service 가 몇 초 안 돌면(에디터가 멈췄거나
+            //   콜백 안에서 연산을 부르다 꼬이면) 서버는 이미 우리를 떨궜는데
+            //   state 는 Joined 로 굳어 있다. 그때 OpLeaveRoom 을 보내면
+            //   "Operation LeaveRoom (254) can't be sent because peer is not
+            //   connected" 가 찍힌다.
+            if (client == null || !client.IsConnected || !client.InRoom)
                 return;
 
             leavingRoom = true;
@@ -424,7 +433,9 @@ namespace JellyNet
             shuttingDown = true;
             leavingRoom = true;
 
-            if (client.InRoom)
+            //위 Shutdown 과 같은 이유로 IsConnected 를 함께 본다.
+            //이미 끊긴 상태면 방을 나갈 것도 없고, Disconnect 는 그냥 부르면 된다
+            if (client.IsConnected && client.InRoom)
                 client.OpLeaveRoom(false);
 
             client.Disconnect();

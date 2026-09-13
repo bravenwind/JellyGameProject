@@ -27,7 +27,7 @@ namespace JellyNet
 
         public event Action OnRoomListChanged;
         public event Action<string> OnFailed;
-        public event Action OnRoomReady;
+        public event Action OnRoomEntered;
 
         //온라인이므로 로컬 전용 입력(포트)은 화면에서 감춰야 한다
         public bool IsLocal { get { return false; } }
@@ -131,7 +131,7 @@ namespace JellyNet
         //   OnCreatedRoom/OnJoinedRoom 콜백으로 몇백 ms 뒤에 온다. 그래서 true 는
         //   "됐다"가 아니라 "보냈다"는 뜻이고, 로비는 그동안 "연결 중..." 을 띄운 채
         //   INetSession.OnRoomReady 를 기다린다.
-        public bool CreateRoom(RoomOptions options)
+        public bool CreateRoom(RoomSetup options)
         {
             //Photon 에는 포트가 없다. options.LocalPort 는 여기서 버린다
             return Begin(Intent.Create, options.RoomName);
@@ -169,7 +169,7 @@ namespace JellyNet
             });
         }
 
-        public bool JoinRoom(RoomHandle room)
+        public bool JoinRoom(RoomEntry room)
         {
             if (room == null || string.IsNullOrEmpty(room.Id))
             {
@@ -191,13 +191,13 @@ namespace JellyNet
         // ═══════════════════════════════════════════════════════
 
         //목록은 초당 몇 번씩 읽히므로 매번 새 리스트를 만들지 않는다
-        private readonly List<RoomHandle> handles = new List<RoomHandle>();
+        private readonly List<RoomEntry> handles = new List<RoomEntry>();
 
-        public IEnumerable<RoomHandle> Rooms { get { return handles; } }
+        public IEnumerable<RoomEntry> Rooms { get { return handles; } }
 
         //방 이름 → 자리. 서버가 '바뀐 것만' 보내므로 우리가 표를 들고 있어야 한다
-        private readonly Dictionary<string, RoomHandle> byName
-            = new Dictionary<string, RoomHandle>();
+        private readonly Dictionary<string, RoomEntry> byName
+            = new Dictionary<string, RoomEntry>();
 
         public void StartBrowsing()
         {
@@ -207,7 +207,9 @@ namespace JellyNet
 
         public void StopBrowsing()
         {
-            if (transport.Client != null && transport.Client.InLobby)
+            //InLobby 도 state 만 보는 값이라 소켓이 죽은 뒤에도 한동안 참으로 남는다.
+            //그때 OpLeaveLobby 를 보내면 "peer is not connected" 가 찍힌다
+            if (transport.Client != null && transport.Client.IsConnected && transport.Client.InLobby)
                 transport.Client.OpLeaveLobby();
 
             handles.Clear();
@@ -245,10 +247,10 @@ namespace JellyNet
                     continue;
                 }
 
-                RoomHandle h;
+                RoomEntry h;
                 if (!byName.TryGetValue(info.Name, out h))
                 {
-                    h = new RoomHandle();
+                    h = new RoomEntry();
                     byName[info.Name] = h;
                 }
 
@@ -262,7 +264,7 @@ namespace JellyNet
             }
 
             handles.Clear();
-            foreach (RoomHandle h in byName.Values)
+            foreach (RoomEntry h in byName.Values)
                 handles.Add(h);
 
             OnRoomListChanged?.Invoke();
@@ -301,7 +303,7 @@ namespace JellyNet
 
         //방에 실제로 들어갔다. 로비의 "연결 중..." 이 여기서 끝난다.
         //만든 사람에게는 OnCreatedRoom 다음에 이것도 온다 — 그래서 여기 한 곳에만 건다
-        public void OnJoinedRoom() { OnRoomReady?.Invoke(); }
+        public void OnJoinedRoom() { OnRoomEntered?.Invoke(); }
 
         public void OnCreateRoomFailed(short returnCode, string message)
         {
