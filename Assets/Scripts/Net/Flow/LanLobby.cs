@@ -167,9 +167,22 @@ namespace JellyNet
             FillDefaults();
         }
 
+        //ShowLobbyError 가 Photon 콜백 안에서 세워두는 깃발. 접는 일은 여기서 한다
+        private bool cancelRequested;
+
         private void Update()
         {
             NetManager net = NetManager.Instance;
+
+            //아래 matching 검사보다 먼저 본다. 접고 나면 matching 이 false 가 되므로
+            //뒤에 두면 깃발을 영영 못 읽는다
+            if (cancelRequested)
+            {
+                cancelRequested = false;
+                OnCancelMatchingClicked();
+                return;
+            }
+
             if (net == null || !matching || launching)
                 return;
 
@@ -680,10 +693,19 @@ namespace JellyNet
         {
             Debug.LogWarning("[로비] " + message);
 
-            //대기 화면이 떠 있을 때만 접는다. 방 만들기 전에 실패한 경우
-            //(포트 충돌 등)에는 접을 것이 없다
+            // ★ 여기서 바로 접으면 게임이 멈춘다 — 한 프레임 미룬다
+            //   이 함수는 Photon 콜백 안에서 불린다.
+            //   NetManager.Update → PhotonTransport.Poll → client.Service()
+            //     → OnCreateRoomFailed → Fail → ShowLobbyError
+            //   즉 Photon 이 받은 메시지를 <b>풀고 있는 도중</b>이다. 그 안에서
+            //   OnCancelMatchingClicked 을 부르면 StopBrowsing 이 OpLeaveLobby 를
+            //   부르는데, 자기 메시지를 처리하는 중에 새 요청을 밀어넣는 셈이라
+            //   클라이언트 상태가 꼬이고 Service 가 더는 돌지 않는다.
+            //   ("SendOutgoingCommands() was not called for > 5 seconds" 가 그 증상이다)
+            //
+            //   콜백은 문장만 띄우고 끝내고, 접는 일은 다음 Update 에 한다.
             if (matching)
-                OnCancelMatchingClicked();
+                cancelRequested = true;
 
             if (lobbyErrorText == null)
                 return;
@@ -781,6 +803,10 @@ namespace JellyNet
 
         public void OnCancelMatchingClicked()
         {
+            //실패로 예약된 접기가 남아 있으면 지운다. 사람이 먼저 취소를 눌렀는데
+            //다음 프레임에 또 접히면 방금 연 화면이 닫힌다
+            cancelRequested = false;
+
             NetManager net = NetManager.Instance;
             if (!NetManager.Offline)
                 net.Shutdown();
