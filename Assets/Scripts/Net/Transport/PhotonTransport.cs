@@ -102,10 +102,26 @@ namespace JellyNet
         /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
         public RealtimeClient Client { get { return client; } }
 
-        /// <summary>마스터 서버까지 붙었는가. 방 조작은 이 뒤에야 할 수 있다.</summary>
+        /// <summary>
+        /// 마스터 서버까지 붙었는가. 방 만들기·참가·로비는 이 뒤에야 할 수 있다.
+        ///
+        /// ★ IsConnectedAndReady 만으로는 모자란다
+        ///   Photon 은 NameServer → MasterServer → GameServer 순으로 옮겨 다닌다.
+        ///   IsConnectedAndReady 는 "지금 연산을 보낼 수 있는 상태인가"만 보기 때문에
+        ///   <b>NameServer 에 붙어 있어도 참</b>이다. 그런데 방 만들기(OpCreateRoom)는
+        ///   MasterServer 에서만 받는다. 그 사이에 버튼을 누르면
+        ///   "Operation CreateGame (227) not allowed on current server NameServer" 가 뜬다.
+        ///   어느 서버에 붙어 있는지를 직접 본다.
+        /// </summary>
         public bool IsOnMaster
         {
-            get { return client != null && client.IsConnectedAndReady && !client.InRoom; }
+            get
+            {
+                return client != null
+                    && client.IsConnectedAndReady
+                    && client.Server == ServerConnection.MasterServer
+                    && !client.InRoom;
+            }
         }
 
         /// <summary>접속이 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
