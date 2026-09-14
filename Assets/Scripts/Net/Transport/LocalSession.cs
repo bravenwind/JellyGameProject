@@ -170,6 +170,13 @@ namespace JellyNet
         public void Unhook()
         {
             transport.OnDisconnected -= StopAdvertising;
+
+            //★ 예전엔 이 줄이 없었다
+            //  같은 생성자에서 건 구독이 둘인데 푸는 건 하나뿐이었다.
+            //  LocalSession 과 SocketTransport 가 NetManager 와 함께 죽어서 지금은
+            //  새지 않지만, 둘 중 하나라도 더 오래 살게 되는 순간 조용히 새기 시작한다.
+            //  건 자리에서 짝을 맞춘다는 규칙을 여기서 깨면 규칙이 아니게 된다.
+            transport.OnWelcomed -= RaiseRoomEntered;
         }
 
         public void StopAdvertising()

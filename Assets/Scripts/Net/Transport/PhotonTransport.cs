@@ -97,10 +97,10 @@ namespace JellyNet
         //   ExitGames.Client.Photon 네임스페이스도 Photon.Client 로 옮겨갔다.
         //   (뼈대를 세울 땐 SDK가 없어 4.x 시절 이름으로 적혀 있었다)
         //
-        private RealtimeClient client;
+        /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
+        public RealtimeClient Client { get; private set; }
 
         /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
-        public RealtimeClient Client { get { return client; } }
 
         /// <summary>
         /// 마스터 서버까지 붙었는가. 방 만들기·참가·로비는 이 뒤에야 할 수 있다.
@@ -117,10 +117,10 @@ namespace JellyNet
         {
             get
             {
-                return client != null
-                    && client.IsConnectedAndReady
-                    && client.Server == ServerConnection.MasterServer
-                    && !client.InRoom;
+                return Client != null
+                    && Client.IsConnectedAndReady
+                    && Client.Server == ServerConnection.MasterServer
+                    && !Client.InRoom;
             }
         }
 
@@ -133,7 +133,7 @@ namespace JellyNet
         /// </summary>
         public bool Connect()
         {
-            if (client != null)
+            if (Client != null)
                 return true;
 
             PhotonAppSettingsAsset asset = PhotonAppSettingsAsset.Load();
@@ -150,11 +150,11 @@ namespace JellyNet
                 FixedRegion = asset.FixedRegion
             };
 
-            client = new RealtimeClient();
-            client.AddCallbackTarget(this);
-            client.EventReceived += OnEventReceived;
+            Client = new RealtimeClient();
+            Client.AddCallbackTarget(this);
+            Client.EventReceived += OnEventReceived;
 
-            if (!client.ConnectUsingSettings(settings))
+            if (!Client.ConnectUsingSettings(settings))
             {
                 LastError = "온라인 서버에 연결하지 못했습니다. 인터넷 상태를 확인해주세요.";
                 Teardown();
@@ -188,32 +188,32 @@ namespace JellyNet
         //   대신 OnMasterClientSwitched 를 반드시 잡아야 한다 — 아래를 볼 것.
         public int MyId
         {
-            get { return client != null && client.LocalPlayer != null ? client.LocalPlayer.ActorNumber : 0; }
+            get { return Client != null && Client.LocalPlayer != null ? Client.LocalPlayer.ActorNumber : 0; }
         }
 
         public bool IsHost
         {
-            get { return client != null && client.LocalPlayer != null && client.LocalPlayer.IsMasterClient; }
+            get { return Client != null && Client.LocalPlayer != null && Client.LocalPlayer.IsMasterClient; }
         }
 
         public bool IsConnected
         {
-            get { return client != null && client.InRoom; }
+            get { return Client != null && Client.InRoom; }
         }
 
         public int PeerCount
         {
-            get { return client != null && client.CurrentRoom != null ? client.CurrentRoom.PlayerCount - 1 : 0; }
+            get { return Client != null && Client.CurrentRoom != null ? Client.CurrentRoom.PlayerCount - 1 : 0; }
         }
 
         //Photon 은 방의 IsOpen 이 이 뜻이다. 방을 닫으면 새 사람이 못 들어온다
         public bool AcceptingNewPeers
         {
-            get { return client != null && client.CurrentRoom != null && client.CurrentRoom.IsOpen; }
+            get { return Client != null && Client.CurrentRoom != null && Client.CurrentRoom.IsOpen; }
             set
             {
-                if (client != null && client.CurrentRoom != null && IsHost)
-                    client.CurrentRoom.IsOpen = value;
+                if (Client != null && Client.CurrentRoom != null && IsHost)
+                    Client.CurrentRoom.IsOpen = value;
             }
         }
 
@@ -244,12 +244,12 @@ namespace JellyNet
 
         public void BroadcastExcept(int exceptPeerId, NetWriter w)
         {
-            if (client == null || client.CurrentRoom == null)
+            if (Client == null || Client.CurrentRoom == null)
                 return;
 
             if (othersCache == null || othersCacheExcept != exceptPeerId || othersCacheStamp != rosterStamp)
             {
-                Dictionary<int, Player> players = client.CurrentRoom.Players;
+                Dictionary<int, Player> players = Client.CurrentRoom.Players;
 
                 int count = 0;
                 foreach (int id in players.Keys)
@@ -288,7 +288,7 @@ namespace JellyNet
         {
             //IsConnected 를 함께 보는 이유는 Shutdown 의 주석에 적어두었다 —
             //소켓이 죽어도 state 는 한동안 Joined 로 남는다
-            if (client == null || !client.IsConnected || !client.InRoom)
+            if (Client == null || !Client.IsConnected || !Client.InRoom)
                 return;
 
 // ★ 5.1 에서 RaiseEventOptions 는 RaiseEventArgs 가 됐다(클래스 → 구조체)
@@ -312,7 +312,7 @@ namespace JellyNet
                 ? SendOptions.SendUnreliable
                 : SendOptions.SendReliable;
 
-            client.OpRaiseEvent(CodeOf(w), BodyOf(w), args, send);
+            Client.OpRaiseEvent(CodeOf(w), BodyOf(w), args, send);
         }
 
         // ═══════════════════════════════════════════════════════
@@ -388,17 +388,17 @@ namespace JellyNet
         //Photon 은 우리가 직접 돌려야 한다. 끊김은 콜백으로 오므로 여기서 볼 게 없다
         public void Poll()
         {
-            if (client != null)
-                client.Service();
+            if (Client != null)
+                Client.Service();
         }
 
         // ★ 라우팅 표는 남긴다
         //   라우팅은 접속보다 먼저 걸리고(로비가 Start 에서 LoadGameScene 을 등록한다)
         //   판이 끝나도 살아남아야 한다. LanTransport 와 같은 이유다.
         // ★ 판을 끝내는 것은 '방을 나가는 것'이지 '연결을 끊는 것'이 아니다
-        //   예전엔 여기서 Disconnect 까지 하고 client 를 곧바로 null 로 만들었다.
+        //   예전엔 여기서 Disconnect 까지 하고 Client 를 곧바로 null 로 만들었다.
         //   Disconnect 는 <b>끊겠다는 요청</b>일 뿐이고 실제 종료는 Service 를 계속
-        //   돌려야 콜백으로 온다. client 를 버리면 Poll 이 멈춰 그 호출이 사라지고,
+        //   돌려야 콜백으로 온다. Client 를 버리면 Poll 이 멈춰 그 호출이 사라지고,
         //   Photon 이 Disconnecting 인 채 5초 뒤에 경고를 뱉는다.
         //   ("DispatchIncomingCommands() wasn't called for > 5 seconds")
         //   게다가 그 상태에서 방을 다시 만들면 죽지 않은 옛 연결 위에 새 연결이 얹힌다.
@@ -428,11 +428,11 @@ namespace JellyNet
             //   state 는 Joined 로 굳어 있다. 그때 OpLeaveRoom 을 보내면
             //   "Operation LeaveRoom (254) can't be sent because peer is not
             //   connected" 가 찍힌다.
-            if (client == null || !client.IsConnected || !client.InRoom)
+            if (Client == null || !Client.IsConnected || !Client.InRoom)
                 return;
 
             leavingRoom = true;
-            client.OpLeaveRoom(false);
+            Client.OpLeaveRoom(false);
             OnDisconnected?.Invoke();
         }
 
@@ -443,7 +443,7 @@ namespace JellyNet
         /// </summary>
         public void DisconnectFully()
         {
-            if (client == null)
+            if (Client == null)
                 return;
 
             shuttingDown = true;
@@ -451,22 +451,22 @@ namespace JellyNet
 
             //위 Shutdown 과 같은 이유로 IsConnected 를 함께 본다.
             //이미 끊긴 상태면 방을 나갈 것도 없고, Disconnect 는 그냥 부르면 된다
-            if (client.IsConnected && client.InRoom)
-                client.OpLeaveRoom(false);
+            if (Client.IsConnected && Client.InRoom)
+                Client.OpLeaveRoom(false);
 
-            client.Disconnect();
+            Client.Disconnect();
         }
 
         private bool shuttingDown;
 
         private void Teardown()
         {
-            if (client == null)
+            if (Client == null)
                 return;
 
-            client.EventReceived -= OnEventReceived;
-            client.RemoveCallbackTarget(this);
-            client = null;
+            Client.EventReceived -= OnEventReceived;
+            Client.RemoveCallbackTarget(this);
+            Client = null;
 
             othersCache = null;
             othersCacheExcept = -1;
@@ -504,7 +504,7 @@ namespace JellyNet
             //
             //   내가 나가는 중이 아닐 때의 교체만 사고다 — 그때는 정말로 방장이
             //   판 도중에 사라진 것이다.
-            if (leavingRoom || client == null || !client.InRoom)
+            if (leavingRoom || Client == null || !Client.InRoom)
                 return;
 
             LogError("방장이 나갔습니다. 게임을 종료합니다.");

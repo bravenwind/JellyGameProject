@@ -11,7 +11,7 @@ namespace JellyNet
         [Tooltip("이만큼 차이 나야 보낸다. 미세 떨림으로 도배되는 걸 막는다.")]
         [SerializeField] private float scaleThreshold = 0.01f;
 
-        private NetIdentity id;
+        public NetIdentity Identity { get; private set; }
         private PlayerScaleController scaleCtrl;
         private NameTagBillboard nameTag;
         private PlayerColorVisual colorVisual;
@@ -62,9 +62,8 @@ namespace JellyNet
         //   여기서 그대로 넘겨준다. 사람 쪽 LanPlayerState는 PlayerFlags를 직접 들고 있는데,
         //   그 비대칭을 **이 한 줄 안에 가둔다** — 밖에서는 둘 다 INetEntity.IsOutOfPlay다.
         //   예전엔 NetEntity·LanScoreboard·AIDetector가 각자 if (IsBot)로 갈랐다.
-        public NetIdentity Identity { get { return id; } }
-        public int EntityId { get { return id != null ? id.NetId : 0; } }
-        public int OwnerId { get { return id != null ? id.OwnerId : 0; } }
+        public int EntityId { get { return Identity != null ? Identity.NetId : 0; } }
+        public int OwnerId { get { return Identity != null ? Identity.OwnerId : 0; } }
         public bool IsBot { get { return true; } }
         public string DisplayName { get { return string.IsNullOrEmpty(BotName) ? ("AI 봇 " + EntityId) : BotName; } }
         /// <summary>
@@ -112,7 +111,7 @@ namespace JellyNet
         public bool IsDriver
         {
             //봇은 전부 NetWorld가 스폰하므로 id가 없는 봇은 없다
-            get { return id != null && id.IsMineOrOffline; }
+            get { return Identity != null && Identity.IsMineOrOffline; }
         }
 
         //봇의 INetEntity 구현체는 이 컴포넌트다. 등록도 여기서 한다 —
@@ -134,7 +133,7 @@ namespace JellyNet
 
         private void Awake()
         {
-            id = GetComponent<NetIdentity>();
+            Identity = GetComponent<NetIdentity>();
             bot = GetComponent<AIPlayerMovement>();
             scaleCtrl = GetComponent<PlayerScaleController>();
             nameTag = GetComponentInChildren<NameTagBillboard>(true);
@@ -143,7 +142,7 @@ namespace JellyNet
 
         private void Start()
         {
-            BotName = "AI 봇 " + (id != null ? id.NetId : 0);
+            BotName = "AI 봇 " + (Identity != null ? Identity.NetId : 0);
             gameObject.name = "Bot_" + BotName;
 
             if (nameTag != null)
@@ -166,7 +165,7 @@ namespace JellyNet
         //AbsorbMode가 NetEntity를 통해 사람·봇 모두에게 똑같이 적용한다
         private void HostSendScale()
         {
-            if (!IsHost() || id == null)
+            if (!IsHost() || Identity == null)
                 return;
 
             sendTimer += Time.deltaTime;
@@ -189,7 +188,7 @@ namespace JellyNet
         private void HostBroadcastState()
         {
             NetManager net = NetManager.Instance;
-            if (net == null || !net.IsHost || id == null)
+            if (net == null || !net.IsHost || Identity == null)
                 return;
 
             float s = CurrentScale;
@@ -199,7 +198,7 @@ namespace JellyNet
             lastSentColor = c;
 
             w.Begin(MsgType.BotState);
-            w.WriteInt(id.NetId);
+            w.WriteInt(Identity.NetId);
             w.WriteFloat(s);
             w.WriteFloat(c.r);
             w.WriteFloat(c.g);
@@ -316,7 +315,7 @@ namespace JellyNet
             if (!IsHost() && !NetManager.Offline)
                 return;
 
-            AIPlayerMovement brain = id != null ? id.Bot : null;
+            AIPlayerMovement brain = Identity != null ? Identity.Bot : null;
 
             //먼저 두뇌에 반영해야 아래 방송이 탈락 상태를 실어 나간다
             if (brain != null)
@@ -337,9 +336,9 @@ namespace JellyNet
         /// </summary>
         public void HostDespawnAfterAbsorbed()
         {
-            if (!IsHost() || id == null || NetWorld.Instance == null)
+            if (!IsHost() || Identity == null || NetWorld.Instance == null)
                 return;
-            NetWorld.Instance.HostDespawn(id.NetId);
+            NetWorld.Instance.HostDespawn(Identity.NetId);
         }
     }
 }

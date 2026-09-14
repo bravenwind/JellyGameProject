@@ -38,22 +38,22 @@ namespace JellyNet
 
         public bool IsOutOfPlay { get { return Flags != PlayerFlags.None; } }
 
-        private NetIdentity id;
+        //Awake에서 캐시해둔 것을 그대로 준다. 밖에서 GetComponent를 다시 부르지 않게
+        public NetIdentity Identity { get; private set; }
         private PlayerScaleController scale;
         private Color shownColor;
 
-        public int EntityId { get { return id != null ? id.NetId : 0; } }
+        public int EntityId { get { return Identity != null ? Identity.NetId : 0; } }
 
         //Awake에서 캐시해둔 것을 그대로 준다. 밖에서 GetComponent를 다시 부르지 않게
-        public NetIdentity Identity { get { return id; } }
 
-        public bool IsMine { get { return id != null && id.IsMine; } }
+        public bool IsMine { get { return Identity != null && Identity.IsMine; } }
 
         //INetEntity — 봇(LanBotState)과 같은 창구로 묻기 위한 것들
         public bool IsBot { get { return false; } }
         public string DisplayName { get { return string.IsNullOrEmpty(PlayerName) ? ("P" + OwnerId) : PlayerName; } }
 
-        public int OwnerId { get { return id != null ? id.OwnerId : 0; } }
+        public int OwnerId { get { return Identity != null ? Identity.OwnerId : 0; } }
 
         public float ScaleValue
         {
@@ -76,7 +76,7 @@ namespace JellyNet
 
         private void Awake()
         {
-            id = GetComponent<NetIdentity>();
+            Identity = GetComponent<NetIdentity>();
             scale = GetComponentInChildren<PlayerScaleController>(true);
             if (targetRenderer == null)
                 targetRenderer = GetComponentInChildren<Renderer>();
@@ -258,20 +258,20 @@ namespace JellyNet
 
         public void HostSetName(string name)
         {
-            if (!IsHost() || id == null)
+            if (!IsHost() || Identity == null)
                 return;
 
             SetName(name);
 
             if (NetWorld.Instance != null)
-                NetWorld.Instance.BroadcastPlayerName(id.NetId, PlayerName);
+                NetWorld.Instance.BroadcastPlayerName(Identity.NetId, PlayerName);
         }
 
         private void HostBroadcast()
         {
-            if (id == null || NetWorld.Instance == null)
+            if (Identity == null || NetWorld.Instance == null)
                 return;
-            NetWorld.Instance.BroadcastPlayerState(id.NetId, Score, (byte)Flags, DisplayColor);
+            NetWorld.Instance.BroadcastPlayerState(Identity.NetId, Score, (byte)Flags, DisplayColor);
         }
 
         private static bool IsHost()
@@ -291,7 +291,7 @@ namespace JellyNet
         public void SetName(string name)
         {
             PlayerName = name ?? "";
-            gameObject.name = "Player_" + PlayerName + "_net" + (id != null ? id.NetId : 0);
+            gameObject.name = "Player_" + PlayerName + "_net" + (Identity != null ? Identity.NetId : 0);
 
             if (IsMine || string.IsNullOrEmpty(PlayerName))
                 return;

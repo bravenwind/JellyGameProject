@@ -29,8 +29,7 @@ public class PlayerScaleController : MonoBehaviour
     //   Awake는 모든 Start보다 먼저이므로 그 창이 닫힌다.
     public float CurrentScaleValue { get; private set; }
 
-    private float pendingScale;
-    public float PendingScale => pendingScale;
+    public float PendingScale { get; private set; }
 
     private Queue<IEnumerator> scaleQueue = new Queue<IEnumerator>();
     private bool isScaling = false;
@@ -58,7 +57,7 @@ public class PlayerScaleController : MonoBehaviour
     {
         currentScale = transform.localScale;
         CurrentScaleValue = currentScale.x;
-        pendingScale = CurrentScaleValue;
+        PendingScale = CurrentScaleValue;
     }
 
     private void Start()
@@ -85,7 +84,7 @@ public class PlayerScaleController : MonoBehaviour
 
     public void GrowByJelly()
     {
-        pendingScale += DataManager.Instance.JellyScaleIncrease;
+        PendingScale += DataManager.Instance.JellyScaleIncrease;
 
         if (jellyBatchCoroutine == null)
             jellyBatchCoroutine = StartCoroutine(BatchedJellyGrow());
@@ -105,19 +104,19 @@ public class PlayerScaleController : MonoBehaviour
     {
         yield return null;
         jellyBatchCoroutine = null;
-        QueueScaleChange(ScaleTo(pendingScale, DataManager.Instance.GrowAnimTime, playEffect: false));
+        QueueScaleChange(ScaleTo(PendingScale, DataManager.Instance.GrowAnimTime, playEffect: false));
     }
 
     public void GrowByAbsorbing(float absorbedScaleValue)
     {
-        pendingScale += absorbedScaleValue * DataManager.Instance.AbsorbScalePercent;
-        QueueScaleChange(ScaleTo(pendingScale, DataManager.Instance.GrowAnimTime, playEffect: true));
+        PendingScale += absorbedScaleValue * DataManager.Instance.AbsorbScalePercent;
+        QueueScaleChange(ScaleTo(PendingScale, DataManager.Instance.GrowAnimTime, playEffect: true));
     }
 
     public void GrowByBatHit(float growth)
     {
-        pendingScale += growth;
-        QueueScaleChange(ScaleTo(pendingScale, 0.3f, playEffect: true));
+        PendingScale += growth;
+        QueueScaleChange(ScaleTo(PendingScale, 0.3f, playEffect: true));
     }
 
     /// <summary>

@@ -628,9 +628,9 @@ namespace JellyNet
             if (net == null)
                 return;
 
-            net.UseOnline(online);
+            net.UseLocalOrOnline(online);
 
-            //UseOnline 은 거절할 수 있다(온라인 코드가 빠진 빌드, 접속 중 등).
+            //UseLocalOrOnline 은 거절할 수 있다(온라인 코드가 빠진 빌드, 접속 중 등).
             //그때 다음 화면으로 넘어가면 고른 것과 다른 전송으로 방을 만들게 된다
             if (net.IsOnline != online)
                 return;

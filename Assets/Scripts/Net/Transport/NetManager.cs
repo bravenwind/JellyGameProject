@@ -34,14 +34,14 @@ namespace JellyNet
 #endif
 
         private INetTransport transport;
-        private INetSession session;
+        /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
+        public INetSession Session { get; private set; }
 
         /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
-        public INetSession Session { get { return session; } }
 
         // ★ 세션 이벤트는 NetManager 가 중계한다 — 전송 이벤트와 같은 이유다
         //   로비는 Start 에서 한 번 구독하는데, 그때 세션은 아직 LAN 이다.
-        //   온라인을 고르면 session 이 바뀌지만 구독은 옛 세션에 남아,
+        //   온라인을 고르면 Session 이 바뀌지만 구독은 옛 세션에 남아,
         //   방에 들어가도 OnRoomEntered 가 오지 않아 "연결 중..." 에서 멈췄다.
         //   실패(OnFailed)도 마찬가지로 화면에 닿지 못했다.
         public event Action OnRoomEntered;
@@ -73,12 +73,15 @@ namespace JellyNet
         /// <summary>
         /// 로컬(LAN)과 온라인(Photon)을 갈아끼운다. 방을 만들거나 참가하기 <b>전에</b> 부른다.
         ///
+        /// 이름이 UseOnline 이었을 땐 "온라인을 쓴다"로 읽혀서, false 를 넘기는 자리가
+        /// 앞뒤가 안 맞아 보였다. 고르는 일이라는 걸 이름에 넣는다.
+        ///
         /// ★ 전송을 판마다 새로 만들지 않는 이유
         ///   둘 다 미리 만들어 두고 가리키는 곳만 바꾼다. 접속 전에 걸어두는 라우팅
         ///   (로비가 Start 에서 등록하는 LoadGameScene 등)과 이벤트 구독이,
         ///   전송을 새로 만드는 순간 통째로 사라지기 때문이다.
         /// </summary>
-        public void UseOnline(bool online)
+        public void UseLocalOrOnline(bool online)
         {
             if (IsOnline == online)
                 return;
@@ -93,7 +96,7 @@ namespace JellyNet
 #if PHOTON_REALTIME_5_OR_NEWER
             IsOnline = online;
             transport = online ? photonTransport : localTransport;
-            session = online ? photonSession : localSession;
+            Session = online ? photonSession : localSession;
 #else
             if (online)
             {
@@ -219,7 +222,7 @@ namespace JellyNet
             localSession = new LocalSession(localTransport, port);
 
             transport = localTransport;
-            session = localSession;
+            Session = localSession;
 
             HookSession(localSession);
 
