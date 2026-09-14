@@ -67,7 +67,8 @@ namespace JellyNet
         }
 
         /// <summary>전송에 건 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
-        public void Unhook()
+        /// <summary>생성자에서 전송에 걸어둔 구독을 푼다. 방향은 LocalSession 쪽 설명과 같다.</summary>
+        public void UnsubscribeFromTransport()
         {
             transport.OnShutdownRequested -= CancelPending;
         }

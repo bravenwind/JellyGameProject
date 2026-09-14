@@ -319,10 +319,10 @@ namespace JellyNet
             //전송은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
-            localSession?.Unhook();
+            localSession?.UnsubscribeFromTransport();
             StopRelayingFrom(localSession);
 #if PHOTON_REALTIME_5_OR_NEWER
-            photonSession?.Unhook();
+            photonSession?.UnsubscribeFromTransport();
             StopRelayingFrom(photonSession);
 #endif
 

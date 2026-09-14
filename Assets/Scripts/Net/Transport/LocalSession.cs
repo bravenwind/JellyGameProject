@@ -166,8 +166,14 @@ namespace JellyNet
             signature = -1;
         }
 
-        /// <summary>전송에 건 구독을 푼다. NetManager 가 죽을 때 부른다(건 자리에서 짝을 맞춘다).</summary>
-        public void Unhook()
+        /// <summary>
+        /// 생성자에서 전송에 걸어둔 구독을 푼다. NetManager 가 죽을 때 부른다.
+        ///
+        /// NetManager 의 StopRelayingFrom 과 헷갈리면 안 된다. 그쪽은 <b>NetManager 가</b>
+        /// 이 세션에 건 구독을 푸는 것이고, 이건 <b>이 세션이</b> 전송에 건 것을 푸는 것이다.
+        /// 방향이 반대라 둘 다 Unhook 이라는 한 이름을 쓰면 어느 쪽인지 알 수 없다.
+        /// </summary>
+        public void UnsubscribeFromTransport()
         {
             transport.OnDisconnected -= StopAdvertising;
 
