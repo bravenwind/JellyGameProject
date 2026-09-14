@@ -45,13 +45,13 @@ namespace JellyNet
         public event Action OnRoomEntered;
         public event Action<string> OnSessionFailed;
 
-        private void HookSession(INetSession s)
+        private void RelayFrom(INetSession s)
         {
             s.OnRoomEntered += RaiseRoomEntered;
             s.OnFailed += RaiseSessionFailed;
         }
 
-        private void UnhookSession(INetSession s)
+        private void StopRelayingFrom(INetSession s)
         {
             if (s == null)
                 return;
@@ -172,10 +172,15 @@ namespace JellyNet
         //"서버와 연결이 끊겼습니다"를 띄울지 조용히 나갈지 판단할 수 있다
         public event Action OnConnectionLost;
 
-        public bool ConnectionLost { get { return localTransport != null && localTransport.ConnectionLost; } }
+        // ★ ConnectionLost 와 LastError 를 지웠다
+        //   둘 다 localTransport 를 직접 읽어서, 온라인일 때는 언제나 false / null 이었다.
+        //   PhotonTransport 에도 LastError 가 있고 값을 채우지만 이 길로는 나오지 못했다.
+        //   인터페이스(INetTransport)에 없는 것을 밖에 내주려다 구체 타입 하나를
+        //   골라잡은 결과다 — 전송을 갈아끼워도 같은 답이 나와야 한다는 규칙이 여기서 깨졌다.
 
-        /// <summary>StartHost/JoinHost가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
-        public string LastError { get { return localTransport != null ? localTransport.LastError : null; } }
+        //   고치는 대신 지운 이유는 부르는 곳이 없기 때문이다. 접속이 끊긴 사실은
+        //   OnConnectionLost 이벤트로, 실패 사유는 OnSessionFailed 로 이미 흘러간다.
+        //   값을 물어보는 통로와 알려주는 통로가 둘 다 있으면 한쪽만 고쳐지게 된다.
 
         [Header("씬 전환")]
         [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
@@ -222,7 +227,7 @@ namespace JellyNet
             transport = localTransport;
             Session = localSession;
 
-            HookSession(localSession);
+            RelayFrom(localSession);
 
 #if PHOTON_REALTIME_5_OR_NEWER
             //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
@@ -232,15 +237,26 @@ namespace JellyNet
 
             photonSession = new PhotonSession(photonTransport);
 
-            Hook(photonTransport);
-            HookSession(photonSession);
+            RelayFrom(photonTransport);
+            RelayFrom(photonSession);
 #endif
-            Hook(localTransport);
+            RelayFrom(localTransport);
         }
 
+        // ─────────────────────────────────────────────────────────
+        //  중계 — 전송·세션의 이벤트를 NetManager 의 이벤트로 다시 쏜다
+        // ─────────────────────────────────────────────────────────
+        //
         //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다.
-        //쓰지 않는 전송은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다
-        private void Hook(INetTransport t)
+        //쓰지 않는 전송은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다.
+        //
+        // ★ 이름이 Hook / Unhook 이었다
+        //   무엇을 하는지가 안 드러났고, LocalSession·PhotonSession 에도 Unhook 이
+        //   따로 있어서 같은 이름이 두 뜻으로 쓰였다(그쪽은 <b>자기가</b> 전송에 건
+        //   구독을 푸는 것이다). 여기서 하는 일은 남의 이벤트를 받아 내 이름으로
+        //   다시 쏘는 중계라, 그걸 이름에 넣는다. 전송이든 세션이든 하는 일이 같아
+        //   타입을 이름에 박지 않고 오버로드로 둔다.
+        private void RelayFrom(INetTransport t)
         {
             t.OnPeerJoined += RaisePeerJoined;
             t.OnPeerLeft += RaisePeerLeft;
@@ -249,7 +265,7 @@ namespace JellyNet
             t.OnConnectionLost += RaiseConnectionLost;
         }
 
-        private void Unhook(INetTransport t)
+        private void StopRelayingFrom(INetTransport t)
         {
             if (t == null)
                 return;
@@ -275,6 +291,12 @@ namespace JellyNet
 
             //방 목록이 바뀌었는지 훑는다. 로비 화면에서만 의미가 있지만, 목록을 켜지 않았으면
             //훑을 것도 없어 비용이 사실상 0이다
+            //
+            //★ photonSession 에는 짝이 되는 줄이 없다 — 빠뜨린 게 아니다
+            //  Poll 은 INetSession 에 없는 LocalSession 만의 메서드다. LAN 은 LanDiscovery 가
+            //  UDP 비콘을 사전에 쌓아두기만 하고 "바뀌었다"를 알려주지 않아서 우리가 훑어야 한다.
+            //  온라인은 릴레이가 OnRoomListUpdate 콜백으로 밀어준다(PhotonSession 338줄).
+            //  밀어주는 쪽에 훑기를 붙이면 같은 목록을 두 번 만들게 된다.
             localSession?.Poll();
         }
 
@@ -298,15 +320,15 @@ namespace JellyNet
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
             localSession?.Unhook();
-            UnhookSession(localSession);
+            StopRelayingFrom(localSession);
 #if PHOTON_REALTIME_5_OR_NEWER
             photonSession?.Unhook();
-            UnhookSession(photonSession);
+            StopRelayingFrom(photonSession);
 #endif
 
-            Unhook(localTransport);
+            StopRelayingFrom(localTransport);
 #if PHOTON_REALTIME_5_OR_NEWER
-            Unhook(photonTransport);
+            StopRelayingFrom(photonTransport);
 #endif
 
             if (Instance == this)
