@@ -37,8 +37,6 @@ namespace JellyNet
         /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
         public INetSession Session { get; private set; }
 
-        /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
-
         // ★ 세션 이벤트는 NetManager 가 중계한다 — 전송 이벤트와 같은 이유다
         //   로비는 Start 에서 한 번 구독하는데, 그때 세션은 아직 LAN 이다.
         //   온라인을 고르면 Session 이 바뀌지만 구독은 옛 세션에 남아,

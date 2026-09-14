@@ -100,8 +100,6 @@ namespace JellyNet
         /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
         public RealtimeClient Client { get; private set; }
 
-        /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
-
         /// <summary>
         /// 마스터 서버까지 붙었는가. 방 만들기·참가·로비는 이 뒤에야 할 수 있다.
         ///
