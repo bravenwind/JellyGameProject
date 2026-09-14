@@ -68,7 +68,6 @@ namespace JellyNet
         /// <summary>호스트가 강제 종료 등으로 사라졌다. 정상 종료와 구분해야 안내를 띄울지 정할 수 있다.</summary>
         event Action OnConnectionLost;
 
-        /// <summary>매 프레임 호출. 받은 것을 읽어 라우팅하고 접속/퇴장을 처리한다.</summary>
         /// <summary>
         /// 위치 갱신을 한 메시지로 묶어 보내야 하는 전송인가.
         /// 릴레이는 방당 초당 메시지 수에 한도가 있고, 소켓은 그렇지 않다.
@@ -76,6 +75,7 @@ namespace JellyNet
         /// </summary>
         bool PrefersBatchedUpdates { get; }
 
+        /// <summary>매 프레임 호출. 받은 것을 읽어 라우팅하고 접속/퇴장을 처리한다.</summary>
         void Poll();
 
         /// <summary>세션을 닫는다. 라우팅 표와 구독은 살아남는다 — 다음 판에 다시 쓴다.</summary>

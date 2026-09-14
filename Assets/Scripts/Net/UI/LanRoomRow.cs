@@ -15,7 +15,7 @@ namespace JellyNet
 
         //RoomInfo(UDP 비콘의 해석 결과)가 아니라 RoomHandle 을 받는다.
         //줄 하나가 보여주는 것은 어느 전송으로 찾은 방이든 똑같기 때문이다
-        public void Setup(RoomHandle room, Action<RoomHandle> onJoin)
+        public void Setup(RoomEntry room, Action<RoomEntry> onJoin)
         {
             if (nameText != null)
                 nameText.text = room.HostName;
@@ -38,7 +38,7 @@ namespace JellyNet
             joinButton.onClick.RemoveAllListeners();
             joinButton.interactable = !room.IsFull;
 
-            RoomHandle captured = room;
+            RoomEntry captured = room;
             joinButton.onClick.AddListener(() => onJoin?.Invoke(captured));
         }
     }

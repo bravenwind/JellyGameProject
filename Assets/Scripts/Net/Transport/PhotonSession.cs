@@ -130,7 +130,7 @@ namespace JellyNet
         //   LAN 은 여기서 결과가 확정되지만 Photon 은 요청만 나간다. 성공은
         //   OnCreatedRoom/OnJoinedRoom 콜백으로 몇백 ms 뒤에 온다. 그래서 true 는
         //   "됐다"가 아니라 "보냈다"는 뜻이고, 로비는 그동안 "연결 중..." 을 띄운 채
-        //   INetSession.OnRoomReady 를 기다린다.
+        //   INetSession.OnRoomEntered 를 기다린다.
         // ★ 서버에 물어보기 전에 우리가 먼저 거른다
         //   서버도 같은 이름을 거절하지만, 그 대답은 몇백 ms 뒤 콜백으로 온다.
         //   그때는 이미 "연결 중" 화면이 떠 있고, 실패 처리가 Photon 이 메시지를

@@ -173,15 +173,11 @@ public class AIPlayerMovement : MonoBehaviour
     // 외부 프로퍼티
     // ─────────────────────────────────────────────────────────
 
-    /// <summary>이 봇의 netId. LanPlayerState.EntityId와 같은 역할이다.
-    /// NetIdentity를 Awake에서 캐시해두므로 매번 계층을 훑지 않는다.</summary>
-    public int EntityId => netId != null ? netId.NetId : 0;
-
-    /// <summary>Awake에서 캐시해둔 NetIdentity. LanPlayerState.Identity와 같은 역할이다.</summary>
-    public NetIdentity Identity => netId;
-
-    /// <summary>이 봇의 네트워크 상태. Awake에서 캐시해둔 것을 그대로 준다.</summary>
-    public LanBotState BotState => botSync;
+    // ★ EntityId · Identity · BotState 를 지웠다
+    //   LanPlayerState 와 짝을 맞추려고 만들어뒀지만 부르는 곳이 한 곳도 없었다.
+    //   봇의 NetIdentity 가 필요한 쪽은 전부 반대 방향으로 간다 —
+    //   NetIdentity.Bot 으로 두뇌를 찾지, 두뇌에서 NetIdentity 를 꺼내지 않는다.
+    //   netId · botSync 필드는 이 클래스 안에서 쓰이므로 그대로 둔다.
 
     /// <summary>
     /// 이 봇의 크기. 판정에 쓰는 값의 출처는 PlayerScaleController 하나다.

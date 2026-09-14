@@ -39,10 +39,10 @@ namespace JellyNet
 
             //클라는 호스트의 환영 인사(= 내 번호 배정)를 받아야 방에 들어간 것이다.
             //호스트는 StartHost 가 성공한 순간이라 CreateRoom 에서 직접 알린다
-            this.transport.OnWelcomed += RaiseRoomReady;
+            this.transport.OnWelcomed += RaiseRoomEntered;
         }
 
-        private void RaiseRoomReady()
+        private void RaiseRoomEntered()
         {
             OnRoomEntered?.Invoke();
         }
@@ -104,7 +104,7 @@ namespace JellyNet
                 LanDiscovery.Instance.StartBeacon(port);
 
             //호스트는 남의 승인을 기다릴 게 없다. 포트가 열린 순간 방이다
-            RaiseRoomReady();
+            RaiseRoomEntered();
             return true;
         }
 

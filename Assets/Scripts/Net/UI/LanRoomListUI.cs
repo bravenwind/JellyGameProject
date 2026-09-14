@@ -34,7 +34,7 @@ namespace JellyNet
         private readonly List<LanRoomRow> rows = new List<LanRoomRow>();
 
         //매 갱신마다 새로 만들면 초당 4개씩 쓰레기가 쌓인다. 담을 그릇은 하나만 둔다
-        private readonly List<RoomHandle> list = new List<RoomHandle>();
+        private readonly List<RoomEntry> list = new List<RoomEntry>();
 
         private float timer;
         private int lastCount = -1;
@@ -100,7 +100,7 @@ namespace JellyNet
                 return;
 
             list.Clear();
-            foreach (RoomHandle r in s.Rooms)
+            foreach (RoomEntry r in s.Rooms)
                 list.Add(r);
 
             if (list.Count == lastCount && rows.Count == list.Count)
@@ -155,7 +155,7 @@ namespace JellyNet
             lastCount = -1;
         }
 
-        private void OnPick(RoomHandle r)
+        private void OnPick(RoomEntry r)
         {
             if (LanLobby.Instance != null)
                 LanLobby.Instance.JoinRoom(r);

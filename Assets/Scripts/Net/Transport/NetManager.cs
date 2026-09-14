@@ -25,11 +25,11 @@ namespace JellyNet
         //전송이 갈려도 하나뿐인 것 — 어떤 MsgType 을 누가 맡는가
         private NetRouteTable routes;
 
-        private LanTransport lan;
-        private LanSession lanSession;
+        private SocketTransport localTransport;
+        private LocalSession localSession;
 
 #if PHOTON_REALTIME_5_OR_NEWER
-        private PhotonTransport photon;
+        private PhotonTransport photonTransport;
         private PhotonSession photonSession;
 #endif
 
@@ -42,14 +42,14 @@ namespace JellyNet
         // ★ 세션 이벤트는 NetManager 가 중계한다 — 전송 이벤트와 같은 이유다
         //   로비는 Start 에서 한 번 구독하는데, 그때 세션은 아직 LAN 이다.
         //   온라인을 고르면 session 이 바뀌지만 구독은 옛 세션에 남아,
-        //   방에 들어가도 OnRoomReady 가 오지 않아 "연결 중..." 에서 멈췄다.
+        //   방에 들어가도 OnRoomEntered 가 오지 않아 "연결 중..." 에서 멈췄다.
         //   실패(OnFailed)도 마찬가지로 화면에 닿지 못했다.
-        public event Action OnRoomReady;
+        public event Action OnRoomEntered;
         public event Action<string> OnSessionFailed;
 
         private void HookSession(INetSession s)
         {
-            s.OnRoomReady += RaiseRoomReady;
+            s.OnRoomEntered += RaiseRoomEntered;
             s.OnFailed += RaiseSessionFailed;
         }
 
@@ -58,12 +58,12 @@ namespace JellyNet
             if (s == null)
                 return;
 
-            s.OnRoomReady -= RaiseRoomReady;
+            s.OnRoomEntered -= RaiseRoomEntered;
             s.OnFailed -= RaiseSessionFailed;
         }
 
         //고르지 않은 세션은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다
-        private void RaiseRoomReady() { OnRoomReady?.Invoke(); }
+        private void RaiseRoomEntered() { OnRoomEntered?.Invoke(); }
 
         private void RaiseSessionFailed(string reason) { OnSessionFailed?.Invoke(reason); }
 
@@ -92,8 +92,8 @@ namespace JellyNet
 
 #if PHOTON_REALTIME_5_OR_NEWER
             IsOnline = online;
-            transport = online ? (INetTransport)photon : lan;
-            session = online ? (INetSession)photonSession : lanSession;
+            transport = online ? photonTransport : localTransport;
+            session = online ? photonSession : localSession;
 #else
             if (online)
             {
@@ -171,10 +171,10 @@ namespace JellyNet
         //"서버와 연결이 끊겼습니다"를 띄울지 조용히 나갈지 판단할 수 있다
         public event Action OnConnectionLost;
 
-        public bool ConnectionLost { get { return lan != null && lan.ConnectionLost; } }
+        public bool ConnectionLost { get { return localTransport != null && localTransport.ConnectionLost; } }
 
         /// <summary>StartHost/JoinHost가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
-        public string LastError { get { return lan != null ? lan.LastError : null; } }
+        public string LastError { get { return localTransport != null ? localTransport.LastError : null; } }
 
         [Header("씬 전환")]
         [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
@@ -212,29 +212,29 @@ namespace JellyNet
             routes.OnLog = AddLog;
             routes.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
-            lan = new LanTransport(routes);
-            lan.OnLog = AddLog;
-            lan.OnError = msg => Debug.LogError("[NetManager] " + msg);
+            localTransport = new SocketTransport(routes);
+            localTransport.OnLog = AddLog;
+            localTransport.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
-            lanSession = new LanSession(lan, port);
+            localSession = new LocalSession(localTransport, port);
 
-            transport = lan;
-            session = lanSession;
+            transport = localTransport;
+            session = localSession;
 
-            HookSession(lanSession);
+            HookSession(localSession);
 
 #if PHOTON_REALTIME_5_OR_NEWER
             //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
-            photon = new PhotonTransport(routes);
-            photon.OnLog = AddLog;
-            photon.OnError = msg => Debug.LogError("[NetManager] " + msg);
+            photonTransport = new PhotonTransport(routes);
+            photonTransport.OnLog = AddLog;
+            photonTransport.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
-            photonSession = new PhotonSession(photon);
+            photonSession = new PhotonSession(photonTransport);
 
-            Hook(photon);
+            Hook(photonTransport);
             HookSession(photonSession);
 #endif
-            Hook(lan);
+            Hook(localTransport);
         }
 
         //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다.
@@ -267,14 +267,14 @@ namespace JellyNet
             //   끝난다. 활성 전송만 돌리면, 온라인을 껐다 로컬로 바꾼 순간
             //   Photon 이 Disconnecting 인 채 멈춘다. 쓰지 않는 전송의 Poll 은
             //   소켓도 클라이언트도 없어 사실상 아무 일도 하지 않는다.
-            lan?.Poll();
+            localTransport?.Poll();
 #if PHOTON_REALTIME_5_OR_NEWER
-            photon?.Poll();
+            photonTransport?.Poll();
 #endif
 
             //방 목록이 바뀌었는지 훑는다. 로비 화면에서만 의미가 있지만, 목록을 켜지 않았으면
             //훑을 것도 없어 비용이 사실상 0이다
-            lanSession?.Poll();
+            localSession?.Poll();
         }
 
         private void OnApplicationQuit() { CloseEverything(); }
@@ -285,7 +285,7 @@ namespace JellyNet
             Shutdown();
 
 #if PHOTON_REALTIME_5_OR_NEWER
-            photon?.DisconnectFully();
+            photonTransport?.DisconnectFully();
 #endif
         }
 
@@ -296,16 +296,16 @@ namespace JellyNet
             //전송은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
-            lanSession?.Unhook();
-            UnhookSession(lanSession);
+            localSession?.Unhook();
+            UnhookSession(localSession);
 #if PHOTON_REALTIME_5_OR_NEWER
             photonSession?.Unhook();
             UnhookSession(photonSession);
 #endif
 
-            Unhook(lan);
+            Unhook(localTransport);
 #if PHOTON_REALTIME_5_OR_NEWER
-            Unhook(photon);
+            Unhook(photonTransport);
 #endif
 
             if (Instance == this)

@@ -10,7 +10,7 @@ namespace JellyNet
     ///   그 타입은 UDP 비콘의 해석 결과라 Ip·Port 를 품고 있었고, 방 목록 UI가
     ///   그걸 읽어 LanLobby.JoinRoom(ip, port) 를 불렀다. 온라인에는 IP도 포트도 없다.
     /// </summary>
-    public class RoomHandle
+    public class RoomEntry
     {
         /// <summary>
         /// 전송이 이 방을 다시 찾는 데 쓰는 값. LAN 은 "ip:port", 온라인은 방 이름.
@@ -36,7 +36,7 @@ namespace JellyNet
     }
 
     /// <summary>방을 만들 때 넘기는 값. 전송마다 쓰는 것이 다르므로 안 쓰는 항목은 무시한다.</summary>
-    public struct RoomOptions
+    public struct RoomSetup
     {
         /// <summary>방 제목. 목록에 뜨는 이름이다.</summary>
         public string RoomName;
@@ -62,13 +62,13 @@ namespace JellyNet
         /// (LAN 은 여기서 결과가 확정되지만, 온라인은 요청만 나가므로 반환값을
         ///  "성공"이 아니라 "요청이 성립했는가"로 읽어야 한다)
         /// </summary>
-        bool CreateRoom(RoomOptions options);
+        bool CreateRoom(RoomSetup options);
 
         /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 OnFailed 로 나간다.</summary>
-        bool JoinRoom(RoomHandle room);
+        bool JoinRoom(RoomEntry room);
 
         /// <summary>지금까지 찾은 방들. StartBrowsing 을 부르기 전에는 비어 있다.</summary>
-        IEnumerable<RoomHandle> Rooms { get; }
+        IEnumerable<RoomEntry> Rooms { get; }
 
         /// <summary>
         /// 지금 방 목록을 볼 수 있는 상태인가.
@@ -109,7 +109,7 @@ namespace JellyNet
         ///   몇백 ms 뒤 콜백으로 온다. 그래서 "요청을 보냈다"와 "들어갔다"를 나눈다 —
         ///   안 나누면 실패했는데 이미 대기 화면인 상태가 생긴다.
         /// </summary>
-        event Action OnRoomReady;
+        event Action OnRoomEntered;
 
         /// <summary>
         /// 같은 기계·같은 랜에서만 도는 세션인가. 화면이 로컬 전용 입력(포트 등)을

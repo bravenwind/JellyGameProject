@@ -217,7 +217,7 @@ public class AIPushSurviveState : AIBaseState
     //   겨누는 동안 상대가 사거리 밖으로 나가면 유예는 초기화된다 —
     //   붙었다 떨어졌다 하는 것만으로 봇을 계속 헛치게 만들 수 있다.
     [Tooltip("사거리에 들어온 뒤 실제로 휘두르기까지의 시간(초). 사람이 반응할 틈이다.")]
-    private const float AIM_DELAY = 0.45f;
+    private const float AIM_DELAY = 0.1f;
 
     //겨누기 시작한 시각. 사거리 밖으로 나가면 -1로 되돌린다
     private float aimStartTime = -1f;

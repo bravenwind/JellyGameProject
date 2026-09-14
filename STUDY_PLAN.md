@@ -1,3 +1,159 @@
+# 온라인 코드 파악 — 9/13(일) ~ 9/19(토)
+
+> 로컬 멀티플레이는 이미 다 읽었다. **온라인만 남았다.**
+> 온라인은 나중에 붙인 거라 읽으면서 만든 게 아니라 만들고 나서 읽는 셈이 됐다.
+>
+> 기준 문서는 기술명세서(Google Docs)다. 날마다 해당 절을 먼저 읽고 코드로 내려간다.
+> 명세서에 적은 것과 코드가 어긋나면 **코드가 맞다** — 그 자리에서 명세서를 고친다.
+
+## 이 일정의 원칙
+
+**아는 것 옆에 모르는 것을 놓는다.** 같은 인터페이스를 LAN이 어떻게 채웠는지는 이미 안다.
+Photon 구현을 읽을 때 LAN 쪽 대응 함수를 나란히 열어두면, 새로 배우는 건
+"Photon API가 뭘 해주는가" 하나로 줄어든다.
+
+**하루 끝에 질문에 답해본다.** 읽고 넘어가면 남지 않는다. 각 날에 적어둔 질문에
+코드를 안 보고 답할 수 있으면 그날은 된 거다. 못 하면 그 부분만 다시 읽는다.
+
+기존 읽는 방법(8/18에 정한 것)은 그대로 간다 — 함수 단위로, 막히면 그 자리에서 파고,
+고칠 게 보이면 그때 고친다.
+
+---
+
+## 9/13 (일) · 경계 먼저 보기
+
+**명세서** 2.4 로컬과 온라인을 함께 지원하기
+
+**코드** `Net/Transport/INetTransport.cs` (84) · `Net/Transport/INetSession.cs` (120) — 204줄
+
+인터페이스 두 개만 읽는 날이다. 구현은 아직 열지 않는다.
+무엇이 인터페이스에 **있는지**보다 무엇이 **없는지**가 중요하다.
+
+- `INetTransport`에 IP도 포트도 없다. 그럼 LAN 구현은 그 값을 어디서 받나?
+- `INetSession`을 따로 뺀 기준이 뭐였나? 두 인터페이스의 경계선을 한 문장으로 말해보기
+- `RoomHandle.Id`에 LAN은 무엇을, 온라인은 무엇을 담나? 왜 뜻을 밖에서 해석하지 않나?
+- `PrefersBatchedUpdates`는 왜 전송이 알려주나? 이게 없으면 무슨 일이 생기나?
+
+---
+
+## 9/14 (월) · 전송을 고르는 곳과 라우팅 표
+
+**명세서** 2.2 뒷부분(처리 함수 표) · 2.4 마지막 문단
+
+**코드** `Net/Transport/NetRouteTable.cs` (105) · `Net/Transport/NetManager.cs` (422) — 527줄
+
+`NetManager.UseOnline`이 이 프로젝트에서 로컬과 온라인이 갈리는 **유일한 자리**다.
+거기서 무엇이 바뀌고 무엇이 안 바뀌는지를 정확히 보는 게 오늘 목표.
+
+- `UseOnline(true)`를 부르면 정확히 무엇이 교체되나? 교체되지 않는 것은?
+- `Hook`/`Unhook`, `HookSession`/`UnhookSession`이 왜 필요한가?
+  안 하면 어떤 증상이 나나 (로비가 옛 세션을 구독하던 버그)
+- 라우팅 표가 전송 **밖에** 있는 이유. 안에 뒀을 때 온라인이 통째로 안 됐던 이유를 순서대로 설명해보기
+- `UseOnline`이 요청을 거절하는 경우는 언제인가?
+
+---
+
+## 9/15 (화) · Photon 전송 ① 접속과 보내기
+
+**명세서** 2.1 마지막 문단(앞 4바이트 떼기) · 2.4
+
+**코드** `Net/Transport/PhotonTransport.cs` 1~305줄
+**옆에 열어둘 것** `Net/Transport/LanTransport.cs`의 같은 이름 함수들
+
+읽을 함수: `BodyOf` · `CodeOf` · `Connect` · `Broadcast` · `BroadcastExcept` ·
+`SendTo` · `SendToHost` · `Raise`
+
+- `NetWriter`가 만든 `[길이 4][타입 1][본문]`에서 Photon으로 보낼 때 무엇을 떼고 무엇을 싣나?
+- `ReceiverGroup`과 `targets`를 어떻게 쓰길래 "전원 / 한 명 빼고 / 특정 한 명"이 다 되나?
+- LAN의 `Broadcast`와 Photon의 `Broadcast`가 하는 일이 같은가? 다르다면 어디가?
+- `MyId`는 Photon에서 무엇으로 정해지나? 호스트가 1이라는 규칙이 온라인에서도 지켜지나?
+
+---
+
+## 9/16 (수) · Photon 전송 ② 받기와 끝내기
+
+**코드** `Net/Transport/PhotonTransport.cs` 305~543줄 — 238줄
+
+읽을 함수: `OnEventReceived` · `Dispatch` · `Poll` · `Shutdown` · `DisconnectFully` ·
+`Teardown` · `OnPlayerEnteredRoom` · `OnPlayerLeftRoom` · `OnMasterClientSwitched` · `OnCreatedRoom`
+
+- LAN은 `Poll`에서 소켓을 읽는데 Photon의 `Poll`은 무엇을 하나? 왜 다른가?
+- 마스터 클라이언트와 호스트를 어떻게 대응시켰나? 마스터가 바뀌면 무슨 일이 일어나나?
+  (판이 끝날 때 마스터 교체를 사고로 읽어 씬 전환이 멈추던 버그를 떠올려보기)
+- `Shutdown`과 `DisconnectFully`는 뭐가 다른가? 왜 나눴나?
+- `leavingRoom` 플래그는 무엇을 막나?
+
+---
+
+## 9/17 (목) · Photon 세션 — 방 만들고 찾고 들어가기
+
+**명세서** 2.4 방 목록 부분
+
+**코드** `Net/Transport/PhotonSession.cs` (357)
+**옆에 열어둘 것** `Net/Transport/LanSession.cs` (221)
+
+읽을 함수: `Begin` · `RunPending` · `CancelPending` · `CreateRoom` · `DoCreate` ·
+`JoinRoom` · `DoJoin` · `StartBrowsing` · `ApplyRoomList` · `PropInt` / `PropString`
+
+오늘이 로컬과 온라인이 **가장 많이 다른** 날이다. LAN은 UDP 신호를 듣기만 하면 되는데
+온라인은 릴레이에 붙고 로비에 들어가야 목록이 오기 시작한다.
+
+- `Begin` / `RunPending`이 왜 필요한가? LAN에는 왜 이런 게 없나?
+- `CreateRoom`이 `true`를 돌려준 것과 방에 실제로 들어간 것은 왜 다른가?
+  `OnRoomReady`가 따로 있는 이유
+- 방 목록의 모드·인원·봇 수를 Photon 방 속성에서 어떻게 꺼내나? (`PropInt`, `PropString`)
+- `IsBrowseReady`가 없으면 어떤 화면이 되나? (처음 열었을 때만 "방이 없습니다"가 뜨던 것)
+
+---
+
+## 9/18 (금) · 로비 화면과 접속 흐름 전체
+
+**코드** `Net/Flow/LanLobby.cs`의 온라인 관련 부분 (`OnClickOnline` · `ChooseNet` ·
+`OnSessionFailed` 구독 주변) · `Net/UI/LanRoomListUI.cs` (164) · `Net/UI/LanRoomRow.cs` (45)
+
+오늘은 새 파일을 많이 읽는 날이 아니라 **순서를 꿰는 날**이다.
+버튼을 누른 순간부터 게임 씬이 뜰 때까지를 함수 이름으로 죽 적어본다.
+
+```
+[온라인] 버튼 → ? → ? → ? → 방 목록 표시
+[방 클릭]     → ? → ? → ? → 대기 화면
+[인원 참](호스트) → ? → ? → 게임 씬
+```
+
+- 이 흐름에서 로컬과 온라인이 갈라지는 지점이 몇 군데인가? 각각 어느 함수인가?
+- 접속에 실패하면 그 사실이 화면까지 어떤 경로로 오나?
+- 방 목록 화면을 열고 닫을 때 `StartBrowsing` / `StopBrowsing`을 누가 부르나?
+- 게임이 시작되면 왜 방을 목록에서 감추나? (`StopAdvertising`)
+
+---
+
+## 9/19 (토) · 온라인 때문에 생긴 제약 + 실측
+
+**명세서** 2.2 `TransformUpdate` 묶기 · 2.5 위치 동기화
+
+**코드** `Net/Replication/NetWorld.cs`의 위치 송신 부분 · `Net/Replication/NetTransform.cs` (222) ·
+`Net/Transport/PhotonAppSettingsAsset.cs` (54)
+
+- 방 하나가 초당 보낼 수 있는 메시지 수에 한도가 있다. 지금 구조에서 20Hz × 개체 수를
+  그대로 보내면 몇 개가 되나? 대충 계산해보기
+- `PrefersBatchedUpdates`가 참일 때 `NetWorld`가 무엇을 다르게 하나?
+- 스냅샷 보간의 재생 지연 0.15초는 온라인에서도 충분한가? 지연이 더 큰 환경이면?
+
+**마지막은 실제로 돌려본다.** 두 대(또는 한 대 + 빌드)로 온라인 한 판을 켜고,
+로그를 보면서 접속 → 방 목록 → 참가 → 게임 시작까지 실제 순서를 확인한다.
+월~금에 머리로 그린 흐름과 다른 곳이 있으면 그게 오늘 건질 것이다.
+
+---
+
+## 읽고 나서 채울 것
+
+- [ ] 명세서 2장에서 코드와 어긋난 곳 고치기
+- [ ] `PhotonTransport` / `PhotonSession`에 `★` 주석이 부족한 곳 채우기 —
+      로컬 쪽은 왜 그렇게 생겼는지가 다 적혀 있는데 온라인 쪽은 아직 얇다
+- [ ] 명세서 8장 소스 코드 목록의 빈 줄 수(`—`) 채우기
+
+---
+
 # 코드 파악 계획 — 8/25(화) ~ 9/1(월)
 
 > 8/19~8/22 일정(전송·복제·흐름·모드·봇 前半)은 **완료**. 읽는 데 시간이 더 걸려

@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using DG.Tweening;
@@ -142,8 +143,14 @@ namespace JellyNet
 
             net.RouteClient(MsgType.LoadGameScene, HandleLoadGameScene);
             net.RouteClient(MsgType.LobbyStatus, HandleLobbyStatus);
+
+            //닉네임 겹침 검사 — 호스트가 받고(Hello) 호스트가 돌려보낸다(Reject)
+            net.RouteHost(MsgType.LobbyHello, HandleLobbyHello);
+            net.RouteClient(MsgType.LobbyReject, HandleLobbyReject);
+
             net.OnPeerJoined += HandlePeerChanged;
             net.OnPeerLeft += HandlePeerChanged;
+            net.OnPeerLeft += ForgetLobbyName;
             net.OnDisconnected += HandleDisconnected;
 
             // ★ 끊김은 두 얼굴로 온다
@@ -157,7 +164,7 @@ namespace JellyNet
             //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
             //세션이 아니라 NetManager 를 구독한다. 로컬/온라인을 갈아끼워도 끊기지 않는다
             net.OnSessionFailed += ShowLobbyError;
-            net.OnRoomReady += HandleRoomReady;
+            net.OnRoomEntered += HandleRoomEntered;
 
             LanScoreboard.Clear();
             LanRoomConfig.Clear();
@@ -181,6 +188,13 @@ namespace JellyNet
                 cancelRequested = false;
                 OnCancelMatchingClicked();
                 return;
+            }
+
+            //방에 들어간 직후 딱 한 번. 아래 matching·IsHost 검사에 걸리지 않게 앞에 둔다
+            if (helloPending)
+            {
+                helloPending = false;
+                SendLobbyHello();
             }
 
             if (net == null || !matching || launching)
@@ -287,6 +301,99 @@ namespace JellyNet
             ShowCountdown(cd);
         }
 
+        // ─────────────────────────────────────────────────────────
+        //  닉네임 겹침 검사 — 참가자끼리
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ 왜 로비에서 따로 물어보는가
+        //   방을 만들 때는 세션이 막고(LocalSession·PhotonSession 의 NameTaken),
+        //   방에 들어갈 때는 방 이름이 곧 방장 닉네임이라 JoinRoom 이 막는다.
+        //   남은 구멍이 <b>참가자끼리</b>다 — 목록에는 방장 이름만 있어서
+        //   먼저 들어간 사람이 누구인지 들어가는 쪽에서 알 방법이 없다.
+        //   그 이름이 호스트에게 처음 도착하는 건 게임 씬의 SetMyName 인데,
+        //   그때는 이미 캐릭터가 생기고 이름표가 두 개 똑같이 떠 있다.
+        //
+        //   그래서 방에 들어간 직후 이름을 한 번 보내고, 호스트가 자기 이름과
+        //   먼저 온 참가자들의 이름에 대고 재본다. 겹치면 사유를 붙여 돌려보낸다.
+        //
+        //   쫓아내는 게 아니라 <b>돌려보낸다</b>는 점이 중요하다. Photon 에는
+        //   마스터가 남을 끊는 수단이 없고, 끊는 수단을 전송마다 따로 만들면
+        //   로컬·온라인 동작이 갈린다. "나가라"고 말하면 나가는 쪽이 스스로 나가므로
+        //   두 전송에서 같은 코드가 돈다.
+        private readonly Dictionary<int, string> lobbyNames = new Dictionary<int, string>();
+
+        //HandleRoomEntered 가 세우고 Update 가 접는다. 이유는 그쪽 주석에 적어두었다
+        private bool helloPending;
+
+        /// <summary>참가자가 방에 들어간 직후 자기 닉네임을 호스트에게 보낸다(클라 전용).</summary>
+        private void SendLobbyHello()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || net.IsHost)
+                return;
+
+            w.Begin(MsgType.LobbyHello);
+            w.WriteString(LanRoomConfig.Nickname ?? "");
+            w.End();
+            net.SendToHost(w);
+        }
+
+        /// <summary>참가자가 보낸 닉네임을 받아 겹치는지 본다(호스트 전용).</summary>
+        private void HandleLobbyHello(int from, NetReader r)
+        {
+            string name = r.ReadString();
+
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost)
+                return;
+
+            if (LobbyNameTaken(from, name))
+            {
+                w.Begin(MsgType.LobbyReject);
+                w.WriteString("이미 같은 닉네임인 참가자가 있습니다. 닉네임을 바꿔주세요.");
+                w.End();
+                net.SendTo(from, w);
+
+                //기억해두지 않는다. 곧 나갈 사람의 이름이 남아 있으면
+                //다음 사람이 그 이름을 못 쓴다
+                return;
+            }
+
+            lobbyNames[from] = name;
+        }
+
+        //자기 자신과는 비교하지 않는다 — 연결이 끊겼다 같은 번호로 다시 붙는 경우
+        //자기 이름 때문에 자기가 막힌다
+        private bool LobbyNameTaken(int from, string name)
+        {
+            if (SameNickname(LanRoomConfig.Nickname, name))
+                return true;
+
+            foreach (KeyValuePair<int, string> kv in lobbyNames)
+            {
+                if (kv.Key == from)
+                    continue;
+
+                if (SameNickname(kv.Value, name))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void ForgetLobbyName(int peerId)
+        {
+            lobbyNames.Remove(peerId);
+        }
+
+        /// <summary>호스트가 돌려보냈다. 사유를 띄우고 대기 화면을 접는다(클라 전용).</summary>
+        private void HandleLobbyReject(NetReader r)
+        {
+            //ShowLobbyError 가 문장을 띄우고 접기를 다음 프레임으로 미룬다.
+            //여기서 바로 Shutdown 하면 지금 이 메시지를 읽고 있는 소켓을 닫는 셈이 된다
+            ShowLobbyError(r.ReadString());
+        }
+
         private void OnDestroy()
         {
             NetManager net = NetManager.Instance;
@@ -294,11 +401,14 @@ namespace JellyNet
             {
                 net.UnrouteClient(MsgType.LoadGameScene);
                 net.UnrouteClient(MsgType.LobbyStatus);
+                net.UnrouteHost(MsgType.LobbyHello);
+                net.UnrouteClient(MsgType.LobbyReject);
                 net.OnPeerJoined -= HandlePeerChanged;
                 net.OnPeerLeft -= HandlePeerChanged;
+                net.OnPeerLeft -= ForgetLobbyName;
 
                 net.OnSessionFailed -= ShowLobbyError;
-                net.OnRoomReady -= HandleRoomReady;
+                net.OnRoomEntered -= HandleRoomEntered;
                 net.OnDisconnected -= HandleDisconnected;
                 net.OnConnectionLost -= HandleDisconnected;
             }
@@ -614,7 +724,7 @@ namespace JellyNet
                 roomAddressText.text = LanRoomConfig.Nickname;
 
             Unpop(hostOptionPanel);
-            OpenMatching(roomReady ? MATCHING_LABEL : CONNECTING_LABEL);
+            OpenMatching(roomEntered ? MATCHING_LABEL : CONNECTING_LABEL);
         }
 
         /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 세션이 OnFailed 로 알린다.</summary>
@@ -649,7 +759,7 @@ namespace JellyNet
                 roomAddressText.text = room.HostName;
 
             Unpop(joinPanel);
-            OpenMatching(roomReady ? MATCHING_LABEL : CONNECTING_LABEL);
+            OpenMatching(roomEntered ? MATCHING_LABEL : CONNECTING_LABEL);
         }
 
 
@@ -665,22 +775,28 @@ namespace JellyNet
         private const string CONNECTING_LABEL = "연결 중";
 
         // ★ 신호가 화면보다 먼저 올 수 있다
-        //   LAN 호스트는 CreateRoom 이 성공하는 그 자리에서 OnRoomReady 가 터진다.
+        //   LAN 호스트는 CreateRoom 이 성공하는 그 자리에서 OnRoomEntered 가 터진다.
         //   대기 화면을 여는 건 그다음 줄이라, 그때 matching 은 아직 false 다.
         //   '왔는가'를 기억해 두지 않고 그 순간에만 반응하면 호스트는 영원히
         //   "연결 중..." 에 갇힌다. 어느 쪽이 먼저 와도 되게 상태로 들고 있는다.
-        private bool roomReady;
+        private bool roomEntered;
 
         //방을 만들거나 참가하기 직전에 부른다
         private void BeginConnecting()
         {
-            roomReady = false;
+            roomEntered = false;
         }
 
         /// <summary>방에 실제로 들어갔다. 그제서야 '기다린다'는 말이 사실이 된다.</summary>
-        private void HandleRoomReady()
+        private void HandleRoomEntered()
         {
-            roomReady = true;
+            roomEntered = true;
+
+            // ★ 여기서 바로 보내지 않는다
+            //   온라인에서 이 함수는 Photon 의 OnJoinedRoom 콜백 안에서 불린다.
+            //   콜백 안에서 Photon 을 다시 부르다 게임이 멈춘 적이 있어(ShowLobbyError →
+            //   OpLeaveLobby) 같은 자리에 두지 않는다. 깃발만 세우고 Update 에서 보낸다.
+            helloPending = true;
 
             if (!matching)
                 return;
@@ -853,6 +969,11 @@ namespace JellyNet
             shownHumans = -1;
             netHumans = -1;
             sentHumans = -1;
+
+            //방이 끝났으므로 이름 장부도 비운다. 남겨두면 다음 방에서
+            //있지도 않은 사람의 이름이 계속 자리를 차지한다
+            lobbyNames.Clear();
+            helloPending = false;
             sentCountdown = -2;
 
             //방 알리기는 위의 Shutdown 이 끊기면서 세션이 알아서 멈춘다. 여기선 찾기만 끈다
@@ -931,7 +1052,7 @@ namespace JellyNet
             //   그 글자가 스치고 지나갔지만, 릴레이는 몇백 ms 를 기다리므로
             //   <b>아직 방이 없는데 접속됐다고 말하는</b> 화면이 그대로 보인다.
             //   위쪽 문구가 "연결 중..." 인 동안 아래는 비어 있어야 앞뒤가 맞는다.
-            if (!roomReady)
+            if (!roomEntered)
             {
                 currentPlayerCountText.text = "";
                 return;
