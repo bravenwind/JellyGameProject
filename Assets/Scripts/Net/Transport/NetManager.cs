@@ -8,18 +8,9 @@ namespace JellyNet
     {
         public enum Mode { None, Host, Client }
 
+        #region 상태
+
         public static NetManager Instance { get; private set; }
-
-        [Header("설정")]
-        //방을 만들 때·붙을 때의 기본값이다. 실제로 쓰는 값은 세션이 들고 있다 —
-        //로비의 포트 입력이 방을 만들 때 덮어쓰고, 참가는 고른 방의 주소를 따른다.
-        //인스펙터에 남겨두는 건 "아무것도 안 정했을 때의 출발점"이기 때문이다
-        [SerializeField] private int port = NetConfig.DEFAULT_PORT;
-        [SerializeField] private int maxLogLines = 200;
-
-        //joinIp 를 걷어냈다. 붙을 주소는 언제나 목록에서 고른 방(RoomHandle)에서 나오고,
-        //주소를 손으로 넣는 화면은 없다. 남겨두면 "인스펙터의 저 IP 는 뭐지"가 된다
-        //(씬에 남은 joinIp 키는 다음 저장 때 유니티가 알아서 버린다)
 
         //전송이 갈려도 하나뿐인 것 둘 — 어떤 MsgType 을 누가 맡는가, 무슨 일이 일어났는가
         private NetRouteTable routes;
@@ -45,6 +36,43 @@ namespace JellyNet
 
         /// <summary>지금 온라인 전송을 쓰고 있는가. 화면의 로컬/온라인 선택이 정한다.</summary>
         public bool IsOnline { get; private set; }
+
+        private readonly List<string> log = new List<string>();
+
+        // ★ ConnectionLost 와 LastError 를 지웠다
+        //   둘 다 localTransport 를 직접 읽어서, 온라인일 때는 언제나 false / null 이었다.
+        //   PhotonTransport 에도 LastError 가 있고 값을 채우지만 이 길로는 나오지 못했다.
+        //   인터페이스(INetTransport)에 없는 것을 밖에 내주려다 구체 타입 하나를
+        //   골라잡은 결과다 — 전송을 갈아끼워도 같은 답이 나와야 한다는 규칙이 여기서 깨졌다.
+
+        //   고치는 대신 지운 이유는 부르는 곳이 없기 때문이다. 접속이 끊긴 사실은
+        //   OnConnectionLost 이벤트로, 실패 사유는 OnSessionFailed 로 이미 흘러간다.
+        //   값을 물어보는 통로와 알려주는 통로가 둘 다 있으면 한쪽만 고쳐지게 된다.
+
+        #endregion
+
+        #region 설정
+
+        [Header("설정")]
+        //방을 만들 때·붙을 때의 기본값이다. 실제로 쓰는 값은 세션이 들고 있다 —
+        //로비의 포트 입력이 방을 만들 때 덮어쓰고, 참가는 고른 방의 주소를 따른다.
+        //인스펙터에 남겨두는 건 "아무것도 안 정했을 때의 출발점"이기 때문이다
+        [SerializeField] private int port = NetConfig.DEFAULT_PORT;
+        [SerializeField] private int maxLogLines = 200;
+
+        //joinIp 를 걷어냈다. 붙을 주소는 언제나 목록에서 고른 방(RoomHandle)에서 나오고,
+        //주소를 손으로 넣는 화면은 없다. 남겨두면 "인스펙터의 저 IP 는 뭐지"가 된다
+        //(씬에 남은 joinIp 키는 다음 저장 때 유니티가 알아서 버린다)
+
+        #endregion
+
+        #region 씬 전환
+
+        [Header("씬 전환")]
+        [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
+        [SerializeField] private bool persistAcrossScenes = true;
+
+        #endregion
 
         /// <summary>
         /// 로컬(LAN)과 온라인(Photon)을 갈아끼운다. 방을 만들거나 참가하기 <b>전에</b> 부른다.
@@ -139,22 +167,6 @@ namespace JellyNet
                 return net == null || net.CurrentMode == Mode.None;
             }
         }
-
-        private readonly List<string> log = new List<string>();
-
-        // ★ ConnectionLost 와 LastError 를 지웠다
-        //   둘 다 localTransport 를 직접 읽어서, 온라인일 때는 언제나 false / null 이었다.
-        //   PhotonTransport 에도 LastError 가 있고 값을 채우지만 이 길로는 나오지 못했다.
-        //   인터페이스(INetTransport)에 없는 것을 밖에 내주려다 구체 타입 하나를
-        //   골라잡은 결과다 — 전송을 갈아끼워도 같은 답이 나와야 한다는 규칙이 여기서 깨졌다.
-
-        //   고치는 대신 지운 이유는 부르는 곳이 없기 때문이다. 접속이 끊긴 사실은
-        //   OnConnectionLost 이벤트로, 실패 사유는 OnSessionFailed 로 이미 흘러간다.
-        //   값을 물어보는 통로와 알려주는 통로가 둘 다 있으면 한쪽만 고쳐지게 된다.
-
-        [Header("씬 전환")]
-        [Tooltip("씬이 바뀌어도 연결을 유지한다. Main 씬에서 접속해 게임 씬으로 넘어가려면 켜야 한다.")]
-        [SerializeField] private bool persistAcrossScenes = true;
 
         private void Awake()
         {
@@ -349,6 +361,5 @@ namespace JellyNet
                 log.RemoveAt(0);
             Debug.Log("[Net] " + line);
         }
-
     }
 }

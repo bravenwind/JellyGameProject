@@ -4,6 +4,8 @@ using UnityEngine;
 [RequireComponent(typeof(SkinnedMeshRenderer))]
 public class SoftBody3D : MonoBehaviour
 {
+    #region Jelly Settings
+
     [Header("Jelly Settings")]
     [Tooltip("체크 시 에디터에서 칠한 값(0인 부분)은 유지하고, 나머지만 Softness로 제어합니다.")]
     [SerializeField] private bool useHybridSoftness = true;
@@ -24,9 +26,17 @@ public class SoftBody3D : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float bendingStiffness = 0.1f;
 
+    #endregion
+
+    #region Motion Settings
+
     [Header("Motion Settings")]
     [Range(0f, 5f)] [SerializeField] private float worldVelocityScale = 0.3f;
     [Range(0f, 5f)] [SerializeField] private float worldAccelerationScale = 0.3f;
+
+    #endregion
+
+    #region 상태
 
     private Cloth cloth;
     private SkinnedMeshRenderer skinnedMeshRenderer;
@@ -35,6 +45,8 @@ public class SoftBody3D : MonoBehaviour
 
     // 🔥 에디터에서 칠한 초기값을 저장할 배열
     private ClothSkinningCoefficient[] initialCoefficients;
+
+    #endregion
 
     private void Awake()
     {

@@ -8,12 +8,14 @@ namespace JellyNet
         private FramedConnection conn;
 
         public int MyId { get; private set; }
-        public bool Connected { get { return conn != null && conn.Alive; } }
+
         public Action<string> OnLog;
 
         public Action<MsgType, NetReader> OnMessage;
 
         public Action OnWelcome;
+
+        public bool Connected { get { return conn != null && conn.Alive; } }
 
         public bool Connect(string ip, int port)
         {

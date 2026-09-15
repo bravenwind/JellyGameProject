@@ -19,15 +19,34 @@ using UnityEngine;
 /// </summary>
 public static class GameTags
 {
+    #region 태그 (Project Settings > Tags and Layers > Tags)
+
     // ─────────────────────────────────────────────────────────
     //  태그 (Project Settings > Tags and Layers > Tags)
     // ─────────────────────────────────────────────────────────
-
     /// <summary>먹을 수 있는 젤리. JellyColliderAbsorb가 런타임에 렌더러 오브젝트에 붙인다.</summary>
     public const string Edible = "Edible";
 
     /// <summary>캐릭터 몸통 메시. 사람·봇 프리팹의 자식 Object001에 붙어 있다.</summary>
     public const string PlayerMesh = "PlayerMesh";
+
+    #endregion
+
+    #region 캐릭터의 '대표' 콜라이더
+
+    /// <summary>굴러다니는 사탕 소품.</summary>
+    public const string Sphere = "Sphere";
+
+    /// <summary>배경 소품(초콜릿에 떠다니는 것들).</summary>
+    public const string BackGroundObject = "BackGroundObject";
+
+    /// <summary>미니맵을 비추는 카메라. MinimapArrowManager가 태그로 찾는다.</summary>
+    public const string MinimapCamera = "MinimapCamera";
+
+    /// <summary>Unity 내장 태그. Camera.main이 이걸 본다.</summary>
+    public const string MainCamera = "MainCamera";
+
+    #endregion
 
     // ═════════════════════════════════════════════════════════
     //  캐릭터의 '대표' 콜라이더
@@ -67,18 +86,6 @@ public static class GameTags
     {
         return c != null && c.CompareTag(PlayerMesh);
     }
-
-    /// <summary>굴러다니는 사탕 소품.</summary>
-    public const string Sphere = "Sphere";
-
-    /// <summary>배경 소품(초콜릿에 떠다니는 것들).</summary>
-    public const string BackGroundObject = "BackGroundObject";
-
-    /// <summary>미니맵을 비추는 카메라. MinimapArrowManager가 태그로 찾는다.</summary>
-    public const string MinimapCamera = "MinimapCamera";
-
-    /// <summary>Unity 내장 태그. Camera.main이 이걸 본다.</summary>
-    public const string MainCamera = "MainCamera";
 }
 
 /// <summary>
@@ -94,6 +101,8 @@ public static class GameTags
 /// </summary>
 public static class GameLayers
 {
+    #region 상수
+
     public const string PlayerName = "Player";
     public const string EdibleName = "Edible";
     public const string ChocolateName = "Chocolate";
@@ -101,12 +110,18 @@ public static class GameLayers
     public const string MinimapName = "Minimap";
     public const string BackGroundObjectName = "BackGroundObject";
 
+    private const int Unset = -2;   //-1은 '그런 레이어 없음'이라 미조회 표시로 못 쓴다
+
+    #endregion
+
+    #region 정적 필드
+
     private static int player = Unset;
     private static int edible = Unset;
     private static int backGroundObject = Unset;
     private static int ground = Unset;
 
-    private const int Unset = -2;   //-1은 '그런 레이어 없음'이라 미조회 표시로 못 쓴다
+    #endregion
 
     /// <summary>사람·봇이 올라가는 레이어.</summary>
     public static int Player => Cached(ref player, PlayerName);
@@ -161,6 +176,8 @@ public static class GameLayers
 /// </summary>
 public static class AnimParams
 {
+    #region 상수
+
     public const string IsMovingName = "IsMoving";
     public const string JumpName = "Jump";
     public const string DashName = "Dash";
@@ -168,10 +185,16 @@ public static class AnimParams
     public const string HitName = "Hit";
     public const string WiggleName = "Wiggle";
 
+    #endregion
+
+    #region 정적 필드
+
     public static readonly int IsMoving = Animator.StringToHash(IsMovingName);
     public static readonly int Jump = Animator.StringToHash(JumpName);
     public static readonly int Dash = Animator.StringToHash(DashName);
     public static readonly int Attack = Animator.StringToHash(AttackName);
     public static readonly int Hit = Animator.StringToHash(HitName);
     public static readonly int Wiggle = Animator.StringToHash(WiggleName);
+
+    #endregion
 }

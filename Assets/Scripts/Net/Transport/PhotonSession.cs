@@ -23,8 +23,48 @@ namespace JellyNet
     public class PhotonSession : INetSession,
         IConnectionCallbacks, ILobbyCallbacks, IMatchmakingCallbacks
     {
+        #region 상태
+
         private readonly PhotonTransport transport;
 
+        private Intent pending;
+        private string pendingRoomName;
+
+        private readonly NetEvents events;
+
+        private bool hooked;
+
+        #endregion
+
+        #region 상수
+
+        //방 속성 키. 길수록 매 방마다 그만큼 더 오간다 — 로비 목록은 방 수만큼 곱해진다
+        private const string PROP_MODE = "m";
+        private const string PROP_NEEDED = "n";
+        private const string PROP_AI = "a";
+        private const string PROP_HOST = "h";
+
+        #endregion
+
+        #region 정적 필드
+
+        //목록에 보여야 하는 키는 이 배열에 있어야 로비까지 따라온다.
+        //안 넣으면 방에 들어가기 전엔 못 읽어서 목록의 '3/4명' 칸이 비어 보인다
+        private static readonly object[] LOBBY_PROPS =
+            { PROP_MODE, PROP_NEEDED, PROP_AI, PROP_HOST };
+
+        #endregion
+
+        #region 방 찾기
+
+        //목록은 초당 몇 번씩 읽히므로 매번 새 리스트를 만들지 않는다
+        private readonly List<RoomEntry> handles = new List<RoomEntry>();
+
+        //방 이름 → 자리. 서버가 '바뀐 것만' 보내므로 우리가 표를 들고 있어야 한다
+        private readonly Dictionary<string, RoomEntry> byName
+            = new Dictionary<string, RoomEntry>();
+
+        #endregion
 
         //온라인이므로 로컬 전용 입력(포트)은 화면에서 감춰야 한다
         public bool IsLocal { get { return false; } }
@@ -41,20 +81,6 @@ namespace JellyNet
         //   그래서 하려던 일을 적어두고, 도착 콜백에서 꺼내 실행한다.
         private enum Intent { None, Create, Join, Browse }
 
-        private Intent pending;
-        private string pendingRoomName;
-
-        //방 속성 키. 길수록 매 방마다 그만큼 더 오간다 — 로비 목록은 방 수만큼 곱해진다
-        private const string PROP_MODE = "m";
-        private const string PROP_NEEDED = "n";
-        private const string PROP_AI = "a";
-        private const string PROP_HOST = "h";
-
-        //목록에 보여야 하는 키는 이 배열에 있어야 로비까지 따라온다.
-        //안 넣으면 방에 들어가기 전엔 못 읽어서 목록의 '3/4명' 칸이 비어 보인다
-        private static readonly object[] LOBBY_PROPS =
-            { PROP_MODE, PROP_NEEDED, PROP_AI, PROP_HOST };
-
         public PhotonSession(PhotonTransport transport, NetEvents events)
         {
             this.transport = transport;
@@ -63,8 +89,6 @@ namespace JellyNet
             //취소·판 종료로 판을 접으면 적어둔 일도 없던 일이 된다
             this.events.OnShutdownRequested += CancelPending;
         }
-
-        private readonly NetEvents events;
 
         /// <summary>생성자에서 게시판에 걸어둔 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
         public void UnsubscribeFromEvents()
@@ -106,8 +130,6 @@ namespace JellyNet
 
             return true;
         }
-
-        private bool hooked;
 
         private void RunPending()
         {
@@ -226,14 +248,7 @@ namespace JellyNet
         //  방 찾기
         // ═══════════════════════════════════════════════════════
 
-        //목록은 초당 몇 번씩 읽히므로 매번 새 리스트를 만들지 않는다
-        private readonly List<RoomEntry> handles = new List<RoomEntry>();
-
-        public IEnumerable<RoomEntry> Rooms { get { return handles; } }
-
-        //방 이름 → 자리. 서버가 '바뀐 것만' 보내므로 우리가 표를 들고 있어야 한다
-        private readonly Dictionary<string, RoomEntry> byName
-            = new Dictionary<string, RoomEntry>();
+public IEnumerable<RoomEntry> Rooms { get { return handles; } }
 
         public void StartBrowsing()
         {

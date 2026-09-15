@@ -3,16 +3,28 @@
 [RequireComponent(typeof(SpriteRenderer))] // 스프라이트 렌더러 필수
 public class BillboardEffect : MonoBehaviour
 {
+    #region Billboard Settings
+
     [Header("Billboard Settings")]
     [SerializeField] private bool freezeXZAxis = false; // Y축 고정 여부
+
+    #endregion
+
+    #region Animation Settings
 
     [Header("Animation Settings")]
     [SerializeField] private float lifeTime = 2.0f;     // 효과가 지속되는 총 시간
     [SerializeField] private float maxScale = 1.0f;     // 가장 커졌을 때의 크기
 
+    #endregion
+
+    #region 상태
+
     private SpriteRenderer spriteRenderer;
     private Color originalColor;
     private float timer = 0f;
+
+    #endregion
 
     void Awake()
     {

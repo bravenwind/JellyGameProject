@@ -7,41 +7,67 @@ namespace JellyNet
 {
     public class LanGameFlow : MonoBehaviour
     {
+        #region 상태
+
         public static LanGameFlow Instance { get; private set; }
 
-        //모드를 묻는 유일한 창구. 씬 안 어디서든 같은 답이 나온다.
-        //출처는 로비(LanRoomConfig.Mode)뿐이라 씬 인스펙터에는 모드 설정이 없다
-        public static GameModeType Mode
-        {
-            get { return GameState.CurrentGameMode; }
-        }
-
-        private static void ApplyMode(GameModeType m)
-        {
-            GameState.CurrentGameMode = m;
-        }
-
-        [Header("진행")]
-        [Tooltip("흡수 모드 제한 시간(초). 밀치기는 시간 제한 없이 생존자로 끝난다.")]
-        [SerializeField] private float gameDuration = 180f;
-        public float GameDuration { get { return gameDuration; } }
-        [Tooltip("시작 전 카운트다운(초)")]
-        [SerializeField] private float countdownSeconds = 3f;
         // ★ 인스펙터에 내보내지 않는다 — Awake에서 LanRoomConfig.HumanCount로 무조건 덮어쓴다
         //   "모드와 인원은 로비에서만 온다"는 규칙이 있는데 인스펙터 칸이 남아 있으면
         //   거기서 고칠 수 있다고 오해하게 된다
         private int minPlayersToStart = 2;
-        public int MinPlayersToStart { get { return minPlayersToStart; } set { minPlayersToStart = value; } }
+
+        public GamePhase Phase { get; private set; }
+        public float Remaining { get; private set; }
+        public int WinnerNetId { get; private set; }
+        public int WinnerScore { get; private set; }
+
+        private readonly NetWriter writer = new NetWriter();
+
+        private float survivorCheckTimer;
+
+        private readonly LanFlowHud hud = new LanFlowHud();
+
+        private float resyncTimer;
+
+        private Coroutine countdownRoutine;
+
+        private float stallLogTimer;
+        private string lastStallReason;
+
+        private bool endingStarted;
+
+        #endregion
+
+        #region 진행
+
+        [Header("진행")]
+        [Tooltip("흡수 모드 제한 시간(초). 밀치기는 시간 제한 없이 생존자로 끝난다.")]
+        [SerializeField] private float gameDuration = 180f;
+
+        [Tooltip("시작 전 카운트다운(초)")]
+        [SerializeField] private float countdownSeconds = 3f;
+
+        #endregion
+
+        #region HUD
 
         [Header("HUD")]
         [Tooltip("남은 시간 표시.")]
         [SerializeField] private TextMeshProUGUI gameTimerText;
+
+        #endregion
+
+        #region 카운트다운
 
         [Header("카운트다운")]
         [Tooltip("화면 가운데에 3·2·1·시작!을 띄울 텍스트.")]
         [SerializeField] private TextMeshProUGUI centerCountdownText;
         [SerializeField] private string gameStartLabel = "시작!";
         [SerializeField] private string gameEndLabel = "게임 종료!";
+
+        #endregion
+
+        #region 종료 연출
 
         [Header("종료 연출")]
         [Tooltip("종료 몇 초 전부터 3·2·1을 셀지.")]
@@ -56,6 +82,10 @@ namespace JellyNet
         [Tooltip("로딩 커튼 신호가 유실됐을 때 이만큼 기다렸다가 그냥 진행한다.")]
         [SerializeField] private float countdownCurtainTimeout = 6f;
 
+        #endregion
+
+        #region 게임오버 화면 (흡수당했을 때)
+
         [Header("게임오버 화면 (흡수당했을 때)")]
         [Tooltip("씬의 결과 패널.")]
         [SerializeField] private GameObject gameResultPanel;
@@ -67,22 +97,51 @@ namespace JellyNet
         [Tooltip("호스트와 연결이 끊겼을 때만 나오는 '메인으로 돌아가기' 버튼.")]
         [SerializeField] private GameObject returnToMainButton;
 
+        #endregion
+
+        #region 결과 씬
+
         [Header("결과 씬")]
         [SerializeField] private string resultSceneAbsorb = "GameResult_AbsorbMode";
         [SerializeField] private string resultScenePush = "GameResult_PushMode";
+
+        #endregion
+
+        #region 정적 필드
+
+        public static string EliminationReason = "탈락했습니다!";
+
+        //"IsMoving"을 가진 건 사람·봇뿐이다. Objects를 돌면 씬 사탕 300개까지
+        //GetComponentsInChildren<Animator>로 훑게 된다
+        private static readonly List<NetIdentity> stopBuffer = new List<NetIdentity>();
+
+        #endregion
+
+        #region 상수
+
+        public const string DISCONNECT_MESSAGE = "서버와 연결이 끊겼습니다.";
+
+        #endregion
+
+        //모드를 묻는 유일한 창구. 씬 안 어디서든 같은 답이 나온다.
+        //출처는 로비(LanRoomConfig.Mode)뿐이라 씬 인스펙터에는 모드 설정이 없다
+        public static GameModeType Mode
+        {
+            get { return GameState.CurrentGameMode; }
+        }
+
+        private static void ApplyMode(GameModeType m)
+        {
+            GameState.CurrentGameMode = m;
+        }
+        public float GameDuration { get { return gameDuration; } }
+        public int MinPlayersToStart { get { return minPlayersToStart; } set { minPlayersToStart = value; } }
 
         /// <summary>지금 모드에 맞는 결과 씬 이름. 모드 분기를 밖에서 다시 쓰지 않게 여기서 준다.</summary>
         public string ResultSceneName
         {
             get { return Mode == GameModeType.Push ? resultScenePush : resultSceneAbsorb; }
         }
-
-        public GamePhase Phase { get; private set; }
-        public float Remaining { get; private set; }
-        public int WinnerNetId { get; private set; }
-        public int WinnerScore { get; private set; }
-
-        private readonly NetWriter writer = new NetWriter();
 
         public static bool IsMode(GameModeType m)
         {
@@ -107,10 +166,6 @@ namespace JellyNet
                 return true;
             return Mode == m && Instance.Phase == GamePhase.Playing;
         }
-
-        private float survivorCheckTimer;
-
-        private readonly LanFlowHud hud = new LanFlowHud();
 
         private void Awake()
         {
@@ -159,8 +214,6 @@ namespace JellyNet
             if (net.IsHost)
                 HandleHostStarted();
         }
-
-        public static string EliminationReason = "탈락했습니다!";
 
         public void ReportSelfEliminated(int netId, string reason = null)
         {
@@ -341,8 +394,6 @@ namespace JellyNet
             }
         }
 
-        private float resyncTimer;
-
         private void ResyncClock()
         {
             resyncTimer += Time.deltaTime;
@@ -381,8 +432,6 @@ namespace JellyNet
             get { return Instance != null ? Instance.Elapsed : -1f; }
         }
 
-        private Coroutine countdownRoutine;
-
         private void TryStartCountdown()
         {
             int players = CountPlayers();
@@ -404,9 +453,6 @@ namespace JellyNet
             //쏘고 단계는 Loading에 둔 채 countdownRunning 플래그로 표시했다
             HostSetPhase(GamePhase.Countdown);
         }
-
-        private float stallLogTimer;
-        private string lastStallReason;
 
         private void ReportStall(string reason)
         {
@@ -604,8 +650,6 @@ namespace JellyNet
                 NetManager.Instance.AddLog("게임오버: " + message.Replace("\n", " "));
         }
 
-        public const string DISCONNECT_MESSAGE = "서버와 연결이 끊겼습니다.";
-
         private void HandleConnectionLost()
         {
             //판이 이미 끝났으면 호스트가 결과 씬으로 넘어가며 소켓을 닫은 것이다.
@@ -630,10 +674,6 @@ namespace JellyNet
             hud.ShowCenter(false);
             hud.ShowGameOver(DISCONNECT_MESSAGE, false, true);
         }
-
-        //"IsMoving"을 가진 건 사람·봇뿐이다. Objects를 돌면 씬 사탕 300개까지
-        //GetComponentsInChildren<Animator>로 훑게 된다
-        private static readonly List<NetIdentity> stopBuffer = new List<NetIdentity>();
 
         private static void StopWorldAnimations()
         {
@@ -677,8 +717,6 @@ namespace JellyNet
 
             BeginEndSequence(false);
         }
-
-        private bool endingStarted;
 
         private void BeginEndSequence(bool withCountdown)
         {

@@ -5,10 +5,20 @@ using UnityEngine;
 
 public class PlayerScaleController : MonoBehaviour
 {
+    #region References
+
     [Header("References")]
     [SerializeField] private SoftBody3D softBody3D;
 
+    #endregion
+
+    #region 상태
+
     private Vector3 currentScale;
+
+    #endregion
+
+    #region 시작 크기의 유일한 출처는 프리팹이다
 
     // ═════════════════════════════════════════════════════════
     //  시작 크기의 유일한 출처는 프리팹이다
@@ -52,6 +62,8 @@ public class PlayerScaleController : MonoBehaviour
     public event Action<bool> OnGrowStarted;
     public event Action OnScaleThresholdUp;
     public event Action OnPostScalePhysics;
+
+    #endregion
 
     private void Awake()
     {
@@ -208,5 +220,4 @@ public class PlayerScaleController : MonoBehaviour
         }
         isScaling = false;
     }
-
 }

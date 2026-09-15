@@ -3,9 +3,15 @@ using UnityEngine.UI;
 using DG.Tweening;
 public class ImagePreviewAni : MonoBehaviour
 {
+    #region UI
+
     [Header("UI")]
     public Image characterImage;
     public RectTransform target;
+
+    #endregion
+
+    #region Fade/Move
 
     [Header("Fade/Move")]
     public float fadeOutDuration = 0.12f;
@@ -14,11 +20,21 @@ public class ImagePreviewAni : MonoBehaviour
 
     public Vector2 fadeInStartOffset = new Vector2(-40f, 0f);
 
+    #endregion
+
+    #region Float (optional)
+
     [Header("Float (optional)")]
     public FloatingUI floating;
 
+    #endregion
+
+    #region 상태
+
     Sequence seq;
     Vector2 basePos;
+
+    #endregion
 
     void Awake()
     {

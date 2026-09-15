@@ -23,16 +23,26 @@ using JellyNet;
 
 public class MinimapArrowManager : MonoBehaviour
 {
+    #region 화살표 프리팹 (MinimapArrow 컴포넌트 포함)
+
     // ─────────────────────────────────────────────────────────
     // 인스펙터 설정
     // ─────────────────────────────────────────────────────────
     [Header("화살표 프리팹 (MinimapArrow 컴포넌트 포함)")]
     [SerializeField] private GameObject arrowPrefab;
 
+    #endregion
+
+    #region 색상
+
     [Header("색상")]
     [SerializeField] private Color localPlayerColor  = Color.green;
     [SerializeField] private Color remotePlayerColor = Color.red;
     [SerializeField] private Color botColor          = Color.red;
+
+    #endregion
+
+    #region 내부 상태
 
     // ★ 높이 오프셋은 프리팹의 MinimapArrow.offset이 정한다
     //   예전엔 여기 arrowOffset을 두고 스폰할 때 minimapArrow.Offset에 덮어썼다.
@@ -59,6 +69,8 @@ public class MinimapArrowManager : MonoBehaviour
     // 스캔 주기 (매 프레임마다 FindObjectsByType을 하면 비용이 크므로 0.5초마다)
     private float scanInterval = 0.5f;
     private float scanTimer    = 0f;
+
+    #endregion
 
     // ─────────────────────────────────────────────────────────
     // 초기화 & 업데이트
@@ -177,5 +189,4 @@ public class MinimapArrowManager : MonoBehaviour
                 arrows.Remove(key);
         }
     }
-
 }

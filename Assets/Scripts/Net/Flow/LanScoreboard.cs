@@ -17,6 +17,10 @@ namespace JellyNet
             public bool isLocal;
         }
 
+        public static List<Entry> FinalStandings { get; private set; }
+
+        public static string WinnerName { get; private set; }
+
         // ★ 예전엔 사람용·봇용 두 벌 루프였다
         //   같은 Entry를 채우는데 읽는 프로퍼티 이름만 달랐다
         //   (PlayerName/BotName, Score/CurrentScore, VisualColor/ReadVisualColor…).
@@ -62,10 +66,6 @@ namespace JellyNet
                 return c;
             return a.netId.CompareTo(b.netId);
         }
-
-        public static List<Entry> FinalStandings { get; private set; }
-
-        public static string WinnerName { get; private set; }
 
         /// <summary>살아 있는 참가자 수. 목록이 필요 없을 때 List 생성을 피한다.</summary>
         public static int CountAlive()

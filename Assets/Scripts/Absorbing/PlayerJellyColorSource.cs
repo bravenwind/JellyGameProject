@@ -2,6 +2,8 @@ using UnityEngine;
 
 public class PlayerJellyColorSource : JellyColorSource
 {
+    private static readonly int EmissionId = Shader.PropertyToID("_Emission");
+
     // ★ 여기서 색을 정하지 않는다
     //   흰색으로 시작해두기만 하고, 실제 색은 젤리를 먹을 때
     //   PlayerColorVisual이 RYB 누적치로 칠한다.
@@ -15,6 +17,4 @@ public class PlayerJellyColorSource : JellyColorSource
         jellyColor = Color.white;
         rend.material.SetColor(EmissionId, jellyColor);
     }
-
-    private static readonly int EmissionId = Shader.PropertyToID("_Emission");
 }

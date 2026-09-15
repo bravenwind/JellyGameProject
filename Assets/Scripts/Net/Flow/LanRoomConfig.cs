@@ -12,12 +12,12 @@ namespace JellyNet
 
         public static int AiCount { get; private set; } = 2;
 
+        public static string Nickname = "";
+
         public static int HumanCount
         {
             get { return Mathf.Max(1, TotalPlayers - AiCount); }
         }
-
-        public static string Nickname = "";
 
         public static void Set(GameModeType mode, int totalPlayers, int aiCount)
         {

@@ -6,15 +6,16 @@ namespace JellyNet
 {
     public class AbsorbMode : NetGameMode<AbsorbMode>
     {
-        protected override GameModeType Mode
-        {
-            get { return GameModeType.Absorb; }
-        }
+        #region 젤리 스폰 (호스트만 수행)
 
         [Header("젤리 스폰 (호스트만 수행)")]
         public bool spawnJelly = true;
         public float spawnInterval = 1.5f;
         public int maxJellyCount = 30;
+
+        #endregion
+
+        #region 플레이어 흡수 판정
 
         [Header("플레이어 흡수 판정")]
         [Tooltip("캡슐 반지름(스케일 1 기준). 플레이어끼리 닿았는지 재는 데 쓴다.")]
@@ -23,9 +24,17 @@ namespace JellyNet
         [Tooltip("흡수 요청이 어디서 거부되는지 콘솔에 찍는다. 문제 해결 후 끌 것.")]
         public bool verboseLog = true;
 
+        #endregion
+
+        #region 플레이어 흡수
+
         [Header("플레이어 흡수")]
         [Tooltip("상대를 흡수하려면 내가 이 배수보다 커야 한다. 1이면 조금만 커도 됨.")]
         public float absorbSizeRatio = 1.15f;
+
+        #endregion
+
+        #region 상태
 
         private readonly NetWriter w = new NetWriter();
 
@@ -41,6 +50,36 @@ namespace JellyNet
 
         //매 프레임 순회에 재사용한다. 새로 만들면 초당 60개의 쓰레기가 생긴다
         private readonly List<NetIdentity> characters = new List<NetIdentity>();
+
+        #endregion
+
+        #region 점수
+
+        [Header("점수")]
+        [Tooltip("크기에서 점수를 다시 뽑는 주기(초).")]
+        public float scoreRecomputeInterval = 0.25f;
+
+        #endregion
+
+        #region 흡수 모드의 점수 규칙 — "점수는 지금 크기에서 나온다"
+
+        private List<int> jellyPrefabIds;
+
+        private Vector3[] navVerts;
+
+        private const int SPAWN_POS_TRIES = 8;
+
+        //지터가 정점에서 최대 √(3²+3²) ≈ 4.24m 밀어내므로 그만큼만 되돌리면 된다.
+        //예전엔 8m였는데, SamplePosition은 '길'이 아니라 '직선거리'로 찾기 때문에
+        //반경이 넓을수록 얇은 벽 너머로 스냅될 여지가 커진다
+        private const float SPAWN_SAMPLE_RADIUS = 5f;
+
+        #endregion
+
+        protected override GameModeType Mode
+        {
+            get { return GameModeType.Absorb; }
+        }
 
         protected override void ResetAll()
         {
@@ -68,8 +107,7 @@ namespace JellyNet
                 myPlayer = null;
         }
 
-
-        private void Log(string msg)
+private void Log(string msg)
         {
             if (verboseLog)
                 Debug.Log("[흡수] " + msg);
@@ -91,10 +129,6 @@ namespace JellyNet
 
             CheckMyPlayerAbsorb();
         }
-
-        [Header("점수")]
-        [Tooltip("크기에서 점수를 다시 뽑는 주기(초).")]
-        public float scoreRecomputeInterval = 0.25f;
 
         // ═══════════════════════════════════════════════════════
         //  흡수 모드의 점수 규칙 — "점수는 지금 크기에서 나온다"
@@ -174,8 +208,6 @@ namespace JellyNet
                 Log("젤리 net" + spawned.NetId + " 가 NavMesh에 못 올라감 — 위치 " + pos);
         }
 
-        private List<int> jellyPrefabIds;
-
         private int PickJellyPrefab(GameObject[] prefabs)
         {
             if (jellyPrefabIds == null)
@@ -202,15 +234,6 @@ namespace JellyNet
                 return -1;
             return jellyPrefabIds[Random.Range(0, jellyPrefabIds.Count)];
         }
-
-        private Vector3[] navVerts;
-
-        private const int SPAWN_POS_TRIES = 8;
-
-        //지터가 정점에서 최대 √(3²+3²) ≈ 4.24m 밀어내므로 그만큼만 되돌리면 된다.
-        //예전엔 8m였는데, SamplePosition은 '길'이 아니라 '직선거리'로 찾기 때문에
-        //반경이 넓을수록 얇은 벽 너머로 스냅될 여지가 커진다
-        private const float SPAWN_SAMPLE_RADIUS = 5f;
 
         /// <summary>
         /// 젤리 하나를 놓을 자리를 고른다. 실패하면 false — 이번 주기는 거른다.

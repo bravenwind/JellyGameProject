@@ -20,15 +20,29 @@ namespace JellyNet
             public Action<NetReader> OnMsg;
         }
 
+        #region 상태
+
         private TcpListener listener;
         private readonly List<Peer> peers = new List<Peer>();
         private readonly NetWriter writer = new NetWriter();
         private int nextId = 2;
 
+        public bool Running { get; private set; }
+
+        //LAN은 한 판의 인원이 로비에서 확정된다. 호스트가 게임 씬에 들어가는 순간 문을 닫는다.
+        //열어두면 늦게 붙은 쪽은 캐릭터가 없어 화면만 멈춘 채로 남는다 — 거절이 더 친절하다.
+        public bool AcceptingNewPeers = true;
+
+        #endregion
+
+        #region 상수
+
         public const int HOST_ID = 1;
 
-        public bool Running { get; private set; }
-        public int PeerCount { get { return peers.Count; } }
+        #endregion
+
+        #region 이벤트·콜백
+
         public Action<string> OnLog;
 
         public Action<int, MsgType, NetReader> OnMessage;
@@ -37,9 +51,9 @@ namespace JellyNet
 
         public Action<int> OnPeerLeft;
 
-        //LAN은 한 판의 인원이 로비에서 확정된다. 호스트가 게임 씬에 들어가는 순간 문을 닫는다.
-        //열어두면 늦게 붙은 쪽은 캐릭터가 없어 화면만 멈춘 채로 남는다 — 거절이 더 친절하다.
-        public bool AcceptingNewPeers = true;
+        #endregion
+
+        public int PeerCount { get { return peers.Count; } }
 
         public bool Start(int port)
         {

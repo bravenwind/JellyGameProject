@@ -18,16 +18,30 @@ using JellyNet;
 [RequireComponent(typeof(NavMeshAgent))]
 public class WanderingAI : MonoBehaviour
 {
+    #region 배회 범위
+
     [Header("배회 범위")]
     [SerializeField] private float wanderRadius = 10f;
 
+    #endregion
+
+    #region 애니메이터 (비우면 자동 탐색)
+
     [Header("애니메이터 (비우면 자동 탐색)")]
     [SerializeField] private Animator jellyAnimController;
+
+    #endregion
+
+    #region 상수
 
     private const float MOVING_SPEED = 0.1f;
     private const float SPAWN_SNAP_RADIUS = 8f;
     private const float RECOVER_SNAP_RADIUS = 5f;
     private const float DANGER_CHECK_INTERVAL = 0.5f;
+
+    #endregion
+
+    #region 상태
 
     private NavMeshAgent agent;
     private Animator anim;
@@ -43,6 +57,35 @@ public class WanderingAI : MonoBehaviour
     //CalculatePath는 결과를 인자에 채워넣을 뿐이라 재사용해도 안전하고,
     //배회는 계속 새 경로를 뽑으므로 프레임마다 쓰레기가 쌓이던 자리였다
     private NavMeshPath pathBuffer;
+
+    #endregion
+
+    #region 회전
+
+    // ─────────────────────────────────────────────────────────
+    //  회전
+    // ─────────────────────────────────────────────────────────
+    //
+    // ★ 예전엔 목적지에 닿을 때마다 1~3초 멈춰 섰다(minWaitTime/maxWaitTime)
+    //   멈추는 이유가 "다음 목적지를 향해 홱 도는 것을 감추기" 였는데,
+    //   서 있다가 순간적으로 방향을 바꾸는 그림이 오히려 더 눈에 띄었다.
+    //   agent.updateRotation을 끄고 진행 방향으로 천천히 감아 돌게 하면
+    //   멈출 이유 자체가 없어진다 — 젤리는 계속 흘러다닌다.
+    // ★ 급하게 꺾을 때는 빨리 돈다 — 안 그러면 문워크가 나온다
+    //
+    //   RotateTowards는 지수 감쇠라 k가 시간상수의 역수다. k = 3.5면 0.29초.
+    //   배회하다 방향이 조금씩 바뀔 땐 그 느긋함이 좋지만, 쫓겨서 <b>180° 뒤집을 때</b>는
+    //   0.2초 동안 완전히 뒤를 보고 0.5초 가까이 어긋난 채로 달린다.
+    //   젤리 속도가 7m/s니 3.5m를 옆을 보며 미끄러지는 셈 — 그게 문워크였다.
+    //
+    //   각도 오차에 따라 속도를 올린다. 살살 도는 느낌은 그대로 두고
+    //   크게 꺾을 때만 빨라지므로 배회 연출을 잃지 않는다.
+    private const float TURN_SPEED_MIN = 3.5f;    // 완만한 방향 전환
+    private const float TURN_SPEED_MAX = 14f;     // 되돌아 뛰는 순간
+    private const float TURN_ANGLE_SOFT = 30f;    // 이 아래는 느긋하게
+    private const float TURN_ANGLE_HARD = 150f;   // 이 위는 최대 속도
+
+    #endregion
 
     /// <summary>
     /// 이 기계가 이 젤리를 굴리는가.
@@ -125,29 +168,6 @@ public class WanderingAI : MonoBehaviour
 
         MoveToRandomPosition();
     }
-
-    // ─────────────────────────────────────────────────────────
-    //  회전
-    // ─────────────────────────────────────────────────────────
-    //
-    // ★ 예전엔 목적지에 닿을 때마다 1~3초 멈춰 섰다(minWaitTime/maxWaitTime)
-    //   멈추는 이유가 "다음 목적지를 향해 홱 도는 것을 감추기" 였는데,
-    //   서 있다가 순간적으로 방향을 바꾸는 그림이 오히려 더 눈에 띄었다.
-    //   agent.updateRotation을 끄고 진행 방향으로 천천히 감아 돌게 하면
-    //   멈출 이유 자체가 없어진다 — 젤리는 계속 흘러다닌다.
-    // ★ 급하게 꺾을 때는 빨리 돈다 — 안 그러면 문워크가 나온다
-    //
-    //   RotateTowards는 지수 감쇠라 k가 시간상수의 역수다. k = 3.5면 0.29초.
-    //   배회하다 방향이 조금씩 바뀔 땐 그 느긋함이 좋지만, 쫓겨서 <b>180° 뒤집을 때</b>는
-    //   0.2초 동안 완전히 뒤를 보고 0.5초 가까이 어긋난 채로 달린다.
-    //   젤리 속도가 7m/s니 3.5m를 옆을 보며 미끄러지는 셈 — 그게 문워크였다.
-    //
-    //   각도 오차에 따라 속도를 올린다. 살살 도는 느낌은 그대로 두고
-    //   크게 꺾을 때만 빨라지므로 배회 연출을 잃지 않는다.
-    private const float TURN_SPEED_MIN = 3.5f;    // 완만한 방향 전환
-    private const float TURN_SPEED_MAX = 14f;     // 되돌아 뛰는 순간
-    private const float TURN_ANGLE_SOFT = 30f;    // 이 아래는 느긋하게
-    private const float TURN_ANGLE_HARD = 150f;   // 이 위는 최대 속도
 
     private void SteerSmoothly()
     {

@@ -18,13 +18,231 @@ using JellyNet;
 [RequireComponent(typeof(AIDetector))]
 public class AIPlayerMovement : MonoBehaviour
 {
+    #region 이동
+
     // ─────────────────────────────────────────────────────────
     // Inspector 설정
     // ─────────────────────────────────────────────────────────
     [Header("이동")]
     [SerializeField] private float moveSpeed = 6f;
-    public float MoveSpeed { get { return moveSpeed; } set { moveSpeed = value; } }
+
     [SerializeField] private float rotateSpeed = 10f;
+
+    #endregion
+
+    #region 플레이어와 속도 맞추기
+
+    [Header("플레이어와 속도 맞추기")]
+    [Tooltip("켜면 플레이어 프리팹의 moveSpeed를 그대로 쓴다. 위 moveSpeed 값은 무시된다.")]
+    [SerializeField] private bool matchPlayerSpeed = true;
+
+    [Tooltip("플레이어 대비 배율. 1이면 완전히 동일. 봇을 조금 느리게 하려면 0.9 등.")]
+    [SerializeField] private float speedRatio = 1f;
+
+    #endregion
+
+    #region AI
+
+    [Header("AI")]
+    [SerializeField] private float detectRadius = 15f;
+
+    // ★ 상태 재평가 주기.
+    //   0.4초는 흡수 모드(배회↔추격↔도주)에는 넉넉하지만 밀치기에는 느리다.
+    //   밀치기는 PushSurviveState 하나만 쓰므로 재평가가 자주 돌아도 비용이 거의 없다.
+    [SerializeField] private float stateEvalRate = 0.15f;
+
+    #endregion
+
+    #region 플레이어와 이동 속도 맞추기
+
+    // ★ 에이전트 기본 크기는 인스펙터에 적지 않는다
+    //   예전엔 여기 0.5 / 2.0을 손으로 적어두고 Awake에서 Agent에 밀어 넣었다.
+    //   그런데 같은 값이 프리팹의 NavMeshAgent에도 있어서, 한쪽만 고치면 조용히 벌어진다.
+    //   에이전트가 진짜 값을 들고 있으므로 거기서 읽어온다 — 출처를 하나로 만든다.
+    //   (transform 스케일이 커지면 이 값에 배율을 곱해 Agent에 다시 적는다)
+    public float BaseAgentRadius { get; private set; }
+    public float BaseAgentHeight { get; private set; }
+
+    /// <summary>
+    /// 밀치기 모드에서 지금 노리는 상대. AIPushSurviveState가 매 판단마다 갱신한다.
+    ///
+    /// ★ 왜 밖에서 읽을 수 있어야 하나
+    ///   봇이 대상을 고를 때 "이미 이 상대를 노리는 봇이 몇인가"를 감점으로 쓴다.
+    ///   그게 없으면 전원이 가장 가까운 하나에게 몰려 한 칸에 뭉치고,
+    ///   그 칸이 마모로 꺼지며 다 같이 떨어진다 — 크기 필터가 있던 시절의 그 증상이다.
+    ///   크기로 거르는 대신 몰림 자체를 값으로 세기 위해 노출한다.
+    /// </summary>
+    [System.NonSerialized] public Transform PushTarget;
+
+    #endregion
+
+    #region Push 모드 (빠따/대쉬)
+
+    [Header("Push 모드 (빠따/대쉬)")]
+    [SerializeField] private Transform batPivot;
+
+    [SerializeField] private bool hideBatWhenIdle = true;
+
+    [SerializeField] private float dashSpeed = 80f;
+
+    [SerializeField] private float dashDuration = 0.2f;
+
+    [SerializeField] private float dashCooldown = 3f;
+
+    #endregion
+
+    #region 이름표
+
+    [Header("이름표")]
+    [SerializeField] private NameTagBillboard nameTagBillboard;
+
+    #endregion
+
+    #region 컴포넌트 (상태 클래스들이 접근)
+
+    // ─────────────────────────────────────────────────────────
+    // 컴포넌트 (상태 클래스들이 접근)
+    // ─────────────────────────────────────────────────────────
+    public NavMeshAgent Agent { get; private set; }
+    public PlayerScaleController ScaleCtrl { get; private set; }
+    public NavMeshQueryFilter NavFilter { get; private set; }
+    public NavMeshPath CachedPath { get; private set; }
+    public AIDetector Detector { get; private set; }
+
+    private Animator anim;
+    private LanPlayerVisual visual;
+
+    #endregion
+
+    #region FSM
+
+    // ─────────────────────────────────────────────────────────
+    // FSM
+    // ─────────────────────────────────────────────────────────
+    private AIBaseState currentState;
+    private bool isTransitioning = false;
+
+    // 상태 인스턴스 (Start에서 1회 생성, 재사용)
+    public AIWanderState WanderState { get; private set; }
+    public AIChaseState  ChaseState  { get; private set; }
+    public AIFleeState   FleeState   { get; private set; }
+    public AIPushSurviveState PushSurviveState { get; private set; }
+
+    private float lastUrgentThreatCheck;
+    public bool IsBeingAbsorbed { get; set; } = false;
+    public bool IsEliminated { get; private set; } = false;
+
+    private float dashCooldownTimer;
+    private float dashTimer;
+
+    // ★ 대쉬 전 속도를 '절대값'으로 기억하면 안 된다
+    //   예전엔 preDashSpeed = Agent.speed로 찍어두고 대쉬가 끝나면 그 값을 되돌렸다.
+    //   그런데 대쉬 0.4초 사이에 방망이에 맞아 커지거나 밀크를 밟으면 moveSpeed가 바뀐다.
+    //   그때 옛날 절대값으로 되돌아가 <b>봇이 엉뚱한 속도로 굳었다.</b>
+    //   상태별 계수(예: Wander 0.9)만 기억하고 복귀할 때 moveSpeed에 곱해 다시 계산한다.
+    private float stateSpeedRatio = 1f;
+
+    private float attackCooldownTimer;
+    private Coroutine attackCoroutine;
+
+    #endregion
+
+    #region [LAN 이식] 봇 권위 판정
+
+    // ═════════════════════════════════════════════════════════
+    //  [LAN 이식] 봇 권위 판정
+    // ═════════════════════════════════════════════════════════
+    //
+    // ★ 봇은 호스트에서만 생각하고, 나머지는 결과만 본다
+    //   봇은 전부 호스트 소유 NetIdentity라 그 판정을 IsMine 하나로 표현할 수 있다.
+    //
+    //   접속이 없으면(오프라인 테스트) 혼자 다 굴린다 — 안 그러면 봇이 얼어붙는다.
+    private NetIdentity netId;
+    private LanBotState botSync;
+
+    #endregion
+
+    #region Update: 현재 상태 업데이트 + 회전 + 애니메이션
+
+    // 탐지는 전부 AIDetector가 한다. 예전엔 여기 같은 이름의 위임 래퍼가 네 개 있었는데
+    // 로직이 한 줄도 없으면서 "탐지가 이상하다 → 여기 열어봄 → 또 다른 파일로 점프"만
+    // 만들었다. Detector가 이미 public이라 감싸서 얻는 것도 없었다.
+
+    /// <summary>
+    /// 스폰 위치가 NavMesh로부터 멀리 떨어진 경우 폴백 위치 탐색.
+    /// 우선순위: 살아있는 다른 봇(NavMesh 위) → 살아있는 플레이어 → NavMesh 삼각망 정점
+    /// </summary>
+    // 폴백 자리를 잡을 때 원본 좌표에서 흩어놓는 반경(m).
+    // 그대로 쓰면 여러 봇이 같은 자리에 겹쳐 스폰돼 서로 밀어내며 튄다
+    private const float FallbackScatterRadius = 4f;
+
+    #endregion
+
+    #region 발 밑 지면 확인 → 없으면 낙하 (Push·흡수 공통)
+
+    private const int GroundCheckInterval = 15;
+
+    // ★ 왜 피벗이 아니라 '발밑'에서 쏘는가 (커진 봇이 멀쩡한 타일 밑으로 꺼지던 원인)
+    //
+    //   예전엔 이랬다:
+    //       Vector3 origin = transform.position + Vector3.up * 0.5f;
+    //       if (Physics.Raycast(origin, Vector3.down, 3f)) return false;
+    //
+    //   봇의 피벗은 캡슐 <b>중심</b>(center 0,0,0)이고, NavMeshAgent가 baseOffset(0.67)만큼
+    //   띄워서 세운다. 봇이 커지면 Agent.radius·height는 스케일을 따라 키우는데
+    //   (ApplyScaleToAgent) baseOffset은 그대로고, 여기 0.5m·3m도 상수였다.
+    //   그래서 피벗이 바닥에서 2.5m 넘게 올라가는 순간 레이가 타일에 닿지 못했고,
+    //   "발밑이 비었다"로 단정해 AwakeFallPhysics를 불렀다 —
+    //   <b>멀쩡한 타일 아래로 쑥 꺼져서 탈락.</b> 커진 봇에게만 갑자기 생기던 증상이다.
+    //
+    //   그래서 <b>출발점은 피벗, 길이는 몸 길이에 비례</b>로 잡는다.
+    //   피벗은 baseOffset 덕에 항상 지면 위에 있으니 레이가 바닥 안에서 시작할 일이 없고,
+    //   길이는 '피벗에서 발바닥까지' + 여유라서 봇이 커져도 늘 발밑까지 닿는다.
+    //   (발바닥의 출처는 콜라이더 bounds — TileCollapseManager의 접지 판정과 같은 기준이다)
+    //
+    //   마스크도 없었다. 그대로 두면 초콜릿 강의 트리거 콜라이더 같은 것도 '지면'으로
+    //   쳐서, 반대로 떨어져야 할 때 안 떨어지는 길이 열려 있었다.
+    private const float GroundRayLift = 0.5f;    // 피벗에서 이만큼 더 위에서 쏜다
+    private const float GroundRayReach = 2.5f;   // 발바닥 아래로 이만큼까지 지면을 찾는다
+
+    private Collider bodyCollider;
+
+    #endregion
+
+    #region 회피 우선순위
+
+    // ─────────────────────────────────────────────────────────
+    // 회피 우선순위
+    // ─────────────────────────────────────────────────────────
+    //
+    // NavMeshAgent.avoidancePriority는 0~99이고 <b>숫자가 낮을수록 우선순위가 높다.</b>
+    // 우선순위가 높은 쪽은 회피 계산에서 무시당하지 않고, 낮은 쪽이 알아서 비켜준다.
+    // 그래서 "큰 젤리가 밀고 지나가고 작은 애들이 비킨다"를 만들려면 크면서 숫자를 낮춰야 한다.
+    //
+    // ★ 예전엔 크기가 바뀔 때마다 5씩 깎았다 — 세 가지가 어긋나 있었다
+    //   ① 크기가 아니라 '크기가 바뀐 횟수'를 셌다. 젤리 하나를 먹어도 -5, 두 배로 커져도 -5.
+    //   ② 줄어들 때도 -5였다. OnPostScalePhysics는 ScaleTo 코루틴 끝에서 나오는데
+    //      그 코루틴은 성장과 축소를 모두 탄다 → 밀크로 작아진 봇의 우선순위가 올라갔다.
+    //   ③ Mathf.Max(0, …)로 바닥이 막혀 있고 되돌리는 코드가 없어, 20으로 시작한 봇은
+    //      네 번이면 0에 붙박였다. 그때부터 스폰 때 흩어놓은 값도 의미가 없어진다.
+    //
+    //   지금은 현재 크기에서 매번 새로 계산한다. 누적이 없으니 축소도 저절로 맞고,
+    //   크기가 같으면 값도 같아진다.
+    private const int BasePriority = 50;      // 시작 크기(1배)일 때
+    private const float PriorityPerScale = 10f; // 1배 커질 때마다 낮출 양
+
+    //크기가 같은 봇끼리 값이 완전히 같으면 서로 비켜주다 교착된다. 봇마다 조금씩 어긋내둔다
+    private int avoidanceJitter;
+
+    #endregion
+
+    #region 대쉬 밀치기 (넉백)
+
+    private Coroutine knockbackCoroutine;
+
+    #endregion
+
+    public float MoveSpeed { get { return moveSpeed; } set { moveSpeed = value; } }
 
     // ═════════════════════════════════════════════════════════
     //  플레이어와 이동 속도 맞추기
@@ -47,117 +265,21 @@ public class AIPlayerMovement : MonoBehaviour
     //   인스펙터 숫자 두 개를 손으로 맞추는 것으로 끝내면 다음에 또 벌어진다.
     //   플레이어 프리팹의 값을 읽어 쓰면 한쪽만 바꿔도 자동으로 따라온다.
 
-    [Header("플레이어와 속도 맞추기")]
-    [Tooltip("켜면 플레이어 프리팹의 moveSpeed를 그대로 쓴다. 위 moveSpeed 값은 무시된다.")]
-    [SerializeField] private bool matchPlayerSpeed = true;
-
-    [Tooltip("플레이어 대비 배율. 1이면 완전히 동일. 봇을 조금 느리게 하려면 0.9 등.")]
-    [SerializeField] private float speedRatio = 1f;
-
-    [Header("AI")]
-    [SerializeField] private float detectRadius = 15f;
     public float DetectRadius { get { return detectRadius; } }
-
-    // ★ 상태 재평가 주기.
-    //   0.4초는 흡수 모드(배회↔추격↔도주)에는 넉넉하지만 밀치기에는 느리다.
-    //   밀치기는 PushSurviveState 하나만 쓰므로 재평가가 자주 돌아도 비용이 거의 없다.
-    [SerializeField] private float stateEvalRate = 0.15f;
-
-    // ★ 에이전트 기본 크기는 인스펙터에 적지 않는다
-    //   예전엔 여기 0.5 / 2.0을 손으로 적어두고 Awake에서 Agent에 밀어 넣었다.
-    //   그런데 같은 값이 프리팹의 NavMeshAgent에도 있어서, 한쪽만 고치면 조용히 벌어진다.
-    //   에이전트가 진짜 값을 들고 있으므로 거기서 읽어온다 — 출처를 하나로 만든다.
-    //   (transform 스케일이 커지면 이 값에 배율을 곱해 Agent에 다시 적는다)
-    public float BaseAgentRadius { get; private set; }
-    public float BaseAgentHeight { get; private set; }
-
-    /// <summary>
-    /// 밀치기 모드에서 지금 노리는 상대. AIPushSurviveState가 매 판단마다 갱신한다.
-    ///
-    /// ★ 왜 밖에서 읽을 수 있어야 하나
-    ///   봇이 대상을 고를 때 "이미 이 상대를 노리는 봇이 몇인가"를 감점으로 쓴다.
-    ///   그게 없으면 전원이 가장 가까운 하나에게 몰려 한 칸에 뭉치고,
-    ///   그 칸이 마모로 꺼지며 다 같이 떨어진다 — 크기 필터가 있던 시절의 그 증상이다.
-    ///   크기로 거르는 대신 몰림 자체를 값으로 세기 위해 노출한다.
-    /// </summary>
-    [System.NonSerialized] public Transform PushTarget;
-
-    [Header("Push 모드 (빠따/대쉬)")]
-    [SerializeField] private Transform batPivot;
     public Transform BatPivot { get { return batPivot; } }
-    [SerializeField] private bool hideBatWhenIdle = true;
     public bool HideBatWhenIdle { get { return hideBatWhenIdle; } }
-    [SerializeField] private float dashSpeed = 80f;
     public float DashSpeed { get { return dashSpeed; } }
-    [SerializeField] private float dashDuration = 0.2f;
     public float DashDuration { get { return dashDuration; } }
-    [SerializeField] private float dashCooldown = 3f;
     public float DashCooldown { get { return dashCooldown; } }
-
-    [Header("이름표")]
-    [SerializeField] private NameTagBillboard nameTagBillboard;
-
-    // ─────────────────────────────────────────────────────────
-    // 컴포넌트 (상태 클래스들이 접근)
-    // ─────────────────────────────────────────────────────────
-    public NavMeshAgent Agent { get; private set; }
-    public PlayerScaleController ScaleCtrl { get; private set; }
-    public NavMeshQueryFilter NavFilter { get; private set; }
-    public NavMeshPath CachedPath { get; private set; }
-    public AIDetector Detector { get; private set; }
-
-    private Animator anim;
-    private LanPlayerVisual visual;
-
-    // ─────────────────────────────────────────────────────────
-    // FSM
-    // ─────────────────────────────────────────────────────────
-    private AIBaseState currentState;
-    private bool isTransitioning = false;
-
-    // 상태 인스턴스 (Start에서 1회 생성, 재사용)
-    public AIWanderState WanderState { get; private set; }
-    public AIChaseState  ChaseState  { get; private set; }
-    public AIFleeState   FleeState   { get; private set; }
-    public AIPushSurviveState PushSurviveState { get; private set; }
-
-    private float lastUrgentThreatCheck;
-    public bool IsBeingAbsorbed { get; set; } = false;
-    public bool IsEliminated { get; private set; } = false;
 
     /// <summary>봇이 게임에서 빠졌는지(탈락 또는 흡수 진행 중). "이 엔티티가 게임에서 빠졌나?"
     /// 판정의 단일 출처 — 인디케이터/충돌/리더보드가 모두 이 값을 본다. (G6)</summary>
     public bool IsOutOfPlay => IsEliminated || IsBeingAbsorbed;
-
-    private float dashCooldownTimer;
-    private float dashTimer;
-
-    // ★ 대쉬 전 속도를 '절대값'으로 기억하면 안 된다
-    //   예전엔 preDashSpeed = Agent.speed로 찍어두고 대쉬가 끝나면 그 값을 되돌렸다.
-    //   그런데 대쉬 0.4초 사이에 방망이에 맞아 커지거나 밀크를 밟으면 moveSpeed가 바뀐다.
-    //   그때 옛날 절대값으로 되돌아가 <b>봇이 엉뚱한 속도로 굳었다.</b>
-    //   상태별 계수(예: Wander 0.9)만 기억하고 복귀할 때 moveSpeed에 곱해 다시 계산한다.
-    private float stateSpeedRatio = 1f;
-
-    private float attackCooldownTimer;
-    private Coroutine attackCoroutine;
     public bool IsDashing => dashTimer > 0f;
     public bool IsAttacking => attackCoroutine != null;
 
     /// <summary>지금 배트를 휘두를 수 있는가. 쿨다운 중이면 false.</summary>
     public bool AttackReady => attackCoroutine == null && attackCooldownTimer <= 0f;
-
-
-    // ═════════════════════════════════════════════════════════
-    //  [LAN 이식] 봇 권위 판정
-    // ═════════════════════════════════════════════════════════
-    //
-    // ★ 봇은 호스트에서만 생각하고, 나머지는 결과만 본다
-    //   봇은 전부 호스트 소유 NetIdentity라 그 판정을 IsMine 하나로 표현할 수 있다.
-    //
-    //   접속이 없으면(오프라인 테스트) 혼자 다 굴린다 — 안 그러면 봇이 얼어붙는다.
-    private NetIdentity netId;
-    private LanBotState botSync;
 
     /// <summary>이 기계가 이 봇의 두뇌를 돌리는가.</summary>
     private bool IsDriver
@@ -702,18 +824,6 @@ public class AIPlayerMovement : MonoBehaviour
         return flow != null && flow.Phase != GamePhase.Playing;
     }
 
-    // 탐지는 전부 AIDetector가 한다. 예전엔 여기 같은 이름의 위임 래퍼가 네 개 있었는데
-    // 로직이 한 줄도 없으면서 "탐지가 이상하다 → 여기 열어봄 → 또 다른 파일로 점프"만
-    // 만들었다. Detector가 이미 public이라 감싸서 얻는 것도 없었다.
-
-    /// <summary>
-    /// 스폰 위치가 NavMesh로부터 멀리 떨어진 경우 폴백 위치 탐색.
-    /// 우선순위: 살아있는 다른 봇(NavMesh 위) → 살아있는 플레이어 → NavMesh 삼각망 정점
-    /// </summary>
-    // 폴백 자리를 잡을 때 원본 좌표에서 흩어놓는 반경(m).
-    // 그대로 쓰면 여러 봇이 같은 자리에 겹쳐 스폰돼 서로 밀어내며 튄다
-    private const float FallbackScatterRadius = 4f;
-
     /// <summary>
     /// 스폰 위치가 NavMesh에서 벗어났을 때 대신 쓸 자리.
     /// 기준점을 찾은 뒤 그 주변으로 흩어 실제 NavMesh 위 좌표를 돌려준다.
@@ -811,32 +921,6 @@ public class AIPlayerMovement : MonoBehaviour
     /// <returns>이번 호출로 낙하가 시작됐거나 이미 낙하 중이면 true.</returns>
     //봇마다 다른 값(인스턴스 ID 기반)이라 검사 프레임이 서로 어긋난다
     private int GroundCheckPhase => Mathf.Abs(GetInstanceID()) % GroundCheckInterval;
-    private const int GroundCheckInterval = 15;
-
-    // ★ 왜 피벗이 아니라 '발밑'에서 쏘는가 (커진 봇이 멀쩡한 타일 밑으로 꺼지던 원인)
-    //
-    //   예전엔 이랬다:
-    //       Vector3 origin = transform.position + Vector3.up * 0.5f;
-    //       if (Physics.Raycast(origin, Vector3.down, 3f)) return false;
-    //
-    //   봇의 피벗은 캡슐 <b>중심</b>(center 0,0,0)이고, NavMeshAgent가 baseOffset(0.67)만큼
-    //   띄워서 세운다. 봇이 커지면 Agent.radius·height는 스케일을 따라 키우는데
-    //   (ApplyScaleToAgent) baseOffset은 그대로고, 여기 0.5m·3m도 상수였다.
-    //   그래서 피벗이 바닥에서 2.5m 넘게 올라가는 순간 레이가 타일에 닿지 못했고,
-    //   "발밑이 비었다"로 단정해 AwakeFallPhysics를 불렀다 —
-    //   <b>멀쩡한 타일 아래로 쑥 꺼져서 탈락.</b> 커진 봇에게만 갑자기 생기던 증상이다.
-    //
-    //   그래서 <b>출발점은 피벗, 길이는 몸 길이에 비례</b>로 잡는다.
-    //   피벗은 baseOffset 덕에 항상 지면 위에 있으니 레이가 바닥 안에서 시작할 일이 없고,
-    //   길이는 '피벗에서 발바닥까지' + 여유라서 봇이 커져도 늘 발밑까지 닿는다.
-    //   (발바닥의 출처는 콜라이더 bounds — TileCollapseManager의 접지 판정과 같은 기준이다)
-    //
-    //   마스크도 없었다. 그대로 두면 초콜릿 강의 트리거 콜라이더 같은 것도 '지면'으로
-    //   쳐서, 반대로 떨어져야 할 때 안 떨어지는 길이 열려 있었다.
-    private const float GroundRayLift = 0.5f;    // 피벗에서 이만큼 더 위에서 쏜다
-    private const float GroundRayReach = 2.5f;   // 발바닥 아래로 이만큼까지 지면을 찾는다
-
-    private Collider bodyCollider;
 
     private Collider BodyCollider
     {
@@ -917,29 +1001,6 @@ public class AIPlayerMovement : MonoBehaviour
         PhysicsFall.Begin(gameObject);
     }
 
-    // ─────────────────────────────────────────────────────────
-    // 회피 우선순위
-    // ─────────────────────────────────────────────────────────
-    //
-    // NavMeshAgent.avoidancePriority는 0~99이고 <b>숫자가 낮을수록 우선순위가 높다.</b>
-    // 우선순위가 높은 쪽은 회피 계산에서 무시당하지 않고, 낮은 쪽이 알아서 비켜준다.
-    // 그래서 "큰 젤리가 밀고 지나가고 작은 애들이 비킨다"를 만들려면 크면서 숫자를 낮춰야 한다.
-    //
-    // ★ 예전엔 크기가 바뀔 때마다 5씩 깎았다 — 세 가지가 어긋나 있었다
-    //   ① 크기가 아니라 '크기가 바뀐 횟수'를 셌다. 젤리 하나를 먹어도 -5, 두 배로 커져도 -5.
-    //   ② 줄어들 때도 -5였다. OnPostScalePhysics는 ScaleTo 코루틴 끝에서 나오는데
-    //      그 코루틴은 성장과 축소를 모두 탄다 → 밀크로 작아진 봇의 우선순위가 올라갔다.
-    //   ③ Mathf.Max(0, …)로 바닥이 막혀 있고 되돌리는 코드가 없어, 20으로 시작한 봇은
-    //      네 번이면 0에 붙박였다. 그때부터 스폰 때 흩어놓은 값도 의미가 없어진다.
-    //
-    //   지금은 현재 크기에서 매번 새로 계산한다. 누적이 없으니 축소도 저절로 맞고,
-    //   크기가 같으면 값도 같아진다.
-    private const int BasePriority = 50;      // 시작 크기(1배)일 때
-    private const float PriorityPerScale = 10f; // 1배 커질 때마다 낮출 양
-
-    //크기가 같은 봇끼리 값이 완전히 같으면 서로 비켜주다 교착된다. 봇마다 조금씩 어긋내둔다
-    private int avoidanceJitter;
-
     private void ApplyAvoidancePriority(float scale)
     {
         if (Agent == null)
@@ -999,8 +1060,7 @@ public class AIPlayerMovement : MonoBehaviour
         if (GameState.CurrentGameMode != GameModeType.Absorb)
             return;
 
-
-        // ═════════════════════════════════════════════
+// ═════════════════════════════════════════════
         //  [LAN 이식] 봇이 플레이어/봇을 먹는 경로
         // ═════════════════════════════════════════════
         //
@@ -1283,9 +1343,7 @@ public class AIPlayerMovement : MonoBehaviour
     // 대쉬 밀치기 (넉백)
     // ─────────────────────────────────────────────────────────
 
-    private Coroutine knockbackCoroutine;
-
-    /// <summary>[LAN] PushMode가 넉백을 전달한다.</summary>
+/// <summary>[LAN] PushMode가 넉백을 전달한다.</summary>
     public void ApplyKnockbackFromNet(float dirX, float dirZ, float force)
     {
         if (IsEliminated || IsBeingAbsorbed)

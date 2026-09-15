@@ -9,7 +9,24 @@ namespace JellyNet
 {
     public class LanLobby : MonoBehaviour
     {
+        #region 상태
+
         public static LanLobby Instance { get; private set; }
+
+        private Vector2 nicknameOriginPos;
+        private Vector2 matchingStatusOriginPos;
+
+        private float countdown = -1f;
+        private bool launching;
+        private bool matching;
+        private Coroutine dots;
+        private readonly NetWriter w = new NetWriter();
+
+        private int shownHumans = -1;
+
+        #endregion
+
+        #region NickName UI
 
         [Header("NickName UI")]
         [SerializeField] private RectTransform nicknamePanel;
@@ -17,13 +34,25 @@ namespace JellyNet
         [SerializeField] private GameObject nicknameWarningText;
         [SerializeField] private int nicknameMaxLength = 10;
 
+        #endregion
+
+        #region Select Room UI
+
         [Header("Select Room UI")]
         [SerializeField] private RectTransform roomChoicePanel;
+
+        #endregion
+
+        #region Local / Online 선택
 
         // 방 생성·방 참가 어느 쪽을 눌렀든 먼저 여기서 로컬인지 온라인인지 고른다.
         // 고른 뒤에야 원래 패널(방 설정 / 방 목록)이 뜬다.
         [Header("Local / Online 선택")]
         [SerializeField] private RectTransform netChoicePanel;
+
+        #endregion
+
+        #region Room Option UI
 
         [Header("Room Option UI")]
         [SerializeField] private RectTransform hostOptionPanel;
@@ -42,6 +71,10 @@ namespace JellyNet
         [SerializeField] private TMP_InputField aiCountInput;
         [SerializeField] private TMP_Text roomSettingWarningText;
 
+        #endregion
+
+        #region 실패 안내
+
         // ★ 방 만들기·참가가 실패했을 때 뜨는 문장. 화면 한가운데에 둔다
         //   예전엔 이 문장을 nicknameWarningText 에 덮어썼다. 그 칸은 "닉네임을
         //   확인해주세요" 같은 고정 문구를 켜고 끄는 용도라, 덮어쓰고 나면 다음에
@@ -59,10 +92,18 @@ namespace JellyNet
         [Tooltip("사라지는 데 걸리는 시간(초)")]
         [SerializeField] private float errorFadeSeconds = 0.8f;
 
+        #endregion
+
+        #region Join Room UI
+
         //주소를 직접 입력하지 않는다. 이 패널 안에서 LanRoomListUI가 같은 대역의 방 목록을 띄우고,
         //방을 고르면 LanRoomListUI.OnPick → JoinRoom(RoomHandle)로 들어온다
         [Header("Join Room UI")]
         [SerializeField] private RectTransform joinPanel;
+
+        #endregion
+
+        #region Matching UI
 
         [Header("Matching UI")]
         [SerializeField] private RectTransform matchingPanel;
@@ -71,9 +112,17 @@ namespace JellyNet
         [SerializeField] private TMP_Text roomAddressText;
         [SerializeField] private GameObject cancelMatchingButton;
 
+        #endregion
+
+        #region Countdown UI
+
         [Header("Countdown UI")]
         [SerializeField] private TMP_Text countdownText;
         [SerializeField] private TMP_Text gameStartText;
+
+        #endregion
+
+        #region 애니메이션
 
         [Header("애니메이션")]
         [SerializeField] Vector2 nicknameLeftPos = new Vector2(-400f, 0f);
@@ -84,9 +133,17 @@ namespace JellyNet
         [SerializeField] Ease popEase = Ease.OutBack;
         [SerializeField] float matchingCompleteSlideY = 60f;
 
+        #endregion
+
+        #region 씬
+
         [Header("씬")]
         [SerializeField] private string gameSceneAbsorb = "Game_io_AbsorbMode";
         [SerializeField] private string gameScenePush = "Game_io_PushMode";
+
+        #endregion
+
+        #region 기본값
 
         [Header("기본값")]
         [SerializeField] private int defaultPort = NetConfig.DEFAULT_PORT;
@@ -94,16 +151,9 @@ namespace JellyNet
         [SerializeField] private int defaultAiCount = 2;
         [SerializeField] private float countdownSeconds = 3f;
 
-        private Vector2 nicknameOriginPos;
-        private Vector2 matchingStatusOriginPos;
+        #endregion
 
-        private float countdown = -1f;
-        private bool launching;
-        private bool matching;
-        private Coroutine dots;
-        private readonly NetWriter w = new NetWriter();
-
-        private int shownHumans = -1;
+        #region 대기 화면 상태 — 호스트가 방송하고 클라는 그대로 따른다
 
         // ─────────────────────────────────────────────────────────
         //  대기 화면 상태 — 호스트가 방송하고 클라는 그대로 따른다
@@ -126,6 +176,74 @@ namespace JellyNet
         //"매칭 완료!" 연출은 한 번만. 호스트는 countdown이 -1→양수로 바뀌는 순간,
         //클라는 카운트다운이 실린 첫 LobbyStatus에서 재생한다
         private bool matchCompleteShown;
+
+        //ShowLobbyError 가 Photon 콜백 안에서 세워두는 깃발. 접는 일은 여기서 한다
+        private bool cancelRequested;
+
+        //대기 화면에서 카운트다운이 아직 안 돌고 있음을 뜻하는 값.
+        //바이트 하나로 보내려고 -1 대신 255를 쓴다
+        private const int CD_WAITING = 255;
+
+        #endregion
+
+        #region 닉네임 겹침 검사 — 참가자끼리
+
+        // ─────────────────────────────────────────────────────────
+        //  닉네임 겹침 검사 — 참가자끼리
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ 왜 로비에서 따로 물어보는가
+        //   방을 만들 때는 세션이 막고(LocalSession·PhotonSession 의 NameTaken),
+        //   방에 들어갈 때는 방 이름이 곧 방장 닉네임이라 JoinRoom 이 막는다.
+        //   남은 구멍이 <b>참가자끼리</b>다 — 목록에는 방장 이름만 있어서
+        //   먼저 들어간 사람이 누구인지 들어가는 쪽에서 알 방법이 없다.
+        //   그 이름이 호스트에게 처음 도착하는 건 게임 씬의 SetMyName 인데,
+        //   그때는 이미 캐릭터가 생기고 이름표가 두 개 똑같이 떠 있다.
+        //
+        //   그래서 방에 들어간 직후 이름을 한 번 보내고, 호스트가 자기 이름과
+        //   먼저 온 참가자들의 이름에 대고 재본다. 겹치면 사유를 붙여 돌려보낸다.
+        //
+        //   쫓아내는 게 아니라 <b>돌려보낸다</b>는 점이 중요하다. Photon 에는
+        //   마스터가 남을 끊는 수단이 없고, 끊는 수단을 전송마다 따로 만들면
+        //   로컬·온라인 동작이 갈린다. "나가라"고 말하면 나가는 쪽이 스스로 나가므로
+        //   두 전송에서 같은 코드가 돈다.
+        private readonly Dictionary<int, string> lobbyNames = new Dictionary<int, string>();
+
+        //HandleRoomEntered 가 세우고 Update 가 접는다. 이유는 그쪽 주석에 적어두었다
+        private bool helloPending;
+
+        private AfterChoice afterChoice;
+
+        //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
+        //양쪽 다 "판이 차기를 기다린다"는 같은 상태이므로 문구도 하나로 둔다
+        private const string MATCHING_LABEL = "다른 참가자를 기다리는 중";
+
+        // ★ 요청을 보낸 것과 방에 들어간 것은 다르다
+        //   LAN 은 소켓을 여는 데까지가 동기라 이 문구가 한순간 스치고 지나가지만,
+        //   클라는 그때도 아직 자기 번호를 못 받았다(호스트의 환영 인사가 와야 한다).
+        //   릴레이는 방 만들기 성공 자체가 몇백 ms 뒤에 온다. 그동안 "다른 참가자를
+        //   기다리는 중"을 띄우면, 실패했을 때 아무도 오지 않는 방을 기다린 셈이 된다.
+        private const string CONNECTING_LABEL = "연결 중";
+
+        // ★ 신호가 화면보다 먼저 올 수 있다
+        //   LAN 호스트는 CreateRoom 이 성공하는 그 자리에서 OnRoomEntered 가 터진다.
+        //   대기 화면을 여는 건 그다음 줄이라, 그때 matching 은 아직 false 다.
+        //   '왔는가'를 기억해 두지 않고 그 순간에만 반응하면 호스트는 영원히
+        //   "연결 중..." 에 갇힌다. 어느 쪽이 먼저 와도 되게 상태로 들고 있는다.
+        private bool roomEntered;
+
+        private Coroutine errorFade;
+
+        //"게임 시작!"을 보여주는 시간. 호스트와 클라가 같은 값을 써야
+        //양쪽이 같은 순간에 로딩 커튼으로 넘어간다.
+        //예전엔 호스트만 0.6초를 기다리고 클라는 수신 즉시 씬을 로드해서,
+        //클라가 0.6초 먼저 게임 씬에 들어가 인게임 카운트다운까지 어긋났다
+        private const float LAUNCH_DELAY = 0.6f;
+
+        private string pendingScene;
+        private GameModeType pendingMode;
+
+        #endregion
 
         private void Awake()
         {
@@ -173,9 +291,6 @@ namespace JellyNet
             ResetPanels();
             FillDefaults();
         }
-
-        //ShowLobbyError 가 Photon 콜백 안에서 세워두는 깃발. 접는 일은 여기서 한다
-        private bool cancelRequested;
 
         private void Update()
         {
@@ -239,10 +354,6 @@ namespace JellyNet
             HostLaunch();
         }
 
-        //대기 화면에서 카운트다운이 아직 안 돌고 있음을 뜻하는 값.
-        //바이트 하나로 보내려고 -1 대신 255를 쓴다
-        private const int CD_WAITING = 255;
-
         /// <summary>
         /// 호스트만 아는 대기 화면 상태(인원·정원·AI·카운트다운)를 클라에 알린다.
         /// 값이 바뀔 때만 나가므로 프레임마다 불러도 된다.
@@ -300,30 +411,6 @@ namespace JellyNet
 
             ShowCountdown(cd);
         }
-
-        // ─────────────────────────────────────────────────────────
-        //  닉네임 겹침 검사 — 참가자끼리
-        // ─────────────────────────────────────────────────────────
-        //
-        // ★ 왜 로비에서 따로 물어보는가
-        //   방을 만들 때는 세션이 막고(LocalSession·PhotonSession 의 NameTaken),
-        //   방에 들어갈 때는 방 이름이 곧 방장 닉네임이라 JoinRoom 이 막는다.
-        //   남은 구멍이 <b>참가자끼리</b>다 — 목록에는 방장 이름만 있어서
-        //   먼저 들어간 사람이 누구인지 들어가는 쪽에서 알 방법이 없다.
-        //   그 이름이 호스트에게 처음 도착하는 건 게임 씬의 SetMyName 인데,
-        //   그때는 이미 캐릭터가 생기고 이름표가 두 개 똑같이 떠 있다.
-        //
-        //   그래서 방에 들어간 직후 이름을 한 번 보내고, 호스트가 자기 이름과
-        //   먼저 온 참가자들의 이름에 대고 재본다. 겹치면 사유를 붙여 돌려보낸다.
-        //
-        //   쫓아내는 게 아니라 <b>돌려보낸다</b>는 점이 중요하다. Photon 에는
-        //   마스터가 남을 끊는 수단이 없고, 끊는 수단을 전송마다 따로 만들면
-        //   로컬·온라인 동작이 갈린다. "나가라"고 말하면 나가는 쪽이 스스로 나가므로
-        //   두 전송에서 같은 코드가 돈다.
-        private readonly Dictionary<int, string> lobbyNames = new Dictionary<int, string>();
-
-        //HandleRoomEntered 가 세우고 Update 가 접는다. 이유는 그쪽 주석에 적어두었다
-        private bool helloPending;
 
         /// <summary>참가자가 방에 들어간 직후 자기 닉네임을 호스트에게 보낸다(클라 전용).</summary>
         private void SendLobbyHello()
@@ -582,8 +669,6 @@ namespace JellyNet
         //   "고르고 나면 어디로 가야 하는지"를 패널이 아니라 여기서 기억한다.
         private enum AfterChoice { None, Host, Join }
 
-        private AfterChoice afterChoice;
-
         public void OnClickCreateRoom()
         {
             OpenNetChoice(AfterChoice.Host);
@@ -762,25 +847,6 @@ namespace JellyNet
             OpenMatching(roomEntered ? MATCHING_LABEL : CONNECTING_LABEL);
         }
 
-
-        //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
-        //양쪽 다 "판이 차기를 기다린다"는 같은 상태이므로 문구도 하나로 둔다
-        private const string MATCHING_LABEL = "다른 참가자를 기다리는 중";
-
-        // ★ 요청을 보낸 것과 방에 들어간 것은 다르다
-        //   LAN 은 소켓을 여는 데까지가 동기라 이 문구가 한순간 스치고 지나가지만,
-        //   클라는 그때도 아직 자기 번호를 못 받았다(호스트의 환영 인사가 와야 한다).
-        //   릴레이는 방 만들기 성공 자체가 몇백 ms 뒤에 온다. 그동안 "다른 참가자를
-        //   기다리는 중"을 띄우면, 실패했을 때 아무도 오지 않는 방을 기다린 셈이 된다.
-        private const string CONNECTING_LABEL = "연결 중";
-
-        // ★ 신호가 화면보다 먼저 올 수 있다
-        //   LAN 호스트는 CreateRoom 이 성공하는 그 자리에서 OnRoomEntered 가 터진다.
-        //   대기 화면을 여는 건 그다음 줄이라, 그때 matching 은 아직 false 다.
-        //   '왔는가'를 기억해 두지 않고 그 순간에만 반응하면 호스트는 영원히
-        //   "연결 중..." 에 갇힌다. 어느 쪽이 먼저 와도 되게 상태로 들고 있는다.
-        private bool roomEntered;
-
         //방을 만들거나 참가하기 직전에 부른다
         private void BeginConnecting()
         {
@@ -865,8 +931,6 @@ namespace JellyNet
 
             errorFade = StartCoroutine(FadeErrorOut());
         }
-
-        private Coroutine errorFade;
 
         private IEnumerator FadeErrorOut()
         {
@@ -1012,8 +1076,7 @@ namespace JellyNet
             return (f != null && int.TryParse(f.text, out v)) ? v : fallback;
         }
 
-
-        private void HandlePeerChanged(int peerId)
+private void HandlePeerChanged(int peerId)
         {
             UpdatePlayerCountUI();
             PlayJoinPop();
@@ -1177,15 +1240,6 @@ namespace JellyNet
 
             BeginLaunch(scene, LanRoomConfig.Mode);
         }
-
-        //"게임 시작!"을 보여주는 시간. 호스트와 클라가 같은 값을 써야
-        //양쪽이 같은 순간에 로딩 커튼으로 넘어간다.
-        //예전엔 호스트만 0.6초를 기다리고 클라는 수신 즉시 씬을 로드해서,
-        //클라가 0.6초 먼저 게임 씬에 들어가 인게임 카운트다운까지 어긋났다
-        private const float LAUNCH_DELAY = 0.6f;
-
-        private string pendingScene;
-        private GameModeType pendingMode;
 
         /// <summary>양쪽 공용 — "게임 시작!" 연출을 띄우고 잠시 뒤 씬을 넘긴다.</summary>
         private void BeginLaunch(string scene, GameModeType mode)

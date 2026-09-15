@@ -7,36 +7,69 @@ namespace JellyNet
 {
     public class NetWorld : MonoBehaviour
     {
+        #region 상태
+
         public static NetWorld Instance { get; private set; }
-
-        [Header("프리팹 등록표 (배열 인덱스 = prefabId)")]
-        [Tooltip("0번은 플레이어 캡슐. 순서가 곧 ID이므로 중간에 끼워넣지 말 것.")]
-        public GameObject[] prefabs;
-
-        [Header("스폰 위치")]
-        public float spawnRadius = 4f;
 
         private readonly Dictionary<int, NetIdentity> objects = new Dictionary<int, NetIdentity>();
 
         private readonly NetWriter w = new NetWriter();
         private int nextNetId = 1;
 
-        private const int MAX_NAME_LENGTH = 16;
-
         private readonly List<int> removedSceneIds = new List<int>();
 
-        public IReadOnlyDictionary<int, NetIdentity> Objects { get { return objects; } }
+        private NetSpawnPool pool;
+
+        #endregion
+
+        #region 프리팹 등록표 (배열 인덱스 = prefabId)
+
+        [Header("프리팹 등록표 (배열 인덱스 = prefabId)")]
+        [Tooltip("0번은 플레이어 캡슐. 순서가 곧 ID이므로 중간에 끼워넣지 말 것.")]
+        public GameObject[] prefabs;
+
+        #endregion
+
+        #region 스폰 위치
+
+        [Header("스폰 위치")]
+        public float spawnRadius = 4f;
+
+        #endregion
+
+        #region 상수
+
+        private const int MAX_NAME_LENGTH = 16;
+
+        #endregion
+
+        #region 이벤트·콜백
 
         public event Action<NetIdentity> OnSpawned;
         public event Action<int> OnDespawned;
+
+        #endregion
+
+        #region 위치 동기화 — [count][entry]*
+
+        //한 메시지에 담는 최대 개수. count가 1바이트라 255가 상한이고,
+        //그 전에 한 프레임에 이만큼 쌓일 일이 없어 넉넉히 32로 둔다
+        private const int MAX_TRANSFORM_BATCH = 32;
+
+        //내보낼 것을 모아두는 곳과, 호스트가 중계할 것을 모아두는 곳.
+        //매번 새로 만들면 초당 수백 개의 쓰레기가 된다
+        private readonly List<TransformEntry> pending = new List<TransformEntry>();
+        private readonly List<TransformEntry> relay = new List<TransformEntry>();
+
+        #endregion
+
+        public IReadOnlyDictionary<int, NetIdentity> Objects { get { return objects; } }
 
         public NetIdentity Find(int netId)
         {
             NetIdentity id;
             return objects.TryGetValue(netId, out id) ? id : null;
         }
-
-        private NetSpawnPool pool;
 
         public NetSpawnPool Pool
         {
@@ -57,8 +90,7 @@ namespace JellyNet
             Instance = this;
         }
 
-
-        private void Start()
+private void Start()
         {
             NetManager net = NetManager.Instance;
             if (net == null)
@@ -777,10 +809,6 @@ namespace JellyNet
             }
         }
 
-        //한 메시지에 담는 최대 개수. count가 1바이트라 255가 상한이고,
-        //그 전에 한 프레임에 이만큼 쌓일 일이 없어 넉넉히 32로 둔다
-        private const int MAX_TRANSFORM_BATCH = 32;
-
         private struct TransformEntry
         {
             public int NetId;
@@ -788,11 +816,6 @@ namespace JellyNet
             public float Yaw;
             public float SendTime;
         }
-
-        //내보낼 것을 모아두는 곳과, 호스트가 중계할 것을 모아두는 곳.
-        //매번 새로 만들면 초당 수백 개의 쓰레기가 된다
-        private readonly List<TransformEntry> pending = new List<TransformEntry>();
-        private readonly List<TransformEntry> relay = new List<TransformEntry>();
 
         private void WriteTransforms(List<TransformEntry> entries)
         {

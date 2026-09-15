@@ -9,18 +9,6 @@ namespace JellyNet
 {
     public class LanDiscovery : MonoBehaviour
     {
-        public static LanDiscovery Instance { get; private set; }
-
-        public const int DISCOVERY_PORT = 7778;
-
-        private const string MAGIC = "JELLYPANG1";
-
-        [Tooltip("방장이 몇 초마다 알릴지.")]
-        [SerializeField] private float beaconInterval = 1f;
-
-        [Tooltip("이 시간 동안 소식이 없으면 목록에서 지움. ")]
-        [SerializeField] private float roomTimeout = 3.5f;
-
         public class RoomInfo
         {
             public string Ip;
@@ -36,18 +24,49 @@ namespace JellyNet
             public string Address { get { return Ip + ":" + Port; } }
         }
 
+        #region 상태
+
+        public static LanDiscovery Instance { get; private set; }
+
         private readonly Dictionary<string, RoomInfo> rooms = new Dictionary<string, RoomInfo>();
 
         //비콘을 보낼 곳들. 랜카드마다 대역이 달라서 한 곳만으로는 부족하다 (NetUtil 참고)
         private readonly List<IPEndPoint> targets = new List<IPEndPoint>();
 
-        //와이파이가 나중에 붙거나 VPN이 켜질 수 있어 주기적으로 다시 훑는다
-        private const float TARGETS_TTL = 10f;
         private float targetsAge;
 
         private UdpClient send;
         private UdpClient listen;
         private float beaconTimer;
+
+        //알릴 포트. 예전엔 SendBeacon 이 NetManager.Port 를 직접 읽었는데, 그러면
+        //"호스트가 실제로 연 포트"와 "알리는 포트"의 출처가 둘이 된다. 세션이 하나만 넘긴다
+        private int beaconPort;
+
+        private readonly List<string> stale = new List<string>();
+
+        #endregion
+
+        #region 상수
+
+        public const int DISCOVERY_PORT = 7778;
+
+        private const string MAGIC = "JELLYPANG1";
+
+        //와이파이가 나중에 붙거나 VPN이 켜질 수 있어 주기적으로 다시 훑는다
+        private const float TARGETS_TTL = 10f;
+
+        #endregion
+
+        #region 인스펙터
+
+        [Tooltip("방장이 몇 초마다 알릴지.")]
+        [SerializeField] private float beaconInterval = 1f;
+
+        [Tooltip("이 시간 동안 소식이 없으면 목록에서 지움. ")]
+        [SerializeField] private float roomTimeout = 3.5f;
+
+        #endregion
 
         //IEnumerable로 내보내면 foreach가 열거자를 박싱해 매번 쓰레기가 생긴다.
         //LanSession이 매 프레임 훑는 자리라 구체 타입 그대로 내보낸다
@@ -100,10 +119,6 @@ namespace JellyNet
             StopBeacon();
             StopListening();
         }
-
-        //알릴 포트. 예전엔 SendBeacon 이 NetManager.Port 를 직접 읽었는데, 그러면
-        //"호스트가 실제로 연 포트"와 "알리는 포트"의 출처가 둘이 된다. 세션이 하나만 넘긴다
-        private int beaconPort;
 
         public void StartBeacon(int port)
         {
@@ -290,8 +305,6 @@ namespace JellyNet
 
             r.LastSeen = Time.unscaledTime;
         }
-
-        private readonly List<string> stale = new List<string>();
 
         private void Expire()
         {

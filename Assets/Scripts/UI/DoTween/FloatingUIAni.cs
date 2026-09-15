@@ -31,21 +31,39 @@ using UnityEngine;
 /// </summary>
 public class FloatingUIAni : MonoBehaviour
 {
+    #region Target UI (RectTransform)
+
     [Header("Target UI (RectTransform)")]
     [SerializeField] private RectTransform target;
+
+    #endregion
+
+    #region Float (Position)
 
     [Header("Float (Position)")]
     [SerializeField] private float floatY = 18f;
     [SerializeField] private float floatX = 6f;
     [SerializeField] private float duration = 2.0f;
 
+    #endregion
+
+    #region Optional (Rotation)
+
     [Header("Optional (Rotation)")]
     [SerializeField] private bool useRotation = true;
     [SerializeField] private float rotZ = 2.5f;
 
+    #endregion
+
+    #region Optional (Scale Breathing)
+
     [Header("Optional (Scale Breathing)")]
     [SerializeField] private bool useScale = false;
     [SerializeField] private float scaleAmount = 0.02f;
+
+    #endregion
+
+    #region Options
 
     [Header("Options")]
     [SerializeField] private bool playOnEnable = true;
@@ -54,11 +72,17 @@ public class FloatingUIAni : MonoBehaviour
     [Tooltip("여러 개가 같은 박자로 흔들리지 않게 시작 시점을 흩는다.")]
     [SerializeField] private bool randomizePhase = true;
 
+    #endregion
+
+    #region 상태
+
     private Sequence seq;
     private Vector2 basePos;
     private Vector3 baseScale;
     private Vector3 baseRot;
     private bool baseCached;
+
+    #endregion
 
     private void Reset()
     {
@@ -189,5 +213,4 @@ public class FloatingUIAni : MonoBehaviour
             a += 360f;
         return a;
     }
-
 }

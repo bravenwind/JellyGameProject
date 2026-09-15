@@ -5,6 +5,8 @@ using JellyNet;
 
 public class JellyColliderAbsorb : MonoBehaviour, INetPoolable
 {
+    #region 인스펙터
+
     // ═════════════════════════════════════════════════════════
     //  인스펙터에 내보내는 것은 '조절할 값'뿐이다
     // ═════════════════════════════════════════════════════════
@@ -18,6 +20,10 @@ public class JellyColliderAbsorb : MonoBehaviour, INetPoolable
     //   런타임 상태를 보고 싶으면 인스펙터를 디버그 모드로 전환하면 private도 보인다.
     private Transform target;          // 나를 먹는 쪽
 
+    #endregion
+
+    #region 흡수 연출
+
     [Header("흡수 연출")]
     [Tooltip("빨려 들어가는 속도. 이동 거리를 이 값으로 나눠 연출 시간을 구한다.")]
     [SerializeField] private float absorbSpeed = 30f;
@@ -30,6 +36,10 @@ public class JellyColliderAbsorb : MonoBehaviour, INetPoolable
 
     [Tooltip("끝났을 때 남는 크기 비율. 작을수록 완전히 빨려 들어간 것처럼 보인다.")]
     [Range(0f, 0.3f)] [SerializeField] private float endScaleRatio = 0.05f;
+
+    #endregion
+
+    #region 인스펙터에 내보내는 것은 '조절할 값'뿐이다
 
     private float absorbTimer;
 
@@ -51,6 +61,8 @@ public class JellyColliderAbsorb : MonoBehaviour, INetPoolable
     //   연출 중엔 <b>전부</b> 트리거로 바꿔야 한다. 대표 하나만 바꾸면 남은 콜라이더가
     //   단단한 채로 남아 빨려 들어가는 젤리가 플레이어를 밀어낸다.
     private Collider[] allColliders;
+
+    #endregion
 
     void Awake()
     {

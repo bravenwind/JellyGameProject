@@ -5,7 +5,17 @@ namespace JellyNet
 {
     public class LanBotSpawner : MonoBehaviour
     {
+        #region 상태
+
         public static LanBotSpawner Instance { get; private set; }
+
+        private bool spawned;
+
+        private bool warned;
+
+        #endregion
+
+        #region 봇
 
         [Header("봇")]
         [Tooltip("NetWorld.prefabs 배열에서 봇 프리팹의 인덱스. 0(플레이어)이면 스폰하지 않는다.")]
@@ -14,10 +24,14 @@ namespace JellyNet
         [Tooltip("몇 마리를 뿌릴지.")]
         public int botCount = 3;
 
+        #endregion
+
+        #region 진단
+
         [Header("진단")]
         public bool verboseLog = true;
 
-        private bool spawned;
+        #endregion
 
         private void Awake()
         {
@@ -36,8 +50,6 @@ namespace JellyNet
             if (Instance == this)
                 Instance = null;
         }
-
-        private bool warned;
 
         private void Update()
         {

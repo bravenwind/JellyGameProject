@@ -4,11 +4,50 @@ using JellyNet;
 
 public class TileCollapseManager : MonoBehaviour
 {
+    #region 상태
+
     public static TileCollapseManager Instance { get; private set; }
+
+    private GameObject[,] tiles;
+    private int width, height;
+
+    private int lastCollapsedRing = -1;
+    private int lastShakenRing = -1;
+    private Vector3 gridOrigin;
+    private float stepX, stepZ;
+
+    private HashSet<int> collapsedCells = new HashSet<int>();
+
+    private Dictionary<int, int> tileStepCounts = new Dictionary<int, int>();
+    private Dictionary<int, Color> tileOriginalColors = new Dictionary<int, Color>();
+
+    private MaterialPropertyBlock mpb;
+
+    private float stepProcessTimer;
+
+    private readonly List<GameObject> carveObjects = new List<GameObject>();
+
+    private bool ringIntervalComputed;
+
+    private int maxSamplesPerSegment = 1;
+
+    private bool needsStateReset = true;
+
+    private Renderer[,] tileRenderers;
+
+    private readonly Dictionary<int, EntityStepState> entityStates = new Dictionary<int, EntityStepState>();
+
+    #endregion
+
+    #region Grid
 
     [Header("Grid")]
     [Tooltip("타일들의 부모 Transform (비워두면 이 오브젝트에서 탐색)")]
     [SerializeField] private Transform gridParent;
+
+    #endregion
+
+    #region 붕괴 타이밍
 
     [Header("붕괴 타이밍")]
     [Tooltip("게임 시작 후 붕괴 시작까지의 시간 (초)")]
@@ -16,6 +55,10 @@ public class TileCollapseManager : MonoBehaviour
 
     [Tooltip("각 링 붕괴 간격 (초). autoRingInterval이 켜져 있으면 자동으로 덮어쓴다.")]
     [SerializeField] private float ringInterval = 15f;
+
+    #endregion
+
+    #region 붕괴 주기 자동 계산
 
     [Header("붕괴 주기 자동 계산")]
     [Tooltip("마지막 링이 꺼지는 시점이 '게임 종료 N초 전'이 되도록 간격을 역산한다.")]
@@ -30,6 +73,10 @@ public class TileCollapseManager : MonoBehaviour
     [Tooltip("같은 링 내 타일 간 연쇄 딜레이 (초) — 0이면 동시에 떨어짐")]
     [SerializeField] private float tileDelay = 0f;
 
+    #endregion
+
+    #region 타일 애니메이션
+
     [Header("타일 애니메이션")]
     [Tooltip("경고 흔들림 시간 (초)")]
     [SerializeField] private float warningDuration = 3f;
@@ -40,11 +87,24 @@ public class TileCollapseManager : MonoBehaviour
     [Tooltip("떨어지는 거리")]
     [SerializeField] private float fallDistance = 30f;
 
-    private GameObject[,] tiles;
-    private int width, height;
-
     [Tooltip("가운데에 남겨둘 링 수. 마지막에 밟고 설 자리를 남기기 위한 것. 0이면 전부 무너진다.")]
     [SerializeField] private int keepCenterRings = 1;
+
+    #endregion
+
+    #region 상수
+
+    private const float STEP_PROCESS_INTERVAL = 0.15f;
+
+    private const int MaxCellsPerAxis = 10000;
+
+    private const float ThreatDistanceWeight = 1.5f;
+
+    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
+    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
+    private const float SurvivalWeight = 40f;
+
+    #endregion
 
     private int HighestRing
     {
@@ -55,22 +115,6 @@ public class TileCollapseManager : MonoBehaviour
     {
         get { return HighestRing - Mathf.Max(0, keepCenterRings); }
     }
-    private int lastCollapsedRing = -1;
-    private int lastShakenRing = -1;
-    private Vector3 gridOrigin;
-    private float stepX, stepZ;
-
-    private HashSet<int> collapsedCells = new HashSet<int>();
-
-    private Dictionary<int, int> tileStepCounts = new Dictionary<int, int>();
-    private Dictionary<int, Color> tileOriginalColors = new Dictionary<int, Color>();
-
-    private MaterialPropertyBlock mpb;
-
-    private float stepProcessTimer;
-    private const float STEP_PROCESS_INTERVAL = 0.15f;
-
-    private readonly List<GameObject> carveObjects = new List<GameObject>();
 
     private void Awake()
     {
@@ -115,8 +159,6 @@ public class TileCollapseManager : MonoBehaviour
                 Instance = null;
         }
     }
-
-    private bool ringIntervalComputed;
 
     private void ComputeRingInterval()
     {
@@ -282,8 +324,6 @@ public class TileCollapseManager : MonoBehaviour
         get { return Mathf.Min(stepX, stepZ) * 0.5f; }
     }
 
-    private int maxSamplesPerSegment = 1;
-
     private bool TryParseTileName(string name, out int x, out int z)
     {
         x = z = 0;
@@ -298,8 +338,6 @@ public class TileCollapseManager : MonoBehaviour
     {
         return Mathf.Min(x, z, width - 1 - x, height - 1 - z);
     }
-
-    private bool needsStateReset = true;
 
     private void Update()
     {
@@ -374,8 +412,6 @@ public class TileCollapseManager : MonoBehaviour
         }
     }
 
-    private Renderer[,] tileRenderers;
-
     private class EntityStepState
     {
         public readonly List<int> Current = new List<int>();
@@ -388,8 +424,6 @@ public class TileCollapseManager : MonoBehaviour
 
         public Collider Body;
     }
-
-    private readonly Dictionary<int, EntityStepState> entityStates = new Dictionary<int, EntityStepState>();
 
     private EntityStepState StateOf(int entityId)
     {
@@ -423,8 +457,6 @@ public class TileCollapseManager : MonoBehaviour
 
         return heightAboveTile <= groundCheckDistance;
     }
-
-    private const int MaxCellsPerAxis = 10000;
 
     private static int CellKey(int x, int z)
     {
@@ -1009,12 +1041,6 @@ public class TileCollapseManager : MonoBehaviour
 
         return found;
     }
-
-    private const float ThreatDistanceWeight = 1.5f;
-
-    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
-    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
-    private const float SurvivalWeight = 40f;
 
     /// <summary>
     /// 주변 칸 중 <b>발밑이 안전하면서</b> 점수가 가장 높은 칸을 고른다.

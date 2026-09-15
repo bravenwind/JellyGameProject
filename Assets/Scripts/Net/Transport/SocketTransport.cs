@@ -14,17 +14,23 @@ namespace JellyNet
     /// </summary>
     public class SocketTransport : INetTransport
     {
-        public SocketTransport(NetRouteTable routes, NetEvents events)
-        {
-            this.routes = routes;
-            this.events = events;
-        }
+        #region 상태
 
         //일어난 일을 알리는 게시판. NetManager 가 하나 만들어 모두에게 꽂아준다
         private readonly NetEvents events;
 
         private NetHost host;
         private NetClient client;
+
+        /// <summary>StartHost/JoinHost 가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
+        public string LastError { get; private set; }
+
+        //이번 접속에서 끊김을 이미 알렸는가. Poll 이 매 프레임 같은 로그를 찍지 않게 한다
+        private bool connectionLost;
+
+        #endregion
+
+        #region 이벤트·콜백
 
         /// <summary>로그 한 줄을 어디에 남길지. NetManager 가 꽂아준다.</summary>
         public Action<string> OnLog;
@@ -36,12 +42,25 @@ namespace JellyNet
         /// </summary>
         public Action<string> OnError;
 
+        #endregion
 
-        /// <summary>StartHost/JoinHost 가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
-        public string LastError { get; private set; }
+        #region 메시지 라우팅 테이블
 
-        //이번 접속에서 끊김을 이미 알렸는가. Poll 이 매 프레임 같은 로그를 찍지 않게 한다
-        private bool connectionLost;
+        // ─────────────────────────────────────────────────────────
+        //  메시지 라우팅 테이블
+        // ─────────────────────────────────────────────────────────
+        //
+        // 표는 NetManager 가 하나 만들어 두 전송에 같이 꽂아준다.
+        // 왜 전송마다 갖지 않는지는 NetRouteTable 의 머리말에 적었다.
+        private readonly NetRouteTable routes;
+
+        #endregion
+
+        public SocketTransport(NetRouteTable routes, NetEvents events)
+        {
+            this.routes = routes;
+            this.events = events;
+        }
 
         // ─────────────────────────────────────────────────────────
         //  상태
@@ -203,14 +222,6 @@ namespace JellyNet
             if (client != null)
                 client.Send(w);
         }
-
-        // ─────────────────────────────────────────────────────────
-        //  메시지 라우팅 테이블
-        // ─────────────────────────────────────────────────────────
-        //
-        // 표는 NetManager 가 하나 만들어 두 전송에 같이 꽂아준다.
-        // 왜 전송마다 갖지 않는지는 NetRouteTable 의 머리말에 적었다.
-        private readonly NetRouteTable routes;
 
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {

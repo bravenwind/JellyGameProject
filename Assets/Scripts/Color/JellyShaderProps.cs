@@ -14,13 +14,21 @@ using UnityEngine;
 /// </summary>
 public static class JellyShaderProps
 {
+    #region 상수
+
     public const string BASE_COLOR_01 = "_BaseColor_01";
     public const string BASE_COLOR_02 = "_BaseColor_02";
     public const string FRESNEL_COLOR = "_FresnelColor";
 
+    #endregion
+
+    #region 정적 필드
+
     public static readonly int BaseColor01Id = Shader.PropertyToID(BASE_COLOR_01);
     public static readonly int BaseColor02Id = Shader.PropertyToID(BASE_COLOR_02);
     public static readonly int FresnelColorId = Shader.PropertyToID(FRESNEL_COLOR);
+
+    #endregion
 
     public static Color ReadFresnel(Renderer r)
     {

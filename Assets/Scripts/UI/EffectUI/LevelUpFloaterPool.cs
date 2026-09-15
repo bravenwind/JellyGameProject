@@ -45,6 +45,8 @@ using JellyNet;
 /// </summary>
 public class LevelUpFloaterPool : MonoBehaviour
 {
+    #region 인스펙터
+
     [Tooltip("흡수 모드에서 띄울 팝업 프리팹들. 이 중 하나가 무작위로 뜬다.")]
     [SerializeField] private LevelUpFloater[] absorbPopupPrefabs = new LevelUpFloater[3];
 
@@ -54,10 +56,16 @@ public class LevelUpFloaterPool : MonoBehaviour
     [Tooltip("종류마다 미리 만들어둘 개수")]
     [SerializeField] private int prewarmPerPrefab = 2;
 
+    #endregion
+
+    #region 상태
+
     private Transform scaleRef;   // 크기 상쇄 기준 = 캐릭터 루트(이 컨테이너의 부모)
     private PlayerAbsorber absorber;          // 젤리 흡수 방송이 도착하는 자리
     private LanPlayerVisual visual;           // 봇 흡수·배트 적중 방송이 도착하는 자리
     private ComponentPool<LevelUpFloater>[] pools;
+
+    #endregion
 
     private void Awake()
     {

@@ -4,8 +4,14 @@ using JellyNet;
 
 public class LoadingSceneController : MonoBehaviour
 {
+    #region 애니메이션
+
     [Header("애니메이션")]
     [SerializeField] private LoadingBGSlideAni bgSlide;
+
+    #endregion
+
+    #region 전환 부드럽게
 
     [Header("전환 부드럽게")]
     [Tooltip("도착 씬이 로드된 뒤, 슬라이드아웃(센터→오른쪽)을 시작하기 전에 커튼을 '정지 상태'로 더 붙잡는 시간. " +
@@ -23,17 +29,29 @@ public class LoadingSceneController : MonoBehaviour
     // 하나로 통일한다 — 이 값이 (a)커튼 최소 표시시간이자 (b)게임/로컬 전환에서 다음 씬 로드를 미루는
     // 기준(loadAfter)이다. 패널마다 holdSeconds가 달라도 전환에 맞는 값이 자동으로 쓰인다.
 
+    #endregion
+
+    #region 모드별 조작 팁
+
     [Header("모드별 조작 팁")]
     [Tooltip("Push 모드로 입장할 때 활성화할 키 설명 패널")]
     [SerializeField] private GameObject pushModeTipPanel;
     [Tooltip("Absorb 모드로 입장할 때 활성화할 키 설명 패널")]
     [SerializeField] private GameObject absorbModeTipPanel;
 
+    #endregion
+
+    #region 전환 방향별 로딩 패널
+
     [Header("전환 방향별 로딩 패널")]
     [Tooltip("메인→게임(게임 씬으로 입장)일 때 켤 패널. 슬라이드만 들어간 패널을 연결.")]
     [SerializeField] private GameObject toGamePanel;
     [Tooltip("게임에서 빠져나올 때(결과/메인 복귀)일 때 켤 패널. 슬라이드+페이드가 들어간 패널을 연결.")]
     [SerializeField] private GameObject toMainOrResultPanel;
+
+    #endregion
+
+    #region 다음 씬 지정 (Loading 씬 진입 전에 설정)
 
     // ─────────────────────────────────────────────────────────
     // 다음 씬 지정 (Loading 씬 진입 전에 설정)
@@ -52,25 +70,16 @@ public class LoadingSceneController : MonoBehaviour
     /// </summary>
     public static bool IsPresenting { get; private set; }
 
-    /// <summary>
-    /// 지금 커튼이 전환을 주도하고 있는가.
-    ///
-    /// ★ IsPresenting과 다르다
-    ///   IsPresenting은 "커튼이 화면을 덮고 있는가"라서, 커튼이 걷히기 시작하면
-    ///   false가 된다(도착 씬 연출을 시작해도 좋다는 신호). 하지만 그때도 커튼
-    ///   오브젝트는 아직 살아 전환을 마무리하는 중이다.
-    ///
-    ///   "새 전환을 시작해도 되는가"를 물으려면 이쪽을 봐야 한다.
-    ///   진행 중인데 또 시작하면 앞의 전환을 덮어써서 씬이 꼬인다.
-    /// </summary>
-    public static bool IsTransitioning { get { return instance != null; } }
-
     private static LoadingSceneController instance;
     private bool targetSceneLoaded;
     private float elapsed;
     private bool nextSceneTriggered; // 씬 로드 중복 호출 방지
     private LoadingBGSlideAni activeSlide;  // 현재 커튼 애니(있으면 이 애니가 나가는 타이밍을 스스로 판단)
     private float targetLoadedElapsed = -1f; // 도착 씬이 로드된 시점의 _elapsed(정착 대기 계산용)
+
+    #endregion
+
+    #region 커튼은 언제나 '출발 씬'에서 태어난다
 
     // ── 커튼은 언제나 '출발 씬'에서 태어난다 ─────────────────────
     //
@@ -90,6 +99,32 @@ public class LoadingSceneController : MonoBehaviour
     //   뿐이고(Directional Light·EventSystem·Main Camera 셋), 커튼은 그 위를 건너간다.
     private const string CURTAIN_RESOURCE_PATH = "LoadingCurtain";
     private bool inLoadingScene;               // 커튼이 센터 상태로 Loading 씬에 도착했는지
+
+    #endregion
+
+    #region 게임 씬 이름
+
+    // ═══════════════════════════════════════════════════════
+    //목적지가 게임 씬인지 판별하는 데만 쓴다(입장이냐 퇴장이냐로 커튼 패널이 갈린다).
+    //씬 이름을 바꿨다면 인스펙터에서 같이 고칠 것
+    [Header("게임 씬 이름")]
+    [SerializeField] private string lanAbsorbSceneName = "Game_io_AbsorbMode";
+    [SerializeField] private string lanPushSceneName = "Game_io_PushMode";
+
+    #endregion
+
+    /// <summary>
+    /// 지금 커튼이 전환을 주도하고 있는가.
+    ///
+    /// ★ IsPresenting과 다르다
+    ///   IsPresenting은 "커튼이 화면을 덮고 있는가"라서, 커튼이 걷히기 시작하면
+    ///   false가 된다(도착 씬 연출을 시작해도 좋다는 신호). 하지만 그때도 커튼
+    ///   오브젝트는 아직 살아 전환을 마무리하는 중이다.
+    ///
+    ///   "새 전환을 시작해도 되는가"를 물으려면 이쪽을 봐야 한다.
+    ///   진행 중인데 또 시작하면 앞의 전환을 덮어써서 씬이 꼬인다.
+    /// </summary>
+    public static bool IsTransitioning { get { return instance != null; } }
 
     private void Awake()
     {
@@ -198,13 +233,6 @@ public class LoadingSceneController : MonoBehaviour
         targetIsGameScene = IsGameScene(targetScene);
         activePanel = targetIsGameScene ? toGamePanel : toMainOrResultPanel;
     }
-
-    // ═══════════════════════════════════════════════════════
-    //목적지가 게임 씬인지 판별하는 데만 쓴다(입장이냐 퇴장이냐로 커튼 패널이 갈린다).
-    //씬 이름을 바꿨다면 인스펙터에서 같이 고칠 것
-    [Header("게임 씬 이름")]
-    [SerializeField] private string lanAbsorbSceneName = "Game_io_AbsorbMode";
-    [SerializeField] private string lanPushSceneName = "Game_io_PushMode";
 
     private bool IsGameScene(string sceneName)
     {

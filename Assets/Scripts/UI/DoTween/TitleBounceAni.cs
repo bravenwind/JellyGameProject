@@ -5,11 +5,21 @@ using UnityEngine.UI;
 
 public class TitleBounceAni : MonoBehaviour
 {
+    #region Target UI (RectTransform)
+
     [Header("Target UI (RectTransform)")]
     public RectTransform target;
 
+    #endregion
+
+    #region Optional: Root Canvas (if null, auto)
+
     [Header("Optional: Root Canvas (if null, auto)")]
     public Canvas rootCanvas;
+
+    #endregion
+
+    #region Shake Settings
 
     [Header("Shake Settings")]
     public float duration = 0.6f;
@@ -19,6 +29,10 @@ public class TitleBounceAni : MonoBehaviour
     public bool fadeOut = true;
     [SerializeField] private ShakeRandomnessMode randomnessMode = ShakeRandomnessMode.Full;
 
+    #endregion
+
+    #region Options
+
     [Header("Options")]
     public bool playOnEnable = true;
     public bool ignoreTimeScale = true;
@@ -26,9 +40,15 @@ public class TitleBounceAni : MonoBehaviour
     [SerializeField] private bool playAfterLayoutReady = true;
     [SerializeField] private int delayFrames = 1;
 
+    #endregion
+
+    #region 상태
+
     private Tween shakeTween;
     private Vector3 baseScale;
     private Coroutine playRoutine;
+
+    #endregion
 
     private void Reset()
     {

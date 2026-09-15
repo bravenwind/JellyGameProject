@@ -12,6 +12,15 @@ namespace JellyNet
             Snapshot
         }
 
+        struct Snap
+        {
+            public double Time;
+            public Vector3 Pos;
+            public float Yaw;
+        }
+
+        #region 정적 필드
+
         public static Mode CurrentMode = Mode.Snapshot;
 
         //송신 주기(20Hz = 50ms)의 3배. 2배(0.1s)로는 프레임이 한 번만 밀려도
@@ -20,12 +29,9 @@ namespace JellyNet
 
         public static float LerpSpeed = 12f;
 
-        struct Snap
-        {
-            public double Time;
-            public Vector3 Pos;
-            public float Yaw;
-        }
+        #endregion
+
+        #region 상태
 
         //보낸 사람의 시계를 내 시계로 옮기는 기준점.
         //  내 시각 = timeBase + (보낸 시각 - senderBase)
@@ -34,9 +40,6 @@ namespace JellyNet
         private float senderBase;
         private bool hasBase;
 
-        //기준점이 이만큼 어긋나면 다시 잡는다. 프레임 급락·긴 끊김·클럭 드리프트 대응
-        private const double RESYNC_THRESHOLD = 0.5;
-
         private NetIdentity id;
         private readonly List<Snap> snaps = new List<Snap>();
         private float sendTimer;
@@ -44,6 +47,15 @@ namespace JellyNet
         private Vector3 targetPos;
         private float targetYaw;
         private bool hasTarget;
+
+        #endregion
+
+        #region 상수
+
+        //기준점이 이만큼 어긋나면 다시 잡는다. 프레임 급락·긴 끊김·클럭 드리프트 대응
+        private const double RESYNC_THRESHOLD = 0.5;
+
+        #endregion
 
         private void Awake()
         {

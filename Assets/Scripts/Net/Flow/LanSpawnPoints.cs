@@ -6,7 +6,17 @@ namespace JellyNet
 {
     public class LanSpawnPoints : MonoBehaviour
     {
+        #region 상태
+
         public static LanSpawnPoints Instance { get; private set; }
+
+        private readonly List<Vector3> slots = new List<Vector3>();
+        private bool prepared;
+        private int nextSlot;
+
+        #endregion
+
+        #region 스폰 포인트
 
         [Header("스폰 포인트")]
         [Tooltip("직접 지정. 비워두면 태그로 자동 탐색한다.")]
@@ -15,15 +25,17 @@ namespace JellyNet
         [Tooltip("자동 탐색에 쓸 태그")]
         [SerializeField] private string spawnPointTag = "SpawnPoint";
 
+        #endregion
+
+        #region 가상 포인트 (슬롯이 부족할 때)
+
         [Header("가상 포인트 (슬롯이 부족할 때)")]
         [Tooltip("최소 이만큼의 슬롯을 확보한다")]
         [SerializeField] private int minSlots = 8;
         [Tooltip("가상 포인트를 만들 때 시드에서 떨어뜨릴 거리")]
         [SerializeField] private float virtualRadius = 8f;
 
-        private readonly List<Vector3> slots = new List<Vector3>();
-        private bool prepared;
-        private int nextSlot;
+        #endregion
 
         public int SlotCount { get { return slots.Count; } }
 

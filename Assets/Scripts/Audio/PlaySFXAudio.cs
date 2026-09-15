@@ -3,18 +3,36 @@ using UnityEngine.SceneManagement;
 
 public class PlaySFXAudio : MonoBehaviour
 {
+    #region 정적 필드
+
     public static PlaySFXAudio Instance;
+
+    #endregion
+
+    #region Audio Sources
 
     [Header("Audio Sources")]
     [SerializeField] private AudioSource fxAudioSource;   // 효과음용 (버튼, 점프 등)
     [SerializeField] private AudioSource walkAudioSource; // 걷기 전용 (반복 재생용)
 
+    #endregion
+
+    #region Buttons
+
     [Header("Buttons")]
     public AudioClip button1Audio;
     public AudioClip buttonClickAudio;
 
+    #endregion
+
+    #region Color Mix
+
     [Header("Color Mix")]
     public AudioClip colorMix2Audio;
+
+    #endregion
+
+    #region Actions
 
     [Header("Actions")]
     public AudioClip scaleUpAudio;
@@ -22,9 +40,20 @@ public class PlaySFXAudio : MonoBehaviour
     public AudioClip milkWalkAudio;
     public AudioClip jumpAudio;
 
+    #endregion
+
+    #region Game State
+
     [Header("Game State")]
     public bool isSteppingMilk;
+
+    #endregion
+
+    #region 상태
+
     private bool prevIsSteppingMilk;
+
+    #endregion
 
     private void Awake()
     {
@@ -129,5 +158,4 @@ public class PlaySFXAudio : MonoBehaviour
         Debug.Log("🔊 [Sound] 점프 소리");
         fxAudioSource.PlayOneShot(jumpAudio);
     }
-
 }

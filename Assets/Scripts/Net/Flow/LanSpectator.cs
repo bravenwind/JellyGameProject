@@ -8,18 +8,9 @@ namespace JellyNet
     //대상이 도중에 죽어도 알아서 넘기지 않는다. 화살표를 눌렀을 때만 옮긴다
     public class LanSpectator : MonoBehaviour
     {
+        #region 상태
+
         public static LanSpectator Instance { get; private set; }
-
-        [Header("UI")]
-        [Tooltip("← 이름 → 묶음. 관전 중에만 켜진다.")]
-        [SerializeField] private GameObject bar;
-
-        [Tooltip("지금 보고 있는 참가자 이름.")]
-        [SerializeField] private TextMeshProUGUI targetNameText;
-
-        [Header("표시")]
-        [SerializeField] private string deadSuffix = " (탈락)";
-        [SerializeField] private string noTargetLabel = "남은 참가자 없음";
 
         public bool IsSpectating { get; private set; }
 
@@ -29,6 +20,30 @@ namespace JellyNet
 
         private TopDownCameraFollow topDown;
         private MainCamera_Action camAction;
+
+        //관전 중에 대상이 탈락하면 이름 뒤에 표시만 바꾼다. 카메라는 그대로 둔다
+        private float refreshTimer;
+
+        #endregion
+
+        #region UI
+
+        [Header("UI")]
+        [Tooltip("← 이름 → 묶음. 관전 중에만 켜진다.")]
+        [SerializeField] private GameObject bar;
+
+        [Tooltip("지금 보고 있는 참가자 이름.")]
+        [SerializeField] private TextMeshProUGUI targetNameText;
+
+        #endregion
+
+        #region 표시
+
+        [Header("표시")]
+        [SerializeField] private string deadSuffix = " (탈락)";
+        [SerializeField] private string noTargetLabel = "남은 참가자 없음";
+
+        #endregion
 
         private void Awake()
         {
@@ -162,9 +177,6 @@ namespace JellyNet
 
             targetNameText.text = currentName + (IsCurrentAlive() ? "" : deadSuffix);
         }
-
-        //관전 중에 대상이 탈락하면 이름 뒤에 표시만 바꾼다. 카메라는 그대로 둔다
-        private float refreshTimer;
 
         private void Update()
         {

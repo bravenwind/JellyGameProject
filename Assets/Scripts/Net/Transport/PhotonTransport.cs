@@ -44,6 +44,68 @@ namespace JellyNet
     public class PhotonTransport : INetTransport,
         IConnectionCallbacks, IInRoomCallbacks, IMatchmakingCallbacks
     {
+        #region 상태
+
+        // ★ 5.1 에서 이름이 바뀌었다
+        //   LoadBalancingClient 는 ExitGames.Client.Photon 에 남은 [Obsolete] 껍데기이고,
+        //   본체는 Photon.Realtime.RealtimeClient 다. 같은 이유로 EventData 등이 들어 있던
+        //   ExitGames.Client.Photon 네임스페이스도 Photon.Client 로 옮겨갔다.
+        //   (뼈대를 세울 땐 SDK가 없어 4.x 시절 이름으로 적혀 있었다)
+        //
+        /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
+        public RealtimeClient Client { get; private set; }
+
+        /// <summary>접속이 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
+        public string LastError { get; private set; }
+
+        public Action<string> OnLog;
+        public Action<string> OnError;
+
+        #endregion
+
+        #region 보내기
+
+        // ★ Photon 에는 "한 명 빼고"가 없다
+        //   방에 있는 사람에서 그 한 명만 뺀 명단을 직접 만들어 넘겨야 한다.
+        //   여기는 스폰 중계처럼 자주 도는 자리라 매번 배열을 새로 만들면 그대로
+        //   쓰레기가 된다. 인원이 바뀔 때만 다시 짓고 평소엔 재사용한다.
+        private int[] othersCache;
+        private int othersCacheExcept = -1;
+        private int othersCacheStamp = -1;
+
+        //인원이 바뀔 때마다 올린다. 값 자체에 뜻은 없고 '달라졌다'만 본다
+        private int rosterStamp;
+
+        #endregion
+
+        #region 받기
+
+        private readonly NetReader reader = new NetReader();
+
+        #endregion
+
+        #region 라우팅 — LanTransport 와 같은 표를 쓴다
+
+        private readonly NetRouteTable routes;
+
+        //일어난 일을 알리는 게시판. NetManager 가 하나 만들어 모두에게 꽂아준다
+        private readonly NetEvents events;
+
+        #endregion
+
+        #region 수명
+
+        private bool shuttingDown;
+
+        #endregion
+
+        #region Photon 콜백
+
+        //내가 방을 떠나는 중인가. 이 동안 오는 방 이벤트는 뒷정리일 뿐이다
+        private bool leavingRoom;
+
+        #endregion
+
         // ═══════════════════════════════════════════════════════
         //  메시지 모양 — [len4][type1][body] ↔ RaiseEvent(byte, byte[])
         // ═══════════════════════════════════════════════════════
@@ -91,16 +153,7 @@ namespace JellyNet
         //  상태
         // ═══════════════════════════════════════════════════════
 
-        // ★ 5.1 에서 이름이 바뀌었다
-        //   LoadBalancingClient 는 ExitGames.Client.Photon 에 남은 [Obsolete] 껍데기이고,
-        //   본체는 Photon.Realtime.RealtimeClient 다. 같은 이유로 EventData 등이 들어 있던
-        //   ExitGames.Client.Photon 네임스페이스도 Photon.Client 로 옮겨갔다.
-        //   (뼈대를 세울 땐 SDK가 없어 4.x 시절 이름으로 적혀 있었다)
-        //
-        /// <summary>방 조작(만들기·참가·로비)은 PhotonSession 이 이 위에서 한다.</summary>
-        public RealtimeClient Client { get; private set; }
-
-        /// <summary>
+/// <summary>
         /// 마스터 서버까지 붙었는가. 방 만들기·참가·로비는 이 뒤에야 할 수 있다.
         ///
         /// ★ IsConnectedAndReady 만으로는 모자란다
@@ -121,9 +174,6 @@ namespace JellyNet
                     && !Client.InRoom;
             }
         }
-
-        /// <summary>접속이 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
-        public string LastError { get; private set; }
 
         /// <summary>
         /// 릴레이에 붙는다. 이미 붙어 있으면 아무것도 하지 않는다.
@@ -163,11 +213,7 @@ namespace JellyNet
             return true;
         }
 
-        public Action<string> OnLog;
-        public Action<string> OnError;
-
-
-        // ★ ActorNumber 를 그대로 쓴다. 번역표는 두지 않는다
+// ★ ActorNumber 를 그대로 쓴다. 번역표는 두지 않는다
         //   이 게임에서 OwnerId 는 "책임"이고 호스트는 언제나 1이다(NetHost.HOST_ID).
         //   봇이 전부 호스트 소유라, 호스트 번호가 1이 아니면 호스트가 봇을 자기 것으로
         //   알아보지 못해 아무도 봇을 굴리지 않는다. 에러 하나 없이 게임만 이상해진다.
@@ -223,17 +269,6 @@ namespace JellyNet
             //자기 자신에게는 보내지 않는다. 호스트는 이미 로컬에서 처리했다 — LAN 과 같다
             Raise(w, ReceiverGroup.Others, null);
         }
-
-        // ★ Photon 에는 "한 명 빼고"가 없다
-        //   방에 있는 사람에서 그 한 명만 뺀 명단을 직접 만들어 넘겨야 한다.
-        //   여기는 스폰 중계처럼 자주 도는 자리라 매번 배열을 새로 만들면 그대로
-        //   쓰레기가 된다. 인원이 바뀔 때만 다시 짓고 평소엔 재사용한다.
-        private int[] othersCache;
-        private int othersCacheExcept = -1;
-        private int othersCacheStamp = -1;
-
-        //인원이 바뀔 때마다 올린다. 값 자체에 뜻은 없고 '달라졌다'만 본다
-        private int rosterStamp;
 
         public void BroadcastExcept(int exceptPeerId, NetWriter w)
         {
@@ -326,8 +361,6 @@ namespace JellyNet
             Dispatch((MsgType)e.Code, e.Sender, body);
         }
 
-        private readonly NetReader reader = new NetReader();
-
         private void Dispatch(MsgType type, int senderId, byte[] body)
         {
             //타입은 이벤트 코드로 왔다. 여기서 ReadMsgType() 을 부르면 안 된다(위 설명 참고)
@@ -348,16 +381,11 @@ namespace JellyNet
         // 온라인으로 방에 들어가면 메시지는 오는데 표가 비어 있었다.
         // 자세한 이야기는 NetRouteTable 머리말에.
 
-        private readonly NetRouteTable routes;
-
-        public PhotonTransport(NetRouteTable routes, NetEvents events)
+public PhotonTransport(NetRouteTable routes, NetEvents events)
         {
             this.routes = routes;
             this.events = events;
         }
-
-        //일어난 일을 알리는 게시판. NetManager 가 하나 만들어 모두에게 꽂아준다
-        private readonly NetEvents events;
 
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
@@ -449,8 +477,6 @@ namespace JellyNet
             Client.Disconnect();
         }
 
-        private bool shuttingDown;
-
         private void Teardown()
         {
             if (Client == null)
@@ -502,9 +528,6 @@ namespace JellyNet
             LogError("방장이 나갔습니다. 게임을 종료합니다.");
             events.RaiseConnectionLost();
         }
-
-        //내가 방을 떠나는 중인가. 이 동안 오는 방 이벤트는 뒷정리일 뿐이다
-        private bool leavingRoom;
 
         public void OnCreatedRoom()
         {

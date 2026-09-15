@@ -20,6 +20,8 @@ using JellyNet;
 /// </summary>
 public static class EntityRegistry
 {
+    #region 정적 필드
+
     // 플레이어의 기준 컴포넌트는 LanPlayerState다. 등록 경로가 그 OnEnable 하나뿐이라,
     // 프리팹에서 빠지면 Players가 항상 0개가 된다.
     // 링 붕괴·AI 탐지·점수판·화면밖 표시가 전부 이 목록을 순회하므로,
@@ -33,6 +35,33 @@ public static class EntityRegistry
 
     private static bool playersDirty = true;
     private static bool jelliesDirty = true;
+
+    #endregion
+
+    #region 참가자 = 사람 + 봇
+
+    // ─────────────────────────────────────────────────────────
+    //  참가자 = 사람 + 봇
+    // ─────────────────────────────────────────────────────────
+    //
+    // ★ 왜 따로 두나
+    //   순위표·표적 선정·탈락 판정처럼 "사람이든 봇이든 상관없는" 질문이 많다.
+    //   그런 곳이 Players 한 번, Bots 한 번 두 벌 루프를 돌고 있었고,
+    //   두 벌이면 한쪽만 고쳐지는 일이 반드시 생긴다(봇 점수 미방송 버그가 그랬다).
+    //   INetEntity로 묶어 한 벌로 돈다.
+    //
+    //   봇의 INetEntity 구현체는 AIPlayerMovement가 아니라 LanBotState다 —
+    //   사람 쪽 짝(LanPlayerState)과 층을 맞추기 위해서다. 그래서 등록도 거기서 한다.
+    //
+    //   예전엔 Bots 목록이 따로 있었는데 담는 타입이 AIPlayerMovement(두뇌)라
+    //   Players(LanPlayerState, 상태)와 층이 어긋났다. 그래서 같은 질문을 하면서도
+    //   사람은 p.ScaleValue, 봇은 b.GetMyAuthorityScale()처럼 경로가 갈렸고
+    //   조건 하나가 한쪽에만 빠지는 사고가 반복됐다. 목록을 지워서 갈라질 자리를 없앴다.
+    private static readonly HashSet<INetEntity> entities = new HashSet<INetEntity>();
+    private static List<INetEntity> entitiesSnapshot = new List<INetEntity>();
+    private static bool entitiesDirty = true;
+
+    #endregion
 
     /// <summary>
     /// <b>사람만.</b> "이 방에 사람이 몇 명인가", "이름 패킷을 어느 캐릭터에 꽂나"처럼
@@ -64,27 +93,6 @@ public static class EntityRegistry
             return jelliesSnapshot;
         }
     }
-
-    // ─────────────────────────────────────────────────────────
-    //  참가자 = 사람 + 봇
-    // ─────────────────────────────────────────────────────────
-    //
-    // ★ 왜 따로 두나
-    //   순위표·표적 선정·탈락 판정처럼 "사람이든 봇이든 상관없는" 질문이 많다.
-    //   그런 곳이 Players 한 번, Bots 한 번 두 벌 루프를 돌고 있었고,
-    //   두 벌이면 한쪽만 고쳐지는 일이 반드시 생긴다(봇 점수 미방송 버그가 그랬다).
-    //   INetEntity로 묶어 한 벌로 돈다.
-    //
-    //   봇의 INetEntity 구현체는 AIPlayerMovement가 아니라 LanBotState다 —
-    //   사람 쪽 짝(LanPlayerState)과 층을 맞추기 위해서다. 그래서 등록도 거기서 한다.
-    //
-    //   예전엔 Bots 목록이 따로 있었는데 담는 타입이 AIPlayerMovement(두뇌)라
-    //   Players(LanPlayerState, 상태)와 층이 어긋났다. 그래서 같은 질문을 하면서도
-    //   사람은 p.ScaleValue, 봇은 b.GetMyAuthorityScale()처럼 경로가 갈렸고
-    //   조건 하나가 한쪽에만 빠지는 사고가 반복됐다. 목록을 지워서 갈라질 자리를 없앴다.
-    private static readonly HashSet<INetEntity> entities = new HashSet<INetEntity>();
-    private static List<INetEntity> entitiesSnapshot = new List<INetEntity>();
-    private static bool entitiesDirty = true;
 
     public static IReadOnlyList<INetEntity> Entities
     {

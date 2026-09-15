@@ -5,36 +5,59 @@ using UnityEngine;
 
 public class LoadingBGSlideAni : MonoBehaviour
 {
+    #region Target UI
+
     [Header("Target UI")]
     [SerializeField] private RectTransform target;
+
+    #endregion
+
+    #region Positions (AnchoredPosition)
 
     [Header("Positions (AnchoredPosition)")]
     [SerializeField] private Vector2 leftPos = new Vector2(-1200f, 0f);
     [SerializeField] private Vector2 centerPos = new Vector2(0f, 0f);
     [SerializeField] private Vector2 rightPos = new Vector2(1200f, 0f);
 
+    #endregion
+
+    #region Timings
+
     [Header("Timings")]
     [SerializeField] private float inDuration = 0.35f;     // 왼->센터 이동 시간
     [Tooltip("로딩 화면이 '최소한' 이 시간 동안은 떠 있어야 한다(최소 표시 시간). " +
              "실제로 나가는 시점은 이 시간이 지나고 '다음 씬이 준비된' 뒤다.")]
     [SerializeField] private float holdSeconds = 2.5f;   // 센터에서 유지되는 최소 시간
-    public float HoldSeconds { get { return holdSeconds; } }
+
     [SerializeField] private float outDuration = 0.35f;    // 센터->오른쪽 이동 시간
+
+    #endregion
+
+    #region Ease
 
     [Header("Ease")]
     [SerializeField] private Ease inEase = Ease.OutCubic;
     [SerializeField] private Ease outEase = Ease.InCubic;
 
+    #endregion
+
+    #region Options
+
     [Header("Options")]
     [SerializeField] private bool ignoreTimeScale = true;
     [SerializeField] private bool deactivateAfterOut = false; // 나가고 비활성화할지
 
-    // 외부(LoadingSceneController)가 슬라이드아웃 종료 타이밍을 알 수 있도록 노출
-    public float OutDuration => outDuration;
+    #endregion
+
+    #region 이벤트·콜백
 
     // 센터->오른쪽(퇴장) 이동을 '시작'하는 순간 발생. 자식 LoadingCenterMultiAni가 이 시점에
     // Phase3(사라짐)를 재생해 BG 슬라이드와 동시에 나가도록 동기화하는 데 쓴다.
     public event Action ExitStarted;
+
+    #endregion
+
+    #region 전환 계획 (LoadingSceneController가 주입)
 
     // ─────────────────────────────────────────────────────────
     // 전환 계획 (LoadingSceneController가 주입)
@@ -59,6 +82,13 @@ public class LoadingBGSlideAni : MonoBehaviour
 
     private Coroutine routine;
     private Sequence moveSeq;
+
+    #endregion
+
+    public float HoldSeconds { get { return holdSeconds; } }
+
+    // 외부(LoadingSceneController)가 슬라이드아웃 종료 타이밍을 알 수 있도록 노출
+    public float OutDuration => outDuration;
 
     private void Reset()
     {

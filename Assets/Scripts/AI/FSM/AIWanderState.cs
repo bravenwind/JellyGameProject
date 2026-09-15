@@ -10,11 +10,17 @@ using UnityEngine;
 
 public class AIWanderState : AIBaseState
 {
+    #region 상태
+
     private Vector3 wanderTarget;
     private bool    hasTarget    = false;
     private float   lastSetTime  = -10f;
 
     private float retryTimer = 0f; // 목적지 탐색 실패 시 쿨다운
+
+    #endregion
+
+    #region 상수
 
     //목적지에 완전히 도착하기 전에 다음 목적지를 잡는 거리.
     //도착까지 기다리면 감속 → 정지 → 재탐색이 되어 배회가 뚝뚝 끊긴다
@@ -24,6 +30,8 @@ public class AIWanderState : AIBaseState
 
     //SetPath 직후 한두 프레임은 hasPath/remainingDistance가 안정되지 않는다
     private const float PATH_SETTLE = 0.5f;
+
+    #endregion
 
     public AIWanderState(AIPlayerMovement ai) : base(ai) { }
 

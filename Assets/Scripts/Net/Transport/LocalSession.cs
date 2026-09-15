@@ -20,6 +20,13 @@ namespace JellyNet
         //참가할 때 쓰는 주소는 고른 방(RoomHandle)에서 나오므로 따로 들고 있지 않는다
         private int port;
 
+        //목록은 초당 몇 번씩 읽히므로 매번 새 리스트를 만들지 않는다
+        private readonly List<RoomEntry> handles = new List<RoomEntry>();
+
+        //방이 하나도 없을 때의 Signature 값과 겹치지 않도록 처음엔 일부러 다른 값을 둔다.
+        //겹치면 목록이 빈 채로 시작할 때 첫 알림이 나가지 않는다
+        private int signature = -1;
+
         public bool IsLocal { get { return true; } }
 
         //UDP 를 듣기 시작하면 곧바로 준비된 것이다. 붙을 서버가 없다
@@ -169,9 +176,6 @@ namespace JellyNet
                 LanDiscovery.Instance.StopBeacon();
         }
 
-        //목록은 초당 몇 번씩 읽히므로 매번 새 리스트를 만들지 않는다
-        private readonly List<RoomEntry> handles = new List<RoomEntry>();
-
         public IEnumerable<RoomEntry> Rooms { get { return handles; } }
 
         /// <summary>
@@ -232,10 +236,6 @@ namespace JellyNet
                 return h;
             }
         }
-
-        //방이 하나도 없을 때의 Signature 값과 겹치지 않도록 처음엔 일부러 다른 값을 둔다.
-        //겹치면 목록이 빈 채로 시작할 때 첫 알림이 나가지 않는다
-        private int signature = -1;
 
         //빈 사유를 채우는 일은 게시판이 한다. 세션마다 같은 문장을 두 벌 들고 있었다
         private void Fail(string reason)

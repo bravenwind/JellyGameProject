@@ -4,21 +4,43 @@ using UnityEngine;
 
 public class MainCamera_Action : MonoBehaviour
 {
+    #region 인스펙터
+
     [SerializeField] private Transform target;
-    public Transform Target { get { return target; } }
+
+    #endregion
+
+    #region Offset (Local Space)
 
     [Header("Offset (Local Space)")]
     public Vector3 offset = new Vector3(0f, 10f, -10f);
+
+    #endregion
+
+    #region Camera Rotation
 
     [Header("Camera Rotation")]
     [SerializeField] private float pitch = 0.0f;   // X
     [SerializeField] private float yaw = -45f;    // Y
 
-    // 기존 Lerp 대신 SmoothDamp 사용 권장
-    private Vector3 currentVelocity; // SmoothDamp용 참조 변수
     [SerializeField] private float smoothTime = 0.1f;  // 작을수록 빠르게 따라붙는다
 
+    #endregion
+
+    #region 상태
+
+    // 기존 Lerp 대신 SmoothDamp 사용 권장
+    private Vector3 currentVelocity; // SmoothDamp용 참조 변수
+
     Rigidbody targetRb;
+
+    // 변수 선언부 추가
+    private Queue<float> cameraSizeQueue = new Queue<float>();
+    private bool isCameraScaling = false;
+
+    #endregion
+
+    public Transform Target { get { return target; } }
 
     void Awake()
     {
@@ -62,10 +84,6 @@ public class MainCamera_Action : MonoBehaviour
         );
     }
 
-    // 변수 선언부 추가
-    private Queue<float> cameraSizeQueue = new Queue<float>();
-    private bool isCameraScaling = false;
-
     // 🔥 수정됨: 큐에 크기 변화량(+ 또는 -)만 등록합니다.
     public void ScaleIncreased()
     {
@@ -108,5 +126,4 @@ public class MainCamera_Action : MonoBehaviour
 
         Camera.main.orthographicSize = targetSize; // 정확한 값으로 안착
     }
-
 }

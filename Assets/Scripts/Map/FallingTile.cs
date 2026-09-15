@@ -5,6 +5,8 @@ using JellyNet;
 
 public class FallingTile : MonoBehaviour
 {
+    #region 디버그
+
     [Header("디버그")]
     [Tooltip("AwakePhysicsOnTile이 사용하는 OverlapBox 범위를 Scene 뷰에 시각화")]
     [SerializeField] private bool drawOverlapGizmo = false;   // 빌드에서 붕괴 때마다 Debug.Log가 쏟아지지 않도록 기본 off (G3)
@@ -25,16 +27,14 @@ public class FallingTile : MonoBehaviour
     // 경고 단계 색 변경용. MaterialPropertyBlock으로
     // 칠하면 .material처럼 인스턴스를 복제하지 않아 배칭이 유지된다. (G3)
 
+    #endregion
+
+    #region 상태
+
     // TileCollapseManager가 붕괴 예약 시 채워주는 그리드 좌표. carve 시점에 '허공'으로 마킹할 때 사용.
     //격자 좌표. TileCollapseManager가 타일을 등록하면서 넣어준다
     public int GridX { get; private set; } = -1;
     public int GridZ { get; private set; } = -1;
-
-    public void SetGridPos(int x, int z)
-    {
-        GridX = x;
-        GridZ = z;
-    }
 
     private Coroutine idleCoroutine;
     private Vector3 originalPos;
@@ -48,6 +48,14 @@ public class FallingTile : MonoBehaviour
 
     // 디버그용: 최근 AwakePhysicsOnTile이 돌아간 시각. 기즈모 강조 표시에 쓴다
     private float lastOverlapTime = -999f;
+
+    #endregion
+
+    public void SetGridPos(int x, int z)
+    {
+        GridX = x;
+        GridZ = z;
+    }
 
     private void EnsureInit()
     {

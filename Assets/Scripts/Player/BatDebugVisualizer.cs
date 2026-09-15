@@ -2,13 +2,23 @@
 
 public class BatDebugVisualizer : MonoBehaviour
 {
+    #region 시각화 설정
+
     [Header("시각화 설정")]
     [SerializeField] private bool showInGameView = true;
     [SerializeField] private Color arcColor = new Color(1f, 0.4f, 0f, 0.6f);
     [SerializeField] private Color arcHitColor = new Color(1f, 0f, 0f, 0.8f);
     [SerializeField] private Color rangeColor = new Color(1f, 1f, 0f, 0.3f);
 
+    #endregion
+
+    #region 정적 필드
+
     private static BatDebugVisualizer instance;
+
+    #endregion
+
+    #region 상태
 
     private Transform swingOwner;
     private float swingRange;
@@ -17,7 +27,13 @@ public class BatDebugVisualizer : MonoBehaviour
     private float swingElapsed;
     private bool isSwinging;
 
+    #endregion
+
+    #region 상수
+
     private const int ARC_SEGMENTS = 20;
+
+    #endregion
 
     private void Awake()
     {

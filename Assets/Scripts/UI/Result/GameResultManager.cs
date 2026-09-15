@@ -16,9 +16,15 @@ using UnityEngine.UI;
 /// </summary>
 public class GameResultManager : MonoBehaviour
 {
+    #region 프리팹
+
     [Header("프리팹")]
     [SerializeField] private GameObject playerJellyPrefab;
     [SerializeField] private GameObject botJellyPrefab;
+
+    #endregion
+
+    #region 배치 설정
 
     [Header("배치 설정")]
     // ★ 예전엔 rightAnchor(= 3위가 놓일 우측 끝)였다
@@ -34,6 +40,10 @@ public class GameResultManager : MonoBehaviour
     [SerializeField] private Vector3 podiumCenter = new Vector3(0f, 0f, 0f);
     [Tooltip("젤리 사이 기본 여유 공간 (월드 단위)")]
     [SerializeField] private float padding = 1.0f;
+
+    #endregion
+
+    #region 카메라
 
     [Header("카메라")]
     [SerializeField] private Camera resultCamera;
@@ -61,12 +71,20 @@ public class GameResultManager : MonoBehaviour
     [Tooltip("로딩 커튼이 걷힐 때까지 카메라 시퀀스 시작을 대기하는 최대 시간(신호 유실 대비 안전장치)")]
     [SerializeField] private float curtainWaitTimeout = 6f;
 
+    #endregion
+
+    #region 색상
+
     [Header("색상")]
     [Tooltip("BaseColor_02(밝은 색)를 만들 때 흰색과의 보간 비율")]
     [Range(0f, 1f)] [SerializeField] private float baseColor02Lightness = 0.6f;
     [SerializeField] private string baseColor01Property = "_BaseColor_01";
     [SerializeField] private string baseColor02Property = "_BaseColor_02";
     [SerializeField] private string fresnelProperty = "_FresnelColor";
+
+    #endregion
+
+    #region UI (선택)
 
     [Header("UI (선택)")]
     [SerializeField] private TextMeshProUGUI rankAnnouncementText;
@@ -78,11 +96,58 @@ public class GameResultManager : MonoBehaviour
     [SerializeField] private GameObject buttonMainMenu;
     [SerializeField] private GameObject buttonGameQuit;
 
+    #endregion
+
+    #region 상태
+
     private readonly List<GameObject> jellies = new List<GameObject>();
     private readonly List<int> displayOrderRanks = new List<int>();
     private readonly List<CinemachineCamera> focusCams = new List<CinemachineCamera>();
     private CinemachineCamera overviewCam;
     private CinemachineBrain brain;
+
+    #endregion
+
+    #region 배치
+
+    // ★ '인게임 프리팹을 런타임에 분해하기'를 걷어냈다
+    //   예전엔 NetworkPlayer_Bear / AIPlayer_Bear를 그대로 가져와, <b>비활성 상태로
+    //   Instantiate해 Awake를 막고</b> 그 틈에 컴포넌트 일곱 종을 DestroyImmediate로
+    //   뜯어낸 뒤 켰다. 콜라이더·Rigidbody·Cloth는 하나씩 꺼서 재웠다.
+    //
+    //   문제는 그 목록이 <b>인게임 프리팹을 따라다녀야 했다</b>는 것이다. 프리팹에
+    //   컴포넌트가 하나 늘면 여기도 한 줄 늘려야 하는데, 늘리는 걸 잊으면 아무 신호
+    //   없이 결과 화면까지 따라온다. 실제로 LevelUpFloaterPool이 목록에 없어서 결과
+    //   젤리마다 성장 팝업 풀이 딸려 왔다. 그리고 씬을 보는 사람은 프리팹에 무엇이
+    //   붙어 있는지로는 결과 화면에 무엇이 도는지 알 수 없었다.
+    //
+    //   지금은 NetworkPlayer_Bear_Result / AIPlayer_Bear_Result 가 결과 화면에 필요한
+    //   것만 들고 있다. 코드는 낳아서 놓고, 모드에 따라 달라지는 것 하나(배트)만 정한다.
+
+    private const string BatPivotName = "BatPivot";
+
+    #endregion
+
+    #region 몸 치수의 출처
+
+    // ── 몸 치수의 출처 ──────────────────────────────────────
+    //
+    // ★ 가로 반지름은 NavMesh 에이전트 타입 설정에서 가져온다
+    //   예전엔 인스펙터의 baseRadius(0.5)를 썼는데, 같은 몸의 굵기를 재는 값이
+    //   NavMesh 에이전트 타입 설정(0.65)에도 따로 있었다. 출처가 둘이라 한쪽만 고치면
+    //   "길찾기가 보는 몸"과 "결과 화면이 보는 몸"이 조용히 어긋난다.
+    //   NavMeshUtil이 이미 그 값을 유일한 출처로 감싸고 있으므로 거기서 읽는다.
+    //
+    // ★ 세로는 가로와 다르다 — 그래서 프리팹의 두 지점을 쓴다
+    //   젤리는 구가 아니라 세로로 긴 몸이다(크기 1 기준 반높이 0.807 vs 반지름 0.65).
+    //   그런데 카메라는 '중심 = 발밑에서 반지름만큼 위'로 잡고 있었다. 반지름은 가로
+    //   치수라 그 점은 실제 중심이 아니었고, 큰 젤리일수록 더 위를 봤다.
+    //   프리팹에는 BottomTransform·TopTransform이 이미 있다(바닥 정렬과 이름표가 쓴다).
+    //   그 둘의 중점이 진짜 중심이고 간격의 절반이 진짜 반높이다.
+    private const string BottomAnchorName = "BottomTransform";
+    private const string TopAnchorName = "TopTransform";
+
+    #endregion
 
     private void Start()
     {
@@ -224,22 +289,6 @@ public class GameResultManager : MonoBehaviour
         }
     }
 
-    // ★ '인게임 프리팹을 런타임에 분해하기'를 걷어냈다
-    //   예전엔 NetworkPlayer_Bear / AIPlayer_Bear를 그대로 가져와, <b>비활성 상태로
-    //   Instantiate해 Awake를 막고</b> 그 틈에 컴포넌트 일곱 종을 DestroyImmediate로
-    //   뜯어낸 뒤 켰다. 콜라이더·Rigidbody·Cloth는 하나씩 꺼서 재웠다.
-    //
-    //   문제는 그 목록이 <b>인게임 프리팹을 따라다녀야 했다</b>는 것이다. 프리팹에
-    //   컴포넌트가 하나 늘면 여기도 한 줄 늘려야 하는데, 늘리는 걸 잊으면 아무 신호
-    //   없이 결과 화면까지 따라온다. 실제로 LevelUpFloaterPool이 목록에 없어서 결과
-    //   젤리마다 성장 팝업 풀이 딸려 왔다. 그리고 씬을 보는 사람은 프리팹에 무엇이
-    //   붙어 있는지로는 결과 화면에 무엇이 도는지 알 수 없었다.
-    //
-    //   지금은 NetworkPlayer_Bear_Result / AIPlayer_Bear_Result 가 결과 화면에 필요한
-    //   것만 들고 있다. 코드는 낳아서 놓고, 모드에 따라 달라지는 것 하나(배트)만 정한다.
-
-    private const string BatPivotName = "BatPivot";
-
     /// <summary>
     /// 배트는 밀치기 모드에서만 보인다. <b>프리팹의 초기 상태와 무관하게</b> 여기서 정한다 —
     /// 두 결과 프리팹의 BatPivot 초기값이 서로 달랐고(사람 꺼짐/봇 켜짐), 그대로 두면
@@ -265,23 +314,6 @@ public class GameResultManager : MonoBehaviour
             return smr;
         return root.GetComponentInChildren<Renderer>(true);
     }
-
-    // ── 몸 치수의 출처 ──────────────────────────────────────
-    //
-    // ★ 가로 반지름은 NavMesh 에이전트 타입 설정에서 가져온다
-    //   예전엔 인스펙터의 baseRadius(0.5)를 썼는데, 같은 몸의 굵기를 재는 값이
-    //   NavMesh 에이전트 타입 설정(0.65)에도 따로 있었다. 출처가 둘이라 한쪽만 고치면
-    //   "길찾기가 보는 몸"과 "결과 화면이 보는 몸"이 조용히 어긋난다.
-    //   NavMeshUtil이 이미 그 값을 유일한 출처로 감싸고 있으므로 거기서 읽는다.
-    //
-    // ★ 세로는 가로와 다르다 — 그래서 프리팹의 두 지점을 쓴다
-    //   젤리는 구가 아니라 세로로 긴 몸이다(크기 1 기준 반높이 0.807 vs 반지름 0.65).
-    //   그런데 카메라는 '중심 = 발밑에서 반지름만큼 위'로 잡고 있었다. 반지름은 가로
-    //   치수라 그 점은 실제 중심이 아니었고, 큰 젤리일수록 더 위를 봤다.
-    //   프리팹에는 BottomTransform·TopTransform이 이미 있다(바닥 정렬과 이름표가 쓴다).
-    //   그 둘의 중점이 진짜 중심이고 간격의 절반이 진짜 반높이다.
-    private const string BottomAnchorName = "BottomTransform";
-    private const string TopAnchorName = "TopTransform";
 
     /// <summary>크기 scale인 젤리의 <b>가로</b> 반지름.</summary>
     private static float JellyRadius(float scale)

@@ -4,6 +4,8 @@ namespace JellyNet
 {
     public class LanPlayerState : MonoBehaviour, INetEntity
     {
+        #region 표시
+
         [Header("표시")]
         [Tooltip("색을 칠할 렌더러. 비워두면 자식에서 찾는다.")]
         [SerializeField] private Renderer targetRenderer;
@@ -11,9 +13,23 @@ namespace JellyNet
         [Tooltip("색이 바뀔 때 부드럽게 전환하는 속도. 0이면 즉시.")]
         [SerializeField] private float colorLerpSpeed = 6f;
 
+        #endregion
+
+        #region 상태
+
         public int Score { get; private set; }
 
         public Color DisplayColor { get; private set; }
+
+        public string PlayerName { get; private set; }
+        public PlayerFlags Flags { get; private set; }
+
+        //Awake에서 캐시해둔 것을 그대로 준다. 밖에서 GetComponent를 다시 부르지 않게
+        public NetIdentity Identity { get; private set; }
+        private PlayerScaleController scale;
+        private Color shownColor;
+
+        #endregion
 
         public Color VisualColor
         {
@@ -31,17 +47,9 @@ namespace JellyNet
             }
         }
 
-        public string PlayerName { get; private set; }
-        public PlayerFlags Flags { get; private set; }
-
         public bool IsAbsorbed { get { return (Flags & PlayerFlags.Absorbed) != 0; } }
 
         public bool IsOutOfPlay { get { return Flags != PlayerFlags.None; } }
-
-        //Awake에서 캐시해둔 것을 그대로 준다. 밖에서 GetComponent를 다시 부르지 않게
-        public NetIdentity Identity { get; private set; }
-        private PlayerScaleController scale;
-        private Color shownColor;
 
         public int EntityId { get { return Identity != null ? Identity.NetId : 0; } }
 
@@ -134,8 +142,7 @@ namespace JellyNet
             targetRenderer.material.color = shownColor;
         }
 
-
-        //점수를 '어떻게' 정할지는 모드가 안다(밀치기는 더하기, 흡수는 크기에서).
+//점수를 '어떻게' 정할지는 모드가 안다(밀치기는 더하기, 흡수는 크기에서).
         //여기는 그 결과를 적고 방송하는 일만 한다 — 예전엔 흡수 규칙(크기→점수)이
         //이 안에 Push 가드와 함께 들어 있어서, 모드 전용 규칙이 공통 컴포넌트로 새어 있었다
         public void HostAddScore(int delta)
@@ -300,6 +307,5 @@ namespace JellyNet
             if (tag != null)
                 tag.SetName(PlayerName);
         }
-
     }
 }

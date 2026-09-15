@@ -3,20 +3,36 @@ using UnityEngine;
 
 public class LoadingPanelAni : MonoBehaviour
 {
+    #region Panels
+
     [Header("Panels")]
     [SerializeField] private GameObject anyKeyPanel;     // AnyKeyPanel
     [SerializeField] private GameObject loadingPanel;    // LoadingPanel
     [SerializeField] private GameObject mainMenuPanel;   // MainMenuPanel
 
+    #endregion
+
+    #region Timing
+
     [Header("Timing")]
     [SerializeField] private float loadingSeconds = 2.5f; // 2~3초
+
+    #endregion
+
+    #region Options
 
     [Header("Options")]
     [SerializeField] private bool playOnStart = true;
     [SerializeField] private bool allowMouseClick = true; // false면 키보드만
 
+    #endregion
+
+    #region 상태
+
     private bool fired;
     private Coroutine routine;
+
+    #endregion
 
     private void Start()
     {

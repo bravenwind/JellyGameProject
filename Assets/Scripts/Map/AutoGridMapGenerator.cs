@@ -11,15 +11,25 @@ using UnityEditor; // 에디터 전용 기능을 위해 추가
 
 public class AutoGridMapGenerator : MonoBehaviour
 {
+    #region 기본
+
     [Header("기본")]
     public GameObject tilePrefab;
     public int width = 10;
     public int height = 10;
     public float gap = 0.0f;
 
+    #endregion
+
+    #region 옵션
+
     [Header("옵션")]
     public bool centerGrid = true;
     public bool addAreaCollider = true;
+
+    #endregion
+
+    #region NavMesh 설정
 
     [Header("NavMesh 설정")]
     [Tooltip("생성 후 자동으로 NavMesh를 베이크하기 위해 사용")]
@@ -29,6 +39,8 @@ public class AutoGridMapGenerator : MonoBehaviour
 
     public NavMeshSurface navMeshSurface_PlayerJelly;
     public NavMeshSurface navMeshSurface_BearJelly;
+
+    #endregion
 
     // AI Navigation 패키지의 NavMeshSurface 컴포넌트 참조
     // (에디터에서 직접 드래그로 연결하거나, 패키지 설치 후 주석을 해제하여 바로 사용)

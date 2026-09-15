@@ -20,29 +20,54 @@ using TMPro;
 
 public class NameTagBillboard : MonoBehaviour
 {
+    #region 텍스트 컴포넌트
+
     [Header("텍스트 컴포넌트")]
     [SerializeField] private TextMeshPro nameText;
+
+    #endregion
+
+    #region 위치 오프셋 (부모 기준 로컬)
 
     [Header("위치 오프셋 (부모 기준 로컬)")]
     [Tooltip("플레이어 머리 위로 얼마나 띄울지. 스케일 1 기준.")]
     [SerializeField] private float heightOffset = 2.5f;
 
+    #endregion
+
+    #region 크기 고정
+
     [Header("크기 고정")]
     [Tooltip("true면 부모 스케일이 커져도 이름표 크기를 항상 일정하게 유지")]
     [SerializeField] private bool fixedWorldSize = true;
+
+    #endregion
+
+    #region 이름표 색상
 
     [Header("이름표 색상")]
     [SerializeField] private Color playerColor = Color.white;   // 로컬 플레이어
     [SerializeField] private Color otherColor  = new Color(1f, 0.8f, 0.2f, 1f);  // 다른 플레이어 (노란색)
     [SerializeField] private Color botColor    = new Color(0.8f, 0.8f, 0.8f, 1f); // AI봇 (회색)
 
+    #endregion
+
+    #region TopTransform 기준
+
     [Header("TopTransform 기준")]
     [Tooltip("비어있으면 기존 heightOffset 방식, 할당하면 TopTransform 위치 + heightOffset")]
     [SerializeField] private Transform topTransform;
-    public Transform TopTransform { get { return topTransform; } set { topTransform = value; } }
+
+    #endregion
+
+    #region 상태
 
     private Camera cam;
     private Transform parentTf;
+
+    #endregion
+
+    public Transform TopTransform { get { return topTransform; } set { topTransform = value; } }
 
     private void Awake()
     {

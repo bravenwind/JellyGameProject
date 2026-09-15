@@ -5,6 +5,8 @@ namespace JellyNet
 {
     public class NetIdentity : MonoBehaviour
     {
+        #region 상태
+
         // ★ 이 넷은 인스펙터 값이 아니라 NetWorld가 스폰하며 채우는 런타임 값이다.
         //   그래서 [SerializeField]가 아니라 프로퍼티다 — 밖에서 읽기만 하고,
         //   쓰는 것은 아래 HostAssign / 씬 ID 부여 경로로만 들어온다.
@@ -12,6 +14,10 @@ namespace JellyNet
         public int OwnerId { get; private set; }
         public int PrefabId { get; private set; }
         public bool IsBot { get; private set; }
+
+        #endregion
+
+        #region 인스펙터
 
         // ★ 이 필드의 이름을 바꾸면 씬 배치물이 통째로 죽는다 — 한 번 겪었다
         //   씬은 배치된 오브젝트마다 이 값을 프리팹 오버라이드로 저장한다.
@@ -28,6 +34,30 @@ namespace JellyNet
         //
         //씬에 미리 배치된 오브젝트에 에디터 도구가 찍어두는 고정 ID. 이것만 직렬화된다
         [SerializeField] private int sceneNetId;
+
+        #endregion
+
+        #region 캐릭터 컴포넌트 캐시
+
+        // ─────────────────────────────────────────────────────────
+        //  캐릭터 컴포넌트 캐시
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ 왜 여기에 모으나
+        //   메시지 하나를 처리할 때마다 id.GetComponent<LanPlayerState>() 같은 조회가
+        //   코드 46곳에 흩어져 있었다. netId로 오브젝트를 찾은 직후 거의 항상
+        //   "그럼 그 안의 무엇"을 다시 찾는데, 그 답은 스폰 순간에 이미 정해져 있다.
+        //   여기서 한 번만 찾아두면 호출부는 점 하나로 끝난다.
+        //
+        //   젤리·씬 사탕은 이 컴포넌트들이 없으므로 전부 null이다. 그래서
+        //   호출부의 null 검사는 그대로 유효하고, "캐릭터인가"의 판정도 겸한다.
+        [NonSerialized] private LanPlayerState playerState;
+        [NonSerialized] private LanPlayerVisual visual;
+        [NonSerialized] private LanBotState botState;
+        [NonSerialized] private AIPlayerMovement bot;
+
+        #endregion
+
         public int SceneNetId { get { return sceneNetId; } set { sceneNetId = value; } }
 
         /// <summary>스폰·씬 등록 시 신원을 확정한다. NetWorld와 씬 ID 부여 도구만 부른다.</summary>
@@ -38,8 +68,7 @@ namespace JellyNet
             PrefabId = prefabId;
         }
 
-
-        public bool IsMine
+public bool IsMine
         {
             get
             {
@@ -72,23 +101,6 @@ namespace JellyNet
                 return IsMine;
             }
         }
-
-        // ─────────────────────────────────────────────────────────
-        //  캐릭터 컴포넌트 캐시
-        // ─────────────────────────────────────────────────────────
-        //
-        // ★ 왜 여기에 모으나
-        //   메시지 하나를 처리할 때마다 id.GetComponent<LanPlayerState>() 같은 조회가
-        //   코드 46곳에 흩어져 있었다. netId로 오브젝트를 찾은 직후 거의 항상
-        //   "그럼 그 안의 무엇"을 다시 찾는데, 그 답은 스폰 순간에 이미 정해져 있다.
-        //   여기서 한 번만 찾아두면 호출부는 점 하나로 끝난다.
-        //
-        //   젤리·씬 사탕은 이 컴포넌트들이 없으므로 전부 null이다. 그래서
-        //   호출부의 null 검사는 그대로 유효하고, "캐릭터인가"의 판정도 겸한다.
-        [NonSerialized] private LanPlayerState playerState;
-        [NonSerialized] private LanPlayerVisual visual;
-        [NonSerialized] private LanBotState botState;
-        [NonSerialized] private AIPlayerMovement bot;
 
         /// <summary>사람 캐릭터의 네트워크 상태. 봇·젤리면 null.</summary>
         public LanPlayerState PlayerState { get { return playerState; } }

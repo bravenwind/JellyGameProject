@@ -5,6 +5,8 @@ using JellyNet;
 
 public class ChocolateFluid : MonoBehaviour
 {
+    #region 부력
+
     [Header("부력")]
     [Tooltip("완전히 잠겼을 때의 부력 가속도. 클수록 수면 높이를 단단히 지켜 물결에 덜 잠긴다.")]
     [SerializeField] private float buoyancyForce = 35f;
@@ -20,6 +22,10 @@ public class ChocolateFluid : MonoBehaviour
 
     [Tooltip("초콜릿의 점성. 크면 걸쭉해서 안 움직이고, 작으면 물처럼 미끄러진다.")]
     [SerializeField] private float chocolateViscosity = 3f;
+
+    #endregion
+
+    #region 흐름과 물결
 
     [Header("흐름과 물결")]
     [Tooltip("수평(X, Z)으로 흐르는 힘")]
@@ -41,12 +47,24 @@ public class ChocolateFluid : MonoBehaviour
     [Range(0f, 1f)]
     [SerializeField] private float entrySpeedKeep = 0.2f;
 
+    #endregion
+
+    #region 수명 설정
+
     [Header("수명 설정")]
     [Tooltip("초콜릿에 빠진 오브젝트가 자동 비활성화되기까지의 시간 (초). 0이면 비활성화 안 함")]
     [SerializeField] private float floatingLifetime = 5f;
 
+    #endregion
+
+    #region 디버그
+
     [Header("디버그")]
     [SerializeField] private bool debugLogTriggers = false;
+
+    #endregion
+
+    #region 수면 높이 — transform.position.y가 아니다
 
     // ═══════════════════════════════════════════════════════════
     //  수면 높이 — transform.position.y가 아니다
@@ -65,21 +83,6 @@ public class ChocolateFluid : MonoBehaviour
     //   surfaceOffset으로 눈에 보이는 높이에 맞춘다. 이 값을 안 맞추면
     //   물리적으로는 떠 있는데 화면에서는 초콜릿에 파묻혀 보인다.
     private BoxCollider waterBox;
-
-    private float SurfaceY => (waterBox != null ? waterBox.bounds.max.y : transform.position.y) + surfaceOffset;
-
-    private void Awake()
-    {
-        waterBox = GetComponent<BoxCollider>();
-    }
-
-    private struct FloatData
-    {
-        public float phase;
-        public float speedMul;
-        public float forceMul;
-        public Vector2 flowOffset;
-    }
 
     /// <summary>
     /// 초콜릿에 들어온 몸과 그 몸의 출렁임 개성. <b>'초콜릿에 든 목록'이기도 하다.</b>
@@ -113,6 +116,27 @@ public class ChocolateFluid : MonoBehaviour
     /// </summary>
     private const float ReleaseMargin = 1f;
 
+    private readonly List<Rigidbody> floatingSnapshot = new List<Rigidbody>();
+
+    private const float HashModulus = 1000f;
+
+    #endregion
+
+    private float SurfaceY => (waterBox != null ? waterBox.bounds.max.y : transform.position.y) + surfaceOffset;
+
+    private void Awake()
+    {
+        waterBox = GetComponent<BoxCollider>();
+    }
+
+    private struct FloatData
+    {
+        public float phase;
+        public float speedMul;
+        public float forceMul;
+        public Vector2 flowOffset;
+    }
+
     /// <summary>
     /// 흐름·물결에 쓸 시간. 판이 돌고 있으면 호스트가 맞춰주는 경과 시간을,
     /// 아직 안 시작했으면 로컬 시계를 쓴다 — 물결은 대기 중에도 움직여야 하기 때문이다.
@@ -135,8 +159,6 @@ public class ChocolateFluid : MonoBehaviour
         float angle = SyncedTime * flowTurnSpeed;
         return new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
     }
-
-    private readonly List<Rigidbody> floatingSnapshot = new List<Rigidbody>();
 
     private void FixedUpdate()
     {
@@ -357,8 +379,6 @@ public class ChocolateFluid : MonoBehaviour
         return entity != null && entity.IsOutOfPlay;
     }
 
-    private const float HashModulus = 1000f;
-
     /// <summary>
     /// 개체마다 다르지만 <b>항상 같은</b> 0~1 값. 곱하고 나머지만 남기는 싸구려 해시다.
     /// (타일 흔들림의 12.9898 / 78.233과 같은 부류)
@@ -502,5 +522,4 @@ public class ChocolateFluid : MonoBehaviour
         //   않은 채 남아 있다가, 나중에 조건이 바뀌면 아무도 모르게 되살아난다.
         //   되살릴 일이 생기면 그때 필요한 조건을 다시 세워 쓰는 편이 낫다.
     }
-
 }

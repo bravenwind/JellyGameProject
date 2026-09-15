@@ -26,7 +26,6 @@ public enum GameModeType { Absorb, Push }
 //   쓴다. 이 클래스에는 소유권 개념이 없으므로 거르는 책임은 전적으로 부르는 쪽에 있다.
 public static class GameState
 {
-
     // ★ OnScaleChanged · OnDisplayColorChanged · CurrentDisplayColor를 지웠다
     //   유일한 구독자가 CurrentStatusUI였는데, 그 HUD는 두 게임 씬 모두
     //   비활성 오브젝트(CurrentJelly)에 붙어 있었고 켜는 코드가 어디에도 없었다.
@@ -43,13 +42,13 @@ public static class GameState
 
     public static int CurrentScore { get; set; }
 
+    public static GameModeType CurrentGameMode { get; set; } = GameModeType.Absorb;
+
     public static float PlayerCurrentScale
     {
         get => playerCurrentScale;
         set => playerCurrentScale = value;
     }
-
-    public static GameModeType CurrentGameMode { get; set; } = GameModeType.Absorb;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     public static void Reset()

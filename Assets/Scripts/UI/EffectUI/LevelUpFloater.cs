@@ -26,6 +26,8 @@ using System.Collections;
 [DisallowMultipleComponent]
 public class LevelUpFloater : MonoBehaviour
 {
+    #region 애니메이션
+
     // ★ 예전엔 위로 떠오르며 페이드아웃했다
     //   지금은 <b>팝 하고 나타났다가 작아지며 사라진다.</b> 위로 흘러가지 않으니
     //   시선이 따라갈 필요가 없고, 여러 개가 동시에 떠도 서로 밀려나지 않는다.
@@ -39,6 +41,10 @@ public class LevelUpFloater : MonoBehaviour
     [Tooltip("사라질 때 줄어드는 최소 배율. 0이면 완전히 사라진다.")]
     [SerializeField] private float endScale = 0.15f;
 
+    #endregion
+
+    #region 등장 위치 (캐릭터 기준)
+
     [Header("등장 위치 (캐릭터 기준)")]
     [Tooltip("캐릭터 중심에서 이만큼 떨어진 곳에 무작위로 뜬다")]
     [SerializeField] private float spreadRadius = 1.1f;
@@ -46,14 +52,26 @@ public class LevelUpFloater : MonoBehaviour
     [Tooltip("캐릭터 중심에서 위로 올린 높이")]
     [SerializeField] private float height = 1.6f;
 
+    #endregion
+
+    #region 상태
+
     private Transform scaleRef;      // 크기 상쇄 기준(캐릭터 루트)
     private Camera cam;
-    private Action<LevelUpFloater> onComplete;
+
     private Coroutine routine;
 
     private SpriteRenderer sprite;   // 색·알파를 여기에 쓴다
     private Color baseColor = Color.white;
     private Vector3 baseScale = Vector3.one;
+
+    #endregion
+
+    #region 이벤트·콜백
+
+    private Action<LevelUpFloater> onComplete;
+
+    #endregion
 
     private void Awake()
     {

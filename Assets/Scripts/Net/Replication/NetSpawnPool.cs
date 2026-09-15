@@ -9,8 +9,14 @@ namespace JellyNet
     //플레이어·봇은 판당 몇 번뿐이고 상태가 복잡해 풀링하지 않는다
     public class NetSpawnPool
     {
+        #region 상수
+
         private const int DEFAULT_CAPACITY = 16;
         private const int MAX_SIZE = 128;
+
+        #endregion
+
+        #region 상태
 
         private readonly Transform parent;
         private readonly GameObject[] prefabs;
@@ -26,6 +32,8 @@ namespace JellyNet
         //NavMeshAgent는 켜지는 순간의 자리에서 NavMesh를 찾는다
         //활성화 후에 옮기면 이미 늦어서 스폰 위치를 먼저 넘겨야 한다
         private Vector3 spawnPosition;
+
+        #endregion
 
         public NetSpawnPool(GameObject[] prefabs, Transform parent)
         {

@@ -4,7 +4,6 @@ public class MinimapArrow : MonoBehaviour
 {
     [Header("추적 대상 (플레이어)")]
     [SerializeField] private Transform target;
-    public Transform Target { get { return target; } set { target = value; } }
 
     // ★ 높이의 출처는 이 프리팹 하나다
     //   예전엔 public 세터가 있어서 MinimapArrowManager가 씬의 값으로 덮어썼다.
@@ -18,14 +17,16 @@ public class MinimapArrow : MonoBehaviour
     [Tooltip("체크하면 플레이어 전방방향 화살표의 Y축(좌우 방향)만 회전합니다.")]
     [SerializeField] private bool syncOnlyYRotation = true;
 
+    [Tooltip("색을 입힐 화살표 스프라이트. 비워두면 자식에서 찾는다.")]
+    [SerializeField] private SpriteRenderer icon;
+
+    public Transform Target { get { return target; } set { target = value; } }
+
     // ─────────────────────────────────────────────────────────
     // 색상 설정 (미니맵 매니저에서 초기화 시 호출)
     // ─────────────────────────────────────────────────────────
 
-    [Tooltip("색을 입힐 화살표 스프라이트. 비워두면 자식에서 찾는다.")]
-    [SerializeField] private SpriteRenderer icon;
-
-    //프리팹의 SpriteRenderer는 루트가 아니라 자식(MiniMapIcon)에 있다 —
+//프리팹의 SpriteRenderer는 루트가 아니라 자식(MiniMapIcon)에 있다 —
     //GetComponent로는 못 찾으므로 InChildren이어야 한다.
     private void Awake()
     {

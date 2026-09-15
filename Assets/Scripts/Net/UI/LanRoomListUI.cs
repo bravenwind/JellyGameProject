@@ -5,6 +5,8 @@ namespace JellyNet
 {
     public class LanRoomListUI : MonoBehaviour
     {
+        #region 연결
+
         [Header("연결")]
         [Tooltip("방 항목들이 들어갈 부모(보통 Scroll View의 Content).")]
         [SerializeField] private Transform container;
@@ -17,6 +19,10 @@ namespace JellyNet
 
         [Tooltip("아직 찾는 중일 때 보여줄 안내. TMP_Text 에 WaitingDots 를 붙여두면 점이 늘어난다.")]
         [SerializeField] private GameObject searchingHint;
+
+        #endregion
+
+        #region 표시
 
         [Header("표시")]
         [Tooltip("초당 몇 번 갱신할지. 방 정보는 1초에 한 번 오므로 낮아도 된다.")]
@@ -31,6 +37,10 @@ namespace JellyNet
         [Tooltip("이 시간 동안은 '방 없음' 안내를 띄우지 않는다. 방장 알림 주기(1초)보다 길어야 한다.")]
         [SerializeField] private float emptyHintDelay = 2.5f;
 
+        #endregion
+
+        #region 상태
+
         private readonly List<LanRoomRow> rows = new List<LanRoomRow>();
 
         //매 갱신마다 새로 만들면 초당 4개씩 쓰레기가 쌓인다. 담을 그릇은 하나만 둔다
@@ -39,6 +49,8 @@ namespace JellyNet
         private float timer;
         private int lastCount = -1;
         private float searchElapsed;
+
+        #endregion
 
         private static INetSession Session
         {

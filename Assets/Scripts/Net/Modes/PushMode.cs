@@ -5,11 +5,6 @@ namespace JellyNet
 {
     public class PushMode : NetGameMode<PushMode>
     {
-        protected override GameModeType Mode
-        {
-            get { return GameModeType.Push; }
-        }
-
         [Header("검증 여유")]
         [Tooltip("호스트 재검증 시 사거리에 곱하는 여유. 지연을 감안해 넉넉히.")]
         public float rangeTolerance = 1.6f;
@@ -33,6 +28,13 @@ namespace JellyNet
         public float killAssistSeconds = 5f;
 
         private readonly NetWriter w = new NetWriter();
+
+        private readonly Dictionary<int, Credit> lastPusher = new Dictionary<int, Credit>();
+
+        protected override GameModeType Mode
+        {
+            get { return GameModeType.Push; }
+        }
 
         protected override void ResetAll()
         {
@@ -151,8 +153,6 @@ namespace JellyNet
             public float At;
         }
 
-        private readonly Dictionary<int, Credit> lastPusher = new Dictionary<int, Credit>();
-
         //탈락 자체를 처리하는 게 아니라, 최근에 민 사람에게 킬 점수를 넘겨주는 정산이다.
         //LanGameFlow.HostConfirmEliminated(탈락 확정)와 헷갈리지 않게 이름을 나눴다
         public void HostAwardKillCredit(int victimNetId)
@@ -205,8 +205,7 @@ namespace JellyNet
             NetManager.Instance.SendTo(victim.OwnerId, w);
         }
 
-
-        private void SendKnockback(NetIdentity victim, Vector3 dir, float force)
+private void SendKnockback(NetIdentity victim, Vector3 dir, float force)
         {
             NetManager net = NetManager.Instance;
 
@@ -254,7 +253,5 @@ namespace JellyNet
 
             NetManager.Instance.AddLog("밀려남! (힘 " + force.ToString("F1") + ")");
         }
-
-
     }
 }

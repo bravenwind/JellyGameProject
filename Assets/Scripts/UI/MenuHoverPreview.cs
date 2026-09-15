@@ -4,16 +4,30 @@ using UnityEngine.UI;
 
 public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
+    #region Target UI
+
     [Header("Target UI")]
     [SerializeField] private Image characterImage;
     [SerializeField] private Text legacyText;
+
+    #endregion
+
+    #region Hover Data
 
     [Header("Hover Data")]
     [SerializeField] private Sprite hoverSprite;
     [TextArea] [SerializeField] private string hoverMessage;
 
+    #endregion
+
+    #region Revert On Exit
+
     [Header("Revert On Exit")]
     [SerializeField] private bool revertOnExit = true;
+
+    #endregion
+
+    #region No Hover State
 
     [Header("No Hover State")]
     [SerializeField] private bool hideImageWhenNoHover = true;
@@ -26,6 +40,8 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
     [SerializeField] private FloatingUI floating;
     [TextArea] [SerializeField] private string defaultMessage;
     [SerializeField] private ImagePreviewAni preview;
+
+    #endregion
 
     void Awake()
     {

@@ -37,6 +37,8 @@ using JellyNet;
 
 public class OffScreenPlayerIndicator : MonoBehaviour
 {
+    #region 표시 대상
+
     // ─────────────────────────────────────────────────────────
     // 설정
     // ─────────────────────────────────────────────────────────
@@ -44,15 +46,27 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     [Tooltip("AI 봇도 삼각형으로 표시할지 여부")]
     [SerializeField] private bool includeBots = true;
 
+    #endregion
+
+    #region 레이아웃 (픽셀)
+
     [Header("레이아웃 (픽셀)")]
     [Tooltip("화면 테두리에서 안쪽으로 띄울 여백")]
     [SerializeField] private float edgeMargin = 60f;
     [Tooltip("화면 안에 있을 때 머리 위로 띄울 높이")]
     [SerializeField] private float onScreenHeadOffset = 42f;
 
+    #endregion
+
+    #region 월드
+
     [Header("월드")]
     [Tooltip("대상 머리 기준 높이(스케일에 비례해 가감)")]
     [SerializeField] private float worldHeadHeight = 1.2f;
+
+    #endregion
+
+    #region 렌더
 
     [Header("렌더")]
     [Tooltip("삼각형을 담을 캔버스. 자식 OffScreenIndicatorCanvas")]
@@ -66,6 +80,10 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     [Tooltip("삼각형 프리팹. Prefabs/UI/PlayerIndicator")]
     [SerializeField] private PlayerIndicator indicatorPrefab;
 
+    #endregion
+
+    #region 내부 상태
+
     // ─────────────────────────────────────────────────────────
     // 내부 상태
     // ─────────────────────────────────────────────────────────
@@ -74,6 +92,8 @@ public class OffScreenPlayerIndicator : MonoBehaviour
     private readonly Dictionary<Transform, PlayerIndicator> active = new Dictionary<Transform, PlayerIndicator>();
     private readonly List<Transform> staleKeys = new List<Transform>();
     private readonly HashSet<Transform> seenThisFrame = new HashSet<Transform>();
+
+    #endregion
 
     // MinimapArrowManager와 같은 시점에 준비한다 — 둘 다 게임 씬 컴포넌트고
     // 첫 LateUpdate보다 Start가 먼저 돌아서 canvasRect가 비어 있을 일이 없다.

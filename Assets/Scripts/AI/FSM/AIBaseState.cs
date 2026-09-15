@@ -18,6 +18,13 @@ public abstract class AIBaseState
 {
     protected AIPlayerMovement ai;
 
+    private float stuckTimer;
+
+    protected const float STUCK_SECONDS = 1.0f;
+
+    //제곱 비교라 sqrt를 안 탄다. 0.1f 속도의 제곱이 0.01f
+    private const float STUCK_SPEED_SQR = 0.01f;
+
     public AIBaseState(AIPlayerMovement ai)
     {
         this.ai = ai;
@@ -175,14 +182,7 @@ public abstract class AIBaseState
     // 공용: 끼임 감지
     // ─────────────────────────────────────────────────────────
 
-    private float stuckTimer;
-
-    protected const float STUCK_SECONDS = 1.0f;
-
-    //제곱 비교라 sqrt를 안 탄다. 0.1f 속도의 제곱이 0.01f
-    private const float STUCK_SPEED_SQR = 0.01f;
-
-    /// <summary>
+/// <summary>
     /// "경로는 있는데 실제로는 안 움직인다"가 일정 시간 이어지면 경로를 버린다.
     /// 벽 모서리에 비비거나 서로 밀며 교착된 상태를 푸는 용도.
     /// </summary>

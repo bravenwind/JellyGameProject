@@ -7,6 +7,8 @@ namespace JellyNet
 {
     public class LanFlowHud
     {
+        #region 상태
+
         private TextMeshProUGUI timerText;
         private TextMeshProUGUI centerText;
         private GameObject resultPanel;
@@ -16,6 +18,14 @@ namespace JellyNet
 
         private Coroutine flashRoutine;
         private MonoBehaviour flashOwner;
+
+        #endregion
+
+        #region 상수
+
+        private const float FLASH_DURATION = 0.9f;
+
+        #endregion
 
         public void Bind(TextMeshProUGUI timer, TextMeshProUGUI center,
                          GameObject panel, TextMeshProUGUI title,
@@ -100,8 +110,6 @@ namespace JellyNet
             flashOwner = owner;
             flashRoutine = owner.StartCoroutine(FlashRoutine());
         }
-
-        private const float FLASH_DURATION = 0.9f;
 
         private IEnumerator FlashRoutine()
         {

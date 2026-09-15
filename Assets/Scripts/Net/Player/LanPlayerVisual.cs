@@ -6,14 +6,23 @@ namespace JellyNet
 {
     public class LanPlayerVisual : MonoBehaviour
     {
+        #region 연결 (비우면 자동 탐색)
+
         [Header("연결 (비우면 자동 탐색)")]
         [SerializeField] private PlayerScaleController scaleController;
         [SerializeField] private PlayerColorVisual colorVisual;
         [SerializeField] private Animator animator;
-        public Animator Anim { get { return animator; } }
+
+        #endregion
+
+        #region 애니메이션 동기화
 
         [Header("애니메이션 동기화")]
         [SerializeField] private float animSendRate = 10f;
+
+        #endregion
+
+        #region 상태
 
         private NetIdentity id;
         private float animTimer;
@@ -24,6 +33,74 @@ namespace JellyNet
         private Transform batPivot;
         private bool hideBatWhenIdle;
         private Coroutine batSwing;
+
+        private bool lastMoving;
+
+        #endregion
+
+        #region 상수
+
+        public const byte ANIM_IS_MOVING = 0;
+        public const byte ANIM_JUMP = 1;
+        public const byte ANIM_DASH = 2;
+        public const byte ANIM_ATTACK = 3;
+        public const byte ANIM_HIT = 4;
+
+        #endregion
+
+        #region 정적 필드
+
+        //ANIM_* 코드 순서와 짝이다. 이름은 GameTags 쪽 상수를 쓴다
+        private static readonly int[] TriggerHashes =
+        {
+            0,
+            AnimParams.Jump,
+            AnimParams.Dash,
+            AnimParams.Attack,
+            AnimParams.Hit
+        };
+
+        #endregion
+
+        #region 배트 스윙 회전 — 사람·봇·원격 공용
+
+        /// <summary>
+        /// 이 개체가 성장했다는 <b>방송이 도착했다.</b> 크기와 무관하게 모든 기계에서 한 번씩 뜬다.
+        /// 성장 팝업(LevelUpFloaterPool)이 여기에 붙는다.
+        ///
+        /// ★ 왜 OnGrowStarted가 아니라 이 자리인가
+        ///   OnGrowStarted는 크기 파이프라인(ScaleTo) 안에서 나온다. 그런데 봇의 ScaleTo는
+        ///   구동자에서만 돌아서(아래 가드), 클라 화면에서는 봇이 자라도 발화하지 않는다.
+        ///   "방송이 왔다"와 "내가 크기를 몬다"는 다른 사건이고, 연출이 필요한 건 앞쪽이다.
+        /// </summary>
+        public event Action OnGrowBroadcastReceived;
+
+        private bool absorbedPlaying;
+
+        #endregion
+
+        #region 흡수당하는 연출 — 사람·봇 공용
+
+        // ═══════════════════════════════════════════════════════
+        //  흡수당하는 연출 — 사람·봇 공용
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 예전엔 두 벌이었다
+        //   사람은 LanPlayerVisual.AbsorbedRoutine, 봇은 AIPlayerMovement.LanAbsorbedSequence.
+        //   가운데 20줄(0.8초 동안 흡수자에게 끌려가며 0.05배로 줄기)이 상수까지 똑같은데
+        //   파일 두 곳에 복사돼 있었다. 연출을 손보려면 두 곳을 같이 고쳐야 했고,
+        //   한쪽만 고치면 사람과 봇이 다르게 빨려 들어간다.
+        //
+        //   다른 건 앞뒤뿐이다 — 무엇을 멈추고, 끝나고 무엇을 하느냐.
+        //   LanPlayerVisual은 두 프리팹에 다 붙어 있으므로 여기가 합칠 자리다.
+        private const float ABSORBED_DURATION = 0.8f;
+        private const float ABSORBED_PULL_SPEED = 12f;
+        private const float ABSORBED_SNAP_DIST = 0.4f;
+        private const float ABSORBED_END_SCALE = 0.05f;
+
+        #endregion
+
+        public Animator Anim { get { return animator; } }
 
         private void Awake()
         {
@@ -47,24 +124,6 @@ namespace JellyNet
                     animator = GetComponentInChildren<Animator>(true);
             }
         }
-
-        public const byte ANIM_IS_MOVING = 0;
-        public const byte ANIM_JUMP = 1;
-        public const byte ANIM_DASH = 2;
-        public const byte ANIM_ATTACK = 3;
-        public const byte ANIM_HIT = 4;
-
-        //ANIM_* 코드 순서와 짝이다. 이름은 GameTags 쪽 상수를 쓴다
-        private static readonly int[] TriggerHashes =
-        {
-            0,
-            AnimParams.Jump,
-            AnimParams.Dash,
-            AnimParams.Attack,
-            AnimParams.Hit
-        };
-
-        private bool lastMoving;
 
         private void Update()
         {
@@ -202,17 +261,6 @@ namespace JellyNet
             batSwing = null;
         }
 
-        /// <summary>
-        /// 이 개체가 성장했다는 <b>방송이 도착했다.</b> 크기와 무관하게 모든 기계에서 한 번씩 뜬다.
-        /// 성장 팝업(LevelUpFloaterPool)이 여기에 붙는다.
-        ///
-        /// ★ 왜 OnGrowStarted가 아니라 이 자리인가
-        ///   OnGrowStarted는 크기 파이프라인(ScaleTo) 안에서 나온다. 그런데 봇의 ScaleTo는
-        ///   구동자에서만 돌아서(아래 가드), 클라 화면에서는 봇이 자라도 발화하지 않는다.
-        ///   "방송이 왔다"와 "내가 크기를 몬다"는 다른 사건이고, 연출이 필요한 건 앞쪽이다.
-        /// </summary>
-        public event Action OnGrowBroadcastReceived;
-
         public void ApplyGrow(GrowKind kind, float amount)
         {
             //연출은 가드 앞에 둔다 — 크기를 몰지 않는 기계에서도 팝업은 떠야 한다
@@ -251,25 +299,6 @@ namespace JellyNet
             //폴백은 프리팹 크기다(1f가 아니다) — 자세한 이유는 LanPlayerState.ScaleValue 참고
             get { return scaleController != null ? scaleController.CurrentScaleValue : transform.localScale.x; }
         }
-
-        private bool absorbedPlaying;
-
-        // ═══════════════════════════════════════════════════════
-        //  흡수당하는 연출 — 사람·봇 공용
-        // ═══════════════════════════════════════════════════════
-        //
-        // ★ 예전엔 두 벌이었다
-        //   사람은 LanPlayerVisual.AbsorbedRoutine, 봇은 AIPlayerMovement.LanAbsorbedSequence.
-        //   가운데 20줄(0.8초 동안 흡수자에게 끌려가며 0.05배로 줄기)이 상수까지 똑같은데
-        //   파일 두 곳에 복사돼 있었다. 연출을 손보려면 두 곳을 같이 고쳐야 했고,
-        //   한쪽만 고치면 사람과 봇이 다르게 빨려 들어간다.
-        //
-        //   다른 건 앞뒤뿐이다 — 무엇을 멈추고, 끝나고 무엇을 하느냐.
-        //   LanPlayerVisual은 두 프리팹에 다 붙어 있으므로 여기가 합칠 자리다.
-        private const float ABSORBED_DURATION = 0.8f;
-        private const float ABSORBED_PULL_SPEED = 12f;
-        private const float ABSORBED_SNAP_DIST = 0.4f;
-        private const float ABSORBED_END_SCALE = 0.05f;
 
         public void PlayAbsorbed(Transform absorber)
         {

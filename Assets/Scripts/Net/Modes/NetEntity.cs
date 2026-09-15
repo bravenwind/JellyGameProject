@@ -7,6 +7,23 @@ namespace JellyNet
     //같은 판단이 AbsorbMode와 PushMode에 따로 있다가 한쪽만 고쳐지는 일이 반복됐다
     public static class NetEntity
     {
+        // ═══════════════════════════════════════════════════════
+        //  기준 크기 — 플레이어 프리팹이 유일한 출처
+        // ═══════════════════════════════════════════════════════
+        //
+        // ★ 예전엔 DataManager.startingScale이라는 사본이 따로 있었다
+        //   '2'라는 값이 프리팹 localScale과 인스펙터 양쪽에 적혀 있었고,
+        //   같은 값이라는 보장이 어디에도 없었다. 프리팹만 키우면 스폰하자마자
+        //   점수가 붙는데 에러가 안 나서 찾기도 어렵다.
+        //
+        //   기준 크기의 뜻은 두 곳에서 같다 — '캐릭터가 태어나는 크기'다.
+        //     · 점수: 이 크기일 때 0점  (아래 ScoreFromScale)
+        //     · 밀치기: 이 크기일 때 힘 1배 (PushMode)
+        //   그러니 프리팹에서 한 번 읽어 쓰는 게 맞다.
+        //
+        //   prefabs[0]이 플레이어다(그 뒤가 봇, JELLY_PREFAB_START부터 젤리).
+        private static float baselineScale = -1f;
+
         //판정을 내려도 되는 쪽인가. 오프라인은 혼자 다 굴린다
         private static bool IsHostNow
         {
@@ -77,23 +94,6 @@ namespace JellyNet
 
             return bot.IsDriver;
         }
-
-        // ═══════════════════════════════════════════════════════
-        //  기준 크기 — 플레이어 프리팹이 유일한 출처
-        // ═══════════════════════════════════════════════════════
-        //
-        // ★ 예전엔 DataManager.startingScale이라는 사본이 따로 있었다
-        //   '2'라는 값이 프리팹 localScale과 인스펙터 양쪽에 적혀 있었고,
-        //   같은 값이라는 보장이 어디에도 없었다. 프리팹만 키우면 스폰하자마자
-        //   점수가 붙는데 에러가 안 나서 찾기도 어렵다.
-        //
-        //   기준 크기의 뜻은 두 곳에서 같다 — '캐릭터가 태어나는 크기'다.
-        //     · 점수: 이 크기일 때 0점  (아래 ScoreFromScale)
-        //     · 밀치기: 이 크기일 때 힘 1배 (PushMode)
-        //   그러니 프리팹에서 한 번 읽어 쓰는 게 맞다.
-        //
-        //   prefabs[0]이 플레이어다(그 뒤가 봇, JELLY_PREFAB_START부터 젤리).
-        private static float baselineScale = -1f;
 
         /// <summary>캐릭터가 태어나는 크기. 점수 0의 기준이자 밀치기 힘 1배의 기준.</summary>
         public static float BaselineScale

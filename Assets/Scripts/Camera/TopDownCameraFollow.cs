@@ -5,7 +5,6 @@ public class TopDownCameraFollow : MonoBehaviour
     [Header("추적 대상 설정")]
     [Tooltip("따라다닐 플레이어 객체를 연결하세요.")]
     [SerializeField] private Transform target;
-    public Transform Target { get { return target; } set { target = value; } }
 
     [Header("카메라 위치 설정")]
     [Tooltip("플레이어와 카메라 사이의 거리 (Y값을 높일수록 더 위에서 보게 됩니다)")]
@@ -15,6 +14,8 @@ public class TopDownCameraFollow : MonoBehaviour
     [Tooltip("카메라가 따라가는 속도 (값이 낮을수록 무겁고 부드럽게 따라감)")]
     [Range(1f, 10f)]
     public float smoothSpeed = 5f;
+
+    public Transform Target { get { return target; } set { target = value; } }
 
     private void LateUpdate()
     {

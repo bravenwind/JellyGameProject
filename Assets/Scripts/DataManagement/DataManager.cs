@@ -17,10 +17,6 @@ using System;
 /// </summary>
 public class DataManager : MonoBehaviour
 {
-    // ★ 다른 싱글턴 11개와 같은 형태로 맞춘다
-    //   예전엔 public 필드라 밖에서 통째로 덮어쓰거나 지울 수 있었다.
-    public static DataManager Instance { get; private set; }
-
     [Serializable]
     public class JellyEffectData
     {
@@ -28,75 +24,78 @@ public class DataManager : MonoBehaviour
         public RYBColor rybChange;
     }
 
+    #region 상태
+
+    // ★ 다른 싱글턴 11개와 같은 형태로 맞춘다
+    //   예전엔 public 필드라 밖에서 통째로 덮어쓰거나 지울 수 있었다.
+    public static DataManager Instance { get; private set; }
+
+    #endregion
+
+    #region 크기
+
     [Header("크기")]
     [Tooltip("젤리 하나를 먹을 때 늘어나는 크기")]
     [SerializeField] private float jellyScaleIncrease = 0.05f;
-    public float JellyScaleIncrease { get { return jellyScaleIncrease; } }
 
     [Tooltip("남을 흡수했을 때, 상대 크기의 몇 %를 가져오는가")]
     [Range(0f, 1f)]
     [SerializeField] private float absorbScalePercent = 0.3f;
-    public float AbsorbScalePercent { get { return absorbScalePercent; } }
 
     // 크기 상·하한은 없다 — 이 게임의 크기는 커지기만 하고, 씬의 상한도
     // 사실상 걸리지 않는 값(100)이었다. 클램프를 없애 '있는데 안 쓰는 값'을 지웠다.
 
     [Tooltip("이 크기를 넘으면 점프력이 올라간다")]
     [SerializeField] private float jumpScaleThreshold = 2f;
-    public float JumpScaleThreshold { get { return jumpScaleThreshold; } }
 
     // ★ 예전 이름은 scaleIncreaseTime이었다
     //   아래 카메라의 cameraZoomDuration이 예전엔 scaleIncreaseDuration이라,
     //   인스펙터에서 둘을 구별할 수 없었다. 무엇이 커지는 시간인지 이름에 넣는다.
     [Tooltip("젤리가 커지는 연출에 걸리는 시간 (초)")]
     [SerializeField] private float growAnimTime = 1.0f;
-    public float GrowAnimTime { get { return growAnimTime; } }
 
     [Tooltip("점프력 문턱을 넘었을 때 더해지는 점프력")]
     [SerializeField] private float increaseJumpForceValue = 5;
-    public float IncreaseJumpForceValue { get { return increaseJumpForceValue; } }
+
+    #endregion
+
+    #region 방망이 (밀치기 모드)
 
     [Header("방망이 (밀치기 모드)")]
     [Tooltip("방망이 공격 쿨다운 (초)")]
     [SerializeField] private float batCooldown = 1.2f;
-    public float BatCooldown { get { return batCooldown; } }
 
     [Tooltip("방망이 공격 지속 시간 (초)")]
     [SerializeField] private float batSwingDuration = 0.35f;
-    public float BatSwingDuration { get { return batSwingDuration; } }
 
     [Tooltip("방망이 공격 범위 (플레이어 전방)")]
     [SerializeField] private float batRange = 2.0f;
-    public float BatRange { get { return batRange; } }
 
     [Tooltip("방망이 밀치기 힘")]
     [SerializeField] private float batPushForce = 18f;
-    public float BatPushForce { get { return batPushForce; } }
 
     [Tooltip("방망이 명중 시 성장량 (크기 1 기준)")]
     [SerializeField] private float batHitGrowth = 0.08f;
-    public float BatHitGrowth { get { return batHitGrowth; } }
 
     [Tooltip("방망이 공격 전방 각도 (좌우 합산)")]
     [SerializeField] private float batArcAngle = 120f;
-    public float BatArcAngle { get { return batArcAngle; } }
+
+    #endregion
+
+    #region 발판 (밀치기 모드)
 
     [Header("발판 (밀치기 모드)")]
     [Tooltip("타일을 밟은 후 붕괴까지 딜레이 (초)")]
     [SerializeField] private float stepTileCollapseDelay = 2f;
-    public float StepTileCollapseDelay { get { return stepTileCollapseDelay; } }
 
     [Tooltip("밟힌 타일 경고 흔들림 시간 (초)")]
     [SerializeField] private float stepTileWarningDuration = 1.5f;
-    public float StepTileWarningDuration { get { return stepTileWarningDuration; } }
 
     [Tooltip("타일이 붕괴되기까지 필요한 밟은 횟수")]
     [SerializeField] private int stepTileStepsToCollapse = 3;
-    public int StepTileStepsToCollapse { get { return stepTileStepsToCollapse; } }
 
     [Tooltip("한 타일 위에 가만히 머물 때 견디는 횟수가 1 감소하기까지의 시간 (초). 0 이하면 제자리 마모 비활성")]
     [SerializeField] private float stepTileIdleWearSeconds = 2f;
-    public float StepTileIdleWearSeconds { get { return stepTileIdleWearSeconds; } }
 
     // ═════════════════════════════════════════════════════════
     //  '위험한 칸'의 문턱이 둘인 이유
@@ -118,7 +117,6 @@ public class DataManager : MonoBehaviour
     //   count>=1 이 되어 <b>밟는 모든 칸이 도착 즉시 위험</b>이 된다(봇이 영원히 도망만 다닌다).
     [Tooltip("지나갈 칸 판정: 붕괴까지 이만큼 남으면 '위험'으로 본다. 경로·목적지 필터가 쓴다.")]
     [SerializeField] private int stepTileDangerMargin = 1;
-    public int StepTileDangerMargin { get { return stepTileDangerMargin; } }
 
     // ★ 0이면 "실제로 무너지기 시작했을 때만" 도망친다 — 그게 기본이다
     //   1로 두면 '한 번 더 밟으면 무너질' 단계에서 이미 도망친다. 그런데 제자리
@@ -130,36 +128,71 @@ public class DataManager : MonoBehaviour
     //   '바닥이 사라지는 중일 때'다. 그때부터 stepTileCollapseDelay 만큼 여유가 있다.
     [Tooltip("서 있는 칸 판정: 붕괴까지 이만큼 남으면 '발밑이 위험'으로 본다. 0이면 실제 붕괴가 시작됐을 때만.")]
     [SerializeField] private int stepTileFootingMargin = 0;
-    public int StepTileFootingMargin { get { return stepTileFootingMargin; } }
+
+    #endregion
+
+    #region 카메라
 
     [Header("카메라")]
     // ★ 예전 이름은 scaleIncreaseDuration이었다 (위 growAnimTime 주석 참고)
     [Tooltip("카메라가 한 칸 줌아웃하는 데 걸리는 시간 (초)")]
     [SerializeField] private float cameraZoomDuration = 1.0f;
-    public float CameraZoomDuration { get { return cameraZoomDuration; } }
 
     [Tooltip("문턱을 넘을 때마다 늘어나는 카메라 크기")]
     [SerializeField] private float scaleChangedPlusSize = 3.0f;
-    public float ScaleChangedPlusSize { get { return scaleChangedPlusSize; } }
 
     [Tooltip("첫 줌아웃이 일어나는 크기")]
     [SerializeField] private float cameraZoomFirstThreshold = 6f;
-    public float CameraZoomFirstThreshold { get { return cameraZoomFirstThreshold; } }
 
     [Tooltip("그 뒤로 이만큼 커질 때마다 한 칸씩 더 줌아웃한다")]
     [SerializeField] private float cameraZoomThresholdStep = 4f;
-    public float CameraZoomThresholdStep { get { return cameraZoomThresholdStep; } }
+
+    #endregion
+
+    #region 점수
 
     [Header("점수")]
     [Tooltip("젤리 하나당 점수. 크기→점수 환산은 NetEntity.ScoreFromScale이 한다.")]
     [SerializeField] private int scorePerJelly = 100;
-    public int ScorePerJelly { get { return scorePerJelly; } }
+
+    #endregion
+
+    #region 젤리 색 효과 (RYB)
 
     [Header("젤리 색 효과 (RYB)")]
     [Tooltip("젤리 색마다 RYB에 더해지는 양. 기본 6색(빨/노/파/주/초/보)이 모두 있어야 한다.")]
     [SerializeField] private List<JellyEffectData> jellyEffects;
 
+    #endregion
+
+    #region '위험한 칸'의 문턱이 둘인 이유
+
     private Dictionary<JellyColorType, RYBColor> jellyEffectCache;
+
+    #endregion
+
+    public float JellyScaleIncrease { get { return jellyScaleIncrease; } }
+    public float AbsorbScalePercent { get { return absorbScalePercent; } }
+    public float JumpScaleThreshold { get { return jumpScaleThreshold; } }
+    public float GrowAnimTime { get { return growAnimTime; } }
+    public float IncreaseJumpForceValue { get { return increaseJumpForceValue; } }
+    public float BatCooldown { get { return batCooldown; } }
+    public float BatSwingDuration { get { return batSwingDuration; } }
+    public float BatRange { get { return batRange; } }
+    public float BatPushForce { get { return batPushForce; } }
+    public float BatHitGrowth { get { return batHitGrowth; } }
+    public float BatArcAngle { get { return batArcAngle; } }
+    public float StepTileCollapseDelay { get { return stepTileCollapseDelay; } }
+    public float StepTileWarningDuration { get { return stepTileWarningDuration; } }
+    public int StepTileStepsToCollapse { get { return stepTileStepsToCollapse; } }
+    public float StepTileIdleWearSeconds { get { return stepTileIdleWearSeconds; } }
+    public int StepTileDangerMargin { get { return stepTileDangerMargin; } }
+    public int StepTileFootingMargin { get { return stepTileFootingMargin; } }
+    public float CameraZoomDuration { get { return cameraZoomDuration; } }
+    public float ScaleChangedPlusSize { get { return scaleChangedPlusSize; } }
+    public float CameraZoomFirstThreshold { get { return cameraZoomFirstThreshold; } }
+    public float CameraZoomThresholdStep { get { return cameraZoomThresholdStep; } }
+    public int ScorePerJelly { get { return scorePerJelly; } }
 
     public RYBColor GetJellyRYBEffect(JellyColorType type)
     {

@@ -4,12 +4,18 @@ namespace JellyNet
 {
     public class LanBotState : MonoBehaviour, INetEntity
     {
+        #region 상태 전송
+
         [Header("상태 전송")]
         [Tooltip("초당 몇 번 보낼지. 크기·색·점수는 자주 안 변해서 낮아도 된다.")]
         [SerializeField] private float scaleSendRate = 5f;
 
         [Tooltip("이만큼 차이 나야 보낸다. 미세 떨림으로 도배되는 걸 막는다.")]
         [SerializeField] private float scaleThreshold = 0.01f;
+
+        #endregion
+
+        #region 상태
 
         public NetIdentity Identity { get; private set; }
         private PlayerScaleController scaleCtrl;
@@ -25,6 +31,21 @@ namespace JellyNet
         public string BotName { get; private set; }
 
         public int CurrentScore { get; private set; }
+
+        #endregion
+
+        #region INetEntity — 밖에서 봇에게 묻는 것들
+
+        private AIPlayerMovement bot;
+
+        //호스트가 보내주는 크기로 부드럽게 따라간다. 클라에서만 돈다
+        //(호스트는 PlayerScaleController가 직접 몰기 때문에 이 경로를 타지 않는다)
+        private const float ScaleFollowSpeed = 10f;
+
+        private Renderer bodyRenderer;
+        private Color lastSentColor = Color.clear;
+
+        #endregion
 
         // ★ 점수도 방송해야 한다
         //   예전엔 CurrentScore를 호스트에서만 올리고 패킷에는 싣지 않았다.
@@ -105,8 +126,6 @@ namespace JellyNet
         public int Score { get { return CurrentScore; } }
         public Color VisualColor { get { return ReadVisualColor(); } }
         public bool IsOutOfPlay { get { return bot != null && bot.IsOutOfPlay; } }
-
-        private AIPlayerMovement bot;
 
         public bool IsDriver
         {
@@ -209,10 +228,6 @@ namespace JellyNet
             net.Broadcast(w);
         }
 
-        //호스트가 보내주는 크기로 부드럽게 따라간다. 클라에서만 돈다
-        //(호스트는 PlayerScaleController가 직접 몰기 때문에 이 경로를 타지 않는다)
-        private const float ScaleFollowSpeed = 10f;
-
         private void FollowScale()
         {
             if (targetScale <= 0f)
@@ -248,9 +263,6 @@ namespace JellyNet
             if (eliminated && bot != null)
                 bot.ApplyEliminated();
         }
-
-        private Renderer bodyRenderer;
-        private Color lastSentColor = Color.clear;
 
         private Renderer Rend
         {

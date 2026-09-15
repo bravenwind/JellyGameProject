@@ -28,6 +28,9 @@ public class PlayerIndicator : MonoBehaviour
 
     private RectTransform rect;
 
+    /// <summary>이 삼각형이 가리키는 개체. 사람이든 봇이든 INetEntity 하나로 들어온다.</summary>
+    public INetEntity Entity { get; set; }
+
     /// <summary>
     /// 화면 좌표를 직접 쓰기 위해 RectTransform을 그대로 내준다.
     /// UI가 아닌 곳에 붙었으면 null — 그래도 예외로 죽지는 않는다.
@@ -41,9 +44,6 @@ public class PlayerIndicator : MonoBehaviour
             return rect;
         }
     }
-
-    /// <summary>이 삼각형이 가리키는 개체. 사람이든 봇이든 INetEntity 하나로 들어온다.</summary>
-    public INetEntity Entity { get; set; }
 
     //인스펙터 연결을 잊어도 동작하게 한다. 프리팹에는 이미 연결돼 있으므로 보통 그냥 지나간다.
     private void Awake()

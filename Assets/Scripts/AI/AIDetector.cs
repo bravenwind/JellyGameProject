@@ -3,28 +3,16 @@ using JellyNet;
 
 public class AIDetector : MonoBehaviour
 {
+    #region 상태
+
     // ★ 두 값 다 AIPlayerMovement가 넣어준다
     //   인스펙터에 따로 적어두면 봇 본체와 탐지기의 숫자가 조용히 벌어진다.
     //   detectRadius는 봇의 설정값, baseAgentRadius는 NavMeshAgent가 원본이다.
     private float detectRadius = 15f;
     private float baseAgentRadius = 0.5f;
 
-    /// <summary>봇 본체가 Awake에서 한 번 넣어준다.</summary>
-    public void Configure(float detectRadius, float baseAgentRadius)
-    {
-        this.detectRadius = detectRadius;
-        this.baseAgentRadius = baseAgentRadius;
-    }
-
     private AIPlayerMovement owner;
 
-    // ★ 캐시는 "언제 스캔했나"만 보고 걸린다
-    //   예전엔 조건이 `경과 < 0.1f && cached != null` 이었다. 결과가 null이면
-    //   캐시가 절대 안 걸리는데, "주변에 아무도 없음"이야말로 가장 흔한 상태다.
-    //   즉 캐시가 가장 필요한 순간에 정확히 빗나가서, 봇 하나가 초당 17번
-    //   (긴급 위협 0.1초 + 상태평가 0.15초 + 추격 재평가 0.5초) 전부 전체 순회를 했다.
-    //   "없다"도 엄연한 답이므로 그대로 캐시한다.
-    private const float ScanCacheDuration = 0.1f;
     private Transform cachedThreat;
     private Transform cachedPrey;
     private Transform cachedJelly;
@@ -34,6 +22,27 @@ public class AIDetector : MonoBehaviour
     private float lastThreatScan = float.NegativeInfinity;
     private float lastPreyScan = float.NegativeInfinity;
     private float lastJellyScan = float.NegativeInfinity;
+
+    #endregion
+
+    #region 상수
+
+    // ★ 캐시는 "언제 스캔했나"만 보고 걸린다
+    //   예전엔 조건이 `경과 < 0.1f && cached != null` 이었다. 결과가 null이면
+    //   캐시가 절대 안 걸리는데, "주변에 아무도 없음"이야말로 가장 흔한 상태다.
+    //   즉 캐시가 가장 필요한 순간에 정확히 빗나가서, 봇 하나가 초당 17번
+    //   (긴급 위협 0.1초 + 상태평가 0.15초 + 추격 재평가 0.5초) 전부 전체 순회를 했다.
+    //   "없다"도 엄연한 답이므로 그대로 캐시한다.
+    private const float ScanCacheDuration = 0.1f;
+
+    #endregion
+
+    /// <summary>봇 본체가 Awake에서 한 번 넣어준다.</summary>
+    public void Configure(float detectRadius, float baseAgentRadius)
+    {
+        this.detectRadius = detectRadius;
+        this.baseAgentRadius = baseAgentRadius;
+    }
 
     private void Awake()
     {

@@ -3,14 +3,22 @@ using DG.Tweening;
 
 public class UIDropBounce : MonoBehaviour
 {
+    #region 인스펙터
+
     [SerializeField] private RectTransform target;
     [SerializeField] private float startY = 900f;
     [SerializeField] private float duration = 1f;
     [SerializeField] private Ease ease = Ease.OutBounce;
     [SerializeField] private bool ignoreTimeScale = true;
 
+    #endregion
+
+    #region 상태
+
     private Vector2 endPos;
     private Tween tween;
+
+    #endregion
 
     private void Awake()
     {

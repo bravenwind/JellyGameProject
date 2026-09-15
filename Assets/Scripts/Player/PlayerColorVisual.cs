@@ -4,7 +4,13 @@ using UnityEngine;
 
 public class PlayerColorVisual : MonoBehaviour
 {
+    #region 인스펙터
+
     [SerializeField] private Renderer rend;
+
+    #endregion
+
+    #region 상태
 
     private Color originalBaseColor;
     private Color originalBaseColor_02;
@@ -13,12 +19,6 @@ public class PlayerColorVisual : MonoBehaviour
     private Color currentBaseColor;
     private Color currentBaseColor_02;
     private Color currentFresnelColor;
-
-    [Header("Color Settings")]
-    [Range(0f, 1f)]
-    [SerializeField] private float baseColor02Lightness = 0.6f;
-
-    [SerializeField] private float blendTime = 0.5f;
 
     // ★ 머티리얼 인스턴스를 한 번만 잡아둔다
     //   Renderer.material은 접근할 때마다 프로퍼티를 타고, 첫 접근에서 복제본을 만든다.
@@ -30,8 +30,24 @@ public class PlayerColorVisual : MonoBehaviour
     // ── RYB Color State (이전의 IEntityBridge.RYBColor 역할) ──
     public RYBColor CurrentRYB { get; private set; } = RYBColor.white;
 
+    #endregion
+
+    #region Color Settings
+
+    [Header("Color Settings")]
+    [Range(0f, 1f)]
+    [SerializeField] private float baseColor02Lightness = 0.6f;
+
+    [SerializeField] private float blendTime = 0.5f;
+
+    #endregion
+
+    #region 이벤트·콜백
+
     // ── Events ──
     public event Action<JellyColorType, RYBColor, Color> OnColorApplied;
+
+    #endregion
 
     private void Start()
     {
@@ -165,5 +181,4 @@ public class PlayerColorVisual : MonoBehaviour
 
     private Color DarkenColor(Color color, float factor)
         => new Color(color.r * factor, color.g * factor, color.b * factor, 1f);
-
 }

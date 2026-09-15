@@ -5,10 +5,16 @@ using UnityEngine.UI;
 
 public class SoundSettings : MonoBehaviour
 {
+    #region 설정
+
     [Header("설정")]
     public AudioMixer audioMixer;
     public string parameter_BGM = "BGMVolume";
     public string parameter_SFX = "SFXVolume";
+
+    #endregion
+
+    #region UI 컴포넌트
 
     [Header("UI 컴포넌트")]
     public Slider volumeSlider_BGM;
@@ -16,12 +22,18 @@ public class SoundSettings : MonoBehaviour
     public TMP_Text volumeText_BGM;
     public TMP_Text volumeText_SFX;
 
+    #endregion
+
+    #region 볼륨 범위 (dB)
+
     [Header("볼륨 범위 (dB)")]
     [SerializeField] private float minVolume_BGM = -40f; // -20은 너무 클 수 있어 보통 -40~-60 추천
     [SerializeField] private float maxVolume_BGM = 0f;   // 5는 소리가 깨질 수 있어 0 추천
 
     public float minVolume_SFX = -40f;
     public float maxVolume_SFX = 0f;
+
+    #endregion
 
     private void Start()
     {

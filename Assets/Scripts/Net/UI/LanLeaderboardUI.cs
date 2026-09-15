@@ -5,12 +5,18 @@ namespace JellyNet
 {
     public class LanLeaderboardUI : MonoBehaviour
     {
+        #region 연결
+
         [Header("연결")]
         [Tooltip("순위 행들이 들어갈 부모.")]
         [SerializeField] private Transform container;
 
         [Tooltip("한 줄 프리팹(LanLeaderboardRow 보유).")]
         [SerializeField] private GameObject entryPrefab;
+
+        #endregion
+
+        #region 표시
 
         [Header("표시")]
         [Tooltip("몇 등까지 보여줄지.")]
@@ -19,9 +25,15 @@ namespace JellyNet
         [Tooltip("초당 몇 번 갱신할지. 매 프레임 정렬할 이유가 없다.")]
         [SerializeField] private float refreshRate = 4f;
 
+        #endregion
+
+        #region 상태
+
         private readonly List<LanLeaderboardRow> rows = new List<LanLeaderboardRow>();
         private ComponentPool<LanLeaderboardRow> pool;
         private float timer;
+
+        #endregion
 
         private void Start()
         {

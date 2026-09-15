@@ -11,6 +11,8 @@ using UnityEngine;
 [RequireComponent(typeof(TMP_Text))]
 public class WaitingDots : MonoBehaviour
 {
+    #region 인스펙터
+
     [Tooltip("점을 뺀 본문. 비워두면 켜질 때 라벨에 적혀 있던 글을 그대로 쓴다.")]
     [SerializeField] private string label = "";
 
@@ -20,9 +22,15 @@ public class WaitingDots : MonoBehaviour
     [Tooltip("최대 몇 개까지 찍을지.")]
     [SerializeField] private int maxDots = 3;
 
+    #endregion
+
+    #region 상태
+
     private TMP_Text text;
     private float timer;
     private int dots;
+
+    #endregion
 
     private void Awake()
     {

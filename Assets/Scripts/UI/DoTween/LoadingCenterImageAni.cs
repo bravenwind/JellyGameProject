@@ -8,9 +8,15 @@ public class LoadingCenterMultiAni : MonoBehaviour
     [Serializable]
     public class TargetUI
     {
+        #region 인스펙터
+
         public RectTransform rect;
         public CanvasGroup group;     // 비워도 됨(자동 생성)
         public float delay;
+
+        #endregion
+
+        #region Per-Target Toggles
 
         [Header("Per-Target Toggles")]
         public bool doPhase1 = true;  // Fade In + Shrink
@@ -18,10 +24,18 @@ public class LoadingCenterMultiAni : MonoBehaviour
         public bool doPhase3 = true;  // Grow + Fade Out
 
         [HideInInspector] public Vector3 baseScale;
+
+        #endregion
     }
+
+    #region Targets
 
     [Header("Targets")]
     [SerializeField] private List<TargetUI> targets = new List<TargetUI>();
+
+    #endregion
+
+    #region Phase 1: Fade In + Shrink
 
     [Header("Phase 1: Fade In + Shrink")]
     [SerializeField] private float phase1Duration = 0.5f;
@@ -30,6 +44,10 @@ public class LoadingCenterMultiAni : MonoBehaviour
     [SerializeField] private float phase1StartScaleMul = 1.15f;
     [SerializeField] private float phase1EndScaleMul = 0.90f;
     [SerializeField] private Ease phase1Ease = Ease.OutCubic;
+
+    #endregion
+
+    #region Phase 2: Jelly (DOShakeScale)
 
     [Header("Phase 2: Jelly (DOShakeScale)")]
     [Tooltip("실제로 흔드는 시간. 로딩 대기시간보다 짧게 두면 처음에만 흔들리고 진정된 채 머문다.")]
@@ -40,21 +58,35 @@ public class LoadingCenterMultiAni : MonoBehaviour
     [SerializeField] private bool shakeFadeOut = true;
     [SerializeField] private ShakeRandomnessMode shakeRandomnessMode = ShakeRandomnessMode.Harmonic;
 
+    #endregion
+
+    #region Phase 3: Grow + Fade Out
+
     [Header("Phase 3: Grow + Fade Out")]
     [SerializeField] private float phase3Duration = 0.5f;
     [SerializeField] private float phase3EndAlpha = 0f;
     [SerializeField] private float phase3EndScaleMul = 1.20f;
     [SerializeField] private Ease phase3Ease = Ease.InCubic;
 
+    #endregion
+
+    #region Options
+
     [Header("Options")]
     [SerializeField] private bool playOnEnable = true;
     [SerializeField] private bool ignoreTimeScale = true;
+
+    #endregion
+
+    #region 상태
 
     private readonly List<Sequence> runningSeqs = new List<Sequence>();
 
     // [동기화] 부모 BG 슬라이드. Phase3(사라짐)를 BG의 센터->오른쪽(퇴장) 시작에 맞춰 재생하기 위해 구독한다.
     private LoadingBGSlideAni bgSlide;
     private bool exitPlayed;
+
+    #endregion
 
     private void OnEnable()
     {

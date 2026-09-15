@@ -4,6 +4,8 @@ using JellyNet;
 
 public class AIPushSurviveState : AIBaseState
 {
+    #region 상태
+
     private float checkTimer;
     private bool fleeing;
     private float attackScanTimer;
@@ -11,18 +13,28 @@ public class AIPushSurviveState : AIBaseState
     //각을 잡으러 이동하는 중인가. 도착 전까지 교전 정지 코드로 내려가지 않는다
     private bool repositioning;
 
+    private float nextOrbitTime;
+
+    private float repositionDeadline;
+
+    #endregion
+
+    #region 상수
+
     // ★ 각 잡기에 쿨다운을 둔다 — 돌기만 하고 안 때리는 것을 막는다
     //   상대가 계속 움직이면 도착할 때마다 각이 다시 어긋나 또 돌게 된다.
     //   그러면 봇은 평생 상대 주위를 맴돌기만 하고 한 대도 안 친다.
     //   한 번 돌고 나면 잠깐은 각을 따지지 않고 그 자리에서 겨눠 친다.
     //   AIM_DELAY(0.45초) + 스윙이 한 번은 들어가는 길이여야 한다.
     private const float ORBIT_COOLDOWN = 1.5f;
-    private float nextOrbitTime;
 
     // 각 잡기 이동에 거는 시간 상한. 끼임 감지가 먼저 걸리는 게 보통이지만,
     // 아주 느리게 밀려나는 등 velocity가 0이 아닌 채 도착이 안 되는 경우도 막는다.
     private const float REPOSITION_TIMEOUT = 2.5f;
-    private float repositionDeadline;
+
+    #endregion
+
+    #region 반응 속도
 
     // ═══════════════════════════════════════════════════════
     //  ★ 반응 속도
@@ -36,6 +48,86 @@ public class AIPushSurviveState : AIBaseState
     //  판단 자체는 가벼운 연산이라(가장 가까운 상대 찾기 정도) 자주 돌려도 부담이 없다.
     private const float CHECK_INTERVAL = 0.06f;
     private const float ATTACK_SCAN_INTERVAL = 0.1f;
+
+    #endregion
+
+    #region 조준 유예 — 사람이 반응할 틈
+
+    // ─────────────────────────────────────────────────────────
+    //  조준 유예 — 사람이 반응할 틈
+    // ─────────────────────────────────────────────────────────
+    //
+    // ★ 예전엔 사거리에 들어오는 <b>즉시</b> 휘둘렀다
+    //   봇은 매 판단마다 거리를 재고 조건이 맞으면 바로 TryAttack을 부른다.
+    //   사람은 상대가 다가오는 걸 보고 반응해야 하는데, 봇에겐 그 지연이 없다.
+    //   결과적으로 <b>먼저 붙는 쪽이 무조건 이기는 싸움</b>이 됐다.
+    //
+    //   사거리에 들어오면 바로 치지 않고 그 자리에서 상대를 바라보며 잠깐 겨눈다.
+    //   그동안 사람은 물러나거나 먼저 칠 수 있다.
+    //   겨누는 동안 상대가 사거리 밖으로 나가면 유예는 초기화된다 —
+    //   붙었다 떨어졌다 하는 것만으로 봇을 계속 헛치게 만들 수 있다.
+    [Tooltip("사거리에 들어온 뒤 실제로 휘두르기까지의 시간(초). 사람이 반응할 틈이다.")]
+    private const float AIM_DELAY = 0.1f;
+
+    //겨누기 시작한 시각. 사거리 밖으로 나가면 -1로 되돌린다
+    private float aimStartTime = -1f;
+
+    #endregion
+
+    #region 재배치 — 상대는 붙잡아 두고 발판만 갈아탄다
+
+    [Tooltip("재배치할 때 훑어볼 주변 칸 반경")]
+    private const int REPOSITION_SEARCH_CELLS = 2;
+
+    //점수 계산에 쓰는 값. 델리게이트가 매번 새 클로저를 만들지 않도록 필드로 둔다
+    private Vector3 repositionTargetPos;
+    private float repositionPreferredDist;
+    private Vector3 repositionFromPos;
+    private System.Func<Vector3, float> repositionScorer;
+
+    //각이 나오는 칸에 주는 가점. 배트 사거리(크기 2에서 4m)보다 넉넉히 커야
+    //거리 항을 이기고 실제로 각을 보고 자리를 잡는다
+    private const float PushOffBonus = 25f;
+
+    //"상대와의 거리를 1m 맞추는 것"이 "내가 1m 더 뛰는 것"의 몇 배 가치인가.
+    //1보다 작게 둔 이유는 가까운 칸을 우선하기 위해서다 — 멀리 가면 가는 도중에 꺼진다
+    private const float TravelCostWeight = 0.6f;
+
+    #endregion
+
+    #region 밀어 떨어뜨릴 각
+
+    // 도주 후보. 매 판단마다 새로 채우므로 배열 하나를 재사용한다
+    private readonly Vector3[] escapeCandidates = new Vector3[3];
+    private int escapeCandidateCount;
+
+    //상대 주위를 몇 등분해서 훑을지. 12면 30°마다 본다
+    private const int ORBIT_SAMPLES = 12;
+
+    //남은 거리가 이보다 짧아지면 다음 목적지를 미리 잡는다. 감속 구간보다 넉넉해야 한다
+    private const float WANDER_RETARGET_DISTANCE = 3f;
+
+    //배회 폴백에서 훑을 반경. 한 칸 옆이면 충분하다 — 멀리 갈 이유가 없다
+    private const int WANDER_FALLBACK_CELLS = 1;
+
+    private Vector3 wanderFromPos;
+    private System.Func<Vector3, float> wanderScorer;
+
+    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
+    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
+    private const float SurvivalBonusPerStep = 40f;
+
+    #endregion
+
+    #region 대상 고르기 — 크기 필터를 점수로 바꿨다
+
+    //이미 그 상대를 노리는 봇 하나당 감점. 몰림을 막는 항이다
+    private const float ClaimPenalty = 12f;
+
+    //나보다 작은 상대에 주는 가점. 밀어내기 쉬우니 조금 선호할 뿐, 조건은 아니다
+    private const float SmallerBonus = 4f;
+
+    #endregion
 
     public AIPushSurviveState(AIPlayerMovement ai) : base(ai) { }
 
@@ -202,25 +294,6 @@ public class AIPushSurviveState : AIBaseState
         // 타겟이 없거나 추격 범위 밖 → 평소엔 배회
         Wander();
     }
-
-    // ─────────────────────────────────────────────────────────
-    //  조준 유예 — 사람이 반응할 틈
-    // ─────────────────────────────────────────────────────────
-    //
-    // ★ 예전엔 사거리에 들어오는 <b>즉시</b> 휘둘렀다
-    //   봇은 매 판단마다 거리를 재고 조건이 맞으면 바로 TryAttack을 부른다.
-    //   사람은 상대가 다가오는 걸 보고 반응해야 하는데, 봇에겐 그 지연이 없다.
-    //   결과적으로 <b>먼저 붙는 쪽이 무조건 이기는 싸움</b>이 됐다.
-    //
-    //   사거리에 들어오면 바로 치지 않고 그 자리에서 상대를 바라보며 잠깐 겨눈다.
-    //   그동안 사람은 물러나거나 먼저 칠 수 있다.
-    //   겨누는 동안 상대가 사거리 밖으로 나가면 유예는 초기화된다 —
-    //   붙었다 떨어졌다 하는 것만으로 봇을 계속 헛치게 만들 수 있다.
-    [Tooltip("사거리에 들어온 뒤 실제로 휘두르기까지의 시간(초). 사람이 반응할 틈이다.")]
-    private const float AIM_DELAY = 0.1f;
-
-    //겨누기 시작한 시각. 사거리 밖으로 나가면 -1로 되돌린다
-    private float aimStartTime = -1f;
 
     /// <summary>타겟을 추격하거나 사거리 안이면 공격. 무언가 행동했으면 true.</summary>
     private bool TryEngageTarget(Transform target)
@@ -442,16 +515,7 @@ public class AIPushSurviveState : AIBaseState
     //  재배치 — 상대는 붙잡아 두고 발판만 갈아탄다
     // ─────────────────────────────────────────────────────────
 
-    [Tooltip("재배치할 때 훑어볼 주변 칸 반경")]
-    private const int REPOSITION_SEARCH_CELLS = 2;
-
-    //점수 계산에 쓰는 값. 델리게이트가 매번 새 클로저를 만들지 않도록 필드로 둔다
-    private Vector3 repositionTargetPos;
-    private float repositionPreferredDist;
-    private Vector3 repositionFromPos;
-    private System.Func<Vector3, float> repositionScorer;
-
-    /// <summary>
+/// <summary>
     /// 발밑이 닳았지만 싸울 상대가 있을 때, 상대를 놓지 않는 선에서 옆 칸으로 옮긴다.
     /// 옮길 곳을 못 찾으면 false — 그때는 호출부가 평소의 도주로 내려간다.
     /// </summary>
@@ -528,14 +592,6 @@ public class AIPushSurviveState : AIBaseState
         return score;
     }
 
-    //각이 나오는 칸에 주는 가점. 배트 사거리(크기 2에서 4m)보다 넉넉히 커야
-    //거리 항을 이기고 실제로 각을 보고 자리를 잡는다
-    private const float PushOffBonus = 25f;
-
-    //"상대와의 거리를 1m 맞추는 것"이 "내가 1m 더 뛰는 것"의 몇 배 가치인가.
-    //1보다 작게 둔 이유는 가까운 칸을 우선하기 위해서다 — 멀리 가면 가는 도중에 꺼진다
-    private const float TravelCostWeight = 0.6f;
-
     // ─────────────────────────────────────────────────────────
     //  ★ 밀어 떨어뜨릴 각
     // ─────────────────────────────────────────────────────────
@@ -548,11 +604,7 @@ public class AIPushSurviveState : AIBaseState
     //  각이 안 나오면 치지 않고 각이 나오는 칸으로 옮긴다. 그 '옮김'이
     //  봇을 움직이게 하고, 후반에 구멍이 늘수록 각이 자주 나와 서로를 떨어뜨린다.
 
-    // 도주 후보. 매 판단마다 새로 채우므로 배열 하나를 재사용한다
-    private readonly Vector3[] escapeCandidates = new Vector3[3];
-    private int escapeCandidateCount;
-
-    private void AddEscapeCandidate(bool found, Vector3 pos)
+private void AddEscapeCandidate(bool found, Vector3 pos)
     {
         if (found && escapeCandidateCount < escapeCandidates.Length)
             escapeCandidates[escapeCandidateCount++] = pos;
@@ -605,9 +657,6 @@ public class AIPushSurviveState : AIBaseState
 
         return ai.Agent.remainingDistance <= ai.Agent.stoppingDistance + 0.5f;
     }
-
-    //상대 주위를 몇 등분해서 훑을지. 12면 30°마다 본다
-    private const int ORBIT_SAMPLES = 12;
 
     /// <summary>
     /// 교전 중 각 잡기 — <b>상대 주위를 배트 사거리로 돈다.</b>
@@ -766,25 +815,12 @@ public class AIPushSurviveState : AIBaseState
             TrySetEscapePath(fallbackHit.position, allowDangerousCrossing: false);
     }
 
-    //남은 거리가 이보다 짧아지면 다음 목적지를 미리 잡는다. 감속 구간보다 넉넉해야 한다
-    private const float WANDER_RETARGET_DISTANCE = 3f;
-
-    //배회 폴백에서 훑을 반경. 한 칸 옆이면 충분하다 — 멀리 갈 이유가 없다
-    private const int WANDER_FALLBACK_CELLS = 1;
-
-    private Vector3 wanderFromPos;
-    private System.Func<Vector3, float> wanderScorer;
-
     //가까운 칸일수록 좋다. 목적은 '다른 칸으로 옮기는 것' 자체다
     private float ScoreWanderFallbackTile(Vector3 tileCenter)
     {
         return SurvivalBonusPerStep * StepsAfterArrivalOf(tileCenter)
              - Vector3.Distance(tileCenter, wanderFromPos);
     }
-
-    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
-    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
-    private const float SurvivalBonusPerStep = 40f;
 
     private static int StepsAfterArrivalOf(Vector3 tileCenter)
     {
@@ -810,13 +846,7 @@ public class AIPushSurviveState : AIBaseState
     //  이제 몰림을 몰림으로 센다 — 같은 상대를 노리는 봇 수가 감점이다.
     //  크기는 조건이 아니라 가벼운 가중치 하나로만 남는다.
 
-    //이미 그 상대를 노리는 봇 하나당 감점. 몰림을 막는 항이다
-    private const float ClaimPenalty = 12f;
-
-    //나보다 작은 상대에 주는 가점. 밀어내기 쉬우니 조금 선호할 뿐, 조건은 아니다
-    private const float SmallerBonus = 4f;
-
-    /// <summary>
+/// <summary>
     /// 지금 노릴 만한 상대. 없으면 null.
     /// 고른 결과를 ai.PushTarget에 남겨, 다른 봇이 몰림을 셀 수 있게 한다.
     /// </summary>

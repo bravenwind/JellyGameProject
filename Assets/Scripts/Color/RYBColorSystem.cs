@@ -36,39 +36,15 @@ public enum JellyColorType
 [Serializable]
 public struct RYBColor
 {
+    #region 인스펙터
+
     [Range(0f, 1f)] public float r;
     [Range(0f, 1f)] public float y;
     [Range(0f, 1f)] public float b;
 
-    public RYBColor(float r, float y, float b)
-    {
-        this.r = Mathf.Clamp01(r);
-        this.y = Mathf.Clamp01(y);
-        this.b = Mathf.Clamp01(b);
-    }
+    #endregion
 
-    // ── 프리셋 ──
-    public static RYBColor white => new RYBColor(0f, 0f, 0f);
-    public static RYBColor black => new RYBColor(1f, 1f, 1f);
-
-    public float Total => r + y + b;
-
-    // ================================================================
-    // 누산
-    // ================================================================
-
-    public RYBColor Add(RYBColor other)
-        => new RYBColor(r + other.r, y + other.y, b + other.b);
-
-    public RYBColor Add(float dr, float dy, float db)
-        => new RYBColor(r + dr, y + dy, b + db);
-
-    // ================================================================
-    // RYB → RGB 변환 (Gosset trilinear interpolation)
-    // ================================================================
-    //
-    // RYB 큐브 꼭짓점 8개를 RGB로 매핑한 뒤 삼선형 보간.
-    // 결과: 물감 혼합과 유사한 색상을 Unity Color로 반환.
+    #region RYB → RGB 변환 (Gosset trilinear interpolation)
 
     // 꼭짓점 RGB 값
     //
@@ -105,7 +81,39 @@ public struct RYBColor
     // 명도의 바닥. 아무리 섞여도 이보다 어두워지지 않는다.
     private const float ValueFloor = 0.14f;
 
-    public Color ToRGB()
+    #endregion
+
+    public RYBColor(float r, float y, float b)
+    {
+        this.r = Mathf.Clamp01(r);
+        this.y = Mathf.Clamp01(y);
+        this.b = Mathf.Clamp01(b);
+    }
+
+    // ── 프리셋 ──
+    public static RYBColor white => new RYBColor(0f, 0f, 0f);
+    public static RYBColor black => new RYBColor(1f, 1f, 1f);
+
+    public float Total => r + y + b;
+
+    // ================================================================
+    // 누산
+    // ================================================================
+
+    public RYBColor Add(RYBColor other)
+        => new RYBColor(r + other.r, y + other.y, b + other.b);
+
+    public RYBColor Add(float dr, float dy, float db)
+        => new RYBColor(r + dr, y + dy, b + db);
+
+    // ================================================================
+    // RYB → RGB 변환 (Gosset trilinear interpolation)
+    // ================================================================
+    //
+    // RYB 큐브 꼭짓점 8개를 RGB로 매핑한 뒤 삼선형 보간.
+    // 결과: 물감 혼합과 유사한 색상을 Unity Color로 반환.
+
+public Color ToRGB()
     {
         float ir = 1f - r, iy = 1f - y, ib = 1f - b;
 
@@ -257,5 +265,4 @@ public struct RYBColor
             best = type;
         }
     }
-
 }
