@@ -58,13 +58,13 @@ namespace JellyNet
     public interface INetSession
     {
         /// <summary>
-        /// 방을 연다. 요청이 성립하지 못하면 false 이고, 사유는 OnFailed 로 나간다.
+        /// 방을 연다. 요청이 성립하지 못하면 false 이고, 사유는 NetEvents.OnSessionFailed 로 나간다.
         /// (LAN 은 여기서 결과가 확정되지만, 온라인은 요청만 나가므로 반환값을
         ///  "성공"이 아니라 "요청이 성립했는가"로 읽어야 한다)
         /// </summary>
         bool CreateRoom(RoomSetup options);
 
-        /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 OnFailed 로 나간다.</summary>
+        /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 NetEvents.OnSessionFailed 로 나간다.</summary>
         bool JoinRoom(RoomEntry room);
 
         /// <summary>지금까지 찾은 방들. StartBrowsing 을 부르기 전에는 비어 있다.</summary>
@@ -94,22 +94,7 @@ namespace JellyNet
         /// </summary>
         void StopAdvertising();
 
-        /// <summary>방 목록에서 화면에 보이는 값이 하나라도 바뀌었다.</summary>
-        event Action OnRoomListChanged;
-
-        /// <summary>방 만들기·참가가 실패했다. 인자는 화면에 그대로 띄울 수 있는 문장이다.</summary>
-        event Action<string> OnFailed;
-
-        /// <summary>
-        /// 방에 실제로 들어갔다. 이때부터 대기 화면이 뜻을 갖는다.
-        ///
-        /// ★ CreateRoom/JoinRoom 이 true 를 돌려준 것과 같은 뜻이 아니다
-        ///   LAN 은 소켓을 여는 것까지가 동기라 곧바로 알 수 있지만, 그때도 내 번호는
-        ///   호스트의 환영 인사가 와야 정해진다. 릴레이는 아예 방 만들기 성공 자체가
-        ///   몇백 ms 뒤 콜백으로 온다. 그래서 "요청을 보냈다"와 "들어갔다"를 나눈다 —
-        ///   안 나누면 실패했는데 이미 대기 화면인 상태가 생긴다.
-        /// </summary>
-        event Action OnRoomEntered;
+        //목록 변경·실패·방 입장은 NetEvents 로 알린다. 이 인터페이스에는 이벤트가 없다.
 
         /// <summary>
         /// 같은 기계·같은 랜에서만 도는 세션인가. 화면이 로컬 전용 입력(포트 등)을

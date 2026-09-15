@@ -25,9 +25,6 @@ namespace JellyNet
     {
         private readonly PhotonTransport transport;
 
-        public event Action OnRoomListChanged;
-        public event Action<string> OnFailed;
-        public event Action OnRoomEntered;
 
         //온라인이므로 로컬 전용 입력(포트)은 화면에서 감춰야 한다
         public bool IsLocal { get { return false; } }
@@ -58,19 +55,21 @@ namespace JellyNet
         private static readonly object[] LOBBY_PROPS =
             { PROP_MODE, PROP_NEEDED, PROP_AI, PROP_HOST };
 
-        public PhotonSession(PhotonTransport transport)
+        public PhotonSession(PhotonTransport transport, NetEvents events)
         {
             this.transport = transport;
+            this.events = events;
 
-            //취소·판 종료로 전송이 접히면 적어둔 일도 없던 일이 된다
-            this.transport.OnShutdownRequested += CancelPending;
+            //취소·판 종료로 판을 접으면 적어둔 일도 없던 일이 된다
+            this.events.OnShutdownRequested += CancelPending;
         }
 
-        /// <summary>전송에 건 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
-        /// <summary>생성자에서 전송에 걸어둔 구독을 푼다. 방향은 LocalSession 쪽 설명과 같다.</summary>
-        public void UnsubscribeFromTransport()
+        private readonly NetEvents events;
+
+        /// <summary>생성자에서 게시판에 걸어둔 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
+        public void UnsubscribeFromEvents()
         {
-            transport.OnShutdownRequested -= CancelPending;
+            events.OnShutdownRequested -= CancelPending;
         }
 
         private void CancelPending()
@@ -304,7 +303,7 @@ namespace JellyNet
             foreach (RoomEntry h in byName.Values)
                 handles.Add(h);
 
-            OnRoomListChanged?.Invoke();
+            events.RaiseRoomListChanged();
         }
 
         private static int PropInt(RoomInfo info, string key, int fallback)
@@ -338,9 +337,8 @@ namespace JellyNet
 
         public void OnRoomListUpdate(List<RoomInfo> roomList) { ApplyRoomList(roomList); }
 
-        //방에 실제로 들어갔다. 로비의 "연결 중..." 이 여기서 끝난다.
-        //만든 사람에게는 OnCreatedRoom 다음에 이것도 온다 — 그래서 여기 한 곳에만 건다
-        public void OnJoinedRoom() { OnRoomEntered?.Invoke(); }
+        //방에 들어간 사실은 PhotonTransport.OnJoinedRoom 이 알린다. LAN 과 같이 전송의 몫이다
+        public void OnJoinedRoom() { }
 
         public void OnCreateRoomFailed(short returnCode, string message)
         {
@@ -388,7 +386,7 @@ namespace JellyNet
 
         private void Fail(string reason)
         {
-            OnFailed?.Invoke(string.IsNullOrEmpty(reason) ? "알 수 없는 이유로 실패했습니다." : reason);
+            events.RaiseSessionFailed(reason);
         }
     }
 }

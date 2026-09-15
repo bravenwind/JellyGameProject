@@ -14,10 +14,14 @@ namespace JellyNet
     /// </summary>
     public class SocketTransport : INetTransport
     {
-        public SocketTransport(NetRouteTable routes)
+        public SocketTransport(NetRouteTable routes, NetEvents events)
         {
             this.routes = routes;
+            this.events = events;
         }
+
+        //일어난 일을 알리는 게시판. NetManager 가 하나 만들어 모두에게 꽂아준다
+        private readonly NetEvents events;
 
         private NetHost host;
         private NetClient client;
@@ -32,20 +36,12 @@ namespace JellyNet
         /// </summary>
         public Action<string> OnError;
 
-        public event Action<int> OnPeerJoined;
-        public event Action<int> OnPeerLeft;
-        public event Action OnHostStarted;
-
-        //클라가 호스트에게서 자기 번호를 받은 순간. LAN 은 접속(TCP)과 번호 배정이
-        //따로라, 접속만으로 '방에 들어갔다'고 하면 번호가 0인 채로 대기 화면이 뜬다
-        public event Action OnWelcomed;
-        public event Action OnDisconnected;
-        public event Action OnConnectionLost;
 
         /// <summary>StartHost/JoinHost 가 실패한 이유. 화면에 그대로 띄울 수 있는 문장이다.</summary>
         public string LastError { get; private set; }
 
-        public bool ConnectionLost { get; private set; }
+        //이번 접속에서 끊김을 이미 알렸는가. Poll 이 매 프레임 같은 로그를 찍지 않게 한다
+        private bool connectionLost;
 
         // ─────────────────────────────────────────────────────────
         //  상태
@@ -102,7 +98,10 @@ namespace JellyNet
             foreach (string ip in NetUtil.GetLocalIPv4List())
                 Log("  다른 기기에서 접속: " + ip + ":" + port);
 
-            OnHostStarted?.Invoke();
+            //호스트는 남의 승인을 기다릴 게 없다. 포트가 열린 순간 세션이 서고 방에 들어간 것이다
+            events.OpenSession();
+            events.RaiseHostStarted();
+            events.RaiseRoomEntered();
             return true;
         }
 
@@ -114,7 +113,9 @@ namespace JellyNet
             NetClient c = new NetClient();
             c.OnLog = Log;
             c.OnMessage = RaiseClientMessage;
-            c.OnWelcome = () => OnWelcomed?.Invoke();
+            //클라가 호스트에게서 자기 번호를 받은 순간이 방에 들어간 순간이다. LAN 은 접속(TCP)과
+            //번호 배정이 따로라, 접속만으로 들어갔다고 하면 번호가 0인 채로 대기 화면이 뜬다
+            c.OnWelcome = events.RaiseRoomEntered;
 
             if (!c.Connect(ip, port))
             {
@@ -123,15 +124,14 @@ namespace JellyNet
             }
 
             client = c;
+            events.OpenSession();
             Log("== 참가 모드 ==");
             return true;
         }
 
         public void Shutdown()
         {
-            bool wasConnected = (host != null || client != null);
-
-            ConnectionLost = false;
+            connectionLost = false;
 
             if (host != null)
             {
@@ -146,8 +146,8 @@ namespace JellyNet
 
             //호스트·클라를 비운 뒤에 알린다. 구독자가 이 자리에서 상태를 다시 물어보기 때문에
             //(로비의 취소 처리가 그렇다) 아직 세션이 서 있는 것처럼 보이면 Shutdown 이 다시 불린다
-            if (wasConnected)
-                OnDisconnected?.Invoke();
+            //세션이 없었으면 게시판이 알아서 조용히 넘긴다
+            events.RaiseDisconnected();
         }
 
         //소켓은 메시지 수에 한도가 없다. 묶으면 한 프레임 지연만 손해다
@@ -163,13 +163,13 @@ namespace JellyNet
 
             client.Poll();
 
-            if (ConnectionLost || client.Connected)
+            if (connectionLost || client.Connected)
                 return;
 
-            ConnectionLost = true;
+            connectionLost = true;
             Log("호스트와의 연결이 끊어졌습니다.");
 
-            OnConnectionLost?.Invoke();
+            events.RaiseConnectionLost();
         }
 
         // ─────────────────────────────────────────────────────────
@@ -238,12 +238,12 @@ namespace JellyNet
 
         private void RaisePeerJoined(int peerId)
         {
-            OnPeerJoined?.Invoke(peerId);
+            events.RaisePeerJoined(peerId);
         }
 
         private void RaisePeerLeft(int peerId)
         {
-            OnPeerLeft?.Invoke(peerId);
+            events.RaisePeerLeft(peerId);
         }
 
         private void Log(string msg)

@@ -166,11 +166,6 @@ namespace JellyNet
         public Action<string> OnLog;
         public Action<string> OnError;
 
-        public event Action<int> OnPeerJoined;
-        public event Action<int> OnPeerLeft;
-        public event Action OnHostStarted;
-        public event Action OnDisconnected;
-        public event Action OnConnectionLost;
 
         // ★ ActorNumber 를 그대로 쓴다. 번역표는 두지 않는다
         //   이 게임에서 OwnerId 는 "책임"이고 호스트는 언제나 1이다(NetHost.HOST_ID).
@@ -355,10 +350,14 @@ namespace JellyNet
 
         private readonly NetRouteTable routes;
 
-        public PhotonTransport(NetRouteTable routes)
+        public PhotonTransport(NetRouteTable routes, NetEvents events)
         {
             this.routes = routes;
+            this.events = events;
         }
+
+        //일어난 일을 알리는 게시판. NetManager 가 하나 만들어 모두에게 꽂아준다
+        private readonly NetEvents events;
 
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
@@ -404,20 +403,9 @@ namespace JellyNet
         //   릴레이에서 로비로 돌아가는 것은 '방에서 나가는 것'이다. 마스터 서버에는
         //   붙어 있는 편이 맞다 — 방 목록도 거기서 오고, 다시 방을 만들 때 접속
         //   과정을 처음부터 되풀이하지 않아도 된다.
-        /// <summary>
-        /// 판을 접었다. 세션이 '하려던 일'을 취소할 수 있게 알린다.
-        ///
-        /// ★ 접속 중에 취소하면 취소가 안 됐다
-        ///   Photon 은 접속이 끝나야 방을 만들 수 있어, 하려던 일을 적어두고
-        ///   OnConnectedToMaster 에서 꺼내 실행한다. 그런데 그 사이에 취소를 누르면
-        ///   적어둔 것이 그대로 남아, 몇백 ms 뒤에 <b>아무도 요청하지 않은 방</b>이
-        ///   만들어졌다. 접었다는 사실은 방에 들어갔는지와 무관하게 알려야 한다.
-        /// </summary>
-        public event Action OnShutdownRequested;
-
         public void Shutdown()
         {
-            OnShutdownRequested?.Invoke();
+            //'접으라는 요청'은 NetManager.Shutdown 이 게시판에 먼저 올린다. 세션은 거기서 듣는다
 
             // ★ InRoom 만으로는 모자란다 — IsConnected 도 본다
             //   InRoom 은 state == Joined 인지만 보는데, 그 상태는 소켓이 죽어도
@@ -426,12 +414,18 @@ namespace JellyNet
             //   state 는 Joined 로 굳어 있다. 그때 OpLeaveRoom 을 보내면
             //   "Operation LeaveRoom (254) can't be sent because peer is not
             //   connected" 가 찍힌다.
-            if (Client == null || !Client.IsConnected || !Client.InRoom)
-                return;
+            if (Client != null && Client.IsConnected && Client.InRoom)
+            {
+                leavingRoom = true;
+                Client.OpLeaveRoom(false);
+            }
 
-            leavingRoom = true;
-            Client.OpLeaveRoom(false);
-            OnDisconnected?.Invoke();
+            // ★ 방을 나갈 수 없어도 세션은 닫는다
+            //   예전엔 위 조건이 거짓이면 그대로 return 해서 OnDisconnected 가 안 나갔다.
+            //   연결이 먼저 끊긴 경우(Teardown 으로 Client 가 이미 null)가 정확히 그 경우라,
+            //   OnConnectionLost 뒤에 나가기를 눌러도 뒷정리(NetWorld.ClearAll 등)가 돌지 않았다.
+            //   몇 번 불려도 한 번만 나가게 하는 일은 게시판이 한다.
+            events.RaiseDisconnected();
         }
 
         /// <summary>
@@ -478,13 +472,13 @@ namespace JellyNet
         public void OnPlayerEnteredRoom(Player newPlayer)
         {
             rosterStamp++;
-            OnPeerJoined?.Invoke(newPlayer.ActorNumber);
+            events.RaisePeerJoined(newPlayer.ActorNumber);
         }
 
         public void OnPlayerLeftRoom(Player otherPlayer)
         {
             rosterStamp++;
-            OnPeerLeft?.Invoke(otherPlayer.ActorNumber);
+            events.RaisePeerLeft(otherPlayer.ActorNumber);
         }
 
         // ★ 마스터가 바뀌면 판을 끝낸다
@@ -506,7 +500,7 @@ namespace JellyNet
                 return;
 
             LogError("방장이 나갔습니다. 게임을 종료합니다.");
-            OnConnectionLost?.Invoke();
+            events.RaiseConnectionLost();
         }
 
         //내가 방을 떠나는 중인가. 이 동안 오는 방 이벤트는 뒷정리일 뿐이다
@@ -515,7 +509,7 @@ namespace JellyNet
         public void OnCreatedRoom()
         {
             //방을 만든 사람이 곧 마스터다. LAN 의 '포트를 열었다'와 같은 자리
-            OnHostStarted?.Invoke();
+            events.RaiseHostStarted();
         }
 
         // ★ 이름이 겹친다 — 명시적 구현으로 푼다
@@ -534,7 +528,7 @@ namespace JellyNet
 
             //시키지 않은 끊김만 위로 알린다. 시킨 끊김은 부른 쪽이 이미 알고 있다
             if (!expected)
-                OnConnectionLost?.Invoke();
+                events.RaiseConnectionLost();
         }
 
         //우리가 듣지 않는 콜백들. 인터페이스라 비워둘 수는 없다
@@ -548,7 +542,19 @@ namespace JellyNet
         public void OnFriendListUpdate(List<FriendInfo> friendList) { }
         public void OnCreateRoomFailed(short returnCode, string message) { }
         //방에 들어왔으니 '나가는 중'은 끝났다
-        public void OnJoinedRoom() { leavingRoom = false; }
+        // ★ 방에 들어간 사실은 전송이 알린다 — LAN 과 자리를 맞춘다
+        //   예전엔 PhotonSession 이 이 콜백에서 OnRoomEntered 를 쐈고, LAN 은 전송의 환영
+        //   인사가 세션을 거쳐 올라갔다. 같은 사건을 한쪽은 세션이, 한쪽은 전송이 쐈다.
+        //   '방 안에 있는가'는 연결의 상태라 전송의 몫이다.
+        //   만든 사람에게는 OnCreatedRoom 다음에 이것도 온다 — 그래서 여기 한 곳에만 건다.
+        public void OnJoinedRoom()
+        {
+            //방에 들어왔으니 '나가는 중'은 끝났다
+            leavingRoom = false;
+
+            events.OpenSession();
+            events.RaiseRoomEntered();
+        }
         public void OnJoinRoomFailed(short returnCode, string message) { }
         public void OnJoinRandomFailed(short returnCode, string message) { }
         public void OnLeftRoom() { leavingRoom = false; }

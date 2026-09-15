@@ -14,37 +14,30 @@ namespace JellyNet
     public class LocalSession : INetSession
     {
         private readonly SocketTransport transport;
+        private readonly NetEvents events;
 
         //지금 쓰는 포트. 인스펙터의 기본값에서 출발해 방을 만들 때 갱신된다.
         //참가할 때 쓰는 주소는 고른 방(RoomHandle)에서 나오므로 따로 들고 있지 않는다
         private int port;
-
-        public event Action OnRoomListChanged;
-        public event Action<string> OnFailed;
-        public event Action OnRoomEntered;
 
         public bool IsLocal { get { return true; } }
 
         //UDP 를 듣기 시작하면 곧바로 준비된 것이다. 붙을 서버가 없다
         public bool IsBrowseReady { get { return LanDiscovery.Instance != null; } }
 
-        public LocalSession(SocketTransport transport, int defaultPort)
+        public LocalSession(SocketTransport transport, NetEvents events, int defaultPort)
         {
             this.transport = transport;
+            this.events = events;
             port = defaultPort;
 
             //방이 닫히면 알리기도 멈춘다. 호출부가 따로 기억해야 하는 일로 두면
             //취소 경로 하나를 빠뜨렸을 때 없는 방이 목록에 계속 떠 있게 된다
-            this.transport.OnDisconnected += StopAdvertising;
-
-            //클라는 호스트의 환영 인사(= 내 번호 배정)를 받아야 방에 들어간 것이다.
-            //호스트는 StartHost 가 성공한 순간이라 CreateRoom 에서 직접 알린다
-            this.transport.OnWelcomed += RaiseRoomEntered;
-        }
-
-        private void RaiseRoomEntered()
-        {
-            OnRoomEntered?.Invoke();
+            //
+            //방에 들어간 순간(호스트는 포트를 연 순간, 클라는 환영 인사를 받은 순간)은
+            //이제 SocketTransport 가 직접 알린다. 예전엔 전송이 OnWelcomed 라는 옆길로
+            //세션에 알리고 세션이 다시 OnRoomEntered 로 되쏘았다
+            this.events.OnDisconnected += StopAdvertising;
         }
 
         // ─────────────────────────────────────────────────────────
@@ -103,8 +96,6 @@ namespace JellyNet
             if (LanDiscovery.Instance != null)
                 LanDiscovery.Instance.StartBeacon(port);
 
-            //호스트는 남의 승인을 기다릴 게 없다. 포트가 열린 순간 방이다
-            RaiseRoomEntered();
             return true;
         }
 
@@ -166,23 +157,10 @@ namespace JellyNet
             signature = -1;
         }
 
-        /// <summary>
-        /// 생성자에서 전송에 걸어둔 구독을 푼다. NetManager 가 죽을 때 부른다.
-        ///
-        /// NetManager 의 StopRelayingFrom 과 헷갈리면 안 된다. 그쪽은 <b>NetManager 가</b>
-        /// 이 세션에 건 구독을 푸는 것이고, 이건 <b>이 세션이</b> 전송에 건 것을 푸는 것이다.
-        /// 방향이 반대라 둘 다 Unhook 이라는 한 이름을 쓰면 어느 쪽인지 알 수 없다.
-        /// </summary>
-        public void UnsubscribeFromTransport()
+        /// <summary>생성자에서 게시판에 걸어둔 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
+        public void UnsubscribeFromEvents()
         {
-            transport.OnDisconnected -= StopAdvertising;
-
-            //★ 예전엔 이 줄이 없었다
-            //  같은 생성자에서 건 구독이 둘인데 푸는 건 하나뿐이었다.
-            //  LocalSession 과 SocketTransport 가 NetManager 와 함께 죽어서 지금은
-            //  새지 않지만, 둘 중 하나라도 더 오래 살게 되는 순간 조용히 새기 시작한다.
-            //  건 자리에서 짝을 맞춘다는 규칙을 여기서 깨면 규칙이 아니게 된다.
-            transport.OnWelcomed -= RaiseRoomEntered;
+            events.OnDisconnected -= StopAdvertising;
         }
 
         public void StopAdvertising()
@@ -230,7 +208,7 @@ namespace JellyNet
                 });
             }
 
-            OnRoomListChanged?.Invoke();
+            events.RaiseRoomListChanged();
         }
 
         //화면에 보이는 값만 섞는다. LastSeen 처럼 매 프레임 변하는 건 넣지 않는다 —
@@ -259,12 +237,10 @@ namespace JellyNet
         //겹치면 목록이 빈 채로 시작할 때 첫 알림이 나가지 않는다
         private int signature = -1;
 
+        //빈 사유를 채우는 일은 게시판이 한다. 세션마다 같은 문장을 두 벌 들고 있었다
         private void Fail(string reason)
         {
-            if (string.IsNullOrEmpty(reason))
-                reason = "알 수 없는 이유로 실패했습니다.";
-
-            OnFailed?.Invoke(reason);
+            events.RaiseSessionFailed(reason);
         }
     }
 }

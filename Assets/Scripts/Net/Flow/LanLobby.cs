@@ -148,23 +148,23 @@ namespace JellyNet
             net.RouteHost(MsgType.LobbyHello, HandleLobbyHello);
             net.RouteClient(MsgType.LobbyReject, HandleLobbyReject);
 
-            net.OnPeerJoined += HandlePeerChanged;
-            net.OnPeerLeft += HandlePeerChanged;
-            net.OnPeerLeft += ForgetLobbyName;
-            net.OnDisconnected += HandleDisconnected;
+            net.Events.OnPeerJoined += HandlePeerChanged;
+            net.Events.OnPeerLeft += HandlePeerChanged;
+            net.Events.OnPeerLeft += ForgetLobbyName;
+            net.Events.OnDisconnected += HandleDisconnected;
 
             // ★ 끊김은 두 얼굴로 온다
             //   내가 끊은 것(OnDisconnected)과 상대가 사라진 것(OnConnectionLost)이
             //   다른 이벤트다. 대기 화면 입장에서는 둘 다 "이 방은 끝났다"로 같다.
             //   예전엔 앞의 것만 들어서, 방장이 취소하면 참가자 화면에 대기 패널이
             //   그대로 남아 영원히 사람을 기다렸다.
-            net.OnConnectionLost += HandleDisconnected;
+            net.Events.OnConnectionLost += HandleDisconnected;
 
             //방 만들기·참가 실패는 세션이 알려준다. 예전엔 호출부가 반환값을 보고
             //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
             //세션이 아니라 NetManager 를 구독한다. 로컬/온라인을 갈아끼워도 끊기지 않는다
-            net.OnSessionFailed += ShowLobbyError;
-            net.OnRoomEntered += HandleRoomEntered;
+            net.Events.OnSessionFailed += ShowLobbyError;
+            net.Events.OnRoomEntered += HandleRoomEntered;
 
             LanScoreboard.Clear();
             LanRoomConfig.Clear();
@@ -403,14 +403,14 @@ namespace JellyNet
                 net.UnrouteClient(MsgType.LobbyStatus);
                 net.UnrouteHost(MsgType.LobbyHello);
                 net.UnrouteClient(MsgType.LobbyReject);
-                net.OnPeerJoined -= HandlePeerChanged;
-                net.OnPeerLeft -= HandlePeerChanged;
-                net.OnPeerLeft -= ForgetLobbyName;
+                net.Events.OnPeerJoined -= HandlePeerChanged;
+                net.Events.OnPeerLeft -= HandlePeerChanged;
+                net.Events.OnPeerLeft -= ForgetLobbyName;
 
-                net.OnSessionFailed -= ShowLobbyError;
-                net.OnRoomEntered -= HandleRoomEntered;
-                net.OnDisconnected -= HandleDisconnected;
-                net.OnConnectionLost -= HandleDisconnected;
+                net.Events.OnSessionFailed -= ShowLobbyError;
+                net.Events.OnRoomEntered -= HandleRoomEntered;
+                net.Events.OnDisconnected -= HandleDisconnected;
+                net.Events.OnConnectionLost -= HandleDisconnected;
             }
             //트윈은 DOTween 엔진이 들고 있어 이 컴포넌트보다 오래 산다.
             //게임 시작 연출(0.4초)이 끝나기 전에 씬이 바뀌므로, 정리하지 않으면

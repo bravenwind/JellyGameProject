@@ -57,7 +57,7 @@ namespace JellyNet
                 return;
             }
 
-            net.OnDisconnected += ResetAll;
+            net.Events.OnDisconnected += ResetAll;
 
             RegisterRoutes();
 
@@ -76,7 +76,7 @@ namespace JellyNet
 
             if (net != null)
             {
-                net.OnDisconnected -= ResetAll;
+                net.Events.OnDisconnected -= ResetAll;
 
                 UnregisterRoutes();
             }

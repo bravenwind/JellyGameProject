@@ -21,10 +21,16 @@ namespace JellyNet
         //주소를 손으로 넣는 화면은 없다. 남겨두면 "인스펙터의 저 IP 는 뭐지"가 된다
         //(씬에 남은 joinIp 키는 다음 저장 때 유니티가 알아서 버린다)
 
-        //LAN 전용 진입점(StartHost/JoinHost)이 필요해 구체 타입도 함께 들고 있다.
-        //전송이 갈려도 하나뿐인 것 — 어떤 MsgType 을 누가 맡는가
+        //전송이 갈려도 하나뿐인 것 둘 — 어떤 MsgType 을 누가 맡는가, 무슨 일이 일어났는가
         private NetRouteTable routes;
 
+        /// <summary>
+        /// 네트워크에서 일어난 일(입장·퇴장·끝남·실패)을 듣는 곳. 구독은 모두 여기에 건다.
+        /// 로컬/온라인을 갈아끼워도 같은 객체라 구독이 끊기지 않는다.
+        /// </summary>
+        public NetEvents Events { get; private set; }
+
+        //LAN 전용 진입점(StartHost/JoinHost)을 세션이 불러야 해서 구체 타입으로 들고 있다
         private SocketTransport localTransport;
         private LocalSession localSession;
 
@@ -36,34 +42,6 @@ namespace JellyNet
         private INetTransport transport;
         /// <summary>방을 만들고 찾고 참가하는 통로. 로비·방 목록 UI는 이것만 본다.</summary>
         public INetSession Session { get; private set; }
-
-        // ★ 세션 이벤트는 NetManager 가 중계한다 — 전송 이벤트와 같은 이유다
-        //   로비는 Start 에서 한 번 구독하는데, 그때 세션은 아직 LAN 이다.
-        //   온라인을 고르면 Session 이 바뀌지만 구독은 옛 세션에 남아,
-        //   방에 들어가도 OnRoomEntered 가 오지 않아 "연결 중..." 에서 멈췄다.
-        //   실패(OnFailed)도 마찬가지로 화면에 닿지 못했다.
-        public event Action OnRoomEntered;
-        public event Action<string> OnSessionFailed;
-
-        private void RelayFrom(INetSession s)
-        {
-            s.OnRoomEntered += RaiseRoomEntered;
-            s.OnFailed += RaiseSessionFailed;
-        }
-
-        private void StopRelayingFrom(INetSession s)
-        {
-            if (s == null)
-                return;
-
-            s.OnRoomEntered -= RaiseRoomEntered;
-            s.OnFailed -= RaiseSessionFailed;
-        }
-
-        //고르지 않은 세션은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다
-        private void RaiseRoomEntered() { OnRoomEntered?.Invoke(); }
-
-        private void RaiseSessionFailed(string reason) { OnSessionFailed?.Invoke(reason); }
 
         /// <summary>지금 온라인 전송을 쓰고 있는가. 화면의 로컬/온라인 선택이 정한다.</summary>
         public bool IsOnline { get; private set; }
@@ -163,14 +141,6 @@ namespace JellyNet
         }
 
         private readonly List<string> log = new List<string>();
-        public event Action OnHostStarted;
-        public event Action<int> OnPeerJoined;
-        public event Action<int> OnPeerLeft;
-        public event Action OnDisconnected;
-
-        //호스트가 강제 종료 등으로 사라진 경우. 정상 종료(Shutdown)와 구분해야
-        //"서버와 연결이 끊겼습니다"를 띄울지 조용히 나갈지 판단할 수 있다
-        public event Action OnConnectionLost;
 
         // ★ ConnectionLost 와 LastError 를 지웠다
         //   둘 다 localTransport 를 직접 읽어서, 온라인일 때는 언제나 false / null 이었다.
@@ -218,64 +188,33 @@ namespace JellyNet
             routes.OnLog = AddLog;
             routes.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
-            localTransport = new SocketTransport(routes);
+            //게시판도 전송보다 먼저 선다. 전송·세션은 만들어질 때 이걸 받아 대고 말한다
+            Events = new NetEvents();
+
+            localTransport = new SocketTransport(routes, Events);
             localTransport.OnLog = AddLog;
             localTransport.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
-            localSession = new LocalSession(localTransport, port);
+            localSession = new LocalSession(localTransport, Events, port);
 
             transport = localTransport;
             Session = localSession;
 
-            RelayFrom(localSession);
-
 #if PHOTON_REALTIME_5_OR_NEWER
             //만들어만 둔다. 실제 접속은 온라인으로 방을 만들거나 참가할 때 일어난다
-            photonTransport = new PhotonTransport(routes);
+            photonTransport = new PhotonTransport(routes, Events);
             photonTransport.OnLog = AddLog;
             photonTransport.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
-            photonSession = new PhotonSession(photonTransport);
-
-            RelayFrom(photonTransport);
-            RelayFrom(photonSession);
+            photonSession = new PhotonSession(photonTransport, Events);
 #endif
-            RelayFrom(localTransport);
         }
 
-        // ─────────────────────────────────────────────────────────
-        //  중계 — 전송·세션의 이벤트를 NetManager 의 이벤트로 다시 쏜다
-        // ─────────────────────────────────────────────────────────
-        //
-        //바깥은 NetManager 의 이벤트만 구독한다. 전송을 갈아끼워도 구독이 끊기지 않는다.
-        //쓰지 않는 전송은 아무것도 쏘지 않으므로 둘 다 걸어둬도 된다.
-        //
-        // ★ 이름이 Hook / Unhook 이었다
-        //   무엇을 하는지가 안 드러났고, LocalSession·PhotonSession 에도 Unhook 이
-        //   따로 있어서 같은 이름이 두 뜻으로 쓰였다(그쪽은 <b>자기가</b> 전송에 건
-        //   구독을 푸는 것이다). 여기서 하는 일은 남의 이벤트를 받아 내 이름으로
-        //   다시 쏘는 중계라, 그걸 이름에 넣는다. 전송이든 세션이든 하는 일이 같아
-        //   타입을 이름에 박지 않고 오버로드로 둔다.
-        private void RelayFrom(INetTransport t)
-        {
-            t.OnPeerJoined += RaisePeerJoined;
-            t.OnPeerLeft += RaisePeerLeft;
-            t.OnHostStarted += RaiseHostStarted;
-            t.OnDisconnected += RaiseDisconnected;
-            t.OnConnectionLost += RaiseConnectionLost;
-        }
-
-        private void StopRelayingFrom(INetTransport t)
-        {
-            if (t == null)
-                return;
-
-            t.OnPeerJoined -= RaisePeerJoined;
-            t.OnPeerLeft -= RaisePeerLeft;
-            t.OnHostStarted -= RaiseHostStarted;
-            t.OnDisconnected -= RaiseDisconnected;
-            t.OnConnectionLost -= RaiseConnectionLost;
-        }
+        // ★ 중계층을 걷어냈다
+        //   예전엔 여기 RelayFrom / StopRelayingFrom 두 쌍과 Raise* 7개가 있었다.
+        //   전송·세션이 저마다 이벤트를 들고 있어서, 갈아끼워도 구독이 끊기지 않게
+        //   NetManager 가 받아서 되쏘았다. 이제 모두가 NetEvents 하나에 대고 말하므로
+        //   되쏠 것이 없다. 자세한 사정은 NetEvents 머리말에.
 
         private void Update()
         {
@@ -316,19 +255,12 @@ namespace JellyNet
         {
             CloseEverything();
 
-            //전송은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
+            //전송·세션은 이 객체만 들고 있으니 같이 사라지지만, 구독은 건 자리에서 푼다.
             //중복 NetManager가 걷어내질 때(Awake의 Destroy(this)) 이쪽만 살아남는 경우를
             //생각하면 짝을 맞춰두는 편이 안전하다
-            localSession?.UnsubscribeFromTransport();
-            StopRelayingFrom(localSession);
+            localSession?.UnsubscribeFromEvents();
 #if PHOTON_REALTIME_5_OR_NEWER
-            photonSession?.UnsubscribeFromTransport();
-            StopRelayingFrom(photonSession);
-#endif
-
-            StopRelayingFrom(localTransport);
-#if PHOTON_REALTIME_5_OR_NEWER
-            StopRelayingFrom(photonTransport);
+            photonSession?.UnsubscribeFromEvents();
 #endif
 
             if (Instance == this)
@@ -337,6 +269,9 @@ namespace JellyNet
 
         public void Shutdown()
         {
+            //접으라는 요청을 먼저 올린다. 접속 중에 적어둔 일(온라인 방 만들기 등)은
+            //이 자리에서 취소돼야 한다 — 전송이 접히는 걸 기다리면 이미 늦을 수 있다
+            Events.RaiseShutdownRequested();
             transport?.Shutdown();
         }
 
@@ -375,62 +310,36 @@ namespace JellyNet
             set { if (transport != null) transport.AcceptingNewPeers = value; }
         }
 
-        private void RaisePeerJoined(int peerId)
-        {
-            OnPeerJoined?.Invoke(peerId);
-        }
-
-        private void RaisePeerLeft(int peerId)
-        {
-            OnPeerLeft?.Invoke(peerId);
-        }
-
-        private void RaiseHostStarted()
-        {
-            OnHostStarted?.Invoke();
-        }
-
-        private void RaiseDisconnected()
-        {
-            OnDisconnected?.Invoke();
-        }
-
-        private void RaiseConnectionLost()
-        {
-            OnConnectionLost?.Invoke();
-        }
-
         // ─────────────────────────────────────────────────────────
-        //  메시지 라우팅 — 전송이 표를 들고 있다
+        //  메시지 라우팅 — 표는 NetManager 가 들고 두 전송이 함께 쓴다
         // ─────────────────────────────────────────────────────────
         //
-        //표가 전송 쪽에 있는 이유는 수명 때문이다. 라우팅은 접속보다 먼저 걸리고
-        //(로비는 Start 에서 LoadGameScene 을 등록하고 한참 뒤에 참가한다) 판이 끝나도
-        //살아남아야 한다. LanTransport 는 NetManager 와 수명이 같고 Shutdown 은
-        //소켓만 닫으므로 그 조건을 만족한다.
+        //예전 주석은 "표가 전송 쪽에 있다"였다. 전송마다 표를 들고 있다가 등록이
+        //LAN 표로만 가서 온라인이 통째로 안 된 뒤 NetRouteTable 로 뺐다.
+        //그래서 등록도 전송을 거치지 않고 표에 직접 한다.
 
         /// <summary>클라가 호스트로 보낸 메시지 한 종류의 처리를 맡는다. 첫 인자는 보낸 사람의 번호다.</summary>
         public void RouteHost(MsgType type, Action<int, NetReader> handler)
         {
-            transport?.RouteHost(type, handler);
+            routes.RouteHost(type, handler);
         }
 
         /// <summary>호스트가 클라로 보낸 메시지 한 종류의 처리를 맡는다.</summary>
         public void RouteClient(MsgType type, Action<NetReader> handler)
         {
-            transport?.RouteClient(type, handler);
+            routes.RouteClient(type, handler);
         }
 
         //씬을 나갈 때 반드시 풀어야 한다. 안 그러면 파괴된 오브젝트의 메서드가 남아
         //다음 판에서 "주인이 이미 있습니다" 에러가 뜬다
         public void UnrouteHost(MsgType type)
         {
-            transport?.UnrouteHost(type);
+            routes.UnrouteHost(type);
         }
 
         public void UnrouteClient(MsgType type)
         {
-            transport?.UnrouteClient(type);
+            routes.UnrouteClient(type);
         }
 
         public void AddLog(string line)

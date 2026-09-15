@@ -58,15 +58,8 @@ namespace JellyNet
         void UnrouteHost(MsgType type);
         void UnrouteClient(MsgType type);
 
-        event Action<int> OnPeerJoined;
-        event Action<int> OnPeerLeft;
-        event Action OnHostStarted;
-
-        /// <summary>정상 종료(Shutdown)로 세션이 끝났다.</summary>
-        event Action OnDisconnected;
-
-        /// <summary>호스트가 강제 종료 등으로 사라졌다. 정상 종료와 구분해야 안내를 띄울지 정할 수 있다.</summary>
-        event Action OnConnectionLost;
+        //이벤트는 여기 없다. 전송은 생성자로 받은 NetEvents 에 대고 알린다 —
+        //왜 인터페이스마다 이벤트를 두지 않는지는 NetEvents 머리말에 적었다.
 
         /// <summary>
         /// 위치 갱신을 한 메시지로 묶어 보내야 하는 전송인가.

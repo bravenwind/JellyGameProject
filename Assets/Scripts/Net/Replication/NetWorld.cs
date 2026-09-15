@@ -66,8 +66,8 @@ namespace JellyNet
                 Debug.LogError("[NetWorld] NetManager가 없습니다.");
                 return;
             }
-            net.OnPeerLeft += HandlePeerLeft;
-            net.OnDisconnected += ClearAll;
+            net.Events.OnPeerLeft += HandlePeerLeft;
+            net.Events.OnDisconnected += ClearAll;
 
             RegisterRoutes(net);
 
@@ -130,8 +130,8 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
             if (net == null)
                 return;
-            net.OnPeerLeft -= HandlePeerLeft;
-            net.OnDisconnected -= ClearAll;
+            net.Events.OnPeerLeft -= HandlePeerLeft;
+            net.Events.OnDisconnected -= ClearAll;
 
             UnregisterRoutes(net);
         }

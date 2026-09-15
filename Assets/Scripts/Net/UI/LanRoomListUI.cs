@@ -51,7 +51,10 @@ namespace JellyNet
             if (s != null)
             {
                 s.StartBrowsing();
-                s.OnRoomListChanged += Refresh;
+
+                //세션이 아니라 게시판을 구독한다. 예전엔 이것만 세션에 직접 걸려 있어서,
+                //세션을 갈아끼우면 구독이 옛 세션에 남는 구멍이 여기 하나 남아 있었다
+                NetManager.Instance.Events.OnRoomListChanged += Refresh;
             }
 
             lastCount = -1;
@@ -64,7 +67,7 @@ namespace JellyNet
             INetSession s = Session;
             if (s != null)
             {
-                s.OnRoomListChanged -= Refresh;
+                NetManager.Instance.Events.OnRoomListChanged -= Refresh;
                 s.StopBrowsing();
             }
 

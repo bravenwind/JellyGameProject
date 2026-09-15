@@ -149,10 +149,10 @@ namespace JellyNet
                 return;
             }
 
-            net.OnHostStarted += HandleHostStarted;
-            net.OnPeerJoined += HandlePeerJoined;
-            net.OnDisconnected += ResetAll;
-            net.OnConnectionLost += HandleConnectionLost;
+            net.Events.OnHostStarted += HandleHostStarted;
+            net.Events.OnPeerJoined += HandlePeerJoined;
+            net.Events.OnDisconnected += ResetAll;
+            net.Events.OnConnectionLost += HandleConnectionLost;
 
             RegisterRoutes(net);
 
@@ -249,10 +249,10 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
             if (net == null)
                 return;
-            net.OnHostStarted -= HandleHostStarted;
-            net.OnPeerJoined -= HandlePeerJoined;
-            net.OnDisconnected -= ResetAll;
-            net.OnConnectionLost -= HandleConnectionLost;
+            net.Events.OnHostStarted -= HandleHostStarted;
+            net.Events.OnPeerJoined -= HandlePeerJoined;
+            net.Events.OnDisconnected -= ResetAll;
+            net.Events.OnConnectionLost -= HandleConnectionLost;
 
             UnregisterRoutes(net);
         }
