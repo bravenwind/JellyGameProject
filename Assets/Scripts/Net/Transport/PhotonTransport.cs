@@ -134,6 +134,13 @@ namespace JellyNet
         //TODO(사람): w.Buffer 를 그대로 넘기면 Photon 이 배열 전체를 직렬화한다.
         //           길이에 맞춰 잘라야 한다. 매 메시지 새 배열을 만들면 쓰레기가 쌓이므로
         //           크기별 풀이나 ArraySegment 지원 여부를 SDK 문서에서 확인할 것.
+
+        public PhotonTransport(NetRouteTable routes, NetEvents events)
+        {
+            this.routes = routes;
+            this.events = events;
+        }
+
         private static byte[] BodyOf(NetWriter w)
         {
             const int HEADER = 5;               // len4 + type1
@@ -372,34 +379,8 @@ namespace JellyNet
                 routes.DispatchClient(type, reader);
         }
 
-        // ═══════════════════════════════════════════════════════
-        //  라우팅 — LanTransport 와 <b>같은 표</b>를 쓴다
-        // ═══════════════════════════════════════════════════════
-        //
-        // 예전엔 이 파일이 자기 표를 따로 들고 있었다. 등록은 접속보다 훨씬 먼저
-        // 일어나는데(로비가 Start 에서 LoadGameScene 을 건다) 그때 활성 전송은 LAN 이라,
-        // 온라인으로 방에 들어가면 메시지는 오는데 표가 비어 있었다.
-        // 자세한 이야기는 NetRouteTable 머리말에.
-
-public PhotonTransport(NetRouteTable routes, NetEvents events)
-        {
-            this.routes = routes;
-            this.events = events;
-        }
-
-        public void RouteHost(MsgType type, Action<int, NetReader> handler)
-        {
-            routes.RouteHost(type, handler);
-        }
-
-        public void RouteClient(MsgType type, Action<NetReader> handler)
-        {
-            routes.RouteClient(type, handler);
-        }
-
-        public void UnrouteHost(MsgType type) { routes.UnrouteHost(type); }
-
-        public void UnrouteClient(MsgType type) { routes.UnrouteClient(type); }
+        //라우팅 등록(RouteHost 등)은 여기 없다 — 지운 이유는 INetTransport 에 적었다.
+        //받은 이벤트를 표에 넘기는 일(Dispatch)만 전송이 한다
 
         // ═══════════════════════════════════════════════════════
         //  수명

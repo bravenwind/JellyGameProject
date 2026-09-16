@@ -37,14 +37,8 @@ public class WaitingDots : MonoBehaviour
         text = GetComponent<TMP_Text>();
     }
 
-    /// <summary>본문을 갈아끼운다. 켜져 있는 중에 불러도 된다.</summary>
-    public void SetLabel(string value)
-    {
-        label = value;
-        dots = 0;
-        timer = 0f;
-        Apply();
-    }
+    //SetLabel 을 지웠다. 로비가 쓰도록 만들었지만(d4302b4) 로비는 기존 코루틴으로 문구를
+    //바꿔 한 번도 불리지 않았다. 문구는 인스펙터의 label 이나 라벨에 적힌 글자로 정한다
 
     private void OnEnable()
     {

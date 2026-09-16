@@ -35,12 +35,8 @@ namespace JellyNet
         /// <summary>로그 한 줄을 어디에 남길지. NetManager 가 꽂아준다.</summary>
         public Action<string> OnLog;
 
-        /// <summary>
-        /// 그냥 로그가 아니라 콘솔에 빨갛게 떠야 하는 것. 라우팅 중복 등록처럼
-        /// 조용히 넘어가면 다음 판에서야 증상이 나타나는 실수가 여기로 온다.
-        /// (이 클래스는 유니티에 의존하지 않으므로 Debug.LogError 를 직접 부르지 않는다)
-        /// </summary>
-        public Action<string> OnError;
+        //OnError·LogError 를 지웠다. 라우팅 중복 등록을 콘솔에 빨갛게 알리던 통로인데,
+        //그 검사가 NetRouteTable 로 옮겨 가(44d253f) 이 클래스에서 오류를 낼 일이 없어졌다
 
         #endregion
 
@@ -223,19 +219,8 @@ namespace JellyNet
                 client.Send(w);
         }
 
-        public void RouteHost(MsgType type, Action<int, NetReader> handler)
-        {
-            routes.RouteHost(type, handler);
-        }
-
-        public void RouteClient(MsgType type, Action<NetReader> handler)
-        {
-            routes.RouteClient(type, handler);
-        }
-
-        public void UnrouteHost(MsgType type) { routes.UnrouteHost(type); }
-
-        public void UnrouteClient(MsgType type) { routes.UnrouteClient(type); }
+        //라우팅 등록(RouteHost 등)은 여기 없다 — 지운 이유는 INetTransport 에 적었다.
+        //받은 메시지를 표에 넘기는 일만 전송이 한다
 
         private void RaiseHostMessage(int peerId, MsgType type, NetReader reader)
         {
@@ -260,14 +245,6 @@ namespace JellyNet
         private void Log(string msg)
         {
             OnLog?.Invoke(msg);
-        }
-
-        private void LogError(string msg)
-        {
-            if (OnError != null)
-                OnError(msg);
-            else
-                OnLog?.Invoke("[오류] " + msg);
         }
     }
 }

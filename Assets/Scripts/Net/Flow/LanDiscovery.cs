@@ -20,7 +20,8 @@ namespace JellyNet
             public int AiCount;
             public float LastSeen;
 
-            public bool IsFull { get { return Current >= Needed; } }
+            //IsFull 을 지웠다. 방 목록 UI 가 이 타입 대신 RoomEntry 를 보게 된 뒤(13277c8)
+            //가득 찼는지는 RoomEntry.IsFull 이 답한다
             public string Address { get { return Ip + ":" + Port; } }
         }
 

@@ -37,7 +37,8 @@ public class MenuHoverPreview : MonoBehaviour, IPointerEnterHandler, IPointerExi
     [Range(0, 255)] [SerializeField] private int bgNoHoverAlpha = 40;
     [Range(0, 255)] [SerializeField] private int bgHoverAlpha = 200;
 
-    [SerializeField] private FloatingUI floating;
+    //floating 을 지웠다. UI 추가(2a42fb0) 때 연결 칸만 만들고 코드에서 쓰지 않았다
+    //(Main 씬에 남은 floating 키는 다음 저장 때 유니티가 버린다)
     [TextArea] [SerializeField] private string defaultMessage;
     [SerializeField] private ImagePreviewAni preview;
 

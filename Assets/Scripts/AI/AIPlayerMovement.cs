@@ -268,9 +268,8 @@ public class AIPlayerMovement : MonoBehaviour
     public float DetectRadius { get { return detectRadius; } }
     public Transform BatPivot { get { return batPivot; } }
     public bool HideBatWhenIdle { get { return hideBatWhenIdle; } }
-    public float DashSpeed { get { return dashSpeed; } }
-    public float DashDuration { get { return dashDuration; } }
-    public float DashCooldown { get { return dashCooldown; } }
+    //DashSpeed·DashDuration·DashCooldown 게터를 지웠다. 1eaa7e6 에서 추가만 되고 읽는 곳이
+    //한 번도 없었다 — 봇의 대쉬는 이 클래스 안의 TryDash 가 필드를 직접 쓴다
 
     /// <summary>봇이 게임에서 빠졌는지(탈락 또는 흡수 진행 중). "이 엔티티가 게임에서 빠졌나?"
     /// 판정의 단일 출처 — 인디케이터/충돌/리더보드가 모두 이 값을 본다. (G6)</summary>

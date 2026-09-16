@@ -205,7 +205,6 @@ namespace JellyNet
 
             localTransport = new SocketTransport(routes, Events);
             localTransport.OnLog = AddLog;
-            localTransport.OnError = msg => Debug.LogError("[NetManager] " + msg);
 
             localSession = new LocalSession(localTransport, Events, port);
 

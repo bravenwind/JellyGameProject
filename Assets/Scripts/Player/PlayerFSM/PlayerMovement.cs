@@ -137,7 +137,8 @@ public class PlayerMovement : MonoBehaviour
     public float OriginalJumpForce { get { return originalJumpForce; } }
     public float DashSpeed { get { return dashSpeed; } }
     public float DashDuration { get { return dashDuration; } }
-    public float DashCooldown { get { return dashCooldown; } }
+    //DashCooldown 게터를 지웠다. 쿨타임 HUD 가 남은 시간과 최대값을 묶은 DashCooldownInfo 를
+    //읽게 바뀐 뒤로 부르는 곳이 없다
 
     /// <summary>HUD가 쿨타임 하나를 그리는 데 필요한 전부. 세 값을 따로 묻지 않게 묶는다.</summary>
     public readonly struct Cooldown

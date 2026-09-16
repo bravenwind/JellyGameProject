@@ -49,14 +49,11 @@ namespace JellyNet
         /// <summary>클라 → 호스트.</summary>
         void SendToHost(NetWriter w);
 
-        /// <summary>클라가 호스트로 보낸 메시지 한 종류의 처리를 맡는다. 첫 인자는 보낸 사람 번호다.</summary>
-        void RouteHost(MsgType type, Action<int, NetReader> handler);
-
-        /// <summary>호스트가 클라로 보낸 메시지 한 종류의 처리를 맡는다.</summary>
-        void RouteClient(MsgType type, Action<NetReader> handler);
-
-        void UnrouteHost(MsgType type);
-        void UnrouteClient(MsgType type);
+        // ★ RouteHost·RouteClient·UnrouteHost·UnrouteClient 를 지웠다
+        //   라우팅 표가 전송마다 있던 시절, NetManager 가 transport.RouteHost 로 넘기던 통로다.
+        //   표를 NetRouteTable 로 빼고(44d253f) NetManager 가 표에 직접 걸게 되면서(1bec093)
+        //   이 인터페이스로 들어오는 호출이 하나도 남지 않았다. 구현 둘은 표로 다시 넘기기만 했다.
+        //   라우팅은 전송이 무엇이든 같은 답이라 전송의 일이 아니다 — NetManager.RouteHost 를 쓴다.
 
         //이벤트는 여기 없다. 전송은 생성자로 받은 NetEvents 에 대고 알린다 —
         //왜 인터페이스마다 이벤트를 두지 않는지는 NetEvents 머리말에 적었다.

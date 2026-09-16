@@ -48,10 +48,7 @@ public class ComponentPool<T> where T : Component
         activeList.Clear();
     }
 
-    public void Clear()
-    {
-        pool.Clear();
-    }
+    //Clear 를 지웠다. 파일이 생긴 뒤(85ac8be) 부르는 곳이 없다
 
     // ★ 세 번째 인자 false(worldPositionStays)를 반드시 넘긴다
     //   Instantiate(원본, 부모)는 worldPositionStays가 true다. 그러면 유니티가

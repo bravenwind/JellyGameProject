@@ -92,7 +92,7 @@ public struct RYBColor
 
     // ── 프리셋 ──
     public static RYBColor white => new RYBColor(0f, 0f, 0f);
-    public static RYBColor black => new RYBColor(1f, 1f, 1f);
+    //black 프리셋을 지웠다. 도입(bfd3be7) 이후 쓰인 적이 없다
 
     public float Total => r + y + b;
 
@@ -103,8 +103,8 @@ public struct RYBColor
     public RYBColor Add(RYBColor other)
         => new RYBColor(r + other.r, y + other.y, b + other.b);
 
-    public RYBColor Add(float dr, float dy, float db)
-        => new RYBColor(r + dr, y + dy, b + db);
+    //Add(float, float, float) 를 지웠다. 도입(bfd3be7) 이후 쓰인 적이 없다 — 색을 더하는 곳은
+    //모두 RYBColor 를 넘기는 위 Add 를 쓴다
 
     // ================================================================
     // RYB → RGB 변환 (Gosset trilinear interpolation)

@@ -37,14 +37,13 @@ public static class GameTags
     /// <summary>굴러다니는 사탕 소품.</summary>
     public const string Sphere = "Sphere";
 
-    /// <summary>배경 소품(초콜릿에 떠다니는 것들).</summary>
-    public const string BackGroundObject = "BackGroundObject";
+    //BackGroundObject 태그 상수를 지웠다. 태그로 찾는 곳이 없다 — 배경 소품은 레이어로 구분한다
 
     /// <summary>미니맵을 비추는 카메라. MinimapArrowManager가 태그로 찾는다.</summary>
     public const string MinimapCamera = "MinimapCamera";
 
-    /// <summary>Unity 내장 태그. Camera.main이 이걸 본다.</summary>
-    public const string MainCamera = "MainCamera";
+    //MainCamera 태그 상수를 지웠다. 결과 화면이 카메라를 코드로 만들며 태그를 붙이던 곳이
+    //마지막 사용처였는데, 카메라를 프리팹으로 바꾸면서(4bee228) 사라졌다
 
     #endregion
 
@@ -105,9 +104,10 @@ public static class GameLayers
 
     public const string PlayerName = "Player";
     public const string EdibleName = "Edible";
-    public const string ChocolateName = "Chocolate";
+    //ChocolateName 을 지웠다. 7a4c28f 에서 레이어 이름 상수를 한꺼번에 만들 때 같이 생겼지만
+    //이 이름으로 레이어 번호를 구하는 곳이 없었다
     public const string GroundName = "Ground";
-    public const string MinimapName = "Minimap";
+    //MinimapName 을 지웠다. ChocolateName 과 같은 사정이다
     public const string BackGroundObjectName = "BackGroundObject";
 
     private const int Unset = -2;   //-1은 '그런 레이어 없음'이라 미조회 표시로 못 쓴다

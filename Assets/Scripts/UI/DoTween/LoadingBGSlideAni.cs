@@ -87,8 +87,9 @@ public class LoadingBGSlideAni : MonoBehaviour
 
     public float HoldSeconds { get { return holdSeconds; } }
 
-    // 외부(LoadingSceneController)가 슬라이드아웃 종료 타이밍을 알 수 있도록 노출
-    public float OutDuration => outDuration;
+    //OutDuration 을 지웠다. LoadingSceneController 가 슬라이드아웃이 끝날 만큼 기다리던
+    //폴백 경로(wait = slide.OutDuration + 0.05f)를 지우면서(08ab582) 마지막 사용처가 사라졌다.
+    //지금은 슬라이드가 끝나면 SetTransitionPlan 으로 받은 콜백이 알린다
 
     private void Reset()
     {
