@@ -80,6 +80,16 @@ namespace JellyNet
 
         #region 받기
 
+        // ★ 리더는 하나로 충분하다 — 조건이 셋이다
+        //   ① 이벤트 하나가 메시지 하나다. RaiseEvent 로 보낸 byte[] 는 경계째로 도착하고,
+        //      묶어 보낸 TransformUpdate 도 이벤트 하나 안에서 끝까지 읽힌다.
+        //   ② 받기는 한 줄로 돈다. Service 는 NetManager.Update 에서만 부르고, Dispatch 가
+        //      이벤트마다 Reset 한 뒤 핸들러가 다 읽고 돌아와야 다음 이벤트를 꺼낸다.
+        //   ③ 핸들러가 리더를 들고 나가지 않는다. 코루틴·나중에 도는 람다·필드에 넘기면
+        //      그땐 이미 다음 메시지를 가리킨다 — 지금 라우트 핸들러 중엔 그런 곳이 없다.
+        //   UseByteArraySlicePoolForEvents 를 켜면 CustomData 가 byte[] 가 아니라
+        //   ByteArraySlice 로 와서 OnEventReceived 의 'as byte[]' 가 null 이 되고, 메시지가
+        //   조용히 버려진다. 기본값은 꺼짐이고 우리도 켜지 않는다.
         private readonly NetReader reader = new NetReader();
 
         #endregion
@@ -212,7 +222,7 @@ namespace JellyNet
             if (!Client.ConnectUsingSettings(settings))
             {
                 LastError = "온라인 서버에 연결하지 못했습니다. 인터넷 상태를 확인해주세요.";
-                Teardown();
+                ReleaseClient();
                 return false;
             }
 
@@ -354,7 +364,7 @@ namespace JellyNet
         //  받기
         // ═══════════════════════════════════════════════════════
 
-        //구독은 Connect 에서 걸고 Teardown 에서 푼다
+        //구독은 Connect 에서 걸고 ReleaseClient 에서 푼다
         private void OnEventReceived(EventData e)
         {
             //Photon 내부 이벤트(코드 200 이상)는 우리 것이 아니다
@@ -431,7 +441,7 @@ namespace JellyNet
 
             // ★ 방을 나갈 수 없어도 세션은 닫는다
             //   예전엔 위 조건이 거짓이면 그대로 return 해서 OnDisconnected 가 안 나갔다.
-            //   연결이 먼저 끊긴 경우(Teardown 으로 Client 가 이미 null)가 정확히 그 경우라,
+            //   연결이 먼저 끊긴 경우(ReleaseClient 로 Client 가 이미 null)가 정확히 그 경우라,
             //   OnConnectionLost 뒤에 나가기를 눌러도 뒷정리(NetWorld.ClearAll 등)가 돌지 않았다.
             //   몇 번 불려도 한 번만 나가게 하는 일은 게시판이 한다.
             events.RaiseDisconnected();
@@ -458,7 +468,16 @@ namespace JellyNet
             Client.Disconnect();
         }
 
-        private void Teardown()
+        /// <summary>
+        /// 이미 끝났거나 시작하지 못한 연결의 RealtimeClient 를 놓는다.
+        /// 서버에는 아무것도 보내지 않는다 — 우리 구독을 풀고, 참조를 버리고, 명단 캐시를 비운다.
+        ///
+        /// ★ 이름이 Teardown 이었다
+        ///   '허문다'로 읽혀서 연결을 끊는 함수처럼 보였다. 실제로 끊는 건 DisconnectFully 가
+        ///   서버에 요청하는 일이고, 이 함수는 그 끊김이 확인된 뒤(OnDisconnected 콜백)나
+        ///   접속을 시작조차 못 했을 때 클라이언트 객체를 버리는 뒷정리만 한다.
+        /// </summary>
+        private void ReleaseClient()
         {
             if (Client == null)
                 return;
@@ -528,7 +547,7 @@ namespace JellyNet
             shuttingDown = false;
 
             Log("연결이 끊어졌습니다 — " + cause);
-            Teardown();
+            ReleaseClient();
 
             //시키지 않은 끊김만 위로 알린다. 시킨 끊김은 부른 쪽이 이미 알고 있다
             if (!expected)
