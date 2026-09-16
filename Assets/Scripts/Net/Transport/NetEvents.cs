@@ -29,8 +29,6 @@ namespace JellyNet
     /// </summary>
     public class NetEvents
     {
-        #region 이벤트·콜백
-
         #region 방에 들어가고 사람이 오가는 일
 
         /// <summary>내가 방을 열었다(호스트가 됐다).</summary>
@@ -77,10 +75,6 @@ namespace JellyNet
 
         #endregion
 
-        #region 상태
-
-        #endregion
-
         #region 세션 괄호
 
         //열린 세션이 있는가. OnDisconnected 를 한 번만 내보내는 근거다
@@ -88,8 +82,6 @@ namespace JellyNet
 
         //이번 세션에서 이미 '상대가 사라졌다'를 알렸는가
         private bool lostReported;
-
-        #endregion
 
         #endregion
 
