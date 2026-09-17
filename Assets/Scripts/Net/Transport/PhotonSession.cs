@@ -58,13 +58,22 @@ namespace JellyNet
         #region 방 찾기
 
         //목록은 초당 몇 번씩 읽히므로 매번 새 리스트를 만들지 않는다
-        private readonly List<RoomEntry> handles = new List<RoomEntry>();
+        private readonly List<RoomEntry> rooms = new List<RoomEntry>();
 
         //방 이름 → 자리. 서버가 '바뀐 것만' 보내므로 우리가 표를 들고 있어야 한다
         private readonly Dictionary<string, RoomEntry> byName
             = new Dictionary<string, RoomEntry>();
 
         #endregion
+
+        public PhotonSession(PhotonTransport transport, NetEvents events)
+        {
+            this.transport = transport;
+            this.events = events;
+
+            //취소·판 종료로 판을 접으면 적어둔 일도 없던 일이 된다
+            this.events.OnShutdownRequested += CancelPending;
+        }
 
         //온라인이므로 로컬 전용 입력(포트)은 화면에서 감춰야 한다
         public bool IsLocal { get { return false; } }
@@ -80,15 +89,6 @@ namespace JellyNet
         //   접속 → 마스터 서버 도착 → 그제서야 방 만들기/참가/로비 순이다.
         //   그래서 하려던 일을 적어두고, 도착 콜백에서 꺼내 실행한다.
         private enum Intent { None, Create, Join, Browse }
-
-        public PhotonSession(PhotonTransport transport, NetEvents events)
-        {
-            this.transport = transport;
-            this.events = events;
-
-            //취소·판 종료로 판을 접으면 적어둔 일도 없던 일이 된다
-            this.events.OnShutdownRequested += CancelPending;
-        }
 
         /// <summary>생성자에서 게시판에 걸어둔 구독을 푼다. NetManager 가 죽을 때 부른다.</summary>
         public void UnsubscribeFromEvents()
@@ -169,9 +169,9 @@ namespace JellyNet
 
             string wanted = roomName.Trim();
 
-            for (int i = 0; i < handles.Count; i++)
+            for (int i = 0; i < rooms.Count; i++)
             {
-                RoomEntry r = handles[i];
+                RoomEntry r = rooms[i];
                 if (r == null || string.IsNullOrEmpty(r.HostName))
                     continue;
 
@@ -200,16 +200,16 @@ namespace JellyNet
             //LAN 은 이 값들을 UDP 비콘 문자열에 실어 보냈다. 여기서는 방 속성이 그 자리다
             PhotonHashtable props = new PhotonHashtable
             {
-                { PROP_MODE, (int)LanRoomConfig.Mode },
-                { PROP_NEEDED, LanRoomConfig.HumanCount },
-                { PROP_AI, LanRoomConfig.AiCount },
+                { PROP_MODE, (int)RoomConfig.Mode },
+                { PROP_NEEDED, RoomConfig.HumanCount },
+                { PROP_AI, RoomConfig.AiCount },
                 { PROP_HOST, pendingRoomName }
             };
 
             Photon.Realtime.RoomOptions opts = new Photon.Realtime.RoomOptions
             {
                 //봇은 방에 들어오지 않는다. 자리를 차지하는 건 사람뿐이다
-                MaxPlayers = LanRoomConfig.HumanCount,
+                MaxPlayers = RoomConfig.HumanCount,
                 CustomRoomProperties = props,
                 CustomRoomPropertiesForLobby = LOBBY_PROPS,
 
@@ -248,7 +248,7 @@ namespace JellyNet
         //  방 찾기
         // ═══════════════════════════════════════════════════════
 
-public IEnumerable<RoomEntry> Rooms { get { return handles; } }
+        public IEnumerable<RoomEntry> Rooms { get { return rooms; } }
 
         public void StartBrowsing()
         {
@@ -263,7 +263,7 @@ public IEnumerable<RoomEntry> Rooms { get { return handles; } }
             if (transport.Client != null && transport.Client.IsConnected && transport.Client.InLobby)
                 transport.Client.OpLeaveLobby();
 
-            handles.Clear();
+            rooms.Clear();
             byName.Clear();
         }
 
@@ -314,33 +314,32 @@ public IEnumerable<RoomEntry> Rooms { get { return handles; } }
                 h.Current = info.PlayerCount;
             }
 
-            handles.Clear();
+            rooms.Clear();
             foreach (RoomEntry h in byName.Values)
-                handles.Add(h);
+                rooms.Add(h);
 
             events.RaiseRoomListChanged();
         }
 
+        // ★ 타입을 확인하고 읽는다 — 여기는 남이 만든 데이터를 읽는 자리다
+        //   방 속성은 PhotonHashtable(= Dictionary<object, object>) 이라 값이 object 로 나온다.
+        //   목록에는 내 빌드가 만들지 않은 방도 섞이므로, 같은 키에 다른 타입이 들어 있을 수
+        //   있다. 그대로 (int)v 로 캐스팅하면 InvalidCastException 이 나는데, 이 함수는
+        //   OnRoomListUpdate 콜백 안에서 도는 ApplyRoomList 가 부른다 — 방 하나 때문에
+        //   그 배치의 나머지 방까지 처리되지 않고 목록 전체가 깨진다.
+        //
+        //   CustomProperties 자체는 검사하지 않는다. RoomInfo 가 선언과 동시에
+        //   new PhotonHashtable() 로 채우고 null 로 되돌리는 경로가 없어 언제나 있다.
         private static int PropInt(RoomInfo info, string key, int fallback)
         {
-            object v;
-            if (info.CustomProperties != null && info.CustomProperties.TryGetValue(key, out v) && v is int)
-                return (int)v;
-
-            return fallback;
+            return info.CustomProperties.TryGetValue(key, out object v) && v is int n
+                ? n : fallback;
         }
 
         private static string PropString(RoomInfo info, string key, string fallback)
         {
-            object v;
-            if (info.CustomProperties != null && info.CustomProperties.TryGetValue(key, out v))
-            {
-                string t = v as string;
-                if (!string.IsNullOrEmpty(t))
-                    return t;
-            }
-
-            return fallback;
+            return info.CustomProperties.TryGetValue(key, out object v) && v is string s && s.Length > 0
+                ? s : fallback;
         }
 
         // ═══════════════════════════════════════════════════════
@@ -382,7 +381,7 @@ public IEnumerable<RoomEntry> Rooms { get { return handles; } }
             //남겨두면 다음에 붙었을 때 아무도 시키지 않은 방이 만들어진다
             CancelPending();
             hooked = false;
-            handles.Clear();
+            rooms.Clear();
             byName.Clear();
         }
 
