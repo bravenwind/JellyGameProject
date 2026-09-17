@@ -2,3 +2,9 @@ root = true
 
 [*.cs]
 charset = utf-8-bom
+
+# 줄바꿈을 정해두지 않았더니 파일마다 CRLF 와 LF 가 섞였고(50 대 79),
+# 저장할 때마다 에디터가 바꿔놔서 한 줄만 고쳐도 diff 가 파일 전체로 부풀었다.
+# Windows + Unity + Visual Studio 가 쓰는 CRLF 로 맞춘다.
+end_of_line = crlf
+insert_final_newline = true

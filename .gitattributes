@@ -1,3 +1,8 @@
 *.dylib filter=lfs diff=lfs merge=lfs -text
 *.ArtifactDB filter=lfs diff=lfs merge=lfs -text
 *.resS filter=lfs diff=lfs merge=lfs -text
+
+# .editorconfig 는 에디터에게 부탁하는 것이고, 이쪽은 git 이 직접 강제한다.
+# 저장소에는 LF 로 넣고 꺼낼 때 CRLF 로 준다 — 누가 어떤 에디터로 열든
+# 커밋되는 내용이 같아져서, 줄바꿈 때문에 diff 가 파일 전체로 부푸는 일이 없어진다.
+*.cs text eol=crlf
