@@ -10,7 +10,7 @@ namespace JellyNet
     ///   이 객체는 NetManager 와 수명이 같고, 한 판이 끝나도 죽지 않는다.
     ///   Shutdown 은 소켓만 닫고 라우팅 표는 남긴다. 라우팅 표를 소켓과 같이 버리면
     ///   로비처럼 "접속하기 전에 RouteClient 를 걸어두는" 코드가 전부 무효가 된다
-    ///   (LanLobby 는 Start 에서 LoadGameScene 을 등록하고 한참 뒤에 참가한다).
+    ///   (LobbyFlow 는 Start 에서 LoadGameScene 을 등록하고 한참 뒤에 참가한다).
     /// </summary>
     public class SocketTransport : INetTransport
     {

@@ -7,7 +7,7 @@ namespace JellyNet
     /// UDP 비콘(LanDiscovery)과 TCP 접속(LanTransport)으로 INetSession 을 구현한다.
     ///
     /// 예전엔 이 일이 세 군데 흩어져 있었다 — 포트·IP 는 NetManager 의 필드였고,
-    /// 비콘 켜고 끄기는 LanLobby 가 LanDiscovery 를 직접 불렀고, 방 목록은 UI가
+    /// 비콘 켜고 끄기는 LobbyFlow 가 LanDiscovery 를 직접 불렀고, 방 목록은 UI가
     /// LanDiscovery.Instance 에서 직접 읽었다. 방을 만들고 찾는 일을 한 자리에 모으면
     /// 온라인 구현은 이 인터페이스만 다시 채우면 된다.
     /// </summary>
@@ -82,7 +82,7 @@ namespace JellyNet
         public bool CreateRoom(RoomSetup options)
         {
             //비콘을 듣고 있어야 알 수 있다. 듣지 않았다면 목록이 비어 있어 그냥 통과한다 —
-            //LanLobby 가 로컬을 고른 순간부터 듣게 해 두었다
+            //LobbyFlow 가 로컬을 고른 순간부터 듣게 해 두었다
             if (NameTaken(options.RoomName))
             {
                 Fail("같은 이름의 방이 이미 있습니다. 닉네임을 바꿔주세요.");

@@ -11,7 +11,7 @@ namespace JellyNet
 
         public static LanGameFlow Instance { get; private set; }
 
-        // ★ 인스펙터에 내보내지 않는다 — Awake에서 LanRoomConfig.HumanCount로 무조건 덮어쓴다
+        // ★ 인스펙터에 내보내지 않는다 — Awake에서 RoomConfig.HumanCount로 무조건 덮어쓴다
         //   "모드와 인원은 로비에서만 온다"는 규칙이 있는데 인스펙터 칸이 남아 있으면
         //   거기서 고칠 수 있다고 오해하게 된다
         private int minPlayersToStart = 2;
@@ -124,7 +124,7 @@ namespace JellyNet
         #endregion
 
         //모드를 묻는 유일한 창구. 씬 안 어디서든 같은 답이 나온다.
-        //출처는 로비(LanRoomConfig.Mode)뿐이라 씬 인스펙터에는 모드 설정이 없다
+        //출처는 로비(RoomConfig.Mode)뿐이라 씬 인스펙터에는 모드 설정이 없다
         public static GameModeType Mode
         {
             get { return GameState.CurrentGameMode; }
@@ -191,8 +191,8 @@ namespace JellyNet
             hud.HideResultPanel();
 
             //모드와 인원은 로비에서만 온다
-            minPlayersToStart = LanRoomConfig.HumanCount;
-            ApplyMode(LanRoomConfig.Mode);
+            minPlayersToStart = RoomConfig.HumanCount;
+            ApplyMode(RoomConfig.Mode);
         }
 
         private void Start()

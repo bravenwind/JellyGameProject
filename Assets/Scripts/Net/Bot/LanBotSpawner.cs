@@ -37,9 +37,9 @@ namespace JellyNet
         {
             Instance = this;
 
-            if (LanRoomConfig.HasValue)
+            if (RoomConfig.HasValue)
             {
-                botCount = LanRoomConfig.AiCount;
+                botCount = RoomConfig.AiCount;
                 if (verboseLog)
                     Debug.Log("[봇] 로비 설정에 따라 " + botCount + "마리로 맞춥니다.");
             }

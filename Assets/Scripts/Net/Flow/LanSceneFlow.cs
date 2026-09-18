@@ -32,7 +32,7 @@ namespace JellyNet
             Disconnect();
 
             LanScoreboard.Clear();
-            LanRoomConfig.Clear();
+            RoomConfig.Clear();
 
             Begin(MAIN_SCENE);
         }

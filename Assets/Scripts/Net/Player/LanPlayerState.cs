@@ -108,8 +108,8 @@ namespace JellyNet
             //빠지면 그 플레이어의 이름표가 영영 빈칸으로 남는다.
             //로비가 빈 닉네임을 막고 있지만 그건 로비의 사정이고, 이 불변식
             //'살아있는 플레이어의 PlayerName은 비지 않는다'는 여기서 지킨다
-            string nick = !string.IsNullOrEmpty(LanRoomConfig.Nickname)
-                ? LanRoomConfig.Nickname
+            string nick = !string.IsNullOrEmpty(RoomConfig.Nickname)
+                ? RoomConfig.Nickname
                 : ("P" + OwnerId);
 
             if (net.IsHost)

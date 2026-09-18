@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace JellyNet
@@ -69,6 +70,8 @@ namespace JellyNet
                 NetManager.Instance.Events.OnRoomListChanged += Refresh;
             }
 
+            pickHandler ??= OnPick;
+
             lastCount = -1;
             searchElapsed = 0f;
             Refresh();
@@ -120,7 +123,8 @@ namespace JellyNet
 
             if (list.Count == lastCount && rows.Count == list.Count)
             {
-                for (int i = 0; i < list.Count; i++) rows[i].Setup(list[i], OnPick);
+                //줄은 이미 있고 버튼도 걸려 있다. 글자만 갈아끼운다
+                for (int i = 0; i < list.Count; i++) rows[i].Show(list[i]);
                 UpdateHint(list.Count);
                 return;
             }
@@ -137,7 +141,9 @@ namespace JellyNet
                     continue;
                 }
 
-                row.Setup(list[i], OnPick);
+                //버튼은 만들 때 한 번만 건다. 그 뒤로는 Show 가 글자만 바꾼다
+                row.Bind(pickHandler);
+                row.Show(list[i]);
                 rows.Add(row);
             }
 
@@ -170,10 +176,15 @@ namespace JellyNet
             lastCount = -1;
         }
 
+        // ★ 메서드 그룹을 넘길 때마다 델리게이트가 새로 생긴다
+        //   row.Bind(OnPick) 이라고 쓰면 줄을 만들 때마다 Action<RoomEntry> 가
+        //   하나씩 할당된다. 한 번 만들어 들고 쓴다
+        private Action<RoomEntry> pickHandler;
+
         private void OnPick(RoomEntry r)
         {
-            if (LanLobby.Instance != null)
-                LanLobby.Instance.JoinRoom(r);
+            if (LobbyFlow.Instance != null)
+                LobbyFlow.Instance.JoinRoom(r);
         }
     }
 }

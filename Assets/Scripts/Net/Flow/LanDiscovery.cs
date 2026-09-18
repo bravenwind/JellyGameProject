@@ -177,7 +177,7 @@ namespace JellyNet
             //여기 오는 건 호스트뿐이다(위에서 걸렀다). PeerCount 에 자기 자신을 더한다
             int current = net.PeerCount + 1;
 
-            string name = (LanRoomConfig.Nickname ?? "").Replace("|", "");
+            string name = (RoomConfig.Nickname ?? "").Replace("|", "");
             if (string.IsNullOrEmpty(name))
                 name = "방";
 
@@ -186,10 +186,10 @@ namespace JellyNet
                 MAGIC,
                 beaconPort.ToString(),
                 name,
-                ((int)LanRoomConfig.Mode).ToString(),
+                ((int)RoomConfig.Mode).ToString(),
                 current.ToString(),
-                LanRoomConfig.HumanCount.ToString(),
-                LanRoomConfig.AiCount.ToString()
+                RoomConfig.HumanCount.ToString(),
+                RoomConfig.AiCount.ToString()
             });
 
             byte[] data = Encoding.UTF8.GetBytes(msg);

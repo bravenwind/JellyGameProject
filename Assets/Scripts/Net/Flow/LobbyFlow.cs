@@ -1,0 +1,1301 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+using DG.Tweening;
+using TMPro;
+
+namespace JellyNet
+{
+    public class LobbyFlow : MonoBehaviour
+    {
+        #region 상태
+
+        public static LobbyFlow Instance { get; private set; }
+
+        private Vector2 nicknameOriginPos;
+        private Vector2 matchingStatusOriginPos;
+
+        private float countdown = -1f;
+        private bool launching;
+        private bool matching;
+        private Coroutine dots;
+        private readonly NetWriter w = new NetWriter();
+
+        private int shownHumans = -1;
+
+        #endregion
+
+        #region NickName UI
+
+        [Header("NickName UI")]
+        [SerializeField] private RectTransform nicknamePanel;
+        [SerializeField] private TMP_InputField nicknameInput;
+        [SerializeField] private GameObject nicknameWarningText;
+        [SerializeField] private int nicknameMaxLength = 10;
+
+        #endregion
+
+        #region Select Room UI
+
+        [Header("Select Room UI")]
+        [SerializeField] private RectTransform roomChoicePanel;
+
+        #endregion
+
+        #region Local / Online 선택
+
+        // 방 생성·방 참가 어느 쪽을 눌렀든 먼저 여기서 로컬인지 온라인인지 고른다.
+        // 고른 뒤에야 원래 패널(방 설정 / 방 목록)이 뜬다.
+        [Header("Local / Online 선택")]
+        [SerializeField] private RectTransform netChoicePanel;
+
+        #endregion
+
+        #region Room Option UI
+
+        [Header("Room Option UI")]
+        [SerializeField] private RectTransform hostOptionPanel;
+        [Tooltip("0 = absorb, 1 = push")]
+        [SerializeField] private TMP_Dropdown modeDropdown;
+        [SerializeField] private TMP_InputField portInput;
+
+        // ★ 온라인 모드가 붙었을 때를 위한 자리 — 지금은 비워둬도 아무 일도 안 일어난다
+        //   포트는 같은 랜에서 직접 붙을 때만 뜻이 있다. 온라인은 릴레이가 주소를 정하므로
+        //   입력칸이 남아 있으면 "여기 뭘 넣어야 하나"가 된다.
+        //   라벨까지 같이 숨겨야 하므로 입력칸 하나가 아니라 그 줄 전체를 받는다.
+        //   씬에서 포트 라벨+입력칸을 감싸는 오브젝트를 여기 꽂으면 로컬 모드에서만 보인다.
+        [Tooltip("포트 라벨과 입력칸을 감싸는 오브젝트. 로컬(LAN) 세션에서만 보인다. 비워두면 항상 보인다.")]
+        [SerializeField] private GameObject localOnlyGroup;
+        [SerializeField] private TMP_InputField totalPlayersInput;
+        [SerializeField] private TMP_InputField aiCountInput;
+        [SerializeField] private TMP_Text roomSettingWarningText;
+
+        #endregion
+
+        #region 실패 안내
+
+        // ★ 방 만들기·참가가 실패했을 때 뜨는 문장. 화면 한가운데에 둔다
+        //   예전엔 이 문장을 nicknameWarningText 에 덮어썼다. 그 칸은 "닉네임을
+        //   확인해주세요" 같은 고정 문구를 켜고 끄는 용도라, 덮어쓰고 나면 다음에
+        //   닉네임 검사로 켤 때 <b>"방이 가득 찼습니다"가 그대로 남아 있었다.</b>
+        //   쓰임이 다른 두 문장을 한 칸에 담으면 이렇게 된다.
+        //
+        //   색·글꼴·위치는 씬의 오브젝트가 정한다. 여기서는 문장과 투명도만 건드린다.
+        [Header("실패 안내")]
+        [Tooltip("방 만들기·참가 실패 문장. 화면 중앙에 두고 색은 씬에서 정한다")]
+        [SerializeField] private TMP_Text lobbyErrorText;
+
+        [Tooltip("문장이 그대로 떠 있는 시간(초)")]
+        [SerializeField] private float errorHoldSeconds = 1.6f;
+
+        [Tooltip("사라지는 데 걸리는 시간(초)")]
+        [SerializeField] private float errorFadeSeconds = 0.8f;
+
+        #endregion
+
+        #region Join Room UI
+
+        //주소를 직접 입력하지 않는다. 이 패널 안에서 LanRoomListUI가 같은 대역의 방 목록을 띄우고,
+        //방을 고르면 LanRoomListUI.OnPick → JoinRoom(RoomHandle)로 들어온다
+        [Header("Join Room UI")]
+        [SerializeField] private RectTransform joinPanel;
+
+        #endregion
+
+        #region Matching UI
+
+        [Header("Matching UI")]
+        [SerializeField] private RectTransform matchingPanel;
+        [SerializeField] private TMP_Text matchingStatusText;
+        [SerializeField] private TMP_Text currentPlayerCountText;
+        [SerializeField] private TMP_Text roomAddressText;
+        [SerializeField] private GameObject cancelMatchingButton;
+
+        #endregion
+
+        #region Countdown UI
+
+        [Header("Countdown UI")]
+        [SerializeField] private TMP_Text countdownText;
+        [SerializeField] private TMP_Text gameStartText;
+
+        #endregion
+
+        #region 애니메이션
+
+        [Header("애니메이션")]
+        [SerializeField] Vector2 nicknameLeftPos = new Vector2(-400f, 0f);
+        [SerializeField] float slideDuration = 0.45f;
+        [SerializeField] Ease slideEase = Ease.OutCubic;
+        [SerializeField] float popDelay = 0.2f;
+        [SerializeField] float popDuration = 0.35f;
+        [SerializeField] Ease popEase = Ease.OutBack;
+        [SerializeField] float matchingCompleteSlideY = 60f;
+
+        #endregion
+
+        #region 씬
+
+        [Header("씬")]
+        [SerializeField] private string gameSceneAbsorb = "Game_io_AbsorbMode";
+        [SerializeField] private string gameScenePush = "Game_io_PushMode";
+
+        #endregion
+
+        #region 기본값
+
+        [Header("기본값")]
+        [SerializeField] private int defaultPort = NetConfig.DEFAULT_PORT;
+        [SerializeField] private int defaultTotalPlayers = 4;
+        [SerializeField] private int defaultAiCount = 2;
+        [SerializeField] private float countdownSeconds = 3f;
+
+        #endregion
+
+        #region 대기 화면 상태 — 호스트가 방송하고 클라는 그대로 따른다
+
+        // ─────────────────────────────────────────────────────────
+        //  대기 화면 상태 — 호스트가 방송하고 클라는 그대로 따른다
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ 왜 필요한가
+        //   인원수도 카운트다운도 호스트만 안다(HumanCount는 클라에서 언제나 1,
+        //   Update의 카운트다운 블록도 !IsHost면 그 자리에서 빠져나간다).
+        //   그래서 클라 화면은 "다른 참가자를 기다리는 중..." 에서 곧장
+        //   "게임 시작!"으로 튀었다 — 매칭 완료도 3·2·1도 본 적이 없다.
+        //   호스트가 바뀔 때마다 LobbyStatus를 쏴주면 양쪽이 같은 화면을 본다.
+        private int netHumans = -1;   //-1 = 아직 못 받음
+        private int netTotal;
+        private int netAi;
+
+        //같은 값을 60fps로 다시 쏘지 않기 위한 마지막 방송값
+        private int sentHumans = -1;
+        private int sentCountdown = -2;
+
+        //"매칭 완료!" 연출은 한 번만. 호스트는 countdown이 -1→양수로 바뀌는 순간,
+        //클라는 카운트다운이 실린 첫 LobbyStatus에서 재생한다
+        private bool matchCompleteShown;
+
+        //ShowLobbyError 가 Photon 콜백 안에서 세워두는 깃발. 접는 일은 여기서 한다
+        private bool cancelRequested;
+
+        //대기 화면에서 카운트다운이 아직 안 돌고 있음을 뜻하는 값.
+        //바이트 하나로 보내려고 -1 대신 255를 쓴다
+        private const int CD_WAITING = 255;
+
+        #endregion
+
+        #region 닉네임 겹침 검사 — 참가자끼리
+
+        // ─────────────────────────────────────────────────────────
+        //  닉네임 겹침 검사 — 참가자끼리
+        // ─────────────────────────────────────────────────────────
+        //
+        // ★ 왜 로비에서 따로 물어보는가
+        //   방을 만들 때는 세션이 막고(LocalSession·PhotonSession 의 NameTaken),
+        //   방에 들어갈 때는 방 이름이 곧 방장 닉네임이라 JoinRoom 이 막는다.
+        //   남은 구멍이 <b>참가자끼리</b>다 — 목록에는 방장 이름만 있어서
+        //   먼저 들어간 사람이 누구인지 들어가는 쪽에서 알 방법이 없다.
+        //   그 이름이 호스트에게 처음 도착하는 건 게임 씬의 SetMyName 인데,
+        //   그때는 이미 캐릭터가 생기고 이름표가 두 개 똑같이 떠 있다.
+        //
+        //   그래서 방에 들어간 직후 이름을 한 번 보내고, 호스트가 자기 이름과
+        //   먼저 온 참가자들의 이름에 대고 재본다. 겹치면 사유를 붙여 돌려보낸다.
+        //
+        //   쫓아내는 게 아니라 <b>돌려보낸다</b>는 점이 중요하다. Photon 에는
+        //   마스터가 남을 끊는 수단이 없고, 끊는 수단을 전송마다 따로 만들면
+        //   로컬·온라인 동작이 갈린다. "나가라"고 말하면 나가는 쪽이 스스로 나가므로
+        //   두 전송에서 같은 코드가 돈다.
+        private readonly Dictionary<int, string> lobbyNames = new Dictionary<int, string>();
+
+        //HandleRoomEntered 가 세우고 Update 가 접는다. 이유는 그쪽 주석에 적어두었다
+        private bool helloPending;
+
+        private AfterChoice afterChoice;
+
+        //호스트와 클라가 서로 다른 문구를 보면 같은 방에 있다는 느낌이 안 든다.
+        //양쪽 다 "판이 차기를 기다린다"는 같은 상태이므로 문구도 하나로 둔다
+        private const string MATCHING_LABEL = "다른 참가자를 기다리는 중";
+
+        // ★ 요청을 보낸 것과 방에 들어간 것은 다르다
+        //   LAN 은 소켓을 여는 데까지가 동기라 이 문구가 한순간 스치고 지나가지만,
+        //   클라는 그때도 아직 자기 번호를 못 받았다(호스트의 환영 인사가 와야 한다).
+        //   릴레이는 방 만들기 성공 자체가 몇백 ms 뒤에 온다. 그동안 "다른 참가자를
+        //   기다리는 중"을 띄우면, 실패했을 때 아무도 오지 않는 방을 기다린 셈이 된다.
+        private const string CONNECTING_LABEL = "연결 중";
+
+        // ★ 신호가 화면보다 먼저 올 수 있다
+        //   LAN 호스트는 CreateRoom 이 성공하는 그 자리에서 OnRoomEntered 가 터진다.
+        //   대기 화면을 여는 건 그다음 줄이라, 그때 matching 은 아직 false 다.
+        //   '왔는가'를 기억해 두지 않고 그 순간에만 반응하면 호스트는 영원히
+        //   "연결 중..." 에 갇힌다. 어느 쪽이 먼저 와도 되게 상태로 들고 있는다.
+        private bool roomEntered;
+
+        private Coroutine errorFade;
+
+        //"게임 시작!"을 보여주는 시간. 호스트와 클라가 같은 값을 써야
+        //양쪽이 같은 순간에 로딩 커튼으로 넘어간다.
+        //예전엔 호스트만 0.6초를 기다리고 클라는 수신 즉시 씬을 로드해서,
+        //클라가 0.6초 먼저 게임 씬에 들어가 인게임 카운트다운까지 어긋났다
+        private const float LAUNCH_DELAY = 0.6f;
+
+        private string pendingScene;
+        private GameModeType pendingMode;
+
+        #endregion
+
+        private void Awake()
+        {
+            Instance = this;
+        }
+
+        private void Start()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null)
+            {
+                Debug.LogError("[로비] NetManager가 없습니다. Main 씬에 NetManager를 올려주세요.");
+                return;
+            }
+
+            net.RouteClient(MsgType.LoadGameScene, HandleLoadGameScene);
+            net.RouteClient(MsgType.LobbyStatus, HandleLobbyStatus);
+
+            //닉네임 겹침 검사 — 호스트가 받고(Hello) 호스트가 돌려보낸다(Reject)
+            net.RouteHost(MsgType.LobbyHello, HandleLobbyHello);
+            net.RouteClient(MsgType.LobbyReject, HandleLobbyReject);
+
+            net.Events.OnPeerJoined += HandlePeerChanged;
+            net.Events.OnPeerLeft += HandlePeerChanged;
+            net.Events.OnPeerLeft += ForgetLobbyName;
+            net.Events.OnDisconnected += HandleDisconnected;
+
+            // ★ 끊김은 두 얼굴로 온다
+            //   내가 끊은 것(OnDisconnected)과 상대가 사라진 것(OnConnectionLost)이
+            //   다른 이벤트다. 대기 화면 입장에서는 둘 다 "이 방은 끝났다"로 같다.
+            //   예전엔 앞의 것만 들어서, 방장이 취소하면 참가자 화면에 대기 패널이
+            //   그대로 남아 영원히 사람을 기다렸다.
+            net.Events.OnConnectionLost += HandleDisconnected;
+
+            //방 만들기·참가 실패는 세션이 알려준다. 예전엔 호출부가 반환값을 보고
+            //net.LastError 를 직접 읽었는데, 온라인은 실패가 나중에 도착한다
+            //세션이 아니라 NetManager 를 구독한다. 로컬/온라인을 갈아끼워도 끊기지 않는다
+            net.Events.OnSessionFailed += ShowLobbyError;
+            net.Events.OnRoomEntered += HandleRoomEntered;
+
+            LanScoreboard.Clear();
+            RoomConfig.Clear();
+
+            CacheOriginPositions();
+            ResetPanels();
+            FillDefaults();
+        }
+
+        private void Update()
+        {
+            NetManager net = NetManager.Instance;
+
+            //아래 matching 검사보다 먼저 본다. 접고 나면 matching 이 false 가 되므로
+            //뒤에 두면 깃발을 영영 못 읽는다
+            if (cancelRequested)
+            {
+                cancelRequested = false;
+                OnCancelMatchingClicked();
+                return;
+            }
+
+            //방에 들어간 직후 딱 한 번. 아래 matching·IsHost 검사에 걸리지 않게 앞에 둔다
+            if (helloPending)
+            {
+                helloPending = false;
+                SendLobbyHello();
+            }
+
+            if (net == null || !matching || launching)
+                return;
+
+            //클라의 인원 표시는 LobbyStatus가 갱신한다. 여기서 폴링하면
+            //자기 자신만 세는 HumanCount가 다시 덮어써 "1 / 4명"에서 멈춘다
+            if (!net.IsHost)
+                return;
+
+            int humans = HumanCount();
+            if (humans != shownHumans)
+            {
+                shownHumans = humans;
+                UpdatePlayerCountUI();
+                PlayJoinPop();
+            }
+
+            if (countdown < 0f)
+            {
+                if (humans < RoomConfig.HumanCount)
+                {
+                    HostBroadcastStatus();
+                    return;
+                }
+
+                countdown = countdownSeconds;
+                PlayMatchingComplete();
+                HostBroadcastStatus();
+                return;
+            }
+
+            countdown -= Time.unscaledDeltaTime;
+
+            ShowCountdown(Mathf.CeilToInt(Mathf.Max(0f, countdown)));
+            HostBroadcastStatus();
+
+            if (countdown > 0f)
+                return;
+
+            countdown = -1f;
+            HostLaunch();
+        }
+
+        /// <summary>
+        /// 호스트만 아는 대기 화면 상태(인원·정원·AI·카운트다운)를 클라에 알린다.
+        /// 값이 바뀔 때만 나가므로 프레임마다 불러도 된다.
+        /// </summary>
+        private void HostBroadcastStatus(bool force = false)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost)
+                return;
+
+            int humans = HumanCount();
+            int shown = countdown < 0f ? CD_WAITING : Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(0f, countdown)), 0, 254);
+
+            if (!force && humans == sentHumans && shown == sentCountdown)
+                return;
+
+            sentHumans = humans;
+            sentCountdown = shown;
+
+            w.Begin(MsgType.LobbyStatus);
+            w.WriteByte((byte)Mathf.Clamp(humans, 0, 255));
+            w.WriteByte((byte)Mathf.Clamp(RoomConfig.HumanCount, 0, 255));
+            w.WriteByte((byte)Mathf.Clamp(RoomConfig.AiCount, 0, 255));
+            w.WriteByte((byte)shown);
+            w.End();
+            net.Broadcast(w);
+        }
+
+        /// <summary>호스트가 보낸 대기 화면 상태를 그대로 재생한다(클라 전용).</summary>
+        private void HandleLobbyStatus(NetReader r)
+        {
+            int humans = r.ReadByte();
+            int total = r.ReadByte();
+            int ai = r.ReadByte();
+            int cd = r.ReadByte();
+
+            if (!matching || launching)
+                return;
+
+            bool changed = humans != netHumans;
+
+            netHumans = humans;
+            netTotal = total;
+            netAi = ai;
+
+            UpdatePlayerCountUI();
+            if (changed)
+                PlayJoinPop();
+
+            if (cd == CD_WAITING)
+                return;
+
+            if (!matchCompleteShown)
+                PlayMatchingComplete();
+
+            ShowCountdown(cd);
+        }
+
+        /// <summary>참가자가 방에 들어간 직후 자기 닉네임을 호스트에게 보낸다(클라 전용).</summary>
+        private void SendLobbyHello()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || net.IsHost)
+                return;
+
+            w.Begin(MsgType.LobbyHello);
+            w.WriteString(RoomConfig.Nickname ?? "");
+            w.End();
+            net.SendToHost(w);
+        }
+
+        /// <summary>참가자가 보낸 닉네임을 받아 겹치는지 본다(호스트 전용).</summary>
+        private void HandleLobbyHello(int from, NetReader r)
+        {
+            string name = r.ReadString();
+
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost)
+                return;
+
+            if (LobbyNameTaken(from, name))
+            {
+                w.Begin(MsgType.LobbyReject);
+                w.WriteString("이미 같은 닉네임인 참가자가 있습니다. 닉네임을 바꿔주세요.");
+                w.End();
+                net.SendTo(from, w);
+
+                //기억해두지 않는다. 곧 나갈 사람의 이름이 남아 있으면
+                //다음 사람이 그 이름을 못 쓴다
+                return;
+            }
+
+            lobbyNames[from] = name;
+        }
+
+        //자기 자신과는 비교하지 않는다 — 연결이 끊겼다 같은 번호로 다시 붙는 경우
+        //자기 이름 때문에 자기가 막힌다
+        private bool LobbyNameTaken(int from, string name)
+        {
+            if (SameNickname(RoomConfig.Nickname, name))
+                return true;
+
+            foreach (KeyValuePair<int, string> kv in lobbyNames)
+            {
+                if (kv.Key == from)
+                    continue;
+
+                if (SameNickname(kv.Value, name))
+                    return true;
+            }
+
+            return false;
+        }
+
+        private void ForgetLobbyName(int peerId)
+        {
+            lobbyNames.Remove(peerId);
+        }
+
+        /// <summary>호스트가 돌려보냈다. 사유를 띄우고 대기 화면을 접는다(클라 전용).</summary>
+        private void HandleLobbyReject(NetReader r)
+        {
+            //ShowLobbyError 가 문장을 띄우고 접기를 다음 프레임으로 미룬다.
+            //여기서 바로 Shutdown 하면 지금 이 메시지를 읽고 있는 소켓을 닫는 셈이 된다
+            ShowLobbyError(r.ReadString());
+        }
+
+        private void OnDestroy()
+        {
+            NetManager net = NetManager.Instance;
+            if (net != null)
+            {
+                net.UnrouteClient(MsgType.LoadGameScene);
+                net.UnrouteClient(MsgType.LobbyStatus);
+                net.UnrouteHost(MsgType.LobbyHello);
+                net.UnrouteClient(MsgType.LobbyReject);
+                net.Events.OnPeerJoined -= HandlePeerChanged;
+                net.Events.OnPeerLeft -= HandlePeerChanged;
+                net.Events.OnPeerLeft -= ForgetLobbyName;
+
+                net.Events.OnSessionFailed -= ShowLobbyError;
+                net.Events.OnRoomEntered -= HandleRoomEntered;
+                net.Events.OnDisconnected -= HandleDisconnected;
+                net.Events.OnConnectionLost -= HandleDisconnected;
+            }
+            //트윈은 DOTween 엔진이 들고 있어 이 컴포넌트보다 오래 산다.
+            //게임 시작 연출(0.4초)이 끝나기 전에 씬이 바뀌므로, 정리하지 않으면
+            //파괴된 RectTransform을 건드린다. 이벤트 구독 해제와 같은 이유다
+            KillTweens();
+
+            if (Instance == this)
+                Instance = null;
+        }
+
+        private void KillTweens()
+        {
+            //RectTransform은 UnityEngine.Object라 ?. 를 쓰면 안 된다.
+            //?. 는 C# 참조만 보므로 이미 파괴된(페이크 널) 오브젝트를 통과시킨다
+            if (nicknamePanel != null)
+                nicknamePanel.DOKill();
+            if (roomChoicePanel != null)
+                roomChoicePanel.DOKill();
+            if (hostOptionPanel != null)
+                hostOptionPanel.DOKill();
+            if (joinPanel != null)
+                joinPanel.DOKill();
+            if (matchingPanel != null)
+                matchingPanel.DOKill();
+
+            if (matchingStatusText != null)
+                matchingStatusText.rectTransform.DOKill();
+            if (currentPlayerCountText != null)
+                currentPlayerCountText.rectTransform.DOKill();
+            if (countdownText != null)
+                countdownText.rectTransform.DOKill();
+            if (gameStartText != null)
+                gameStartText.rectTransform.DOKill();
+        }
+
+        private void CacheOriginPositions()
+        {
+            if (nicknamePanel != null)
+                nicknameOriginPos = nicknamePanel.anchoredPosition;
+            if (matchingStatusText != null)
+                matchingStatusOriginPos = matchingStatusText.rectTransform.anchoredPosition;
+        }
+
+        private void ResetPanels()
+        {
+            Fold(roomChoicePanel);
+            Fold(hostOptionPanel);
+            Fold(joinPanel);
+            Fold(matchingPanel);
+
+            //★ 로컬/온라인 선택 패널이 여기서 빠져 있었다
+            //  Unpop 은 ChooseNet 과 OnClickBack 에서 제대로 부르고 있어서 평소에는
+            //  멀쩡했는데, 판이 끝나고 메인으로 돌아올 때 도는 이 함수만 이 패널을
+            //  건드리지 않았다. 그래서 선택 패널이 켜진 채로 남거나, 꺼져 있어도
+            //  localScale 이 1 이라 다음에 Pop 할 때 커지는 연출 없이 툭 나타났다.
+            //  여는 곳이 하나면 접는 곳도 하나여야 한다.
+            Fold(netChoicePanel);
+
+            if (nicknamePanel != null)
+            {
+                nicknamePanel.anchoredPosition = nicknameOriginPos;
+                nicknamePanel.gameObject.SetActive(false);
+            }
+
+            if (nicknameWarningText != null)
+                nicknameWarningText.SetActive(false);
+            if (roomSettingWarningText != null)
+                roomSettingWarningText.gameObject.SetActive(false);
+            HideLobbyError();
+            if (countdownText != null)
+                countdownText.gameObject.SetActive(false);
+            if (gameStartText != null)
+                gameStartText.gameObject.SetActive(false);
+        }
+
+        private static void Fold(RectTransform rt)
+        {
+            if (rt == null)
+                return;
+            rt.localScale = Vector3.zero;
+            rt.gameObject.SetActive(false);
+        }
+
+        private void FillDefaults()
+        {
+            if (portInput != null && string.IsNullOrEmpty(portInput.text))
+                portInput.text = defaultPort.ToString();
+            if (totalPlayersInput != null && string.IsNullOrEmpty(totalPlayersInput.text))
+                totalPlayersInput.text = defaultTotalPlayers.ToString();
+            if (aiCountInput != null && string.IsNullOrEmpty(aiCountInput.text))
+                aiCountInput.text = defaultAiCount.ToString();
+            if (nicknameInput != null && string.IsNullOrEmpty(nicknameInput.text))
+            {
+                nicknameInput.text = !string.IsNullOrEmpty(RoomConfig.Nickname)
+                    ? RoomConfig.Nickname
+                    : ("플레이어" + Random.Range(100, 1000));
+            }
+        }
+
+        private void Pop(RectTransform rt, float delay = 0f)
+        {
+            if (rt == null)
+                return;
+
+            //진행 중이던 트윈을 먼저 없앤다. 특히 Unpop이 예약해둔 OnComplete(SetActive(false))가
+            //남아 있으면, 방금 켠 패널을 0.2초 뒤에 꺼버려 화면이 빈 채로 멈춘다.
+            //(방 만들기 → 뒤로 를 빠르게 누르면 재현됐다)
+            rt.DOKill();
+
+            rt.gameObject.SetActive(true);
+            rt.localScale = Vector3.zero;
+
+            rt.DOScale(Vector3.one, popDuration)
+              .SetEase(popEase).SetDelay(delay).SetUpdate(true);
+        }
+
+        private void Unpop(RectTransform rt)
+        {
+            if (rt == null || !rt.gameObject.activeSelf)
+                return;
+
+            rt.DOKill();
+
+            rt.DOScale(Vector3.zero, 0.2f).SetEase(Ease.InBack).SetUpdate(true)
+              .OnComplete(() => rt.gameObject.SetActive(false));
+        }
+
+        private void SlideNicknameOut()
+        {
+            if (nicknamePanel == null)
+                return;
+            nicknamePanel.DOKill();
+            nicknamePanel.DOAnchorPos(nicknameLeftPos, slideDuration)
+                         .SetEase(slideEase).SetUpdate(true);
+        }
+
+        private void SlideNicknameBack()
+        {
+            if (nicknamePanel == null)
+                return;
+            nicknamePanel.DOKill();
+            nicknamePanel.gameObject.SetActive(true);
+            nicknamePanel.DOAnchorPos(nicknameOriginPos, slideDuration)
+                         .SetEase(slideEase).SetUpdate(true);
+        }
+
+        public void OnClickNicknameConfirm()
+        {
+            string nick = nicknameInput != null ? nicknameInput.text.Trim() : "";
+
+            if (string.IsNullOrEmpty(nick) || nick.Length > nicknameMaxLength)
+            {
+                if (nicknameWarningText != null)
+                    nicknameWarningText.SetActive(true); 
+                return;
+            }
+
+            if (nicknameWarningText != null)
+                nicknameWarningText.SetActive(false);
+            RoomConfig.Nickname = nick;
+
+            SlideNicknameOut();
+
+            Pop(roomChoicePanel, popDelay);
+        }
+
+        // ★ 어디로 갈지는 여기서 정해두고, 로컬/온라인을 고른 뒤에 연다
+        //   버튼 두 개(로컬·온라인)가 방 생성과 방 참가 양쪽에서 재사용되므로,
+        //   "고르고 나면 어디로 가야 하는지"를 패널이 아니라 여기서 기억한다.
+        private enum AfterChoice { None, Host, Join }
+
+        public void OnClickCreateRoom()
+        {
+            OpenNetChoice(AfterChoice.Host);
+        }
+
+        public void OnClickJoinRoom()
+        {
+            OpenNetChoice(AfterChoice.Join);
+        }
+
+        private void OpenNetChoice(AfterChoice next)
+        {
+            afterChoice = next;
+
+            if (netChoicePanel == null)
+            {
+                return;
+            }
+
+            Pop(netChoicePanel, popDelay);
+        }
+
+        /// <summary>선택 패널의 '로컬(같은 와이파이)' 버튼.</summary>
+        public void OnClickLocal()
+        {
+            ChooseLocalOrOnline(false);
+        }
+
+        /// <summary>선택 패널의 '온라인' 버튼.</summary>
+        public void OnClickOnline()
+        {
+            ChooseLocalOrOnline(true);
+        }
+
+        private void ChooseLocalOrOnline(bool online)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null)
+                return;
+
+            net.UseLocalOrOnline(online);
+
+            //UseLocalOrOnline 은 거절할 수 있다(온라인 코드가 빠진 빌드, 접속 중 등).
+            //그때 다음 화면으로 넘어가면 고른 것과 다른 전송으로 방을 만들게 된다
+            if (net.IsOnline != online)
+                return;
+
+            Unpop(netChoicePanel);
+
+            if (afterChoice == AfterChoice.Host)
+            {
+                //포트 입력칸은 로컬에서만 뜻이 있다. 세션이 정해진 지금에야 판단할 수 있다
+                ApplyLocalOnlyVisibility();
+
+                // ★ 방을 만들 때도 목록을 듣는다 — 이름이 겹치는지 알아야 한다
+                //   예전엔 방 목록 화면(LanRoomListUI)에서만 듣기 시작했다. 그래서
+                //   목록을 한 번도 안 보고 바로 방을 만들면 옆 사람이 같은 닉네임으로
+                //   방을 열었는지 알 수가 없었다. 로컬은 ip:port 가 열쇠라 이름이
+                //   겹쳐도 방이 만들어져서, 목록에 같은 이름이 두 줄 뜬다.
+                //   비콘은 1초에 한 번 오므로 설정을 채우는 동안 목록이 찬다.
+                if (net.Session != null)
+                    net.Session.StartBrowsing();
+
+                Pop(hostOptionPanel, popDelay);
+            }
+            else
+            {
+                Pop(joinPanel, popDelay);
+            }
+
+            afterChoice = AfterChoice.None;
+        }
+
+        //세션이 로컬인지에 따라 로컬 전용 입력을 보이고 숨긴다.
+        //꽂아둔 게 없으면 아무것도 하지 않는다 — 지금(LAN 전용)은 그래도 맞다
+        private void ApplyLocalOnlyVisibility()
+        {
+            if (localOnlyGroup == null)
+                return;
+
+            NetManager net = NetManager.Instance;
+            bool local = net == null || net.Session == null || net.Session.IsLocal;
+
+            localOnlyGroup.SetActive(local);
+        }
+
+        public void OnClickGenerate()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null)
+                return;
+
+            int port = ParseInt(portInput, defaultPort);
+            int total = ParseInt(totalPlayersInput, defaultTotalPlayers);
+            int ai = ParseInt(aiCountInput, defaultAiCount);
+            GameModeType mode = (modeDropdown != null && modeDropdown.value == 1)
+                ? GameModeType.Push : GameModeType.Absorb;
+
+            if (total < 1)
+            {
+                if (roomSettingWarningText != null)
+                {
+                    roomSettingWarningText.gameObject.SetActive(true);
+                    roomSettingWarningText.text = "플레이어가 최소 한 명 이상이어야 합니다!";
+                }
+                return;
+            }
+            if (ai >= total)
+            {
+                if (roomSettingWarningText != null)
+                {
+                    roomSettingWarningText.gameObject.SetActive(true);
+                    roomSettingWarningText.text = "사람이 최소 한 명 이상이어야 합니다!";
+                }
+                return;
+            }
+
+            RoomConfig.Set(mode, total, ai);
+
+            BeginConnecting();
+
+            //실패 사유는 세션이 OnFailed 로 알린다(ShowLobbyError 가 받는다)
+            RoomSetup opts = new RoomSetup
+            {
+                RoomName = RoomConfig.Nickname,
+                LocalPort = port
+            };
+
+            if (net.Session == null || !net.Session.CreateRoom(opts))
+                return;
+
+            //방을 만든 사람에게는 자기 닉네임이 곧 방 이름이다
+            if (roomAddressText != null)
+                roomAddressText.text = RoomConfig.Nickname;
+
+            Unpop(hostOptionPanel);
+            OpenMatching(roomEntered ? MATCHING_LABEL : CONNECTING_LABEL);
+        }
+
+        /// <summary>목록에서 고른 방에 붙는다. 실패 사유는 세션이 OnFailed 로 알린다.</summary>
+        public void JoinRoom(RoomEntry room)
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || net.Session == null || room == null)
+                return;
+
+            // ★ 방장과 이름이 같으면 들어가지 않는다
+            //   방 이름이 곧 방장의 닉네임이라, 참가하기 전에 목록만 보고 알 수 있다.
+            //   로컬·온라인 모두 같은 규칙이다.
+            //   같은 이름이 둘이면 이름표·순위표·"누가 누구를 먹었다" 기록이 전부
+            //   구별되지 않는다.
+            if (SameNickname(room.HostName, RoomConfig.Nickname))
+            {
+                ShowLobbyError("방장과 닉네임이 같습니다. 닉네임을 바꿔주세요.");
+                return;
+            }
+
+            BeginConnecting();
+
+            if (!net.Session.JoinRoom(room))
+                return;
+
+            // ★ 주소가 아니라 방 이름을 보여준다
+            //   예전엔 로컬에서 "192.168.0.5 : 7777" 이 떴다. 온라인에는 보여줄
+            //   주소가 없어 방 이름이 떴는데, 같은 자리에 두 가지 다른 것이 뜨면
+            //   화면이 무엇을 말하는 칸인지 흐려진다. 사람이 알아야 하는 건
+            //   "누구 방에 있는가"이지 IP 가 아니다.
+            if (roomAddressText != null)
+                roomAddressText.text = room.HostName;
+
+            Unpop(joinPanel);
+            OpenMatching(roomEntered ? MATCHING_LABEL : CONNECTING_LABEL);
+        }
+
+        //방을 만들거나 참가하기 직전에 부른다
+        private void BeginConnecting()
+        {
+            roomEntered = false;
+        }
+
+        /// <summary>방에 실제로 들어갔다. 그제서야 '기다린다'는 말이 사실이 된다.</summary>
+        private void HandleRoomEntered()
+        {
+            roomEntered = true;
+
+            // ★ 여기서 바로 보내지 않는다
+            //   온라인에서 이 함수는 Photon 의 OnJoinedRoom 콜백 안에서 불린다.
+            //   콜백 안에서 Photon 을 다시 부르다 게임이 멈춘 적이 있어(ShowLobbyError →
+            //   OpLeaveLobby) 같은 자리에 두지 않는다. 깃발만 세우고 Update 에서 보낸다.
+            helloPending = true;
+
+            if (!matching)
+                return;
+
+            SetMatchingLabel(MATCHING_LABEL);
+
+            //이제서야 인원을 말할 수 있다. 위 문구와 아래 숫자가 같이 바뀐다
+            UpdatePlayerCountUI();
+        }
+
+        private void SetMatchingLabel(string label)
+        {
+            if (matchingStatusText != null)
+                matchingStatusText.text = label;
+
+            if (dots != null)
+                StopCoroutine(dots);
+            dots = StartCoroutine(AnimateDots(label));
+        }
+
+        // ★ 문장만 띄우면 안 된다 — 대기 화면을 접어야 한다
+        //   로컬은 JoinHost 가 실패하면 그 자리에서 false 를 돌려줘서 대기 화면이
+        //   열리지도 않는다. 그런데 온라인은 JoinRoom 이 곧바로 true 를 돌려준다 —
+        //   "요청이 성립했다"는 뜻이지 성공이 아니다. 실패는 몇백 ms 뒤 콜백으로 온다.
+        //   그때는 이미 OpenMatching 이 돌아 "연결 중" 화면이 떠 있고 점 애니메이션도
+        //   돌고 있다. 문장만 띄우면 <b>아무도 오지 않는 방을 영원히 기다리게 된다.</b>
+        //
+        //   취소 버튼이 하는 일과 똑같이 접으면 된다 — 소켓을 닫고, 대기 상태를 풀고,
+        //   방 찾기를 멈추고, 대기 화면을 접는다.
+        //목록에서 구별이 되느냐가 기준이다. 대소문자와 앞뒤 공백은 무시한다 —
+        //"준서" 와 "준서 " 는 화면에서 같아 보인다. LocalSession 의 중복 검사와 같은 규칙
+        private static bool SameNickname(string a, string b)
+        {
+            if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+                return false;
+
+            return string.Equals(a.Trim(), b.Trim(), System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private void ShowLobbyError(string message)
+        {
+            Debug.LogWarning("[로비] " + message);
+
+            // ★ 여기서 바로 접으면 게임이 멈춘다 — 한 프레임 미룬다
+            //   이 함수는 Photon 콜백 안에서 불린다.
+            //   NetManager.Update → PhotonTransport.Poll → client.Service()
+            //     → OnCreateRoomFailed → Fail → ShowLobbyError
+            //   즉 Photon 이 받은 메시지를 <b>풀고 있는 도중</b>이다. 그 안에서
+            //   OnCancelMatchingClicked 을 부르면 StopBrowsing 이 OpLeaveLobby 를
+            //   부르는데, 자기 메시지를 처리하는 중에 새 요청을 밀어넣는 셈이라
+            //   클라이언트 상태가 꼬이고 Service 가 더는 돌지 않는다.
+            //   ("SendOutgoingCommands() was not called for > 5 seconds" 가 그 증상이다)
+            //
+            //   콜백은 문장만 띄우고 끝내고, 접는 일은 다음 Update 에 한다.
+            if (matching)
+                cancelRequested = true;
+
+            if (lobbyErrorText == null)
+                return;
+
+            lobbyErrorText.text = message;
+
+            //연달아 실패하면 앞의 것이 사라지는 중일 수 있다. 새로 시작한다
+            if (errorFade != null)
+                StopCoroutine(errorFade);
+
+            errorFade = StartCoroutine(FadeErrorOut());
+        }
+
+        private IEnumerator FadeErrorOut()
+        {
+            lobbyErrorText.gameObject.SetActive(true);
+
+            //색은 씬에서 정한 것을 그대로 쓰고 투명도만 되돌린다
+            Color full = lobbyErrorText.color;
+            full.a = 1f;
+            lobbyErrorText.color = full;
+
+            //로비는 timeScale 이 0 인 구간이 있어 unscaled 로 센다
+            yield return new WaitForSecondsRealtime(errorHoldSeconds);
+
+            float elapsed = 0f;
+
+            while (elapsed < errorFadeSeconds)
+            {
+                elapsed += Time.unscaledDeltaTime;
+
+                Color c = lobbyErrorText.color;
+                c.a = 1f - Mathf.Clamp01(elapsed / errorFadeSeconds);
+                lobbyErrorText.color = c;
+
+                yield return null;
+            }
+
+            errorFade = null;
+            ResetErrorText();
+        }
+
+        //화면을 넘어갈 때 부른다. 떠 있던 문장이 다음 화면까지 따라가면 안 된다
+        private void HideLobbyError()
+        {
+            if (errorFade != null)
+            {
+                StopCoroutine(errorFade);
+                errorFade = null;
+            }
+
+            ResetErrorText();
+        }
+
+        //끄면서 투명도를 되돌린다. 안 되돌리면 다음 실패 때 투명한 채로 켜진다
+        private void ResetErrorText()
+        {
+            if (lobbyErrorText == null)
+                return;
+
+            Color c = lobbyErrorText.color;
+            c.a = 1f;
+            lobbyErrorText.color = c;
+
+            lobbyErrorText.gameObject.SetActive(false);
+        }
+
+        private void OpenMatching(string label)
+        {
+            matching = true;
+            matchCompleteShown = false;
+            shownHumans = -1;
+            netHumans = -1;
+            sentHumans = -1;
+            sentCountdown = -2;
+
+            if (cancelMatchingButton != null)
+                cancelMatchingButton.SetActive(true);
+            if (matchingStatusText != null)
+            {
+                matchingStatusText.rectTransform.anchoredPosition = matchingStatusOriginPos;
+                matchingStatusText.text = label;
+            }
+
+            Pop(matchingPanel, popDelay);
+
+            if (dots != null)
+                StopCoroutine(dots);
+            dots = StartCoroutine(AnimateDots(label));
+
+            UpdatePlayerCountUI();
+        }
+
+        public void OnCancelMatchingClicked()
+        {
+            //실패로 예약된 접기가 남아 있으면 지운다. 사람이 먼저 취소를 눌렀는데
+            //다음 프레임에 또 접히면 방금 연 화면이 닫힌다
+            cancelRequested = false;
+
+            NetManager net = NetManager.Instance;
+            if (!NetManager.Offline)
+                net.Shutdown();
+
+            matching = false;
+            countdown = -1f;
+            launching = false;
+
+            CancelInvoke(nameof(LaunchNow));
+
+            pendingScene = null;
+            matchCompleteShown = false;
+            shownHumans = -1;
+            netHumans = -1;
+            sentHumans = -1;
+
+            //방이 끝났으므로 이름 장부도 비운다. 남겨두면 다음 방에서
+            //있지도 않은 사람의 이름이 계속 자리를 차지한다
+            lobbyNames.Clear();
+            helloPending = false;
+            sentCountdown = -2;
+
+            //방 알리기는 위의 Shutdown 이 끊기면서 세션이 알아서 멈춘다. 여기선 찾기만 끈다
+            if (net != null && net.Session != null)
+                net.Session.StopBrowsing();
+
+            if (dots != null)
+            {
+                StopCoroutine(dots);
+                dots = null;
+            }
+            if (countdownText != null)
+                countdownText.gameObject.SetActive(false);
+
+            Unpop(matchingPanel);
+        }
+
+        //방 설정·방 목록·로컬/온라인 선택이 같은 뒤로 버튼을 쓴다.
+        //Unpop 은 꺼져 있는 패널에는 아무 일도 하지 않으므로 전부 불러도 된다
+        public void OnClickBack()
+        {
+            Unpop(hostOptionPanel);
+            Unpop(joinPanel);
+            Unpop(netChoicePanel);
+        }
+
+        public void OnClickBackToNickname()
+        {
+            Unpop(roomChoicePanel);
+            SlideNicknameBack();
+        }
+
+        private static int ParseInt(TMP_InputField f, int fallback)
+        {
+            int v;
+            return (f != null && int.TryParse(f.text, out v)) ? v : fallback;
+        }
+
+private void HandlePeerChanged(int peerId)
+        {
+            UpdatePlayerCountUI();
+            PlayJoinPop();
+
+            //새로 들어온 사람에게도 지금 인원이 몇인지 알려야 한다.
+            //값이 안 바뀌었어도(예: 나갔다가 같은 수로 다시 참) 강제로 한 번 보낸다
+            HostBroadcastStatus(true);
+        }
+
+        private void HandleDisconnected()
+        {
+            if (launching)
+                return;
+            OnCancelMatchingClicked();
+        }
+
+        private int HumanCount()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null)
+                return 0;
+            if (net.IsHost)
+                return net.PeerCount + 1;
+
+            //클라는 다른 클라가 몇 명인지 모른다. 호스트만 아는 값이라 자기 자신만 센다
+            return net.CurrentMode == NetManager.Mode.Client ? 1 : 0;
+        }
+
+        private void UpdatePlayerCountUI()
+        {
+            if (currentPlayerCountText == null)
+                return;
+
+            // ★ 방에 들어가기 전에는 인원을 말하지 않는다
+            //   예전엔 여기서 곧바로 "접속됨"이 떴다. LAN 은 방 만들기가 동기라
+            //   그 글자가 스치고 지나갔지만, 릴레이는 몇백 ms 를 기다리므로
+            //   <b>아직 방이 없는데 접속됐다고 말하는</b> 화면이 그대로 보인다.
+            //   위쪽 문구가 "연결 중..." 인 동안 아래는 비어 있어야 앞뒤가 맞는다.
+            if (!roomEntered)
+            {
+                currentPlayerCountText.text = "";
+                return;
+            }
+
+            NetManager net = NetManager.Instance;
+
+            int humans, total, ai;
+
+            if (net != null && net.IsHost)
+            {
+                humans = HumanCount();
+                total = RoomConfig.HumanCount;
+                ai = RoomConfig.AiCount;
+            }
+            else
+            {
+                //호스트가 보내주기 전까지는 숫자를 지어내지 않는다
+                if (netHumans < 0)
+                {
+                    currentPlayerCountText.text = "접속됨";
+                    return;
+                }
+
+                humans = netHumans;
+                total = netTotal;
+                ai = netAi;
+            }
+
+            currentPlayerCountText.text = humans + " / " + total + "명"
+                + (ai > 0 ? ("   AI " + ai) : "");
+        }
+
+        private void PlayJoinPop()
+        {
+            if (currentPlayerCountText == null)
+                return;
+            currentPlayerCountText.rectTransform.DOKill();
+            currentPlayerCountText.rectTransform.localScale = Vector3.one * 1.25f;
+            currentPlayerCountText.rectTransform
+                .DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack).SetUpdate(true);
+        }
+
+        private IEnumerator AnimateDots(string label)
+        {
+            int n = 0;
+            while (matching && countdown < 0f)
+            {
+                if (matchingStatusText != null)
+                    matchingStatusText.text = label + new string('.', n);
+                n = (n + 1) % 4;
+                yield return new WaitForSecondsRealtime(0.4f);
+            }
+        }
+
+        private void PlayMatchingComplete()
+        {
+            matchCompleteShown = true;
+
+            if (dots != null)
+            {
+                StopCoroutine(dots);
+                dots = null;
+            }
+
+            if (matchingStatusText != null)
+            {
+                matchingStatusText.text = "매칭 완료!";
+                matchingStatusText.rectTransform
+                    .DOAnchorPos(matchingStatusOriginPos + new Vector2(0f, matchingCompleteSlideY), 0.4f)
+                    .SetEase(Ease.OutCubic).SetUpdate(true);
+            }
+
+            if (cancelMatchingButton != null)
+                cancelMatchingButton.SetActive(false);
+            if (countdownText != null)
+                countdownText.gameObject.SetActive(true);
+        }
+
+        private void ShowCountdown(int number)
+        {
+            if (countdownText == null)
+                return;
+
+            //0은 띄우지 않는다 — 마지막 한 프레임만 보였다가 곧바로 시작 연출에 가려진다
+            if (number < 1)
+                return;
+
+            //호출부(호스트 Update / 클라 수신)가 매 프레임 불러도 숫자가 바뀔 때만 튄다
+            if (countdownText.text == number.ToString())
+                return;
+
+            countdownText.rectTransform.DOKill();
+            countdownText.text = number.ToString();
+            countdownText.rectTransform.localScale = Vector3.zero;
+            countdownText.rectTransform
+                .DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack).SetUpdate(true);
+        }
+
+        private void HostLaunch()
+        {
+            NetManager net = NetManager.Instance;
+            if (net == null || !net.IsHost || launching)
+                return;
+
+            //판이 시작됐으니 목록에서 내린다. 연결은 그대로 유지해야 한다
+            if (net.Session != null)
+                net.Session.StopAdvertising();
+
+            string scene = SceneFor(RoomConfig.Mode);
+
+            //총 인원까지 보낸다. 예전엔 봇 수만 보내고 클라가 Set(m, ai + 1, ai)로 지어냈는데,
+            //그건 RoomConfig.Set의 클램프(AiCount <= TotalPlayers - 1)를 통과시키려는 꼼수였고
+            //그 결과 클라의 HumanCount가 언제나 1이 됐다
+            w.Begin(MsgType.LoadGameScene);
+            w.WriteByte((byte)RoomConfig.Mode);
+            w.WriteByte((byte)Mathf.Clamp(RoomConfig.AiCount, 0, 255));
+            w.WriteByte((byte)Mathf.Clamp(RoomConfig.TotalPlayers, 1, 255));
+            w.WriteString(scene);
+            w.End();
+            net.Broadcast(w);
+
+            BeginLaunch(scene, RoomConfig.Mode);
+        }
+
+        /// <summary>양쪽 공용 — "게임 시작!" 연출을 띄우고 잠시 뒤 씬을 넘긴다.</summary>
+        private void BeginLaunch(string scene, GameModeType mode)
+        {
+            if (launching && pendingScene != null)
+                return;
+
+            launching = true;
+            pendingScene = scene;
+            pendingMode = mode;
+
+            if (dots != null)
+            {
+                StopCoroutine(dots);
+                dots = null;
+            }
+
+            if (countdownText != null)
+                countdownText.gameObject.SetActive(false);
+
+            if (gameStartText != null)
+            {
+                gameStartText.gameObject.SetActive(true);
+                gameStartText.rectTransform.localScale = Vector3.zero;
+                gameStartText.rectTransform
+                    .DOScale(Vector3.one, 0.4f).SetEase(Ease.OutBack).SetUpdate(true);
+            }
+
+            Invoke(nameof(LaunchNow), LAUNCH_DELAY);
+        }
+
+        private void LaunchNow()
+        {
+            LanSceneFlow.ToGame(pendingScene, pendingMode);
+        }
+
+        private string SceneFor(GameModeType m)
+        {
+            return m == GameModeType.Push ? gameScenePush : gameSceneAbsorb;
+        }
+
+        private void HandleLoadGameScene(NetReader r)
+        {
+            GameModeType m = (GameModeType)r.ReadByte();
+            int ai = r.ReadByte();
+            int total = r.ReadByte();
+            string scene = r.ReadString();
+
+            RoomConfig.Set(m, total, ai);
+
+            //호스트가 카운트다운을 다 못 보여준 채(패킷 유실·늦은 접속) 여기로 왔다면
+            //적어도 "매칭 완료!" 상태는 맞춰두고 시작 연출로 넘어간다
+            if (!matchCompleteShown)
+                PlayMatchingComplete();
+
+            //호스트와 같은 연출·같은 대기시간으로 넘어간다.
+            //예전엔 여기서 상태 문구만 "게임 시작!"으로 바꾸고 곧바로 씬을 로드해,
+            //클라 화면에서는 매칭 완료도 3·2·1도 없이 갑자기 화면이 넘어갔다
+            BeginLaunch(scene, m);
+        }
+
+    }
+}

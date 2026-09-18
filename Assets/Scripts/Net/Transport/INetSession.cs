@@ -8,7 +8,7 @@ namespace JellyNet
     ///
     /// ★ 예전엔 LanDiscovery.RoomInfo 가 그대로 UI까지 올라갔다
     ///   그 타입은 UDP 비콘의 해석 결과라 Ip·Port 를 품고 있었고, 방 목록 UI가
-    ///   그걸 읽어 LanLobby.JoinRoom(ip, port) 를 불렀다. 온라인에는 IP도 포트도 없다.
+    ///   그걸 읽어 LobbyFlow.JoinRoom(ip, port) 를 불렀다. 온라인에는 IP도 포트도 없다.
     /// </summary>
     public class RoomEntry
     {
@@ -43,7 +43,7 @@ namespace JellyNet
 
         /// <summary>
         /// 로컬(LAN) 전용 — 열 TCP 포트. 온라인 구현은 무시한다.
-        /// 판의 모드·인원은 LanRoomConfig 가 들고 있으므로 여기 넣지 않는다.
+        /// 판의 모드·인원은 RoomConfig 가 들고 있으므로 여기 넣지 않는다.
         /// </summary>
         public int LocalPort;
     }
