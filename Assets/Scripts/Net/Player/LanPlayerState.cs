@@ -136,7 +136,7 @@ namespace JellyNet
                 shownColor = DisplayColor;
             else
             {
-                float t = 1f - Mathf.Exp(-colorLerpSpeed * Time.deltaTime);
+                float t = SmoothDamping.Factor(colorLerpSpeed, Time.deltaTime);
                 shownColor = Color.Lerp(shownColor, DisplayColor, t);
             }
             targetRenderer.material.color = shownColor;

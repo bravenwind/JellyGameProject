@@ -31,7 +31,9 @@ namespace JellyNet
 
             transform.position += velocity * Time.deltaTime;
 
-            velocity *= Mathf.Exp(-damping * Time.deltaTime);
+            //목표가 0이라 Factor 의 1에서 빼기 전 값이 그대로 감쇠율이 된다.
+            //같은 식을 두 군데서 쓰지 않도록 SmoothDamping 을 거친다
+            velocity *= 1f - SmoothDamping.Factor(damping, Time.deltaTime);
         }
     }
 }
