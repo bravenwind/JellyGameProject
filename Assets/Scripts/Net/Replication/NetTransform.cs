@@ -5,13 +5,6 @@ namespace JellyNet
 {
     public class NetTransform : MonoBehaviour, INetPoolable
     {
-        public enum Mode
-        {
-            None,
-            Lerp,
-            Snapshot
-        }
-
         struct Snap
         {
             public double Time;
@@ -21,13 +14,20 @@ namespace JellyNet
 
         #region 정적 필드
 
-        public static Mode CurrentMode = Mode.Snapshot;
+        // ★ 보간 방식을 고르는 Mode 를 지웠다
+        //   None(즉시) · Lerp(지수 감쇠) · Snapshot 세 가지를 두고 CurrentMode 로
+        //   갈아끼울 수 있게 해뒀지만, 초기값 Snapshot 을 바꾸는 코드가 한 곳도 없었다.
+        //   나머지 둘은 한 번도 돌지 않는 분기였고, 셋 중 무엇이 진짜인지 읽는 사람이
+        //   알 수 없게 만들 뿐이었다. 원격 캐릭터의 위치는 언제나 스냅샷 보간으로 정한다.
+        //
+        //   지수 감쇠(1 - e^(-k·dt))가 필요 없어진 것은 아니다. 목표값 하나를 향해
+        //   따라가는 자리 — 색(LanPlayerState), 넉백 감쇠(NetKnockback), 봇 크기
+        //   따라가기(LanBotState), 회전(SmoothDamping) — 에서는 그대로 쓴다.
+        //   위치만 다른 이유는 목표가 '하나'가 아니라 '시간이 찍힌 여러 개'이기 때문이다.
 
         //송신 주기(20Hz = 50ms)의 3배. 2배(0.1s)로는 프레임이 한 번만 밀려도
         //보간할 다음 스냅샷이 없어 화면이 멈춘다. 지연이 조금 늘어도 끊기지 않는 쪽이 낫다
         public static float InterpDelay = 0.15f;
-
-        public static float LerpSpeed = 12f;
 
         #endregion
 
@@ -43,10 +43,6 @@ namespace JellyNet
         private NetIdentity id;
         private readonly List<Snap> snaps = new List<Snap>();
         private float sendTimer;
-
-        private Vector3 targetPos;
-        private float targetYaw;
-        private bool hasTarget;
 
         #endregion
 
@@ -81,10 +77,7 @@ namespace JellyNet
         {
             snaps.Clear();
             hasBase = false;
-            hasTarget = false;
             sendTimer = 0f;
-            targetPos = transform.position;
-            targetYaw = transform.eulerAngles.y;
         }
 
         private void Update()
@@ -113,10 +106,6 @@ namespace JellyNet
 
         public void OnRemoteTransform(Vector3 pos, float yaw, float sendTime)
         {
-            targetPos = pos;
-            targetYaw = yaw;
-            hasTarget = true;
-
             double now = Time.unscaledTimeAsDouble;
 
             if (!hasBase)
@@ -164,36 +153,6 @@ namespace JellyNet
         }
 
         private void FollowRemote()
-        {
-            switch (CurrentMode)
-            {
-                case Mode.None: ApplyInstant(); break;
-                case Mode.Lerp: ApplyLerp(); break;
-                default: ApplySnapshot(); break;
-            }
-        }
-
-        private void ApplyInstant()
-        {
-            if (!hasTarget)
-                return;
-            transform.position = targetPos;
-            transform.rotation = Quaternion.Euler(0f, targetYaw, 0f);
-        }
-
-        private void ApplyLerp()
-        {
-            if (!hasTarget)
-                return;
-
-            float t = 1f - Mathf.Exp(-LerpSpeed * Time.deltaTime);
-            transform.position = Vector3.Lerp(transform.position, targetPos, t);
-
-            float yaw = Mathf.LerpAngle(transform.eulerAngles.y, targetYaw, t);
-            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-        }
-
-        private void ApplySnapshot()
         {
             if (snaps.Count == 0)
                 return;
