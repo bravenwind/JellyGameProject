@@ -221,7 +221,7 @@ public class AIPlayerMovement : MonoBehaviour
     //
     // ★ 예전엔 크기가 바뀔 때마다 5씩 깎았다 — 세 가지가 어긋나 있었다
     //   ① 크기가 아니라 '크기가 바뀐 횟수'를 셌다. 젤리 하나를 먹어도 -5, 두 배로 커져도 -5.
-    //   ② 줄어들 때도 -5였다. OnPostScalePhysics는 ScaleTo 코루틴 끝에서 나오는데
+    //   ② 줄어들 때도 -5였다. OnScalePhysicsRebuilt는 ScaleTo 코루틴 끝에서 나오는데
     //      그 코루틴은 성장과 축소를 모두 탄다 → 밀크로 작아진 봇의 우선순위가 올라갔다.
     //   ③ Mathf.Max(0, …)로 바닥이 막혀 있고 되돌리는 코드가 없어, 20으로 시작한 봇은
     //      네 번이면 0에 붙박였다. 그때부터 스폰 때 흩어놓은 값도 의미가 없어진다.
@@ -372,13 +372,13 @@ public class AIPlayerMovement : MonoBehaviour
     private void OnEnable()
     {
         if (ScaleCtrl != null)
-            ScaleCtrl.OnPostScalePhysics += UpdateScaleOnAgent;
+            ScaleCtrl.OnScalePhysicsRebuilt += UpdateScaleOnAgent;
     }
 
     private void OnDisable()
     {
         if (ScaleCtrl != null)
-            ScaleCtrl.OnPostScalePhysics -= UpdateScaleOnAgent;
+            ScaleCtrl.OnScalePhysicsRebuilt -= UpdateScaleOnAgent;
     }
 
     private void Start()
@@ -1010,7 +1010,7 @@ public class AIPlayerMovement : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────────────────
-    // 크기 변화 뒤처리 (PlayerScaleController.OnPostScalePhysics → 여기)
+    // 크기 변화 뒤처리 (PlayerScaleController.OnScalePhysicsRebuilt → 여기)
     // ─────────────────────────────────────────────────────────
 
     /// <summary>

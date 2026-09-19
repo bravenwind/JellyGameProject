@@ -67,15 +67,15 @@ public class LocalOwnerFeedback : MonoBehaviour
         //   예전엔 이 클래스가 LevelUpFloaterPool을 찾아 들고 Play()를 시켰다.
         //   그런데 이 클래스는 <b>사람 전용</b>이라 봇에는 팝업이 아예 없었고,
         //   BotBridge에 같은 코드를 복사하면 같은 일이 두 군데가 된다.
-        //   지금은 풀이 스스로 PlayerScaleController.OnGrowStarted를 구독한다.
+        //   지금은 풀이 스스로 PlayerScaleController.OnScaleGrowStarted를 구독한다.
     }
 
     private void OnEnable()
     {
         if (scaleController != null)
         {
-            scaleController.OnGrowStarted += HandleGrowStarted;
-            scaleController.OnScaleThresholdUp += HandleScaleThresholdUp;
+            scaleController.OnScaleGrowStarted += HandleScaleGrowStarted;
+            scaleController.OnScaleCrossedThreshold += HandleScaleCrossedThreshold;
             scaleController.OnScaleSettled += HandleScaleSettled;
         }
 
@@ -87,8 +87,8 @@ public class LocalOwnerFeedback : MonoBehaviour
     {
         if (scaleController != null)
         {
-            scaleController.OnGrowStarted -= HandleGrowStarted;
-            scaleController.OnScaleThresholdUp -= HandleScaleThresholdUp;
+            scaleController.OnScaleGrowStarted -= HandleScaleGrowStarted;
+            scaleController.OnScaleCrossedThreshold -= HandleScaleCrossedThreshold;
             scaleController.OnScaleSettled -= HandleScaleSettled;
         }
 
@@ -98,7 +98,7 @@ public class LocalOwnerFeedback : MonoBehaviour
 
     // ── Scale ──
 
-    private void HandleGrowStarted(bool playEffect)
+    private void HandleScaleGrowStarted(bool playEffect)
     {
         if (!playEffect)
             return;
@@ -127,7 +127,7 @@ public class LocalOwnerFeedback : MonoBehaviour
     //   GameState.OnCameraScaleIncreased는 static이라, 원격 캐릭터가 커져도
     //   내 카메라가 함께 줌되는 문제가 있었다. HandleScaleSettled에는 이미
     //   같은 가드가 있었는데(W6) 여기만 빠져 있었다.
-    private void HandleScaleThresholdUp()
+    private void HandleScaleCrossedThreshold()
     {
         if (!IsLocalOwner)
             return;

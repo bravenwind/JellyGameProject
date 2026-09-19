@@ -58,10 +58,26 @@ public class PlayerScaleController : MonoBehaviour
     //   전역 크기를 갱신하고 점수·점프력을 다시 계산한다. 둘로 나눠두면
     //   한쪽에만 처리를 추가하는 실수가 나고, 실제로 그랬다(Init은 점프력을 안 세웠다).
     //   "크기가 확정됐다"는 하나의 사건으로 본다.
+    // ★ 넷은 한 번의 성장에서 이 순서로 나간다
+    //   ① OnScaleGrowStarted      연출이 시작됐다 (인자는 이펙트를 재생할지)
+    //   ② OnScaleCrossedThreshold 이번 성장이 카메라 줌 문턱을 넘었다 (①과 같은 프레임, 조건부)
+    //   ③ OnScaleSettled          목표 크기에 도달해 화면까지 그 크기가 됐다
+    //   ④ OnScalePhysicsRebuilt   그 크기에 맞춰 천을 다시 만들었다
+    //
+    //   ③과 ④를 나눠 둔 이유는 순서 때문이다. ③ 시점에는 천이 아직 옛 모양이라,
+    //   콜라이더 크기에 맞춰야 하는 것(봇의 NavMeshAgent 반지름·높이)은 ④를 기다려야 한다.
+
+    /// <summary>크기가 확정됐다. 태어났을 때 한 번, 그리고 성장이 끝날 때마다.</summary>
     public event Action<float> OnScaleSettled;
-    public event Action<bool> OnGrowStarted;
-    public event Action OnScaleThresholdUp;
-    public event Action OnPostScalePhysics;
+
+    /// <summary>커지는 연출이 시작됐다. 인자는 이펙트를 재생할지 여부다.</summary>
+    public event Action<bool> OnScaleGrowStarted;
+
+    /// <summary>이번 성장이 카메라 줌 문턱을 넘었다.</summary>
+    public event Action OnScaleCrossedThreshold;
+
+    /// <summary>새 크기에 맞춰 천을 다시 만들었다. 콜라이더 기준으로 맞출 것은 여기서.</summary>
+    public event Action OnScalePhysicsRebuilt;
 
     #endregion
 
@@ -175,10 +191,10 @@ public class PlayerScaleController : MonoBehaviour
         if (softBody3D != null)
             softBody3D.DisableCloth();
 
-        OnGrowStarted?.Invoke(playEffect);
+        OnScaleGrowStarted?.Invoke(playEffect);
 
         if (hitsThresholdUp)
-            OnScaleThresholdUp?.Invoke();
+            OnScaleCrossedThreshold?.Invoke();
 
         //크기 값(targetValue)이 곧 균등 스케일이다. 예전엔 originalScale을 곱했는데
         //그게 Vector3.one 고정이라 곱셈에 의미가 없었다
@@ -201,7 +217,7 @@ public class PlayerScaleController : MonoBehaviour
         if (softBody3D != null)
             softBody3D.RequestRebuildCloth();
 
-        OnPostScalePhysics?.Invoke();
+        OnScalePhysicsRebuilt?.Invoke();
     }
 
     public void QueueScaleChange(IEnumerator scaleRoutine)

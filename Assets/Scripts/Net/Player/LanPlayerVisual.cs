@@ -68,8 +68,8 @@ namespace JellyNet
         /// 이 개체가 성장했다는 <b>방송이 도착했다.</b> 크기와 무관하게 모든 기계에서 한 번씩 뜬다.
         /// 성장 팝업(LevelUpFloaterPool)이 여기에 붙는다.
         ///
-        /// ★ 왜 OnGrowStarted가 아니라 이 자리인가
-        ///   OnGrowStarted는 크기 파이프라인(ScaleTo) 안에서 나온다. 그런데 봇의 ScaleTo는
+        /// ★ 왜 OnScaleGrowStarted가 아니라 이 자리인가
+        ///   OnScaleGrowStarted는 크기 파이프라인(ScaleTo) 안에서 나온다. 그런데 봇의 ScaleTo는
         ///   구동자에서만 돌아서(아래 가드), 클라 화면에서는 봇이 자라도 발화하지 않는다.
         ///   "방송이 왔다"와 "내가 크기를 몬다"는 다른 사건이고, 연출이 필요한 건 앞쪽이다.
         /// </summary>
