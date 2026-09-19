@@ -237,7 +237,7 @@ namespace JellyNet
             //  Lerp의 결과를 다시 자기 자신에 대입하는 형태라 남은 차이가
             //  (1 - 10·dt)^n 으로 줄어드는데, 여기엔 프레임 수 n이 지수로 들어간다.
             //  → 60fps와 30fps에서 봇 크기가 따라붙는 속도가 달랐다.
-            //  같은 파일 옆의 NetTransform.ApplyLerp는 이미 아래 형태를 쓰고 있었다
+            //  SmoothDamping.Factor 가 그 계수를 만든다 — 색·회전·넉백도 같은 것을 쓴다
             transform.localScale = Vector3.Lerp(
                 transform.localScale,
                 Vector3.one * targetScale,
