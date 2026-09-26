@@ -475,7 +475,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1905502187}
         m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
         m_MethodName: QuitGame
         m_Mode: 1
@@ -1913,7 +1913,7 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls:
-      - m_Target: {fileID: 0}
+      - m_Target: {fileID: 1905502187}
         m_TargetAssemblyTypeName: SceneLoader, Assembly-CSharp
         m_MethodName: ReturnToMain
         m_Mode: 1
@@ -74880,7 +74880,7 @@ MonoBehaviour:
   secondPlaceText: "2\uC704"
   thirdPlaceText: "3\uC704"
   finalText: "\uCD5C\uC885 \uACB0\uACFC"
-  buttonRestart: {fileID: 35976514}
+  buttonMainMenu: {fileID: 35976514}
   buttonGameQuit: {fileID: 9570105}
 --- !u!4 &2013748674
 Transform:

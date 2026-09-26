@@ -1833,7 +1833,7 @@ MonoBehaviour:
   secondPlaceText: "2\uC704"
   thirdPlaceText: "3\uC704"
   finalText: "\uCD5C\uC885 \uACB0\uACFC"
-  buttonRestart: {fileID: 963482166}
+  buttonMainMenu: {fileID: 963482166}
   buttonGameQuit: {fileID: 319292264}
 --- !u!4 &2013748674
 Transform:

@@ -28,8 +28,13 @@ public class PlayerJumpState : PlayerBaseState
         player.ApplyGravity();
         player.MoveAndRotate();
 
-        if (player.VerticalVelocity < 0 && player.Controller.isGrounded)
-            player.ChangeState(player.IdleState);
+        //공중에서도 대쉬·공격이 된다. 점프는 CanJump가 땅과 현재 상태로 막는다
+        if (player.TryStartAction())
+            return;
+
+        //착지 판정은 다른 상태와 같은 IsGrounded를 본다(예전엔 여기만 Controller.isGrounded를 직접 읽었다)
+        if (player.VerticalVelocity < 0 && player.IsGrounded)
+            player.FinishAction();
     }
 
     public override void Exit()

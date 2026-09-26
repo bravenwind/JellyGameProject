@@ -37,10 +37,7 @@ public class PlayerKnockbackState : PlayerBaseState
 
         if (!Knockback.IsActive(elapsed))
         {
-            if (player.IsMoveInputActive())
-                player.ChangeState(player.MoveState);
-            else
-                player.ChangeState(player.IdleState);
+            player.FinishAction();
         }
     }
 

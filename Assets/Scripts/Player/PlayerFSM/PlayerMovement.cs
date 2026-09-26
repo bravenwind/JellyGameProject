@@ -48,6 +48,18 @@ public class PlayerMovement : MonoBehaviour
 
     #endregion
 
+    #region Input Settings
+
+    [Header("Input Settings")]
+    [SerializeField] private KeyCode attackKey = KeyCode.Mouse0;
+    [SerializeField] private KeyCode dashKey = KeyCode.LeftShift;
+    [SerializeField] private KeyCode jumpKey = KeyCode.Space;
+
+    [Tooltip("누른 입력을 이 시간(초) 동안 기억한다. 대쉬·공격이 끝나기 직전에 누른 키가 버려지지 않게 한다")]
+    [SerializeField] private float inputBufferTime = 0.15f;
+
+    #endregion
+
     #region 상태
 
     //쿨타임 잔여 시간. 밖에서는 읽기만 하고, 거는 것은 아래 두 메서드로만 한다 —
@@ -100,11 +112,49 @@ public class PlayerMovement : MonoBehaviour
     public CharacterController Controller { get; private set; }
     public Vector3 InputDir { get; set; }
     public float VerticalVelocity { get; set; }
-    public bool IsGrounded { get; private set; }
+
+    // ★ 땅 판정은 컨트롤러 한 곳에서만 읽는다
+    //   예전엔 ApplyGravity가 isGrounded를 이 프로퍼티에 옮겨 적었고, Jump만 컨트롤러를
+    //   직접 읽었다. 옮겨 적은 값은 그 뒤에 Move가 돌면 한 프레임 늦은 값이 되어
+    //   두 판정이 서로 다른 답을 낼 수 있었다. 사본을 없애고 원본을 바로 읽는다.
+    public bool IsGrounded => Controller != null && Controller.isGrounded;
 
     // 입력 캐싱 (프레임당 1회만 읽기)
     private float inputH;
     private float inputV;
+
+    // ★ 버튼 입력은 여기서만 읽고, 상태들은 "눌렸는가"를 꺼내 쓰기만 한다
+    //   예전엔 Idle·Move가 Input.GetKeyDown을 직접 읽었다. 그래서 Dash·Attack 도중에
+    //   누른 키는 읽는 상태가 없어 그대로 사라졌고, 같은 키 검사가 두 상태에 두 벌 있었다.
+    //   이제 누른 순간을 inputBufferTime 동안 기억해 두었다가, 행동을 시작할 수 있게 되면 꺼낸다.
+    private BufferedPress attackPress;
+    private BufferedPress dashPress;
+    private BufferedPress jumpPress;
+
+    /// <summary>버튼 하나의 "눌렀다"를 잠시 기억해 두는 칸.</summary>
+    private struct BufferedPress
+    {
+        private float pressedAt;
+        private bool pending;
+
+        public void Record(float now)
+        {
+            pressedAt = now;
+            pending = true;
+        }
+
+        public void Clear() => pending = false;
+
+        /// <summary>기억 시간 안에 눌린 입력이 있으면 꺼내면서 true. 한 번 누른 건 한 번만 쓰인다.</summary>
+        public bool TryConsume(float now, float window)
+        {
+            if (!pending || now - pressedAt > window)
+                return false;
+
+            pending = false;
+            return true;
+        }
+    }
 
     // 카메라 벡터
     private Vector3 camForward;
@@ -218,11 +268,20 @@ public class PlayerMovement : MonoBehaviour
         {
             inputH = 0f;
             inputV = 0f;
+
+            //잠금 직전에 누른 키가 풀리자마자 튀어나오지 않게 비운다
+            attackPress.Clear();
+            dashPress.Clear();
+            jumpPress.Clear();
         }
         else
         {
             inputH = Input.GetAxis("Horizontal");
             inputV = Input.GetAxis("Vertical");
+
+            if (Input.GetKeyDown(attackKey)) attackPress.Record(Time.time);
+            if (Input.GetKeyDown(dashKey)) dashPress.Record(Time.time);
+            if (Input.GetKeyDown(jumpKey)) jumpPress.Record(Time.time);
         }
 
         if (DashCooldownTimer > 0f)
@@ -256,6 +315,69 @@ public class PlayerMovement : MonoBehaviour
             && currentState != knockbackState;
     }
 
+    //점프만 땅을 요구한다. 대쉬·공격은 공중에서도 된다
+    public bool CanJump()
+    {
+        return !InputLocked
+            && IsGrounded
+            && currentState != JumpState
+            && currentState != knockbackState;
+    }
+
+    /// <summary>
+    /// 기억해 둔 입력으로 행동을 시작한다. 시작했으면 true — 부른 쪽은 그 프레임 처리를 멈춘다.
+    ///
+    /// ★ 행동으로 가는 전환은 전부 여기 하나에 있다
+    ///   예전엔 Idle과 Move가 같은 입력 검사(공격 → 대쉬 → 점프)를 한 벌씩 들고 있어서
+    ///   우선순위를 바꾸려면 두 곳을 같이 고쳐야 했다. Jump에서도 불러 공중 대쉬·공격을 연다.
+    ///   입력은 조건이 맞을 때만 꺼내므로, 쿨타임 중에 누른 키는 기억 시간 동안 남아 있다.
+    /// </summary>
+    public bool TryStartAction()
+    {
+        float now = Time.time;
+
+        if (CanAttack() && attackPress.TryConsume(now, inputBufferTime))
+        {
+            ChangeState(AttackState);
+            return true;
+        }
+
+        if (CanDash() && dashPress.TryConsume(now, inputBufferTime))
+        {
+            ChangeState(DashState);
+            return true;
+        }
+
+        if (CanJump() && jumpPress.TryConsume(now, inputBufferTime))
+        {
+            ChangeState(JumpState);
+            return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 행동(점프·대쉬·공격·넉백)이 끝났을 때 다음 상태를 정한다.
+    /// 기억된 입력이 있으면 다음 행동으로, 없으면 Move 또는 Idle로 간다.
+    /// TryStartAction과 짝이다 — 행동을 시작하는 곳과 끝내는 곳.
+    ///
+    /// ★ 기억해 둔 다음 행동이 있으면 이동 상태를 거치지 않고 바로 잇는다
+    ///   Move를 거치면 그 Enter·Exit(걷기 효과음·애니메이션)가 같은 프레임에 켜졌다 꺼진다.
+    ///   지금 상태와 같은 행동(대쉬 끝에 대쉬)이나 넉백 끝의 행동은 Can* 이 막으므로
+    ///   이동 상태로 먼저 가고, 다음 프레임 그 상태의 TryStartAction이 이어받는다.
+    ///
+    ///   예전 Jump는 여기를 쓰지 않고 무조건 Idle로 갔다 — 이동키를 누른 채 착지해도
+    ///   Idle을 한 프레임 거친 뒤에야 Move가 됐다.
+    /// </summary>
+    public void FinishAction()
+    {
+        if (TryStartAction())
+            return;
+
+        ChangeState(IsMoveInputActive() ? MoveState : IdleState);
+    }
+
     public void ApplyKnockback(Vector3 direction, float force)
     {
         knockbackState.SetKnockback(direction, force);
@@ -283,8 +405,6 @@ public class PlayerMovement : MonoBehaviour
     // -----------------------------------------------------------------------
     public void ApplyGravity()
     {
-        IsGrounded = Controller.isGrounded;
-
         if (IsGrounded && VerticalVelocity < 0)
             VerticalVelocity = -2f;
 

@@ -39,10 +39,7 @@ public class PlayerDashState : PlayerBaseState
 
         if (elapsed >= player.DashDuration)
         {
-            if (player.IsMoveInputActive())
-                player.ChangeState(player.MoveState);
-            else
-                player.ChangeState(player.IdleState);
+            player.FinishAction();
         }
     }
 

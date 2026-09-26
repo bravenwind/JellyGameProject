@@ -106,3 +106,30 @@ credentials.json
 # Python (tools/) cache
 __pycache__/
 *.pyc
+명세서_그림/3.1_호스트_클라이언트_구조도.drawio
+명세서_그림/3.3_사람_봇_크기전달.drawio
+명세서_그림/4.3_봇_FSM.drawio
+명세서_그림/4.3_플레이어_FSM.drawio
+명세서_그림/5_옵저버_클래스다이어그램.drawio
+명세서_그림/5_옵저버_클래스다이어그램.png
+명세서_그림/6_전략_클래스다이어그램.drawio
+명세서_그림/6_전략_클래스다이어그램.png
+명세서_그림/그림01_A_msgsize.png
+명세서_그림/그림02_B_buffer.png
+명세서_그림/그림03_C_bytes.png
+명세서_그림/그림04_D_topology.png
+명세서_그림/그림05_E_sizeflow.png
+명세서_그림/그림06_F1_bot.png
+명세서_그림/그림07_F2_player.png
+명세서_그림/그림08_G_grid.png
+명세서_그림/그림09_H_observer.png
+명세서_그림/그림10_I_strategy.png
+명세서_그림/그림11_J_singleton.png
+명세서_그림/그림12_K_pool.png
+명세서_그림/그림13_L_hash.png
+프로그램 기술 명세서.docx
+프로그램 기술 명세서_ver2.docx
+프로그램 기술 명세서_ver3.docx
+프로그램 기술 명세서_ver4.docx
+프로그램 기술 명세서_ver5_그림추가.docx
+프로그램 기술 명세서_ver5_수정내용표시.docx

@@ -37,10 +37,7 @@ public class PlayerAttackState : PlayerBaseState
 
         if (elapsed >= swingDuration)
         {
-            if (player.IsMoveInputActive())
-                player.ChangeState(player.MoveState);
-            else
-                player.ChangeState(player.IdleState);
+            player.FinishAction();
         }
     }
 
