@@ -34,15 +34,8 @@ namespace JellyNet
         LoadGameScene = 53,
         SceneReady = 54,
 
-        //로비 대기 화면의 인원수·카운트다운. 호스트만 아는 값이라
-        //이걸 안 보내면 클라는 "게임 시작!"만 갑자기 보게 된다
         LobbyStatus = 55,
 
-        // ★ 닉네임은 게임 씬에 가서야(SetMyName) 호스트에게 도착한다
-        //   그래서 참가자끼리 이름이 겹쳐도 로비에서는 아무도 모르고, 알게 되는 건
-        //   이름표가 두 개 똑같이 뜨는 게임 안이다. 그때는 이미 늦다.
-        //   접속 직후 이름을 미리 보내(LobbyHello) 호스트가 판단하게 하고,
-        //   겹치면 사유를 붙여 돌려보낸다(LobbyReject).
         LobbyHello = 56,
         LobbyReject = 57,
 

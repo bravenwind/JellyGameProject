@@ -133,3 +133,47 @@ __pycache__/
 프로그램 기술 명세서_ver4.docx
 프로그램 기술 명세서_ver5_그림추가.docx
 프로그램 기술 명세서_ver5_수정내용표시.docx
+프로그램 기술 명세서_ver6.docx
+프로그램 핵심 코드/게임 모드와 판정/AbsorbMode.cs
+프로그램 핵심 코드/게임 모드와 판정/HostJudgement.cs
+프로그램 핵심 코드/게임 모드와 판정/INetEntity.cs
+프로그램 핵심 코드/게임 모드와 판정/LanBotState.cs
+프로그램 핵심 코드/게임 모드와 판정/NetEntity.cs
+프로그램 핵심 코드/게임 모드와 판정/NetGameMode.cs
+프로그램 핵심 코드/게임 모드와 판정/PushMode.cs
+프로그램 핵심 코드/네트워크/FramedConnection.cs
+프로그램 핵심 코드/네트워크/INetSession.cs
+프로그램 핵심 코드/네트워크/INetTransport.cs
+프로그램 핵심 코드/네트워크/LocalSession.cs
+프로그램 핵심 코드/네트워크/NetEvents.cs
+프로그램 핵심 코드/네트워크/NetIdentity.cs
+프로그램 핵심 코드/네트워크/NetManager.cs
+프로그램 핵심 코드/네트워크/NetProtocol.cs
+프로그램 핵심 코드/네트워크/NetReader.cs
+프로그램 핵심 코드/네트워크/NetRouteTable.cs
+프로그램 핵심 코드/네트워크/NetSpawnPool.cs
+프로그램 핵심 코드/네트워크/NetTransform.cs
+프로그램 핵심 코드/네트워크/NetWorld.cs
+프로그램 핵심 코드/네트워크/NetWriter.cs
+프로그램 핵심 코드/네트워크/PhotonSession.cs
+프로그램 핵심 코드/네트워크/PhotonTransport.cs
+프로그램 핵심 코드/네트워크/SocketTransport.cs
+프로그램 핵심 코드/맵, 색, 공용/ComponentPool.cs
+프로그램 핵심 코드/맵, 색, 공용/DataManager.cs
+프로그램 핵심 코드/맵, 색, 공용/RYBColorSystem.cs
+프로그램 핵심 코드/맵, 색, 공용/SmoothDamping.cs
+프로그램 핵심 코드/맵, 색, 공용/TileCollapseManager.cs
+프로그램 핵심 코드/플레이어와 AI/AIBaseState.cs
+프로그램 핵심 코드/플레이어와 AI/AIPlayerMovement.cs
+프로그램 핵심 코드/플레이어와 AI/AIPushSurviveState.cs
+프로그램 핵심 코드/플레이어와 AI/EntityRegistry.cs
+프로그램 핵심 코드/플레이어와 AI/LocalOwnerFeedback.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerAttackState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerBaseState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerDashState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerIdleState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerJumpState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerKnockbackState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerMovement.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerMoveState.cs
+프로그램 핵심 코드/플레이어와 AI/PlayerScaleController.cs

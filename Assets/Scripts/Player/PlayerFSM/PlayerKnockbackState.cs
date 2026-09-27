@@ -19,7 +19,6 @@ public class PlayerKnockbackState : PlayerBaseState
         if (player.Anim != null)
             player.Anim.SetTrigger(AnimParams.Hit);
 
-        // [LAN] 원격 화면에도 피격 애니메이션이 보이도록 알린다
         if (player.Visual != null)
             player.Visual.SendTrigger(LanPlayerVisual.ANIM_HIT);
     }
@@ -29,8 +28,6 @@ public class PlayerKnockbackState : PlayerBaseState
         elapsed += Time.deltaTime;
         player.ApplyGravity();
 
-        //속도 곡선은 봇과 공유하고, 그 속도로 어떻게 움직일지는 각자 한다.
-        //사람은 CharacterController라 벽에 막힌다
         Vector3 move = Knockback.VelocityAt(knockVelocity, elapsed);
         move.y = player.VerticalVelocity;
         player.Controller.Move(move * Time.deltaTime);

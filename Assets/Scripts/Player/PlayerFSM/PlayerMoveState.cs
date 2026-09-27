@@ -1,8 +1,5 @@
 ﻿using UnityEngine;
 
-// ==========================================
-// 2. Move 상태 클래스
-// ==========================================
 public class PlayerMoveState : PlayerBaseState
 {
     public PlayerMoveState(PlayerMovement player) : base(player) { }

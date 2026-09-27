@@ -5,38 +5,10 @@ using UnityEngine;
 
 public class PlayerScaleController : MonoBehaviour
 {
-    #region References
-
-    [Header("References")]
     [SerializeField] private SoftBody3D softBody3D;
-
-    #endregion
-
-    #region 상태
 
     private Vector3 currentScale;
 
-    #endregion
-
-    #region 시작 크기의 유일한 출처는 프리팹이다
-
-    // ═════════════════════════════════════════════════════════
-    //  시작 크기의 유일한 출처는 프리팹이다
-    // ═════════════════════════════════════════════════════════
-    //
-    // ★ 예전엔 '2'가 네 군데 흩어져 있었다
-    //   프리팹 localScale, DataManager의 startingScale, GameState.playerCurrentScale,
-    //   그리고 여기 필드 초기화 둘. 값이 우연히 같았을 뿐 출처가 없어서,
-    //   프리팹을 키우면 다른 셋이 조용히 어긋났다.
-    //
-    //   이제 Awake에서 transform.localScale을 읽는 이 한 줄이 기준이다.
-    //   필드 초기값을 아예 두지 않는 이유도 같다 — 초기값이 있으면
-    //   "프리팹을 안 읽어도 그럴듯하게 도는" 상태가 생겨 실수를 덮는다.
-    //
-    // ★ Start가 아니라 Awake인 이유
-    //   LanPlayerState.ScaleValue·NetEntity.ScaleOf가 이 값을 읽는데,
-    //   그쪽이 먼저 돌면 0을 받아 '가장 작은 젤리'로 오판된다.
-    //   Awake는 모든 Start보다 먼저이므로 그 창이 닫힌다.
     public float CurrentScaleValue { get; private set; }
 
     public float PendingScale { get; private set; }
@@ -46,40 +18,13 @@ public class PlayerScaleController : MonoBehaviour
 
     private Coroutine jellyBatchCoroutine;
 
-    // ── 크기 생애 이벤트 ──
-    //
-    // ★ 셋을 지웠다
-    //   · OnScaleValueChanged — 구독자가 0인데 성장마다 발화했다.
-    //     바로 다음 줄의 완료 알림과 같은 값·같은 시점이라 완전한 중복이었다.
-    //   · OnShrinkStarted / OnScaleThresholdDown — 이 게임엔 축소가 없다.
-    //
-    // ★ OnScaleInit도 OnScaleSettled로 흡수했다
-    //   '처음 정해졌다'와 '성장이 끝났다'는 받는 쪽에서 하는 일이 같다 —
-    //   전역 크기를 갱신하고 점수·점프력을 다시 계산한다. 둘로 나눠두면
-    //   한쪽에만 처리를 추가하는 실수가 나고, 실제로 그랬다(Init은 점프력을 안 세웠다).
-    //   "크기가 확정됐다"는 하나의 사건으로 본다.
-    // ★ 넷은 한 번의 성장에서 이 순서로 나간다
-    //   ① OnScaleGrowStarted      연출이 시작됐다 (인자는 이펙트를 재생할지)
-    //   ② OnScaleCrossedThreshold 이번 성장이 카메라 줌 문턱을 넘었다 (①과 같은 프레임, 조건부)
-    //   ③ OnScaleSettled          목표 크기에 도달해 화면까지 그 크기가 됐다
-    //   ④ OnScalePhysicsRebuilt   그 크기에 맞춰 천을 다시 만들었다
-    //
-    //   ③과 ④를 나눠 둔 이유는 순서 때문이다. ③ 시점에는 천이 아직 옛 모양이라,
-    //   콜라이더 크기에 맞춰야 하는 것(봇의 NavMeshAgent 반지름·높이)은 ④를 기다려야 한다.
-
-    /// <summary>크기가 확정됐다. 태어났을 때 한 번, 그리고 성장이 끝날 때마다.</summary>
     public event Action<float> OnScaleSettled;
 
-    /// <summary>커지는 연출이 시작됐다. 인자는 이펙트를 재생할지 여부다.</summary>
     public event Action<bool> OnScaleGrowStarted;
 
-    /// <summary>이번 성장이 카메라 줌 문턱을 넘었다.</summary>
     public event Action OnScaleCrossedThreshold;
 
-    /// <summary>새 크기에 맞춰 천을 다시 만들었다. 콜라이더 기준으로 맞출 것은 여기서.</summary>
     public event Action OnScalePhysicsRebuilt;
-
-    #endregion
 
     private void Awake()
     {
@@ -93,23 +38,6 @@ public class PlayerScaleController : MonoBehaviour
         OnScaleSettled?.Invoke(CurrentScaleValue);
     }
 
-    // ═════════════════════════════════════════════════════════
-    //  이 게임의 크기는 한 방향으로만 간다
-    // ═════════════════════════════════════════════════════════
-    //
-    // ★ 축소 경로를 통째로 걷어냈다
-    //   예전엔 ScaleTo에 growing 매개변수가 있고 OnShrinkStarted·
-    //   OnScaleThresholdDown 이벤트가 딸려 있었다. 그런데 <b>줄어드는 일이
-    //   실제로는 한 번도 없었다</b> — 부르는 곳 셋이 전부 growing: true였다.
-    //   (우유는 이름만 MilkScaleDecrease고 속도만 건드린다)
-    //
-    //   쓰지 않는 갈래가 남아 있으면 읽는 사람이 "언제 줄어들지?"를 계속 찾게 되고,
-    //   그 갈래에만 버그가 숨어도 아무도 모른다. 지우는 게 정직하다.
-    //
-    // ★ 상·하한 클램프도 없앴다
-    //   씬의 maxScale이 100이라 사실상 상한이 아니었고, 하한은 줄어들 일이
-    //   없으니 애초에 닿지 않는 조건이었다.
-
     public void GrowByJelly()
     {
         PendingScale += DataManager.Instance.JellyScaleIncrease;
@@ -118,16 +46,6 @@ public class PlayerScaleController : MonoBehaviour
             jellyBatchCoroutine = StartCoroutine(BatchedJellyGrow());
     }
 
-    // ★ playEffect가 false인 이유 — 젤리는 '큰 성장' 소리를 내지 않는다
-    //   이 플래그가 지금 가르는 것은 <b>효과음 하나뿐이다.</b> 젤리는 한 판에 수십 번
-    //   먹으므로 봇 흡수·배트 적중과 같은 소리를 내면 시끄럽다. 젤리 전용 소리는
-    //   LocalOwnerFeedback.HandleJellyScored가 따로 낸다.
-    //
-    //   한때 이 값을 true로 바꾼 적이 있다. 팝업이 이 이벤트에 붙어 있어서
-    //   "원격 화면에 젤리 팝업이 안 뜬다"를 여기서 풀려고 했던 것인데, 잘못된 자리였다.
-    //   봇의 ScaleTo는 구동자에서만 돌아서 클라에서는 애초에 이 코루틴이 실행되지 않는다.
-    //   팝업은 크기 파이프라인이 아니라 방송이 도착한 자리에 붙였다
-    //   (PlayerAbsorber.OnJellyScored / LanPlayerVisual.OnGrowBroadcastReceived).
     private IEnumerator BatchedJellyGrow()
     {
         yield return null;
@@ -147,19 +65,7 @@ public class PlayerScaleController : MonoBehaviour
         QueueScaleChange(ScaleTo(PendingScale, 0.3f, playEffect: true));
     }
 
-    /// <summary>
-    /// 연속적인 크기를 계단으로 자른다. 카메라 줌아웃을 문턱마다 <b>한 번씩만</b> 쏘기 위한 것.
-    ///
-    /// <code>
-    /// 크기  0 ─────── 6 ─────── 10 ─────── 14 ─────── 18 ──→
-    /// tier      -1     │    0     │    1     │    2     │  3
-    ///                 첫 문턱    +step      +step      +step
-    /// </code>
-    ///
-    /// (scale - first) / step 을 내림하면 6~10은 0.x → 0, 10~14는 1.x → 1이 된다.
-    /// 첫 문턱 미만을 전부 -1로 묶는 이유는, 안 그러면 작은 값에서 -1·-2로 칸이 갈려
-    /// 성장 초반에 문턱을 넘은 것처럼 보이기 때문이다.
-    /// </summary>
+    // 첫 기준보다 작으면 전부 -1
     private int GetScaleTier(float scale)
     {
         float first = DataManager.Instance.CameraZoomFirstThreshold;
@@ -196,8 +102,6 @@ public class PlayerScaleController : MonoBehaviour
         if (hitsThresholdUp)
             OnScaleCrossedThreshold?.Invoke();
 
-        //크기 값(targetValue)이 곧 균등 스케일이다. 예전엔 originalScale을 곱했는데
-        //그게 Vector3.one 고정이라 곱셈에 의미가 없었다
         Vector3 startScale = currentScale;
         Vector3 targetScale = Vector3.one * targetValue;
         CurrentScaleValue = targetValue;

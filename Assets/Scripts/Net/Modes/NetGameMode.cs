@@ -2,8 +2,6 @@
 
 namespace JellyNet
 {
-    //게임 모드가 공통으로 지는 배선을 한 곳에 모은다
-    //구독과 해제가 짝이 맞아야 하는데 모드마다 따로 적어두면 한쪽만 빠뜨리기 쉽다
     public abstract class NetGameMode<T> : MonoBehaviour where T : NetGameMode<T>
     {
         public static T Instance { get; private set; }
@@ -25,7 +23,6 @@ namespace JellyNet
             get { return NetManager.Offline; }
         }
 
-        //이 모드의 판이 지금 굴러가는 중인가
         protected bool IsPlaying
         {
             get { return LanGameFlow.IsPlaying(Mode); }
@@ -52,10 +49,7 @@ namespace JellyNet
             NetManager net = NetManager.Instance;
 
             if (net == null)
-            {
-                Debug.LogError("[" + GetType().Name + "] NetManager가 없습니다.");
                 return;
-            }
 
             net.Events.OnDisconnected += ResetAll;
 
@@ -95,12 +89,10 @@ namespace JellyNet
         {
         }
 
-        /// <summary>이 모드가 담당할 MsgType을 NetManager 라우팅 테이블에 등록한다.</summary>
         protected virtual void RegisterRoutes()
         {
         }
 
-        /// <summary>등록한 만큼 정확히 풀어야 한다. 안 풀면 다음 판에서 중복 등록 에러가 난다.</summary>
         protected virtual void UnregisterRoutes()
         {
         }

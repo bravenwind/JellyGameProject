@@ -4,36 +4,19 @@ using UnityEngine.Pool;
 
 namespace JellyNet
 {
-    //프리팹 인덱스별 오브젝트 풀
-    //젤리는 초당 여러 번 생성·파괴되므로 재사용한다
-    //플레이어·봇은 판당 몇 번뿐이고 상태가 복잡해 풀링하지 않는다
     public class NetSpawnPool
     {
-        #region 상수
-
         private const int DEFAULT_CAPACITY = 16;
         private const int MAX_SIZE = 128;
 
-        #endregion
-
-        #region 상태
-
         private readonly Transform parent;
         private readonly GameObject[] prefabs;
-        //프리팹 번호별 풀. 인스펙터에 있는 게 아니라 처음 스폰될 때 코드가 만든다
         private readonly Dictionary<int, ObjectPool<GameObject>> pools = new();
 
-        //반납할 때는 오브젝트만 넘어와서 어느 풀 것인지 알 수 없다. 꺼낼 때 적어둔다.
-        //여기 없으면 풀에서 나온 게 아니라는 뜻(플레이어·봇) → 그냥 파괴한다.
-        //네트워크 소유권(NetIdentity.OwnerId)과는 아무 상관이 없다
         private readonly Dictionary<GameObject, int> idOfPrefab = new();
         private readonly bool[] poolable;
 
-        //NavMeshAgent는 켜지는 순간의 자리에서 NavMesh를 찾는다
-        //활성화 후에 옮기면 이미 늦어서 스폰 위치를 먼저 넘겨야 한다
         private Vector3 spawnPosition;
-
-        #endregion
 
         public NetSpawnPool(GameObject[] prefabs, Transform parent)
         {

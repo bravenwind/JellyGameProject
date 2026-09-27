@@ -23785,7 +23785,6 @@ MonoBehaviour:
   spawnInterval: 1.5
   maxJellyCount: 30
   playerRadius: 0.5
-  verboseLog: 1
   absorbSizeRatio: 1.15
   scoreRecomputeInterval: 0.25
 --- !u!114 &336275303

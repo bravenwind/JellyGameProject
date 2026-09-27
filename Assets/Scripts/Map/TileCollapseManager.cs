@@ -4,9 +4,37 @@ using JellyNet;
 
 public class TileCollapseManager : MonoBehaviour
 {
-    #region 상태
-
     public static TileCollapseManager Instance { get; private set; }
+
+    [SerializeField] private Transform gridParent;
+
+    [SerializeField] private float collapseStartTime = 90f;
+
+    [SerializeField] private float ringInterval = 15f;
+
+    [SerializeField] private bool autoRingInterval = true;
+
+    [SerializeField] private float endMargin = 5f;
+
+    [SerializeField] private float groundCheckDistance = 0.6f;
+
+    [SerializeField] private float tileDelay = 0f;
+
+    [SerializeField] private float warningDuration = 3f;
+
+    [SerializeField] private float fallDuration = 2f;
+
+    [SerializeField] private float fallDistance = 30f;
+
+    [SerializeField] private int keepCenterRings = 1;
+
+    private const float STEP_PROCESS_INTERVAL = 0.15f;
+
+    private const int MaxCellsPerAxis = 10000;
+
+    private const float ThreatDistanceWeight = 1.5f;
+
+    private const float SurvivalWeight = 40f;
 
     private GameObject[,] tiles;
     private int width, height;
@@ -36,75 +64,6 @@ public class TileCollapseManager : MonoBehaviour
     private Renderer[,] tileRenderers;
 
     private readonly Dictionary<int, EntityStepState> entityStates = new Dictionary<int, EntityStepState>();
-
-    #endregion
-
-    #region Grid
-
-    [Header("Grid")]
-    [Tooltip("타일들의 부모 Transform (비워두면 이 오브젝트에서 탐색)")]
-    [SerializeField] private Transform gridParent;
-
-    #endregion
-
-    #region 붕괴 타이밍
-
-    [Header("붕괴 타이밍")]
-    [Tooltip("게임 시작 후 붕괴 시작까지의 시간 (초)")]
-    [SerializeField] private float collapseStartTime = 90f;
-
-    [Tooltip("각 링 붕괴 간격 (초). autoRingInterval이 켜져 있으면 자동으로 덮어쓴다.")]
-    [SerializeField] private float ringInterval = 15f;
-
-    #endregion
-
-    #region 붕괴 주기 자동 계산
-
-    [Header("붕괴 주기 자동 계산")]
-    [Tooltip("마지막 링이 꺼지는 시점이 '게임 종료 N초 전'이 되도록 간격을 역산한다.")]
-    [SerializeField] private bool autoRingInterval = true;
-
-    [Tooltip("마지막 링이 다 꺼진 뒤 남길 시간 (초).")]
-    [SerializeField] private float endMargin = 5f;
-
-    [Tooltip("발밑이 타일 윗면보다 이만큼 이상 떠 있으면 점프로 본다(마모 안 됨). 점프 높이보다 작아야 한다.")]
-    [SerializeField] private float groundCheckDistance = 0.6f;
-
-    [Tooltip("같은 링 내 타일 간 연쇄 딜레이 (초) — 0이면 동시에 떨어짐")]
-    [SerializeField] private float tileDelay = 0f;
-
-    #endregion
-
-    #region 타일 애니메이션
-
-    [Header("타일 애니메이션")]
-    [Tooltip("경고 흔들림 시간 (초)")]
-    [SerializeField] private float warningDuration = 3f;
-
-    [Tooltip("떨어지는 시간 (초)")]
-    [SerializeField] private float fallDuration = 2f;
-
-    [Tooltip("떨어지는 거리")]
-    [SerializeField] private float fallDistance = 30f;
-
-    [Tooltip("가운데에 남겨둘 링 수. 마지막에 밟고 설 자리를 남기기 위한 것. 0이면 전부 무너진다.")]
-    [SerializeField] private int keepCenterRings = 1;
-
-    #endregion
-
-    #region 상수
-
-    private const float STEP_PROCESS_INTERVAL = 0.15f;
-
-    private const int MaxCellsPerAxis = 10000;
-
-    private const float ThreatDistanceWeight = 1.5f;
-
-    //"도착 후 한 걸음 더 버티는 것"이 "1m 더 가는 것"의 몇 배 가치인가.
-    //타일이 14m라 그보다 크게 둬야 거리 항에 묻히지 않는다
-    private const float SurvivalWeight = 40f;
-
-    #endregion
 
     private int HighestRing
     {
@@ -182,39 +141,16 @@ public class TileCollapseManager : MonoBehaviour
         float usable = duration - endMargin - warningDuration - fallDuration - collapseStartTime;
 
         if (usable <= 0f)
-        {
-            Debug.LogWarning($"[타일] 붕괴 시작({collapseStartTime}s)이 게임 시간({duration}s)에 비해 "
-                + "너무 늦어 링을 다 못 꺼뜨립니다. collapseStartTime을 줄여주세요. 자동 계산을 끕니다.");
             return;
-        }
 
-        // ★ 링 수가 아니라 '링 수 + 1'로 나눈다 (담장 문제)
-        //   고리 하나가 무너지려면 간격이 하나 필요하고, 거기에 <b>첫 고리 앞의 예고 간격</b>이
-        //   하나 더 붙는다. 고리 0도 나머지 고리와 똑같이 한 간격 동안 떨다가 무너져야 하니까.
-        //   예전엔 LastCollapsingRing으로 나눠서 그 예고 간격 자리가 없었고,
-        //   결과적으로 바깥 고리만 예고 없이 시작하자마자 무너졌다.
         ringInterval = usable / (LastCollapsingRing + 1);
-
-        Debug.Log($"[타일] 링 0~{HighestRing} 중 0~{LastCollapsingRing}이 무너짐"
-            + $"(가운데 {keepCenterRings}겹은 남김) · 게임 {duration}s → 간격 {ringInterval:F2}s "
-            + $"(첫 링 붕괴 {collapseStartTime + ringInterval:F1}s · "
-            + $"마지막 링 완료 {duration - endMargin:F1}s 지점)");
     }
 
-    /// <summary>
-    /// 고리 r이 무너지기 시작하는 시각. 고리 r이 떨기 시작하는 시각은 그 한 간격 전이다.
-    ///
-    /// ★ collapseStartTime이 곧 '첫 붕괴'가 아니다
-    ///   collapseStartTime은 <b>고리 0이 떨기 시작하는</b> 시각이고, 실제로 무너지는 건
-    ///   한 간격 뒤다. 예전엔 이 둘이 같아서, 고리 0만 예고 흔들림 없이 무너졌다
-    ///   (예고 시각이 collapseStartTime - ringInterval, 즉 존재하지 않는 시점이 됐다).
-    /// </summary>
     private float CollapseTimeOfRing(int ring)
     {
         return collapseStartTime + (ring + 1) * ringInterval;
     }
 
-    /// <summary>고리 r이 떨기 시작하는 시각. 자기 붕괴보다 한 간격 앞선다.</summary>
     private float ShakeTimeOfRing(int ring)
     {
         return collapseStartTime + ring * ringInterval;
@@ -231,26 +167,19 @@ public class TileCollapseManager : MonoBehaviour
         AutoGridMapGenerator generator = gridParent.GetComponent<AutoGridMapGenerator>();
 
         if (generator == null)
-        {
-            Debug.LogError($"[타일] {gridParent.name}에 AutoGridMapGenerator가 없습니다. "
-                + "격자 크기를 알 수 없어 붕괴 시스템을 켜지 않습니다.");
             return;
-        }
 
         width = generator.width;
         height = generator.height;
 
         if (width <= 0 || height <= 0)
         {
-            Debug.LogError($"[타일] 격자 크기가 {width}x{height}입니다 — 붕괴 시스템을 켜지 않습니다.");
             width = height = 0;
             return;
         }
 
         tiles = new GameObject[width, height];
         tileRenderers = new Renderer[width, height];
-
-        int found = 0;
 
         foreach (Transform child in gridParent)
         {
@@ -260,12 +189,8 @@ public class TileCollapseManager : MonoBehaviour
                 tiles[x, z] = child.gameObject;
 
                 tileRenderers[x, z] = child.GetComponentInChildren<Renderer>();
-                found++;
             }
         }
-
-        if (found != width * height)
-            Debug.LogWarning($"[타일] {width}x{height} = {width * height}칸인데 {found}개만 찾았습니다 — 빠진 타일이 있습니다.");
 
         CacheGridMetrics();
     }
@@ -273,10 +198,7 @@ public class TileCollapseManager : MonoBehaviour
     private void CacheGridMetrics()
     {
         if (tiles[0, 0] == null)
-        {
-            Debug.LogError("[타일] Tile_0_0이 없습니다 — 격자의 원점을 잡을 수 없어 밟기 판정이 동작하지 않습니다.");
             return;
-        }
 
         gridOrigin = tiles[0, 0].transform.position;
 
@@ -287,28 +209,11 @@ public class TileCollapseManager : MonoBehaviour
             stepZ = tiles[0, 1].transform.position.z - gridOrigin.z;
 
         if (Mathf.Approximately(stepX, 0f) || Mathf.Approximately(stepZ, 0f))
-        {
-            Debug.LogError($"[타일] 타일 간격을 잴 수 없습니다 (stepX={stepX}, stepZ={stepZ}). "
-                + "Tile_1_0 · Tile_0_1이 제자리에 있는지 확인하세요 — 밟기 판정이 동작하지 않습니다.");
             return;
-        }
 
         CacheMaxPathSamples();
     }
 
-    /// <summary>
-    /// 경로 한 구간을 최대 몇 등분까지 검사할지. 격자에서 유도한다.
-    ///
-    /// ★ 예전엔 상수 16이었는데, 그 값이 검사를 무력화하고 있었다
-    ///   구간 하나는 격자를 대각선으로 가로지르는 길이까지 나올 수 있다
-    ///   (평평한 격자라 장애물이 없으면 NavMesh가 코너 두 개짜리 직선을 준다).
-    ///   이 맵은 대각선이 약 308m인데 16등분이면 샘플 간격이 19m가 된다.
-    ///   칸이 14m니까 <b>칸 하나가 통째로 건너뛰어졌다</b> — 위험한 칸을 지나는 경로가
-    ///   안전 판정을 받고 통과했다는 뜻이다.
-    ///
-    ///   가장 긴 구간을 목표 간격으로 쪼갤 수 있는 수를 그대로 상한으로 쓴다.
-    ///   그러면 상한에 걸려도 간격 보장이 깨지지 않는다.
-    /// </summary>
     private void CacheMaxPathSamples()
     {
         float spanX = (width - 1) * stepX;
@@ -318,7 +223,6 @@ public class TileCollapseManager : MonoBehaviour
         maxSamplesPerSegment = Mathf.Max(1, Mathf.CeilToInt(gridDiagonal / PathSampleStep));
     }
 
-    /// <summary>샘플 사이 목표 간격. 반 칸이면 칸을 건너뛸 일이 없다.</summary>
     private float PathSampleStep
     {
         get { return Mathf.Min(stepX, stepZ) * 0.5f; }
@@ -439,9 +343,7 @@ public class TileCollapseManager : MonoBehaviour
     private float FeetYOf(Transform entityTransform, EntityStepState state)
     {
         if (state.Body == null)
-        {
             state.Body = entityTransform.GetComponent<CapsuleCollider>();
-        }
 
         return state.Body != null ? state.Body.bounds.min.y : entityTransform.position.y;
     }
@@ -681,16 +583,6 @@ public class TileCollapseManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// 이 칸을 한 걸음만큼 닳게 한다. 한계에 닿으면 무너뜨리고, 아니면 어둡게 칠한다.
-    ///
-    /// ★ cellKey를 인자로 받지 않는다
-    ///   예전엔 (x, z, tileKey) 셋을 받았는데 셋 중 하나면 나머지가 결정되니 하나가 남았다.
-    ///   남길 쪽을 (x, z)로 잡은 건 이 파일의 다른 창구가 전부 그렇게 말하기 때문이다 —
-    ///   tiles[,], HasTile, CollapseStepTile, DarkenStepTile, 네트워크의 BroadcastTileWear까지.
-    ///   cellKey는 Dictionary 키로 쓰려고 만든 <b>내부 인코딩</b>이라 시그니처에 나올 게 아니다.
-    ///   (바로 아래 DarkenStepTile이 이미 (x, z)를 받고 안에서 키를 만든다)
-    /// </summary>
     private void WearTile(int x, int z)
     {
         if (!HasTile(x, z))
@@ -819,47 +711,19 @@ public class TileCollapseManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// <b>지나갈</b> 칸이 위험한가. 경로 필터·목적지 후보가 쓴다.
-    /// 스치고 지나갈 뿐이라 문턱이 늦다(DataManager.StepTileDangerMargin).
-    /// </summary>
     public bool IsPositionDangerous(Vector3 worldPos)
     {
         return IsCellUnsafe(worldPos, DataManager.Instance != null
             ? DataManager.Instance.StepTileDangerMargin : 1, extraSteps: 0);
     }
 
-    /// <summary>
-    /// <b>서 있는</b> 칸이 위험한가. "여기서 도망쳐야 하나"를 묻는 쪽이 쓴다.
-    ///
-    /// ★ 지나갈 칸보다 일찍 위험으로 본다
-    ///   서 있으면 제자리 마모(StepTileIdleWearSeconds)까지 먹으므로 그 칸에서
-    ///   보내는 시간이 길다. 경보가 한 걸음만 앞서면 벗어날 시간이 안 나온다 —
-    ///   봇 속도 6m/s에 칸이 14m라 한 칸 벗어나는 데만 2.33초가 걸리는데,
-    ///   한 걸음 여유는 제자리에서 2.00초밖에 안 된다.
-    ///   자세한 계산은 DataManager의 두 margin 필드 주석에 있다.
-    /// </summary>
     public bool IsFootingUnsafe(Vector3 worldPos)
     {
         return IsCellUnsafe(worldPos, DataManager.Instance != null
             ? DataManager.Instance.StepTileFootingMargin : 1, extraSteps: 0);
     }
 
-    /// <summary>
-    /// 거기 가서 선 <b>뒤에</b> 그 칸이 몇 걸음 더 버티는가. 클수록 좋은 목적지다.
-    /// 이미 무너지는 중이거나 격자 밖이면 -1 — 그건 순위가 아니라 <b>못 쓰는</b> 칸이다.
-    ///
-    /// ★ 목적지는 거르는 게 아니라 <b>순위를 매기는</b> 것이다
-    ///   한때 WillFootingBeUnsafe라는 이진 필터를 만들어 목적지를 걸렀다. 그런데
-    ///   stepsToCollapse가 3이면 그 필터를 통과하는 건 <b>한 번도 안 밟힌 칸뿐</b>이라,
-    ///   후반에 후보가 거의 사라졌다. 쓸 만한 칸을 통째로 버린 것이다.
-    ///
-    ///   실제로 못 쓰는 칸은 '이미 붕괴중'인 것 하나뿐이다. 나머지는 좋고 나쁨의
-    ///   문제다 — 안 밟힌 칸이 제일 좋고, 한 번 밟힌 칸이 그다음이고, 도착이 곧
-    ///   붕괴를 시작시키는 칸이 제일 나쁘다. <b>그래도 제자리보다는 낫다</b>
-    ///   (붕괴가 시작돼도 collapseDelay만큼은 바닥이 남는다).
-    ///   그러니 걸러내지 말고 이 값으로 줄을 세운다.
-    /// </summary>
+    // 타일이 이미 무너지는 중이거나 맵 밖이면 -1
     public int StepsAfterArrival(Vector3 worldPos)
     {
         if (stepX == 0f || stepZ == 0f)
@@ -869,16 +733,13 @@ public class TileCollapseManager : MonoBehaviour
         int z = Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ);
 
         if (x < 0 || x >= width || z < 0 || z >= height || tiles[x, z] == null)
-            return -1;   //못 쓰는 칸
+            return -1;
 
         tileStepCounts.TryGetValue(CellKey(x, z), out int count);
 
-        //도착이 한 걸음을 더한다(WearTile). 그 뒤로 몇 걸음이 남는가
         return Mathf.Max(0, DataManager.Instance.StepTileStepsToCollapse - count - 1);
     }
 
-    //세 판정의 공통 몸통. margin은 '붕괴까지 이만큼 남으면 위험',
-    //extraSteps는 '내가 이만큼 더 밟을 예정'이다.
     private bool IsCellUnsafe(Vector3 worldPos, int margin, int extraSteps)
     {
         if (stepX == 0f || stepZ == 0f)
@@ -902,11 +763,9 @@ public class TileCollapseManager : MonoBehaviour
                     return true;
             }
 
-            //기록이 없는 칸(한 번도 안 밟힘)도 내가 밟을 몫은 세야 한다
             return extraSteps >= DataManager.Instance.StepTileStepsToCollapse - margin;
         }
 
-        //흡수 모드는 링 단위로 무너지므로 걸음 수 여유라는 개념이 없다
         int ring = GetRing(x, z);
         return ring <= lastShakenRing;
     }
@@ -918,19 +777,6 @@ public class TileCollapseManager : MonoBehaviour
         collapsedCells.Add(CellKey(x, z));
     }
 
-    /// <summary>
-    /// <paramref name="from"/>에서 <paramref name="victimPos"/>를 밀었을 때,
-    /// 밀려나는 선 위에 <b>떨어질 곳(빈 칸 또는 격자 밖)</b>이 있는가.
-    ///
-    /// ★ 밀치기 모드에서 "칠 가치가 있는가"의 실질적 기준이다
-    ///   맵 한복판에서 서로 때려봐야 옆 칸으로 밀릴 뿐 아무 일도 안 일어난다.
-    ///   봇이 "가까우면 친다"로만 움직이면 그 무의미한 교착에 갇힌다.
-    ///   밀치는 방향은 PushMode가 judgement.DirectionToTarget()으로 정하므로
-    ///   <b>때리는 사람 → 맞는 사람</b> 방향이다. 그 연장선을 훑으면 된다.
-    ///
-    ///   훑는 길이는 넉백이 실제로 보내는 거리다. Knockback은 force에서 0까지
-    ///   DURATION 동안 선형으로 줄어드니 이동거리는 force × DURATION / 2 다.
-    /// </summary>
     public bool HasPushOff(Vector3 from, Vector3 victimPos, float knockbackDistance)
     {
         if (stepX == 0f || stepZ == 0f || knockbackDistance <= 0f)
@@ -942,7 +788,6 @@ public class TileCollapseManager : MonoBehaviour
             return false;
         dir.Normalize();
 
-        //칸을 건너뛰지 않도록 칸 크기의 절반 간격으로 훑는다
         float sampleStep = Mathf.Max(1f, Mathf.Min(stepX, stepZ) * 0.5f);
         int steps = Mathf.Max(1, Mathf.CeilToInt(knockbackDistance / sampleStep));
 
@@ -969,20 +814,11 @@ public class TileCollapseManager : MonoBehaviour
         return collapsedCells.Contains(CellKey(x, z));
     }
 
-    /// <summary>격자 칸 하나의 월드 좌표. 발판 위치를 묻는 곳은 전부 여기로 온다.</summary>
     private Vector3 CellCenter(int cellX, int cellZ)
     {
         return gridOrigin + new Vector3(cellX * stepX, 0f, cellZ * stepZ);
     }
 
-    /// <summary>
-    /// 위협에게서 도망칠 발판을 고른다. 밀치기 모드에서 봇이 무너지는 칸에 섰을 때 쓴다.
-    ///
-    /// ★ '가까운 안전 칸'이 아니라 '위협에서 먼 안전 칸'이다
-    ///   가까운 곳만 찾으면 무너지는 발판은 피했는데 때리려는 사람 품으로 뛰어든다.
-    ///   그래서 FindNearestSafeTile처럼 가까운 고리부터 찾다 멈추지 않고,
-    ///   주변 (2 × 반지름 + 1)² 칸을 전수 조사해 가장 점수 높은 한 칸을 고른다.
-    /// </summary>
     public bool FindEscapeTile(Vector3 worldPos, Vector3 threatPos, out Vector3 safePos,
                                int searchRadiusCells = 6)
     {
@@ -990,7 +826,6 @@ public class TileCollapseManager : MonoBehaviour
         if (stepX == 0f || stepZ == 0f)
             return false;
 
-        // 월드 좌표 → 칸 번호. Clamp는 봇이 격자 밖으로 튕겨 나갔을 때 가장자리로 붙잡아 둔다.
         int myCellX = Mathf.Clamp(Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX), 0, width - 1);
         int myCellZ = Mathf.Clamp(Mathf.RoundToInt((worldPos.z - gridOrigin.z) / stepZ), 0, height - 1);
 
@@ -1011,7 +846,6 @@ public class TileCollapseManager : MonoBehaviour
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                //못 쓰는 칸(이미 붕괴중)만 뺀다. 나머지는 아래 점수로 줄을 세운다
                 int stepsLeft = StepsAfterArrival(tileCenter);
                 if (stepsLeft < 0)
                     continue;
@@ -1019,13 +853,6 @@ public class TileCollapseManager : MonoBehaviour
                 float distanceFromThreat = Vector3.Distance(tileCenter, threatPos);
                 float distanceFromMe = Vector3.Distance(tileCenter, worldPos);
 
-                // ★ 두 힘의 줄다리기
-                //   앞 항: 위협에서 멀수록 가점 — 멀리 도망가고 싶다
-                //   뒷 항: 나에게서 멀수록 감점 — 너무 멀면 가는 도중에 발판이 꺼진다
-                //   1.5는 "위협에서 1m 더 멀어지는 것"이 "내가 1m 더 뛰는 것"보다
-                //   1.5배 가치 있다는 뜻이다. 1보다 작으면 코앞 칸만 골라 붙잡히고,
-                //   너무 크면 맵 반대편까지 무작정 뛴다.
-                //버티는 걸음이 가장 무겁다 — 위협에서 좀 멀어져도 곧 꺼질 칸은 소용없다
                 float score = stepsLeft * SurvivalWeight
                             + distanceFromThreat * ThreatDistanceWeight
                             - distanceFromMe;
@@ -1042,16 +869,6 @@ public class TileCollapseManager : MonoBehaviour
         return found;
     }
 
-    /// <summary>
-    /// 주변 칸 중 <b>발밑이 안전하면서</b> 점수가 가장 높은 칸을 고른다.
-    /// 어디로 갈지의 기준은 부르는 쪽이 정하고, 여기는 격자만 안다.
-    ///
-    /// ★ FindEscapeTile과 나눈 이유
-    ///   그쪽은 "위협에서 멀리"라는 기준이 박혀 있다. 밀치기 모드에서 발밑이 닳아
-    ///   자리를 옮길 때는 그 기준이 틀리다 — 싸우던 상대에게서 멀어지는 게 아니라
-    ///   <b>상대는 붙잡아 두고 발판만 갈아타야</b> 하기 때문이다.
-    ///   기준이 하나 더 필요할 때마다 이 함수를 복사하는 대신 점수를 밖에서 받는다.
-    /// </summary>
     public bool FindBestFooting(Vector3 worldPos, int searchRadiusCells,
                                 System.Func<Vector3, float> score, out Vector3 best)
     {
@@ -1069,7 +886,6 @@ public class TileCollapseManager : MonoBehaviour
         {
             for (int offsetZ = -searchRadiusCells; offsetZ <= searchRadiusCells; offsetZ++)
             {
-                //지금 서 있는 칸은 후보가 아니다 — 여기서 떠나려고 부른 것이다
                 if (offsetX == 0 && offsetZ == 0)
                     continue;
 
@@ -1082,7 +898,6 @@ public class TileCollapseManager : MonoBehaviour
                     continue;
 
                 Vector3 tileCenter = CellCenter(cellX, cellZ);
-                //못 쓰는 칸만 뺀다. 좋고 나쁨은 부르는 쪽의 점수가 정한다
                 if (StepsAfterArrival(tileCenter) < 0)
                     continue;
 
@@ -1099,12 +914,6 @@ public class TileCollapseManager : MonoBehaviour
         return found;
     }
 
-    /// <summary>
-    /// 가장 가까운 발판을 고른다. "일단 설 곳"이 필요할 때의 폴백이다.
-    ///
-    /// 안쪽 고리부터 한 겹씩 넓혀 가며 찾고, 발판을 하나라도 찾은 고리에서 멈춘다.
-    /// 그 고리 안에서만 최단거리를 비교하므로 더 바깥은 볼 필요가 없다.
-    /// </summary>
     public bool FindNearestSafeTile(Vector3 worldPos, out Vector3 safePos, bool avoidDangerous = false)
     {
         safePos = Vector3.zero;
@@ -1125,8 +934,6 @@ public class TileCollapseManager : MonoBehaviour
             {
                 for (int offsetZ = -ringRadius; offsetZ <= ringRadius; offsetZ++)
                 {
-                    // 정사각형의 <b>테두리</b>만 본다. 둘 다 반지름보다 작으면 안쪽 칸이고,
-                    // 안쪽은 이미 지난 고리에서 봤다.
                     if (Mathf.Abs(offsetX) != ringRadius && Mathf.Abs(offsetZ) != ringRadius)
                         continue;
 
@@ -1140,11 +947,9 @@ public class TileCollapseManager : MonoBehaviour
 
                     Vector3 tileCenter = CellCenter(cellX, cellZ);
 
-                    //avoidDangerous는 "도착이 곧 붕괴를 시작시키는 칸은 빼자"는 뜻이다
                     if (avoidDangerous && StepsAfterArrival(tileCenter) <= 0)
                         continue;
 
-                    // 제곱거리로 비교한다. 크기 순서는 같고 제곱근을 뽑지 않아도 된다.
                     float sqrDistance = (tileCenter - worldPos).sqrMagnitude;
                     if (sqrDistance < bestSqrDistance)
                     {
@@ -1162,41 +967,6 @@ public class TileCollapseManager : MonoBehaviour
         return false;
     }
 
-    /// <summary>
-    /// 이 경로가 무너지거나 무너질 칸을 지나가는지.
-    ///
-    /// ★ 개수를 인자로 받지 않는다
-    ///   예전엔 (corners, count) 두 개를 받았고 호출부는 전부 corners.Length를 넘겼다.
-    ///   그런데 NavMeshPath.corners는 필드가 아니라 <b>접근할 때마다 배열을 새로 만드는
-    ///   프로퍼티</b>다. 그래서 호출 한 번에 배열이 두 개씩 생기고 있었다 —
-    ///   하나는 내용을 쓰려고, 하나는 Length 하나 읽자고.
-    ///
-    ///   개수를 따로 받는 게 옳은 경우는 GetCornersNonAlloc처럼 큰 버퍼의 앞부분만
-    ///   채우는 때다. 그때는 Length가 용량이지 유효 개수가 아니다. 여기는 그 경우가 아니다.
-    /// </summary>
-    /// <summary>
-    /// 경로가 위험한 칸을 지나는가 — <b>단, 출발한 칸은 못 본 척한다.</b>
-    ///
-    /// ★ 왜 이 변종이 필요한가
-    ///   이미 꺼지는 발판 위에 서 있을 때는 IsPathDangerous가 항상 참이다.
-    ///   corners[0]이 곧 내가 선 자리이기 때문이다. 그래서 도주·재배치 경로는
-    ///   아예 검사를 건너뛰고 있었는데, 그러면 <b>남의 빨간 칸까지 가로질러도</b>
-    ///   된다는 뜻이 된다. 실제로 흔들리는 타일 위를 걸어가는 봇이 나왔다.
-    ///
-    ///   막지 말아야 할 것은 '내가 선 칸에서 나가는 것' 하나뿐이다.
-    ///   그 칸만 빼고 나머지는 그대로 본다.
-    /// </summary>
-    /// <summary>
-    /// 경로가 <b>이미 무너지는 중인 칸</b>을 지나는가. 출발한 칸은 못 본 척한다.
-    ///
-    /// ★ '위험'과 '이미 꺼지는 중'은 급이 다르다
-    ///   닳은 칸(count가 찼을 뿐)은 지나가도 밟는 순간 무너지지 않는다. 그런데
-    ///   붕괴가 시작된 칸은 collapseDelay 뒤에 <b>바닥이 사라진다</b>. 지나가다
-    ///   그 순간을 만나면 떨어진다.
-    ///   그래서 도주 경로가 위험을 감수할 때도 이것만은 피해야 한다.
-    ///   (예전엔 감수 모드가 검사를 통째로 껐고, 그래서 흔들리는 빨간 타일을
-    ///    태연히 밟는 봇이 나왔다)
-    /// </summary>
     public bool IsPathOverCollapsing(Vector3[] corners, Vector3 startPos)
     {
         if (stepX == 0f || stepZ == 0f || corners == null || corners.Length == 0)
@@ -1221,7 +991,6 @@ public class TileCollapseManager : MonoBehaviour
                 if (CellKeyOf(p) == startKey)
                     continue;
 
-                //StepsAfterArrival이 음수인 칸 = 이미 붕괴중이거나 격자 밖
                 if (StepsAfterArrival(p) < 0)
                     return true;
             }
@@ -1251,7 +1020,6 @@ public class TileCollapseManager : MonoBehaviour
             {
                 Vector3 p = Vector3.Lerp(from, to, (float)j / steps);
 
-                //출발한 칸 안이면 넘어간다 — 거기서 나가는 길을 막지 않는다
                 if (CellKeyOf(p) == startKey)
                     continue;
 
@@ -1263,7 +1031,6 @@ public class TileCollapseManager : MonoBehaviour
         return false;
     }
 
-    //월드 좌표가 속한 칸의 키. 격자 밖이면 어떤 칸과도 같지 않은 값을 준다
     private int CellKeyOf(Vector3 worldPos)
     {
         int x = Mathf.RoundToInt((worldPos.x - gridOrigin.x) / stepX);
@@ -1282,8 +1049,6 @@ public class TileCollapseManager : MonoBehaviour
 
         float sampleStep = PathSampleStep;
 
-        // 첫 코너는 어느 구간의 끝점도 아니라서 여기서 따로 본다.
-        // 나머지 코너는 전부 어떤 구간의 to로 아래에서 검사된다.
         if (IsPositionDangerous(corners[0]))
             return true;
 
@@ -1292,17 +1057,10 @@ public class TileCollapseManager : MonoBehaviour
             Vector3 from = corners[i - 1];
             Vector3 to = corners[i];
 
-            // sampleStep은 '간격'(미터), steps는 '등분 수'(개). 간격을 목표 이하로
-            // 만들려면 몇 등분해야 하는지를 올림으로 구한다.
-            // 하한 1은 길이 0인 구간(코너가 겹쳐 나오는 경우)에서도 to를 한 번은
-            // 보게 한다 — 0등분이면 아래 루프가 안 돌아 그 코너가 검사에서 빠진다.
             int steps = Mathf.Clamp(
                 Mathf.CeilToInt(Vector3.Distance(from, to) / sampleStep),
                 1, maxSamplesPerSegment);
 
-            // j가 0이 아니라 1부터인 이유: t=0은 from인데, 그건 직전 구간의 to로
-            // 이미 봤다. t는 1/steps에서 시작해 정확히 1(=to)로 끝난다.
-            // (float) 캐스팅이 없으면 정수 나눗셈이라 t가 마지막만 1이고 전부 0이 된다.
             for (int j = 1; j <= steps; j++)
             {
                 if (IsPositionDangerous(Vector3.Lerp(from, to, (float)j / steps)))

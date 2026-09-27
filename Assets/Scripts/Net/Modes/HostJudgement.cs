@@ -2,8 +2,6 @@ using UnityEngine;
 
 namespace JellyNet
 {
-    //호스트가 클라의 주장을 검증할 때 매번 통과해야 하는 전제
-    //흡수·밀치기가 같은 순서를 각자 적어두고 있어 한쪽만 고쳐지는 일이 있었다
     public readonly struct HostJudgement
     {
         public readonly NetIdentity Actor;
@@ -17,7 +15,6 @@ namespace JellyNet
             Valid = valid;
         }
 
-        //actorNetId를 주장한 사람이 requesterId다. 소유권까지 여기서 확인한다
         public static HostJudgement Judge(GameModeType mode, int requesterId, int actorNetId, int targetNetId)
         {
             NetManager net = NetManager.Instance;
@@ -34,7 +31,6 @@ namespace JellyNet
             if (actor == null || target == null)
                 return Reject();
 
-            //남의 캐릭터를 내세운 요청 차단
             if (actor.OwnerId != requesterId)
                 return Reject();
 
@@ -47,7 +43,6 @@ namespace JellyNet
             return new HostJudgement(actor, target, true);
         }
 
-        //지연을 감안해 넉넉히 잡는다. 클라의 거리 판정을 그대로 믿지 않되 정상 플레이는 막지 않는다
         public bool WithinReach(float reach)
         {
             if (!Valid)

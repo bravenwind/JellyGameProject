@@ -7,8 +7,6 @@ namespace JellyNet
 {
     public class NetWorld : MonoBehaviour
     {
-        #region 상태
-
         public static NetWorld Instance { get; private set; }
 
         private readonly Dictionary<int, NetIdentity> objects = new Dictionary<int, NetIdentity>();
@@ -20,48 +18,19 @@ namespace JellyNet
 
         private NetSpawnPool pool;
 
-        #endregion
-
-        #region 프리팹 등록표 (배열 인덱스 = prefabId)
-
-        [Header("프리팹 등록표 (배열 인덱스 = prefabId)")]
-        [Tooltip("0번은 플레이어 캡슐. 순서가 곧 ID이므로 중간에 끼워넣지 말 것.")]
         public GameObject[] prefabs;
 
-        #endregion
-
-        #region 스폰 위치
-
-        [Header("스폰 위치")]
         public float spawnRadius = 4f;
 
-        #endregion
-
-        #region 상수
-
         private const int MAX_NAME_LENGTH = 16;
-
-        #endregion
-
-        #region 이벤트·콜백
 
         public event Action<NetIdentity> OnSpawned;
         public event Action<int> OnDespawned;
 
-        #endregion
-
-        #region 위치 동기화 — [count][entry]*
-
-        //한 메시지에 담는 최대 개수. count가 1바이트라 255가 상한이고,
-        //그 전에 한 프레임에 이만큼 쌓일 일이 없어 넉넉히 32로 둔다
         private const int MAX_TRANSFORM_BATCH = 32;
 
-        //내보낼 것을 모아두는 곳과, 호스트가 중계할 것을 모아두는 곳.
-        //매번 새로 만들면 초당 수백 개의 쓰레기가 된다
         private readonly List<TransformEntry> pending = new List<TransformEntry>();
         private readonly List<TransformEntry> relay = new List<TransformEntry>();
-
-        #endregion
 
         public IReadOnlyDictionary<int, NetIdentity> Objects { get { return objects; } }
 
@@ -94,16 +63,12 @@ private void Start()
         {
             NetManager net = NetManager.Instance;
             if (net == null)
-            {
-                Debug.LogError("[NetWorld] NetManager가 없습니다.");
                 return;
-            }
             net.Events.OnPeerLeft += HandlePeerLeft;
             net.Events.OnDisconnected += ClearAll;
 
             RegisterRoutes(net);
 
-            ValidatePrefabs();
             RegisterSceneObjects();
 
             Start_CatchUpNetwork();
@@ -111,47 +76,16 @@ private void Start()
 
         private void RegisterSceneObjects()
         {
-            int n = 0;
             foreach (NetIdentity id in FindObjectsByType<NetIdentity>(
                          FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
                 if (id == null || id.SceneNetId == 0)
                     continue;
 
-                //씬 배치물: netId는 고정 씬 ID, 주인은 없음(0), 프리팹 번호가 비었으면 젤리로 본다
                 id.Assign(id.SceneNetId, 0, id.PrefabId == 0 ? NetConfig.JELLY_PREFAB_START : id.PrefabId);
 
                 objects[id.NetId] = id;
                 OnSpawned?.Invoke(id);
-                n++;
-            }
-
-            if (n > 0)
-                Debug.Log("[NetWorld] 씬 배치 오브젝트 " + n + "개 등록");
-            else
-                Debug.LogWarning("[NetWorld] 씬 배치 오브젝트가 하나도 등록되지 않았습니다. ");
-        }
-
-        private void ValidatePrefabs()
-        {
-            if (prefabs == null || prefabs.Length == 0)
-            {
-                Debug.LogError("[NetWorld] Prefabs 배열이 비어 있습니다. 플레이어 프리팹을 등록하세요.");
-                return;
-            }
-
-            for (int i = 0; i < prefabs.Length; i++)
-            {
-                if (prefabs[i] == null)
-                {
-                    Debug.LogError("[NetWorld] Prefabs[" + i + "] 가 비어 있습니다.");
-                    continue;
-                }
-                if (prefabs[i].GetComponent<NetIdentity>() == null)
-                    Debug.LogError("[NetWorld] '" + prefabs[i].name + "' 에 NetIdentity가 없습니다.");
-
-                if (prefabs[i].GetComponent<NetTransform>() == null)
-                    Debug.LogError("[NetWorld] '" + prefabs[i].name + "' 에 NetTransform이 없습니다 — 위치 동기화가 전혀 안 됩니다!");
             }
         }
 
@@ -208,9 +142,6 @@ private void Start()
                 yield return new WaitForSeconds(INTERVAL);
                 waited += INTERVAL;
             }
-
-            Debug.LogWarning("[NetWorld] 호스트가 내 캐릭터를 만들어주지 않습니다. "
-                             + "호스트가 게임 씬에 정상적으로 들어왔는지 확인해주세요.");
         }
 
         private bool HasMyObject()
@@ -221,10 +152,6 @@ private void Start()
             return false;
         }
 
-        //스폰 시점은 소켓 연결이 아니라 클라의 SceneReady 하나뿐이다.
-        //연결되자마자 스냅샷을 쏘면 클라는 아직 로비라 NetWorld가 없어 그대로 버려지고,
-        //나중에 SceneReady로 한 번 더 스폰돼 캐릭터가 둘 생긴다.
-        //LAN은 한 판의 인원이 로비에서 확정되므로 도중 난입 경로는 아예 두지 않는다.
         private void HandleSceneReady(int peerId)
         {
             SendWorldSnapshot(peerId);
@@ -436,11 +363,8 @@ private void Start()
             NetManager.Instance.Broadcast(w);
         }
 
-        //클라가 보낸 메시지는 전부 "주장"이다. 어느 경로든 소유권 확인을 통과해야 반영된다.
-        //from(보낸 사람 번호)은 전송 계층이 붙이는 값이라 위조할 수 없고, 메시지 본문의 netId는 위조할 수 있다
         private void RegisterRoutes(NetManager net)
         {
-            // ── 호스트가 받는 것 (클라의 '주장') ──
             net.RouteHost(MsgType.SceneReady, (from, r) => HandleSceneReady(from));
 
             net.RouteHost(MsgType.SetMyName, (from, r) => HostApplyName(from, r.ReadString()));
@@ -463,8 +387,6 @@ private void Start()
 
                 for (int i = 0; i < count; i++)
                 {
-                    //거를 것이 있어도 항목의 바이트는 먼저 전부 읽는다.
-                    //중간에서 빠져나가면 뒤 항목이 한 칸씩 밀려 쓰레기를 읽는다
                     int netId = r.ReadInt();
                     float x = r.ReadFloat(), y = r.ReadFloat(), z = r.ReadFloat(), yaw = r.ReadFloat();
                     float sendTime = r.ReadFloat();
@@ -473,7 +395,6 @@ private void Start()
                     if (!objects.TryGetValue(netId, out id))
                         continue;
 
-                    //이게 없으면 남의 netId로 위치를 보내 순간이동시킬 수 있다
                     if (id.OwnerId != from)
                         continue;
 
@@ -492,14 +413,10 @@ private void Start()
                 if (relay.Count == 0)
                     return;
 
-                //보낸 사람은 이미 자기 화면에서 움직였다. 되돌려주면 과거 좌표로 끌려간다
-                //sendTime은 원본 그대로 넘긴다. 여기서 다시 찍으면 호스트 처리 지연이
-                //그대로 타임라인에 섞여 버벅임이 남는다
                 WriteTransforms(relay);
                 NetManager.Instance.BroadcastExcept(from, w);
             });
 
-            // ── 클라가 받는 것 (호스트의 '확정') ──
             net.RouteClient(MsgType.SpawnEntity, r =>
             {
                 int netId = r.ReadInt();
@@ -644,17 +561,14 @@ private void Start()
             net.UnrouteClient(MsgType.TransformUpdate);
         }
 
-        //이름은 사람 캐릭터 하나에만 붙인다. break가 없으면 그 사람 소유의 봇까지 같은 이름이 된다
         private void HostApplyName(int from, string name)
         {
             if (string.IsNullOrEmpty(name))
                 return;
 
-            //클라가 보낸 문자열은 길이를 믿을 수 없다. UI가 무너지고 스냅샷마다 실려 나간다
             if (name.Length > MAX_NAME_LENGTH)
                 name = name.Substring(0, MAX_NAME_LENGTH);
 
-            //objects는 씬 사탕까지 포함해 300개가 넘는다. 사람 캐릭터를 찾자고 전부 돌 이유가 없다
             IReadOnlyList<LanPlayerState> players = EntityRegistry.Players;
             for (int i = 0; i < players.Count; i++)
             {
@@ -673,10 +587,7 @@ private void Start()
                 return objects[netId];
 
             if (prefabs == null || prefabId < 0 || prefabId >= prefabs.Length || prefabs[prefabId] == null)
-            {
-                Debug.LogError("[NetWorld] prefabId " + prefabId + " 에 해당하는 프리팹이 없습니다.");
                 return null;
-            }
 
             GameObject go = Pool.Get(prefabId, pos);
             go.name = prefabs[prefabId].name + "_net" + netId + "_own" + ownerId;
@@ -689,7 +600,6 @@ private void Start()
 
             id.Assign(netId, ownerId, prefabId);
 
-            //EnsurePlayerComponents가 방금 붙였을 수 있다. Awake는 그 전에 돌았다
             id.RefreshComponentCache();
 
             LanPlayerSetup setup = id.GetComponent<LanPlayerSetup>();
@@ -697,7 +607,6 @@ private void Start()
                 setup.Apply();
 
             objects[netId] = id;
-            NetManager.Instance.AddLog("스폰: net" + netId + " (프리팹 " + prefabId + ", 소유 P" + ownerId + ")");
 
             OnSpawned?.Invoke(id);
             return id;
@@ -709,15 +618,9 @@ private void Start()
                 return;
 
             if (go.GetComponent<LanPlayerSetup>() == null)
-            {
                 go.AddComponent<LanPlayerSetup>();
-                Debug.LogWarning("[NetWorld] " + go.name + " 에 LanPlayerSetup이 없어 런타임에 추가했습니다.");
-            }
             if (go.GetComponent<LanPlayerVisual>() == null)
-            {
                 go.AddComponent<LanPlayerVisual>();
-                Debug.LogWarning("[NetWorld] " + go.name + " 에 LanPlayerVisual이 없어 런타임에 추가했습니다.");
-            }
             if (go.GetComponent<LanPlayerState>() == null)
                 go.AddComponent<LanPlayerState>();
         }
@@ -732,7 +635,6 @@ private void Start()
 
             if (id != null)
             {
-                //씬에 미리 배치된 오브젝트는 우리가 만든 게 아니라 풀에 넣을 수 없다
                 if (netId >= NetConfig.SCENE_ID_BASE)
                     Destroy(id.gameObject);
                 else
@@ -779,27 +681,6 @@ private void Start()
             w.End();
         }
 
-        //sendTime은 '보낸 사람의 시계'다. 중계할 때 호스트가 다시 찍으면 안 된다.
-        //받는 쪽은 이 값으로 보간 타임라인을 세운다 — 도착 시각을 쓰면 네트워크 지터가
-        //그대로 속도 변화로 보인다 (원격 캐릭터가 순간적으로 빨라졌다 느려짐)
-        // ═══════════════════════════════════════════════════════
-        //  위치 동기화 — [count][entry]*
-        // ═══════════════════════════════════════════════════════
-        //
-        // ★ 묶을지 말지는 <b>전송이</b> 정한다 — 씬의 체크박스가 아니다
-        //   Photon 은 방 하나에 초당 500 메시지가 한도다. 봇 9 + 클라 3 기준으로
-        //   호스트가 내보내는 양이 초당 약 305개라 여유가 거의 없다. 위치 갱신을 묶으면
-        //   엔티티가 몇이든 호스트 송신이 TRANSFORM_SEND_RATE(20) 로 떨어진다.
-        //   반면 LAN 은 메시지 수가 문제가 아니라, 묶느라 생기는 한 프레임 지연만 손해다.
-        //
-        //   즉 "묶어야 하는가"는 <b>어느 전송을 골랐는가</b>로 정해지고, 그건 방을 만들거나
-        //   참가하는 순간에야 정해지는 런타임 사실이다. 처음엔 인스펙터 체크박스로 뒀다가
-        //   걷어냈다 — 씬마다 따로 켜야 하고, 게임 씬 하나만 빠뜨리면 그 판만 조용히
-        //   한도를 넘는다. 출처가 둘이 되면 안 되는 전형적인 경우다.
-        //
-        //   끈 상태의 동작은 예전과 같다 — 한 번에 하나씩, 부르는 즉시 나간다.
-        //   (형식에 [count] 한 바이트가 붙은 것만 다르다. 호스트와 클라는 언제나
-        //    같은 빌드라 형식이 어긋날 일은 없다)
         private bool BatchTransforms
         {
             get
@@ -839,10 +720,6 @@ private void Start()
             if (NetManager.Instance == null)
                 return;
 
-            //sendTime은 '보낸 순간'이 아니라 '이 좌표를 잰 순간'이다. 묶어서 나중에 내보내도
-            //여기서 찍은 값을 그대로 들고 간다 — 나갈 때 다시 찍으면 묶느라 생긴 지연이
-            //그대로 타임라인에 섞여 받는 쪽이 버벅인다.
-            //timeScale에 흔들리지 않도록 unscaled를 쓴다. 받는 쪽도 unscaled로 읽는다
             pending.Add(new TransformEntry
             {
                 NetId = netId,
@@ -855,8 +732,6 @@ private void Start()
                 FlushTransforms();
         }
 
-        //묶기를 켰을 때 프레임에 남은 것을 내보낸다. 꺼져 있으면 pending이 늘 비어 있어
-        //아무 일도 하지 않는다
         private void LateUpdate()
         {
             if (BatchTransforms)

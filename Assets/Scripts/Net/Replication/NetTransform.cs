@@ -12,30 +12,10 @@ namespace JellyNet
             public float Yaw;
         }
 
-        #region 정적 필드
-
-        // ★ 보간 방식을 고르는 Mode 를 지웠다
-        //   None(즉시) · Lerp(지수 감쇠) · Snapshot 세 가지를 두고 CurrentMode 로
-        //   갈아끼울 수 있게 해뒀지만, 초기값 Snapshot 을 바꾸는 코드가 한 곳도 없었다.
-        //   나머지 둘은 한 번도 돌지 않는 분기였고, 셋 중 무엇이 진짜인지 읽는 사람이
-        //   알 수 없게 만들 뿐이었다. 원격 캐릭터의 위치는 언제나 스냅샷 보간으로 정한다.
-        //
-        //   지수 감쇠(1 - e^(-k·dt))가 필요 없어진 것은 아니다. 목표값 하나를 향해
-        //   따라가는 자리 — 색(LanPlayerState), 넉백 감쇠(NetKnockback), 봇 크기
-        //   따라가기(LanBotState), 회전(SmoothDamping) — 에서는 그대로 쓴다.
-        //   위치만 다른 이유는 목표가 '하나'가 아니라 '시간이 찍힌 여러 개'이기 때문이다.
-
-        //송신 주기(20Hz = 50ms)의 3배. 2배(0.1s)로는 프레임이 한 번만 밀려도
-        //보간할 다음 스냅샷이 없어 화면이 멈춘다. 지연이 조금 늘어도 끊기지 않는 쪽이 낫다
         public static float InterpDelay = 0.15f;
 
-        #endregion
+        private const double RESYNC_THRESHOLD = 0.5;
 
-        #region 상태
-
-        //보낸 사람의 시계를 내 시계로 옮기는 기준점.
-        //  내 시각 = timeBase + (보낸 시각 - senderBase)
-        //두 기기의 절대 시각은 다르지만 '흐르는 속도'는 같으므로 차이만 쓰면 된다
         private double timeBase;
         private float senderBase;
         private bool hasBase;
@@ -44,25 +24,12 @@ namespace JellyNet
         private readonly List<Snap> snaps = new List<Snap>();
         private float sendTimer;
 
-        #endregion
-
-        #region 상수
-
-        //기준점이 이만큼 어긋나면 다시 잡는다. 프레임 급락·긴 끊김·클럭 드리프트 대응
-        private const double RESYNC_THRESHOLD = 0.5;
-
-        #endregion
-
         private void Awake()
         {
             id = GetComponent<NetIdentity>();
             ResetSync();
         }
 
-        // ★ 젤리는 풀에서 재사용된다 — Awake가 다시 돌지 않는다
-        //   지난 삶의 스냅샷과 시계 기준점이 그대로 남아 있으면, 새 자리에 놓인 젤리가
-        //   옛 좌표 사이를 보간하며 이상한 속도로 미끄러지거나 순간이동한다.
-        //   보간 시각을 송신 시각 기준으로 바꾸면서 이 잔재가 더 크게 드러났다.
         public void OnTakenFromPool()
         {
             ResetSync();
@@ -117,7 +84,6 @@ namespace JellyNet
 
             double t = timeBase + (sendTime - senderBase);
 
-            //보낸 사람 쪽이 오래 멈췄거나 시계가 밀리면 기준을 다시 잡는다
             if (t < now - RESYNC_THRESHOLD || t > now + RESYNC_THRESHOLD)
             {
                 timeBase = now;
@@ -125,19 +91,12 @@ namespace JellyNet
                 t = now;
             }
 
-            //재구성한 시각이 '도착 시각보다 미래'면 기준점이 너무 이른 것이다.
-            //  기준점은 첫 패킷 하나로 정해지는데, 하필 그게 유난히 빨리 온 패킷이면
-            //  이후 모든 스냅샷이 실제보다 이르게 찍혀 버퍼가 계속 말라 있게 된다.
-            //  그러면 renderTime이 최신 스냅샷을 앞질러 마지막 위치에 붙어 멈췄다가,
-            //  다음 패킷이 오면 확 튄다 — 느렸다 빨라졌다 하는 정체가 이것이다.
             if (t > now)
             {
                 timeBase -= (t - now);
                 t = now;
             }
 
-            //ApplySnapshot의 구간 탐색은 시간이 오름차순이라고 가정한다.
-            //기준을 다시 잡은 직후 과거로 되돌아가면 그 가정이 깨진다
             if (snaps.Count > 0 && t <= snaps[snaps.Count - 1].Time)
                 t = snaps[snaps.Count - 1].Time + 0.0001;
 
@@ -157,7 +116,6 @@ namespace JellyNet
             if (snaps.Count == 0)
                 return;
 
-            //스냅샷 시각이 unscaled 기준으로 찍히므로 여기도 unscaled여야 한다
             double renderTime = Time.unscaledTimeAsDouble - InterpDelay;
 
             for (int i = 0; i < snaps.Count - 1; i++)
@@ -174,7 +132,7 @@ namespace JellyNet
                     transform.rotation = Quaternion.Euler(0f, Mathf.LerpAngle(a.Yaw, b.Yaw, f), 0f);
                     return;
                 }
-            }   
+            }
 
             Snap last = snaps[snaps.Count - 1];
             if (renderTime > last.Time)
