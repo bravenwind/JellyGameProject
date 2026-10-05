@@ -21,10 +21,8 @@ namespace JellyNet
         private SocketTransport localTransport;
         private LocalSession localSession;
 
-#if PHOTON_REALTIME_5_OR_NEWER
         private PhotonTransport photonTransport;
         private PhotonSession photonSession;
-#endif
 
         private INetTransport transport;
         public INetSession Session { get; private set; }
@@ -41,14 +39,9 @@ namespace JellyNet
             if (transport != null && transport.IsConnected)
                 return;
 
-#if PHOTON_REALTIME_5_OR_NEWER
             IsOnline = online;
             transport = online ? photonTransport : localTransport;
             Session = online ? photonSession : localSession;
-#else
-            if (online)
-                return;
-#endif
         }
 
         public Mode CurrentMode
@@ -112,19 +105,15 @@ namespace JellyNet
             transport = localTransport;
             Session = localSession;
 
-#if PHOTON_REALTIME_5_OR_NEWER
             photonTransport = new PhotonTransport(routes, Events);
 
             photonSession = new PhotonSession(photonTransport, Events);
-#endif
         }
 
         private void Update()
         {
             localTransport?.Poll();
-#if PHOTON_REALTIME_5_OR_NEWER
             photonTransport?.Poll();
-#endif
 
             localSession?.Poll();
         }
@@ -135,9 +124,7 @@ namespace JellyNet
         {
             Shutdown();
 
-#if PHOTON_REALTIME_5_OR_NEWER
             photonTransport?.DisconnectFully();
-#endif
         }
 
         private void OnDestroy()
@@ -145,9 +132,7 @@ namespace JellyNet
             CloseEverything();
 
             localSession?.UnsubscribeFromEvents();
-#if PHOTON_REALTIME_5_OR_NEWER
             photonSession?.UnsubscribeFromEvents();
-#endif
 
             if (Instance == this)
                 Instance = null;

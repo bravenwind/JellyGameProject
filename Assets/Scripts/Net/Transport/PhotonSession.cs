@@ -1,6 +1,4 @@
-﻿#if PHOTON_REALTIME_5_OR_NEWER
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Photon.Client;
 using Photon.Realtime;
@@ -301,4 +299,3 @@ namespace JellyNet
     }
 }
 
-#endif
